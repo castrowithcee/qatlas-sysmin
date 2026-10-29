@@ -8,6 +8,7 @@
 #   e2e/run.sh exec [-u user] <command...>   run a command on the simulated host (default user e2e-admin)
 #   e2e/run.sh env                print the path of the file with the generated test values (source it)
 #   e2e/run.sh requests           print the requests the webhook receiver recorded (JSON lines)
+#   e2e/run.sh scenario           run the acceptance scenario once after up (see e2e/scenario.sh)
 #
 # Everything is named sysmine2e-* and labelled sysmin.e2e=1; down touches only what carries both. Nothing is
 # published on the machine's ports. Set E2E_KEEP_ON_FAIL=1 to keep a failed environment for inspection.
@@ -347,6 +348,11 @@ main() {
 		require_up
 		docker exec "$prefix-hooks" cat /data/requests.jsonl 2>/dev/null || true
 		;;
+	scenario)
+		require_up
+		. "$here/scenario.sh"
+		run_scenario
+		;;
 	exec)
 		require_up
 		user=$admin
@@ -362,7 +368,7 @@ main() {
 		exec docker exec -i -u "$user" "$host" "$@"
 		;;
 	*)
-		sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+		sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
 		[ -z "$cmd" ] || exit 2
 		;;
 	esac

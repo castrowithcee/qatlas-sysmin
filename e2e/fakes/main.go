@@ -1,8 +1,8 @@
 //go:build e2efakes
 
 // Command fakes provides the helper services of the end-to-end environment: a GitHub releases fake with
-// release downloads, a git smart-HTTP server and a webhook receiver. It is built only with -tags e2efakes,
-// so the normal build, vet and test runs never see it.
+// release downloads, a git smart-HTTP server, a webhook receiver and the application of the demo images. It
+// is built only with -tags e2efakes, so the normal build, vet and test runs never see it.
 package main
 
 import (
@@ -12,7 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const usage = "usage: fakes releases|git|webhook|htpasswd <user> <password-from-stdin>"
+const usage = "usage: fakes releases|git|webhook|demoapp|htpasswd <user> <password-from-stdin>"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -27,6 +27,8 @@ func main() {
 		err = runGit()
 	case "webhook":
 		err = runWebhook()
+	case "demoapp":
+		err = runDemoApp()
 	case "htpasswd":
 		err = runHtpasswd(os.Args[2:])
 	default:
