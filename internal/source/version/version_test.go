@@ -148,3 +148,22 @@ func TestListWithoutCurrentVersion(t *testing.T) {
 		t.Errorf("invalid filter List = %+v", got)
 	}
 }
+
+func TestParseCore(t *testing.T) {
+	for tag, want := range map[string]string{"v29.0.2": "29.0.2", "29.0.2-apache": "29.0.2", "1.2.3": "1.2.3"} {
+		c, ok := ParseCore(tag)
+		if !ok || c.String() != want {
+			t.Errorf("ParseCore(%q) = %v, %v", tag, c, ok)
+		}
+	}
+	for _, tag := range []string{"", "latest", "1.2", "1.2.3-rc1", "v1.2.3-beta.2"} {
+		if _, ok := ParseCore(tag); ok {
+			t.Errorf("ParseCore(%q) accepted", tag)
+		}
+	}
+	a, _ := ParseCore("1.2.3")
+	b, _ := ParseCore("v1.10.0")
+	if a.Compare(b) != -1 || b.Compare(a) != 1 || a.Compare(a) != 0 {
+		t.Error("Compare is wrong")
+	}
+}

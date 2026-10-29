@@ -91,6 +91,15 @@ func (a *approvedCredentials) Git(name string) (gitrepo.Credential, error) {
 	return gitrepo.Credential{Kind: gitrepo.KindHTTPS, User: a.value(e, vault.FieldUser), Token: a.value(e, vault.FieldToken)}, nil
 }
 
+// Secret hands out the value of a credential of kind secret.
+func (a *approvedCredentials) Secret(name string) (string, error) {
+	e, err := a.entry(name, vault.KindSecret)
+	if err != nil {
+		return "", err
+	}
+	return a.value(e, vault.FieldValue), nil
+}
+
 func (s *Service) handleSourceTest(ctx context.Context, c *daemon.Conn, params json.RawMessage) (any, error) {
 	p, err := decodeParams(params, func(p control.SourceTestParams) string { return p.Project })
 	if err != nil {

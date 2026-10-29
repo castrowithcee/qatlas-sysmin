@@ -30,7 +30,8 @@ func newProjectCommand(opts *Options) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
 	cmd.AddCommand(newProjectAddCommand(opts), newProjectEditCommand(opts), newProjectListCommand(opts),
-		newProjectShowCommand(opts), newProjectRemoveCommand(opts), newProjectCheckCommand(opts), newProjectAdoptCommand(opts))
+		newProjectShowCommand(opts), newProjectRemoveCommand(opts), newProjectCheckCommand(opts), newProjectChangelogCommand(opts),
+		newProjectAdoptCommand(opts))
 	return cmd
 }
 

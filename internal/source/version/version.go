@@ -256,3 +256,33 @@ func target(cur parsedTag, higher []parsedTag, maxUpdate, steps string) string {
 	}
 	return capped[len(capped)-1].tag
 }
+
+// Core is the MAJOR.MINOR.PATCH part of a version tag.
+type Core struct {
+	Major, Minor, Patch uint64
+}
+
+// ParseCore returns the core version of a tag, ignoring a leading "v" and a variant suffix. It reports false
+// for tags that are not complete SemVer or that carry a pre-release suffix.
+func ParseCore(tag string) (Core, bool) {
+	p, kind := parseTag(tag)
+	if kind != kindOK {
+		return Core{}, false
+	}
+	return Core{p.major, p.minor, p.patch}, true
+}
+
+// Compare returns -1, 0 or 1 as c is lower than, equal to or higher than o.
+func (c Core) Compare(o Core) int {
+	a, b := parsedTag{major: c.Major, minor: c.Minor, patch: c.Patch}, parsedTag{major: o.Major, minor: o.Minor, patch: o.Patch}
+	switch {
+	case a.less(b):
+		return -1
+	case b.less(a):
+		return 1
+	}
+	return 0
+}
+
+// String formats the core as MAJOR.MINOR.PATCH.
+func (c Core) String() string { return fmt.Sprintf("%d.%d.%d", c.Major, c.Minor, c.Patch) }

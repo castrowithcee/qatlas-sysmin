@@ -176,6 +176,8 @@ type VersionRule struct {
 	TagFilter string `yaml:"tag_filter,omitempty"`
 	// ChangelogRepo is a GitHub repository, owner/repo.
 	ChangelogRepo string `yaml:"changelog_repo,omitempty"`
+	// ChangelogCredential names a credential of kind secret that holds a GitHub token for reading releases.
+	ChangelogCredential string `yaml:"changelog_credential,omitempty"`
 }
 
 // Image is one container image of a project.

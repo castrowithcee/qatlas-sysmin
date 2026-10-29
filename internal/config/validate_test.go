@@ -71,6 +71,8 @@ func TestValidateProblems(t *testing.T) {
 		{"bad max update", func(m *Model) { m.Projects[0].Images[0].VersionRule.MaxUpdate = "huge" }, CodeInvalidVersionRule, "images[0].version_rule.max_update"},
 		{"bad major steps", func(m *Model) { m.Projects[0].Images[0].VersionRule.MajorSteps = "jump" }, CodeInvalidVersionRule, "images[0].version_rule.major_steps"},
 		{"bad changelog repo", func(m *Model) { m.Projects[0].Images[0].VersionRule.ChangelogRepo = "just-a-name" }, CodeInvalidVersionRule, "images[0].version_rule.changelog_repo"},
+		{"unknown changelog credential", func(m *Model) { m.Projects[0].Images[0].VersionRule.ChangelogCredential = "missing" }, CodeUnknownCredential, "images[0].version_rule.changelog_credential"},
+		{"invalid git changelog credential", func(m *Model) { m.Projects[1].Git.VersionRule.ChangelogCredential = "bad name!" }, CodeInvalidName, "git.version_rule.changelog_credential"},
 		{"bad tag filter", func(m *Model) { m.Projects[1].Git.VersionRule.TagFilter = "([" }, CodeInvalidTagFilter, "git.version_rule.tag_filter"},
 		{"no source", func(m *Model) { m.Projects[0].Images = nil }, CodeSourceMissing, "images"},
 		{"two sources", func(m *Model) { m.Projects[0].Git = &GitSource{URL: "https://git.example.com/a.git"} }, CodeSourceConflict, "git"},

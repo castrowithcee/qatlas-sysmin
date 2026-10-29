@@ -19,6 +19,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/approval"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/autounlock"
+	"github.com/castrowithcee/qatlas-sysmin/internal/changelog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
@@ -61,6 +62,9 @@ type Config struct {
 	// local servers and repositories.
 	SourceRegistry registry.Options
 	SourceGit      gitrepo.Options
+	// Changelog configures how projects.changelog reaches GitHub; tests point BaseURL and HTTPClient at a
+	// local server. The service sets Token and CacheDir for each request.
+	Changelog changelog.Options
 	// Runner runs the read-only docker commands of project adoption; nil runs the real programs.
 	Runner execute.Runner
 	// OnLogError is told about audit log writes that failed; nil logs them with slog.
@@ -327,6 +331,9 @@ func (s *Service) register() error {
 		return err
 	}
 	if err := s.registerSources(); err != nil {
+		return err
+	}
+	if err := s.registerChangelog(); err != nil {
 		return err
 	}
 	return s.registerNotify()
