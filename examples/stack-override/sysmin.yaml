@@ -1,0 +1,19 @@
+schema: 1
+poll_interval: 30m
+vault:
+  admin_timeout: 10m
+webhook:
+  listen: 127.0.0.1:8787
+channels:
+  - name: ops-mail
+    type: smtp
+    host: smtp.example.com
+    port: 587
+    from: sysmin@example.com
+    to:
+      - ops@example.com
+    security: starttls
+    credential: smtp-example
+  - name: ops-chat
+    type: slack
+    credential: slack-example

@@ -1,0 +1,24 @@
+schema: 1
+name: notes-app
+dir: /srv/example/notes-app
+template: image-tag
+env_file: /srv/example/notes-app/.env
+compose_project: notes-app
+backup:
+  volume: notes-app-data
+  keep: 7
+checks:
+  - type: check-http
+    url: https://notes.example.com/health
+    contains: ok
+images:
+  - name: app
+    ref: registry.example.com/example/notes-app
+    env_var: NOTES_APP_TAG
+    services:
+      - app
+    credential: registry-example
+    version_rule:
+      mode: manual
+      tag_filter: ^\d+\.\d+\.\d+$
+      changelog_repo: example/notes-app

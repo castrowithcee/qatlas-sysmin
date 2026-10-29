@@ -1,0 +1,10 @@
+schema: 1
+name: git-tag
+description: Check out a new tag of the project repository and recreate its services.
+steps:
+  - type: backup
+  - type: git-checkout
+    tag: "{version}"
+  - type: compose-up
+  - type: check-container
+  - type: check-http

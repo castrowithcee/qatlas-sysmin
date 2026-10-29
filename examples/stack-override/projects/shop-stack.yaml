@@ -1,0 +1,57 @@
+schema: 1
+name: shop-stack
+dir: /srv/example/shop-stack
+template: image-tag
+values:
+  health_host: shop.example.com
+env_file: /srv/example/shop-stack/.env
+compose_files:
+  - /srv/example/shop-stack/compose.yaml
+  - /srv/example/shop-stack/compose.override.yaml
+compose_project: shop-stack
+poll_interval: 15m
+backup:
+  command: mkdir -p /srv/example/backups && docker compose -f /srv/example/shop-stack/compose.yaml exec -T db pg_dump -U example shop > /srv/example/backups/shop.sql
+  keep: 3
+  restore_command: docker compose -f /srv/example/shop-stack/compose.yaml exec -T db psql -U example shop < /srv/example/backups/shop.sql
+  timeout: 20m
+checks:
+  - type: check-container
+    services:
+      - app
+      - db
+  - type: check-http
+    url: https://{health_host}/health
+    status: 200
+notify:
+  channels:
+    - ops-mail
+    - ops-chat
+  events:
+    - update-available
+    - update-succeeded
+    - update-failed
+webhook:
+  kind: github
+  secret: webhook-shop-example
+images:
+  - name: app
+    ref: registry.example.com/example/shop-app
+    env_var: SHOP_APP_TAG
+    services:
+      - app
+      - worker
+    credential: registry-example
+    version_rule:
+      mode: auto
+  - name: db
+    ref: registry.example.com/example/shop-db
+    env_var: SHOP_DB_TAG
+    services:
+      - db
+    credential: registry-example
+    version_rule:
+      mode: auto
+      max_update: minor
+      major_steps: stepwise
+      tag_filter: ^\d+(\.\d+)*$

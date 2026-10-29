@@ -1,0 +1,11 @@
+project site
+1. git-checkout timeout=2m0s free=false
+   dir: /srv/example/site
+   tag: v1.2.3
+2. compose-up timeout=5m0s free=false
+   dir: /srv/example/site
+   services: []
+3. check-container timeout=2m0s free=false
+   dir: /srv/example/site
+   services: []
+   containers: []
