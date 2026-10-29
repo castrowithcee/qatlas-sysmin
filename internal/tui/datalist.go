@@ -271,8 +271,14 @@ func (m *Model) currentPage() *dataPage {
 	switch {
 	case m.area == areaAccess:
 		return &m.acc.page
+	case m.area == areaActivity:
+		return &m.act.page
 	case m.area == areaLibrary && m.lib.sub == libCredentials:
 		return &m.lib.cred.page
+	case m.area == areaLibrary && m.lib.sub == libChannels:
+		return &m.lib.chans.page
+	case m.area == areaLibrary && m.lib.sub == libTemplates:
+		return &m.lib.tmpls.page
 	}
 	return nil
 }
@@ -285,8 +291,13 @@ func (m *Model) detailSeen() bool {
 
 // dataWant asks for what the marked row's detail needs and has not yet.
 func (m *Model) dataWant() tea.Cmd {
-	if m.area == areaAccess {
+	switch {
+	case m.area == areaAccess:
 		return m.accessWant()
+	case m.area == areaActivity:
+		return m.activityWant()
+	case m.area == areaLibrary && m.lib.sub == libTemplates:
+		return m.tmplWant()
 	}
 	return nil
 }

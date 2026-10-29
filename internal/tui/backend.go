@@ -40,6 +40,19 @@ type Backend interface {
 	DiscardAll() (control.ApprovalsAllResult, error)
 	SetCredential(p control.CredentialSetParams) (control.CredentialResult, error)
 	RemoveCredential(name string) (control.CredentialResult, error)
+	// Channels, Templates, Template, LogEntries and VerifyLog only read. LogEntries and VerifyLog never need the
+	// admin session; every call is an entry of the audit log itself, so none is made on a timer.
+	Channels() ([]control.ChannelSummary, error)
+	Templates() ([]control.TemplateSummary, error)
+	Template(name string) (control.TemplateDetail, error)
+	LogEntries(p control.LogListParams) (control.LogListResult, error)
+	VerifyLog() (control.LogVerifyResult, error)
+	// TestChannel sends one message to an approved channel; it needs no admin session but is never repeated.
+	TestChannel(name string) (control.NotifyTestResult, error)
+	// AddChannel, RemoveChannel and DeriveTemplate change the service and need the admin session.
+	AddChannel(p control.ChannelParams) (control.ChangeResult, error)
+	RemoveChannel(name string) (control.ChangeResult, error)
+	DeriveTemplate(p control.TemplateDeriveParams) (control.TemplateDetail, error)
 }
 
 // NewBackend is the Backend over the control socket at path. It dials on the first call and again after the
@@ -173,4 +186,49 @@ func (b *ClientBackend) SetCredential(p control.CredentialSetParams) (res contro
 func (b *ClientBackend) RemoveCredential(name string) (res control.CredentialResult, err error) {
 	err = b.do(false, func(c *client.Client) (e error) { res, e = c.RemoveCredential(name); return e })
 	return res, err
+}
+
+func (b *ClientBackend) Channels() (list []control.ChannelSummary, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Channels(); return e })
+	return list, err
+}
+
+func (b *ClientBackend) Templates() (list []control.TemplateSummary, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Templates(); return e })
+	return list, err
+}
+
+func (b *ClientBackend) Template(name string) (d control.TemplateDetail, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { d, e = c.Template(name); return e })
+	return d, err
+}
+
+func (b *ClientBackend) LogEntries(p control.LogListParams) (res control.LogListResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.LogEntries(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) VerifyLog() (res control.LogVerifyResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.VerifyLog(); return e })
+	return res, err
+}
+
+func (b *ClientBackend) TestChannel(name string) (res control.NotifyTestResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.TestChannel(name); return e })
+	return res, err
+}
+
+func (b *ClientBackend) AddChannel(p control.ChannelParams) (res control.ChangeResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.AddChannel(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) RemoveChannel(name string) (res control.ChangeResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.RemoveChannel(name); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeriveTemplate(p control.TemplateDeriveParams) (d control.TemplateDetail, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { d, e = c.DeriveTemplate(p); return e })
+	return d, err
 }

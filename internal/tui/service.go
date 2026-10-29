@@ -185,6 +185,15 @@ func (m *Model) clearLists() {
 
 // listsCmd reads the list of the page shown when it has none yet, such as after the vault was unlocked.
 func (m *Model) listsCmd() tea.Cmd {
+	// The log is read once when the page opens, not again on a timer: reading it is an entry of the log.
+	switch {
+	case m.area == areaActivity && !m.act.asked:
+		return m.activityCmd()
+	case m.area == areaLibrary && m.lib.sub == libChannels && !m.lib.chans.have:
+		return m.channelsCmd()
+	case m.area == areaLibrary && m.lib.sub == libTemplates && !m.lib.tmpls.have:
+		return m.templatesCmd()
+	}
 	if m.vaultState() != control.VaultUnlocked {
 		return nil
 	}

@@ -45,10 +45,10 @@ func TestHelpTopicsAreTranslatedButKeepTheirIdentifiers(t *testing.T) {
 	eachLanguage(t, func(t *testing.T) {
 		m := appModel(t, overviewFake(), 120, 40)
 		send(m, "?")
-		for range helpTopics {
+		for _, topic := range helpTopics {
 			view := plain(m)
-			if !strings.Contains(view, "admin-session") || !strings.Contains(view, "approvals") {
-				t.Errorf("topic identifiers changed:\n%s", view)
+			if !strings.Contains(view, "["+topic.id+"]") {
+				t.Errorf("the strip does not show the open topic %q:\n%s", topic.id, view)
 			}
 			send(m, "right")
 		}

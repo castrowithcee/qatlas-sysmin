@@ -65,9 +65,16 @@ func (m *Model) show(a area, sub int) tea.Cmd {
 		if a == areaLibrary {
 			m.lib.sub = sub
 		}
-		m.acc.page.open, m.lib.cred.page.open, m.lib.cred.problems = false, false, nil
+		m.closeDetails()
 		return m.enterPage()
 	})
+}
+
+// showActivity makes page sub of Activity the screen.
+func (m *Model) showActivity(sub int) tea.Cmd {
+	cmd := m.show(areaActivity, sub)
+	m.act.sub = sub
+	return cmd
 }
 
 // enterPage asks for what the page just shown needs and has not yet.
@@ -77,9 +84,16 @@ func (m *Model) enterPage() tea.Cmd {
 		return m.overviewCmd()
 	case m.area == areaAccess:
 		return m.accessCmd()
+	case m.area == areaActivity:
+		return m.activityCmd()
 	case m.area == areaLibrary:
-		if m.lib.sub == libCredentials {
+		switch m.lib.sub {
+		case libCredentials:
 			return m.credentialsCmd()
+		case libChannels:
+			return m.channelsCmd()
+		case libTemplates:
+			return m.templatesCmd()
 		}
 	case m.area == areaSettings:
 		m.loadForms()
@@ -141,6 +155,12 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
+// closeDetails closes the detail of every table page and drops the notes of a refused removal.
+func (m *Model) closeDetails() {
+	m.acc.page.open, m.lib.cred.page.open, m.lib.chans.page.open = false, false, false
+	m.lib.tmpls.page.open, m.act.page.open, m.lib.cred.problems = false, false, nil
+}
+
 // dataKey handles a key of the pages with a table: the table and its detail first, then the page's own keys,
 // and, in Library, the keys that change the page.
 func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
@@ -156,6 +176,10 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	if p == nil {
 		return nil, false
 	}
+	if m.area == areaActivity && !p.open && keyIs(key, actFilter) {
+		// f is the filter of the log here; the table is searched with /.
+		return m.openLogFilter(), true
+	}
 	if cmd, ok := m.pageKey(p, key); ok {
 		return cmd, true
 	}
@@ -164,6 +188,8 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.accessKey(key)
 	case areaLibrary:
 		return m.libraryKey(key)
+	case areaActivity:
+		return m.activityKey(key)
 	}
 	return nil, false
 }
@@ -230,6 +256,8 @@ func (m *Model) areaKeys() string {
 		keys = append(keys, m.accessKeys()...)
 	case areaLibrary:
 		keys = append(keys, m.libraryKeys()...)
+	case areaActivity:
+		keys = append(keys, m.activityKeys()...)
 	default:
 		keys = append(keys, "left/right move")
 	}
@@ -259,6 +287,8 @@ func (m *Model) areaBody() string {
 		return m.accessBody()
 	case areaLibrary:
 		return m.libraryBody()
+	case areaActivity:
+		return m.activityBody()
 	}
 	return m.wrapped(styles.hint, tr(tListEmpty))
 }

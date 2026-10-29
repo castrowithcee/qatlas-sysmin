@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"slices"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -49,6 +50,8 @@ type fakeBackend struct {
 	failApproveAll      []control.ApprovalFailure
 	// pending is what SetCredential reports as open approvals.
 	pending []string
+	// lib is the state of channels, templates and log.
+	lib fakeLibrary
 }
 
 func newFake(vault string) *fakeBackend {
@@ -402,4 +405,144 @@ func (f *fakeBackend) RemoveCredential(name string) (control.CredentialResult, e
 	f.removed = append(f.removed, name)
 	f.credentials = slices.DeleteFunc(f.credentials, func(c control.CredentialSummary) bool { return c.Name == name })
 	return control.CredentialResult{Name: name, Action: "removed", State: control.StateApproved}, nil
+}
+
+// The state of Library's channels and templates and of the log in the fake service.
+type fakeLibrary struct {
+	channels []control.ChannelSummary
+	// added and removed are what AddChannel and RemoveChannel took; tested the channels TestChannel got.
+	added   []control.ChannelParams
+	removed []string
+	tested  []string
+	// testErr is what TestChannel answers; addErr what AddChannel and DeriveTemplate answer instead of success;
+	// pendingChange makes AddChannel and RemoveChannel report the change as not approved.
+	testErr, addErr error
+	pendingChange   bool
+
+	templates []control.TemplateSummary
+	files     map[string]string
+	derived   []control.TemplateDeriveParams
+
+	// entries is the whole log, newest first; logCalls the requests made; verify the answer to VerifyLog.
+	entries   []control.LogEntry
+	logCalls  []control.LogListParams
+	verify    control.LogVerifyResult
+	verifyErr error
+}
+
+func (f *fakeBackend) Channels() ([]control.ChannelSummary, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("channels")
+	return slices.Clone(f.lib.channels), nil
+}
+
+func (f *fakeBackend) TestChannel(name string) (control.NotifyTestResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("channel-test " + name)
+	f.lib.tested = append(f.lib.tested, name)
+	if f.lib.testErr != nil {
+		return control.NotifyTestResult{}, f.lib.testErr
+	}
+	return control.NotifyTestResult{Channel: name, Event: "notify.test"}, nil
+}
+
+func (f *fakeBackend) changeState() string {
+	if f.lib.pendingChange {
+		return control.StatePending
+	}
+	return control.StateApproved
+}
+
+func (f *fakeBackend) AddChannel(p control.ChannelParams) (control.ChangeResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("channel-add " + p.Name)
+	if err := f.spend(); err != nil {
+		return control.ChangeResult{}, err
+	}
+	if f.lib.addErr != nil {
+		return control.ChangeResult{}, f.lib.addErr
+	}
+	f.lib.added = append(f.lib.added, p)
+	f.lib.channels = append(f.lib.channels, control.ChannelSummary{ChannelParams: p, State: f.changeState()})
+	return control.ChangeResult{Project: "channels", State: f.changeState()}, nil
+}
+
+func (f *fakeBackend) RemoveChannel(name string) (control.ChangeResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("channel-remove " + name)
+	if err := f.spend(); err != nil {
+		return control.ChangeResult{}, err
+	}
+	f.lib.removed = append(f.lib.removed, name)
+	f.lib.channels = slices.DeleteFunc(f.lib.channels, func(c control.ChannelSummary) bool { return c.Name == name })
+	return control.ChangeResult{Project: "channels", State: f.changeState()}, nil
+}
+
+func (f *fakeBackend) Templates() ([]control.TemplateSummary, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("templates")
+	return slices.Clone(f.lib.templates), nil
+}
+
+func (f *fakeBackend) Template(name string) (control.TemplateDetail, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("template " + name)
+	for _, t := range f.lib.templates {
+		if t.Name == name {
+			return control.TemplateDetail{TemplateSummary: t, File: f.lib.files[name]}, nil
+		}
+	}
+	return control.TemplateDetail{}, &control.Error{Code: control.CodeNotFound}
+}
+
+func (f *fakeBackend) DeriveTemplate(p control.TemplateDeriveParams) (control.TemplateDetail, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("template-derive " + p.Name)
+	if err := f.spend(); err != nil {
+		return control.TemplateDetail{}, err
+	}
+	if f.lib.addErr != nil {
+		return control.TemplateDetail{}, f.lib.addErr
+	}
+	f.lib.derived = append(f.lib.derived, p)
+	t := control.TemplateSummary{Name: p.Name, Origin: control.TemplateCustom, Source: control.TemplateSourceConfig, Description: p.Description, Steps: 2}
+	f.lib.templates = append(f.lib.templates, t)
+	return control.TemplateDetail{TemplateSummary: t}, nil
+}
+
+// LogEntries pages through entries by an index in Next. It does not apply the filters: a test reads them
+// from logCalls.
+func (f *fakeBackend) LogEntries(p control.LogListParams) (control.LogListResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("log")
+	f.lib.logCalls = append(f.lib.logCalls, p)
+	start := 0
+	if p.After != "" {
+		start, _ = strconv.Atoi(p.After)
+	}
+	limit := p.Limit
+	if limit <= 0 {
+		limit = control.LogDefaultLimit
+	}
+	end := min(start+limit, len(f.lib.entries))
+	res := control.LogListResult{Entries: slices.Clone(f.lib.entries[min(start, end):end])}
+	if end < len(f.lib.entries) {
+		res.Next = strconv.Itoa(end)
+	}
+	return res, nil
+}
+
+func (f *fakeBackend) VerifyLog() (control.LogVerifyResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("log-verify")
+	return f.lib.verify, f.lib.verifyErr
 }

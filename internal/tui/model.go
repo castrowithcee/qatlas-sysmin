@@ -78,11 +78,14 @@ type Model struct {
 	// prompt of screenPrompt; both are nil while there is none.
 	confirm *confirmAsk
 	cred    *credForm
+	// form is a short form of Library or Activity, drawn as the prompt of screenPrompt like cred.
+	form *formDlg
 
 	// The state of the areas: the rows of the overview, the pages of Settings, the popup over the screen, the
 	// question before unsaved input is dropped; see overview.go, settings.go, popup.go.
 	ovr overviewState
 	acc accessState
+	act activityState
 	lib libraryState
 	set settingsState
 	pop *popup
@@ -196,6 +199,26 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case credentialsMsg:
 		m.takeCredentials(msg)
 		return m, nil
+	case channelsMsg:
+		m.takeChannels(msg)
+		return m, nil
+	case channelTestMsg:
+		m.takeChannelTest(msg)
+		return m, nil
+	case templatesMsg:
+		m.takeTemplates(msg)
+		return m, m.dataWant()
+	case templateDetailMsg:
+		m.takeTemplateDetail(msg)
+		return m, nil
+	case logMsg:
+		return m, m.takeLog(msg)
+	case verifyMsg:
+		m.takeVerify(msg)
+		return m, nil
+	case projectsMsg:
+		m.takeProjects(msg)
+		return m, nil
 	case updateMsg:
 		m.takeUpdate(msg)
 		return m, nil
@@ -228,6 +251,9 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.screen == screenPrompt && m.cred != nil {
 		return m.updateCred(key)
+	}
+	if m.screen == screenPrompt && m.form != nil {
+		return m.updateForm(key)
 	}
 	if m.screen == screenArea {
 		if keyIs(key, actLock) {

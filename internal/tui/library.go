@@ -12,8 +12,8 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
-// Library has one page per kind of reusable thing. Credentials is the first; a page brings its table through
-// dataPage and its keys through the key function of the page. Channels and Templates have no content yet.
+// Library has one page per kind of reusable thing: Credentials here, Channels in channels.go and Templates in
+// templates.go. A page brings its table through dataPage and its keys through the key function of the page.
 const (
 	libCredentials = iota
 	libChannels
@@ -30,8 +30,10 @@ func libKey(sub int) string { return [...]string{"credentials", "channels", "tem
 
 // libraryState is the Library area: the page shown and the state of each page.
 type libraryState struct {
-	sub  int
-	cred credState
+	sub   int
+	cred  credState
+	chans chanState
+	tmpls tmplState
 }
 
 // credState is the Credentials page. It holds names, kinds and uses, never a value.
@@ -52,7 +54,7 @@ type credentialsMsg struct {
 // setLibSub shows page sub of Library.
 func (m *Model) setLibSub(sub int) tea.Cmd {
 	m.lib.sub = (sub + libCount) % libCount
-	m.lib.cred.page.open, m.lib.cred.problems = false, nil
+	m.closeDetails()
 	m.clearMessages()
 	return m.enterPage()
 }
@@ -68,8 +70,13 @@ func (m *Model) libraryBody() string {
 	for i, c := range cells {
 		m.addHit(c[0], top, c[1], top+1, func() tea.Cmd { return m.setLibSub(i) })
 	}
-	body := m.wrapped(styles.hint, tr(tListEmpty))
-	if m.lib.sub == libCredentials {
+	var body string
+	switch m.lib.sub {
+	case libChannels:
+		body = m.dataBody(&m.lib.chans.page, m.chanSpec(), top+2)
+	case libTemplates:
+		body = m.dataBody(&m.lib.tmpls.page, m.tmplSpec(), top+2)
+	default:
 		body = m.dataBody(&m.lib.cred.page, m.credSpec(), top+2)
 		if lines := m.lib.cred.problems; len(lines) > 0 {
 			body += "\n" + strings.Join(lines, "\n")
@@ -133,6 +140,9 @@ func (m *Model) takeCredentials(msg credentialsMsg) {
 	}
 	c.page.cols = credColumns()
 	c.page.setRows(names, rows)
+	if f := m.form; f != nil && f.refresh != nil {
+		f.refresh(m, f)
+	}
 }
 
 func (m *Model) credSpec() dataSpec {
@@ -182,8 +192,11 @@ func (m *Model) credLines(name string, tab, width int) []string {
 
 // libraryKeys is the key line of Library.
 func (m *Model) libraryKeys() []string {
-	if m.lib.sub != libCredentials {
-		return []string{"left/right page"}
+	switch m.lib.sub {
+	case libChannels:
+		return m.chanKeys()
+	case libTemplates:
+		return m.tmplKeys()
 	}
 	if m.lib.cred.page.open {
 		return []string{"left/right tab", "up/down scroll", "e edit", "d remove", "{back} close"}
@@ -193,8 +206,11 @@ func (m *Model) libraryKeys() []string {
 
 // libraryKey handles the keys of Library that the page does not.
 func (m *Model) libraryKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
-	if m.lib.sub != libCredentials {
-		return nil, false
+	switch m.lib.sub {
+	case libChannels:
+		return m.chanKey(key)
+	case libTemplates:
+		return m.tmplKey(key)
 	}
 	m.lib.cred.problems = nil
 	switch {

@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                                 ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+ Overview   Projects   Activity   Access  [Library]  Settings 
+
+ Credentials   Channels  [Templates]
+
+Templates › compose-update
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  Overview  [Details]  Raw                                                    ║
+║                                                                              ║
+║ schema: 1                                                                    ║
+║ name: compose-update                                                         ║
+║ description: Pull images and restart the stack                               ║
+║ steps:                                                                       ║
+║   - name: pull                                                               ║
+║     run: compose pull                                                        ║
+║   - name: up                                                                 ║
+║     run: compose up -d                                                       ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+1-6 area  p derive  esc close  ctrl+l admin  i info  ? help  : cmds  q quit
