@@ -291,6 +291,7 @@ func commands() []commandEntry {
 			return m.lockKey()
 		}},
 		commandEntry{"reload", func(m *Model) tea.Cmd { return m.statusCmd() }},
+		commandEntry{"regroup", func(m *Model) tea.Cmd { return m.regroup() }},
 		commandEntry{"help", func(m *Model) tea.Cmd { m.openPopup(popHelp); return nil }},
 		commandEntry{"info", func(m *Model) tea.Cmd { m.openPopup(popInfo); return nil }},
 		commandEntry{"quit", func(m *Model) tea.Cmd { return m.guarded(m.quit) }},

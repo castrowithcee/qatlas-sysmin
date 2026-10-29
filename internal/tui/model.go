@@ -122,7 +122,9 @@ type Model struct {
 	// drawn only as the dimmed background of a modal; tooSmall, that the size notice replaces the workspace.
 	inModal, inPanel, backdrop, tooSmall bool
 	quitting                             bool
-	wheelSeen                            wheelSeen
+	// regroupAsked says the person quit to restart the interface under sudo -g sysmin; Run reports it.
+	regroupAsked bool
+	wheelSeen    wheelSeen
 	// now is the clock of the wheel filter; nil means time.Now.
 	now func() time.Time
 }
@@ -329,6 +331,15 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 func (m *Model) quit() tea.Cmd {
 	m.quitting = true
 	return tea.Quit
+}
+
+// regroup quits, after the same question as quit about unsaved changes, so that the interface starts again
+// under sudo -g sysmin and carries the group without a new login.
+func (m *Model) regroup() tea.Cmd {
+	return m.guarded(func() tea.Cmd {
+		m.regroupAsked = true
+		return m.quit()
+	})
 }
 
 // closeDialog closes the question or input dialog and returns to the list.

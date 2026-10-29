@@ -86,6 +86,10 @@ func (m *Model) overviewRows() []ovRow {
 	open := func(a area, sub int) (string, string, func() tea.Cmd) {
 		return tr(tNextOpen, target(a, sub)), "enter open", func() tea.Cmd { return m.show(a, sub) }
 	}
+	if !m.serviceUp() && m.svc.noGroup {
+		return []ovRow{{id: "service", label: tr(tOvService), value: tr(tValNoGroup), kind: statusFail,
+			next: tr(tNextRegroup), key: "enter restart", act: m.regroup}}
+	}
 	if !m.serviceUp() {
 		return []ovRow{{id: "service", label: tr(tOvService), value: tr(tValDown), kind: statusFail,
 			next: tr(tNextRetry, keyName(keyOf(actReload))), key: "enter retry", act: m.statusCmd}}

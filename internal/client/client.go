@@ -8,6 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"os/user"
+	"slices"
+	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
@@ -32,9 +37,38 @@ func Dial(path string) (*Client, error) {
 	}
 	conn, err := net.DialTimeout("unix", path, DialTimeout)
 	if err != nil {
+		if errors.Is(err, syscall.EACCES) && sessionLacksGroup() {
+			err = ErrSessionGroup
+		}
 		return nil, fmt.Errorf("cannot reach the service: %w", err)
 	}
 	return &Client{conn: conn, br: bufio.NewReader(conn)}, nil
+}
+
+// ErrSessionGroup is a refused connection of a user who is in the group sysmin, from a login session that
+// started before the user joined it: the session does not carry the group yet.
+var ErrSessionGroup = errors.New("this login session started before the user joined the group " + control.ServiceGroup)
+
+// sessionLacksGroup reports whether the group database lists the user in ServiceGroup while this process
+// does not carry the group. It is a variable so a test can stand in for the system.
+var sessionLacksGroup = func() bool {
+	g, err := user.LookupGroup(control.ServiceGroup)
+	if err != nil {
+		return false
+	}
+	gid, err := strconv.Atoi(g.Gid)
+	if err != nil || os.Getegid() == gid {
+		return false
+	}
+	if groups, err := os.Getgroups(); err != nil || slices.Contains(groups, gid) {
+		return false
+	}
+	u, err := user.Current()
+	if err != nil {
+		return false
+	}
+	ids, err := u.GroupIds()
+	return err == nil && slices.Contains(ids, g.Gid)
 }
 
 // Close ends the connection.

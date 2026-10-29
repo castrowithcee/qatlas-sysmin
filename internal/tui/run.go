@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"os"
 	"time"
 
@@ -27,6 +28,10 @@ type Options struct {
 	Releases ReleaseCheck
 	In, Out  *os.File
 }
+
+// ErrRegroup is what Run returns when the person asked to restart the interface with the group sysmin; the
+// caller starts it again under sudo -g sysmin.
+var ErrRegroup = errors.New("restart the interface under sudo -g sysmin")
 
 // Run starts the editor on the terminal streams of opts and returns when the person quits.
 func Run(opts Options) error {
@@ -60,6 +65,9 @@ func Run(opts Options) error {
 	program := tea.NewProgram(model, tea.WithInput(opts.In), tea.WithOutput(legacyKeys{opts.Out}),
 		tea.WithFilter(fragments.filter), tea.WithColorProfile(toColorprofile(currentProfile())))
 	fragments.send = program.Send
-	_, err := program.Run()
+	final, err := program.Run()
+	if fm, ok := final.(*Model); ok && err == nil && fm.regroupAsked {
+		return ErrRegroup
+	}
 	return err
 }
