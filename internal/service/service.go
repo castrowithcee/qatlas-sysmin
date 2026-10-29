@@ -259,9 +259,17 @@ func (s *Service) vaultState() string {
 	return string(st)
 }
 
-func (s *Service) fillStatus(r *control.StatusResult) {
+func (s *Service) fillStatus(c *daemon.Conn, r *control.StatusResult) {
 	r.Vault, r.Unlock, r.Warning = s.vaultState(), string(s.mode), s.mode.Warning()
-	r.Socket = s.cfg.SocketPath
+	r.Socket, r.ConfigDir = s.cfg.SocketPath, s.cfg.ConfigDir
+	// Reading the session never renews or uses it up.
+	timeout := s.adminTimeout()
+	st := c.State.(*connState)
+	r.AdminTimeout = timeout.String()
+	r.Admin = st.session.Active() || (st.once && timeout == 0)
+	if rem := st.session.Remaining(); rem > 0 {
+		r.AdminRemaining = int64((rem + time.Second - 1) / time.Second)
+	}
 }
 
 // guard admits a changing request only for an unlocked vault and a connection with an active admin
@@ -317,7 +325,10 @@ func (s *Service) register() error {
 	if err := s.registerSources(); err != nil {
 		return err
 	}
-	return s.registerNotify()
+	if err := s.registerNotify(); err != nil {
+		return err
+	}
+	return s.registerVault()
 }
 
 func (s *Service) handleVaultStatus(context.Context, *daemon.Conn, json.RawMessage) (any, error) {

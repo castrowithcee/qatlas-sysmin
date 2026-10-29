@@ -106,6 +106,33 @@ func (c *Client) OpenSession(passphrase string) error {
 // EndSession ends the admin session of this connection.
 func (c *Client) EndSession() error { return c.Call(control.OpSessionEnd, nil, nil) }
 
+// CreateVault creates the vault with its first passphrase and leaves it unlocked. It is control.CodeExists
+// once a vault exists.
+func (c *Client) CreateVault(passphrase string) error {
+	return c.Call(control.OpVaultCreate, control.PassphraseParams{Passphrase: passphrase}, nil)
+}
+
+// ChangePassphrase replaces the vault passphrase. It needs the admin session of this connection; a wrong
+// old passphrase is control.CodeWrongPassphrase.
+func (c *Client) ChangePassphrase(oldPassphrase, newPassphrase string) error {
+	return c.Call(control.OpVaultPassphrase, control.PassphraseChangeParams{Old: oldPassphrase, New: newPassphrase}, nil)
+}
+
+// Settings reads the effective admin timeout.
+func (c *Client) Settings() (control.SettingsResult, error) {
+	var out control.SettingsResult
+	err := c.Call(control.OpSettingsShow, nil, &out)
+	return out, err
+}
+
+// SetAdminTimeout sets vault.admin_timeout from a duration text such as "5m" or "0". It needs the admin
+// session of this connection.
+func (c *Client) SetAdminTimeout(timeout string) (control.SettingsResult, error) {
+	var out control.SettingsResult
+	err := c.Call(control.OpSettingsAdminTimeout, control.AdminTimeoutParams{AdminTimeout: timeout}, &out)
+	return out, err
+}
+
 // Approvals lists the open approvals of projects.
 func (c *Client) Approvals() ([]control.ApprovalSummary, error) {
 	var out control.ApprovalsListResult
