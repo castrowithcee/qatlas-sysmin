@@ -1,0 +1,197 @@
+package redact
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"strings"
+	"sync"
+	"testing"
+)
+
+func TestApply(t *testing.T) {
+	tests := []struct {
+		name    string
+		secrets []string
+		in      string
+		want    string
+	}{
+		{"nothing registered", nil, "plain text", "plain text"},
+		{"single secret", []string{"s3cr3t-value"}, "token s3cr3t-value failed", "token " + Marker + " failed"},
+		{
+			name:    "every occurrence",
+			secrets: []string{"s3cr3t-value"},
+			in:      "s3cr3t-value and s3cr3t-value",
+			want:    Marker + " and " + Marker,
+		},
+		{
+			name:    "several secrets",
+			secrets: []string{"first-secret", "second-secret"},
+			in:      "first-secret then second-secret",
+			want:    Marker + " then " + Marker,
+		},
+		{
+			// A secret that contains another must not leave the remainder visible.
+			name:    "overlapping secrets",
+			secrets: []string{"abcd", "abcdefgh"},
+			in:      "value abcdefgh here",
+			want:    "value " + Marker + " here",
+		},
+		{
+			// A short secret must never match inside a marker an earlier replacement wrote.
+			name:    "a secret that is a substring of the marker",
+			secrets: []string{"mySecretValue1", "dact"},
+			in:      "token=mySecretValue1 end",
+			want:    "token=" + Marker + " end",
+		},
+		{
+			name:    "the marker itself is left alone",
+			secrets: []string{"reda", "s3cr3t-value"},
+			in:      "s3cr3t-value",
+			want:    Marker,
+		},
+		{"too short to register", []string{"ab"}, "ab stays", "ab stays"},
+		{"empty value is ignored", []string{""}, "unchanged", "unchanged"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var r Redactor
+			r.Add(tt.secrets...)
+
+			if got := r.Apply(tt.in); got != tt.want {
+				t.Errorf("Apply() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestError(t *testing.T) {
+	var r Redactor
+	r.Add("s3cr3t-value")
+
+	t.Run("nil error", func(t *testing.T) {
+		if got := r.Error(nil); got != "" {
+			t.Errorf("Error(nil) = %q, want empty", got)
+		}
+	})
+
+	t.Run("wrapped error", func(t *testing.T) {
+		err := fmt.Errorf("request failed: %w", errors.New("Authorization: Token s3cr3t-value"))
+
+		got := r.Error(err)
+
+		if strings.Contains(got, "s3cr3t-value") {
+			t.Errorf("Error() = %q, still carries the secret", got)
+		}
+		if !strings.Contains(got, Marker) {
+			t.Errorf("Error() = %q, want the marker", got)
+		}
+	})
+}
+
+// Registering the same value twice must not grow the set or change the result.
+func TestAddIsIdempotent(t *testing.T) {
+	var r Redactor
+	r.Add("s3cr3t-value", "s3cr3t-value")
+	r.Add("s3cr3t-value")
+
+	if got, want := r.Apply("s3cr3t-value"), Marker; got != want {
+		t.Errorf("Apply() = %q, want %q", got, want)
+	}
+	if len(r.secrets) != 1 {
+		t.Errorf("secrets = %v, want one entry", r.secrets)
+	}
+}
+
+// Providers may resolve credentials concurrently while output is being written.
+func TestConcurrentUse(t *testing.T) {
+	var (
+		r  Redactor
+		wg sync.WaitGroup
+	)
+	for i := 0; i < 50; i++ {
+		wg.Add(2)
+		go func(i int) { defer wg.Done(); r.Add(fmt.Sprintf("secret-value-%02d", i)) }(i)
+		go func() { defer wg.Done(); _ = r.Apply("secret-value-07 in a message") }()
+	}
+	wg.Wait()
+
+	if got := r.Apply("secret-value-07 in a message"); strings.Contains(got, "secret-value-07") {
+		t.Errorf("Apply() = %q, want the secret removed", got)
+	}
+}
+
+// A library that logs a request header through the standard logger must not get the credential out.
+func TestWriter(t *testing.T) {
+	var (
+		r   Redactor
+		out strings.Builder
+	)
+	r.Add("s3cr3t-value", "Bearer s3cr3t-value")
+	logger := log.New(r.Writer(&out), "", 0)
+
+	logger.Printf("http2: Transport encoding header %q = %q", "authorization", "Bearer s3cr3t-value")
+
+	if got, want := out.String(), `http2: Transport encoding header "authorization" = "`+Marker+`"`+"\n"; got != want {
+		t.Errorf("output = %q, want %q", got, want)
+	}
+}
+
+// The writer reports the length it was handed, whatever the redacted text measures.
+func TestWriterReportsTheInputLength(t *testing.T) {
+	var r Redactor
+	r.Add("s3cr3t-value")
+
+	in := []byte("token s3cr3t-value")
+	n, err := r.Writer(&strings.Builder{}).Write(in)
+
+	if n != len(in) || err != nil {
+		t.Errorf("Write() = %d, %v; want %d, nil", n, err, len(in))
+	}
+}
+
+// A diagnostic that quotes a value with %q escapes quotes, backslashes, and control characters. The escaped
+// form must be removed as completely as the value itself.
+func TestQuotedSecret(t *testing.T) {
+	const secret = "s3cr\"et\\va\x01lue"
+	var r Redactor
+	r.Add(secret)
+
+	if got, want := r.Apply(fmt.Sprintf("%q", secret)), `"`+Marker+`"`; got != want {
+		t.Errorf("Apply(%%q) = %q, want %q", got, want)
+	}
+
+	var out strings.Builder
+	log.New(r.Writer(&out), "", 0).Printf("header %q", secret)
+	if got, want := out.String(), `header "`+Marker+`"`+"\n"; got != want {
+		t.Errorf("logged = %q, want %q", got, want)
+	}
+}
+
+// A value that JSON would escape is also redacted in its JSON string form, with and without HTML escaping,
+// so a provider that echoes a request body cannot bring it back.
+func TestAddCoversJSONEscapedForms(t *testing.T) {
+	const value = "pa<ss>&\"word\nend"
+	r := &Redactor{}
+	r.Add(value)
+
+	htmlEscaped, _ := json.Marshal(value)
+	var plain bytes.Buffer
+	enc := json.NewEncoder(&plain)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(value); err != nil {
+		t.Fatal(err)
+	}
+	for name, form := range map[string]string{
+		"raw":          value,
+		"html escaped": string(htmlEscaped[1 : len(htmlEscaped)-1]),
+		"json escaped": strings.TrimSuffix(plain.String(), "\n")[1 : plain.Len()-2],
+	} {
+		if got := r.Apply(`{"p":"` + form + `"}`); strings.Contains(got, "word") || !strings.Contains(got, Marker) {
+			t.Errorf("%s form: Apply() = %q, want the value redacted", name, got)
+		}
+	}
+}
