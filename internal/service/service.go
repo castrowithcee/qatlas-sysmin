@@ -233,18 +233,25 @@ func (s *Service) guard(_ context.Context, c *daemon.Conn, _ string) error {
 	if s.vaultState() != control.VaultUnlocked {
 		return &control.Error{Code: control.CodeLocked}
 	}
+	if !s.adminCovers(c) {
+		return &control.Error{Code: control.CodeAdminRequired}
+	}
+	return nil
+}
+
+// adminCovers reports whether the connection's admin session, or the single change a passphrase covers
+// while the admin timeout is 0, covers one change now, and uses it up if so.
+func (s *Service) adminCovers(c *daemon.Conn) bool {
 	st := c.State.(*connState)
 	timeout := s.adminTimeout()
 	if st.once {
 		st.once = false
 		if timeout == 0 {
-			return nil
+			return true
 		}
 	}
-	if _, ok := st.session.Authorize(timeout); !ok {
-		return &control.Error{Code: control.CodeAdminRequired}
-	}
-	return nil
+	_, ok := st.session.Authorize(timeout)
+	return ok
 }
 
 func (s *Service) register() error {
@@ -258,7 +265,10 @@ func (s *Service) register() error {
 			return err
 		}
 	}
-	return s.registerApprovals()
+	if err := s.registerApprovals(); err != nil {
+		return err
+	}
+	return s.registerProjects()
 }
 
 func (s *Service) handleVaultStatus(context.Context, *daemon.Conn, json.RawMessage) (any, error) {

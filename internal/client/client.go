@@ -65,7 +65,7 @@ func (c *Client) Call(op string, params, result any) error {
 		return errors.New("the service answered in a form this program does not understand")
 	}
 	if !resp.OK {
-		return &control.Error{Code: resp.Error}
+		return &control.Error{Code: resp.Error, Problems: resp.Problems}
 	}
 	if result != nil && resp.Result != nil {
 		if err := json.Unmarshal(resp.Result, result); err != nil {
@@ -139,5 +139,50 @@ func (c *Client) Discard(project string) error {
 func (c *Client) DiscardAll() (control.ApprovalsAllResult, error) {
 	var out control.ApprovalsAllResult
 	err := c.Call(control.OpApprovalsDiscardAll, nil, &out)
+	return out, err
+}
+
+// Projects lists the stored projects.
+func (c *Client) Projects() ([]control.ProjectSummary, error) {
+	var out control.ProjectsListResult
+	err := c.Call(control.OpProjectsList, nil, &out)
+	return out.Projects, err
+}
+
+// Project shows the stored file of one project.
+func (c *Client) Project(name string) (control.ProjectDetail, error) {
+	var out control.ProjectDetail
+	err := c.Call(control.OpProjectsShow, control.ProjectRef{Name: name}, &out)
+	return out, err
+}
+
+// CheckProject validates a project and resolves its steps for an example version (empty for the default).
+// Invalid input is a *control.Error with control.CodeInvalid and its Problems.
+func (c *Client) CheckProject(name, version string) (control.CheckResult, error) {
+	var out control.CheckResult
+	err := c.Call(control.OpProjectsCheck, control.ProjectRef{Name: name, Version: version}, &out)
+	return out, err
+}
+
+// AddProject stores a new project. The change is an open approval unless this connection has an admin
+// session; the result says which.
+func (c *Client) AddProject(p control.ProjectParams) (control.ChangeResult, error) {
+	var out control.ChangeResult
+	err := c.Call(control.OpProjectsAdd, p, &out)
+	return out, err
+}
+
+// EditProject changes a stored project, on the terms of AddProject.
+func (c *Client) EditProject(p control.ProjectParams) (control.ChangeResult, error) {
+	var out control.ChangeResult
+	err := c.Call(control.OpProjectsEdit, p, &out)
+	return out, err
+}
+
+// RemoveProject removes a project file, on the terms of AddProject. revision, when set, is the revision
+// the removal is based on.
+func (c *Client) RemoveProject(name, revision string) (control.ChangeResult, error) {
+	var out control.ChangeResult
+	err := c.Call(control.OpProjectsRemove, control.ProjectRef{Name: name, Revision: revision}, &out)
 	return out, err
 }

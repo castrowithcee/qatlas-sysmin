@@ -5,6 +5,7 @@ package auditlog
 const (
 	OperationConfigApply   = "config.apply"
 	OperationConfigMigrate = "config.migrate"
+	OperationConfigRead    = "config.read"
 
 	OperationCredentialCreate = "credential.create"
 	OperationCredentialChange = "credential.change"
@@ -40,7 +41,7 @@ const (
 
 // knownOperations is every action Validate accepts, so a new one is added here.
 var knownOperations = map[string]bool{
-	OperationConfigApply: true, OperationConfigMigrate: true,
+	OperationConfigApply: true, OperationConfigMigrate: true, OperationConfigRead: true,
 	OperationCredentialCreate: true, OperationCredentialChange: true, OperationCredentialDelete: true,
 	OperationCredentialUse:   true,
 	OperationApprovalRequest: true, OperationApprovalGrant: true, OperationApprovalDeny: true,

@@ -220,14 +220,3 @@ func codeOfErr(err error) string {
 	}
 	return err.(*control.Error).Code
 }
-
-// saveProjectApproved writes a project file for a change made in an admin session and approves exactly the
-// file it wrote, so the change is not an open approval. Only a mutating handler may call it, since the guard
-// has by then proved the session; a write outside one leaves the file for approval.
-func (s *Service) saveProjectApproved(p config.Project, base config.Revision) error {
-	rev, err := s.store.SaveProject(p, base)
-	if err != nil {
-		return err
-	}
-	return s.approvals.ApproveCurrent(p.Name, rev)
-}

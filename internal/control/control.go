@@ -51,6 +51,16 @@ const (
 	OpApprovalsApproveAll = "approvals.approve-all"
 	OpApprovalsDiscard    = "approvals.discard"
 	OpApprovalsDiscardAll = "approvals.discard-all"
+
+	// The project operations. The first three read the files and need no admin session. The others write
+	// a project file without one: the change is stored and stays an open approval, unless the connection
+	// has an admin session, which the change then uses up and which approves it at once.
+	OpProjectsList   = "projects.list"
+	OpProjectsShow   = "projects.show"
+	OpProjectsCheck  = "projects.check"
+	OpProjectsAdd    = "projects.add"
+	OpProjectsEdit   = "projects.edit"
+	OpProjectsRemove = "projects.remove"
 )
 
 // The codes an answer's error carries. They are fixed words, never text built from a request, so an answer
@@ -79,6 +89,12 @@ const (
 	CodeChanged = "changed"
 	// CodeCannotDiscard answers a discard of an open approval that restoring the project file cannot undo.
 	CodeCannotDiscard = "cannot-discard"
+	// CodeInvalid answers a change or check whose result fails the validation. The answer lists the
+	// problems.
+	CodeInvalid = "invalid"
+	// CodeNotFound and CodeExists answer a project operation for a project that is missing or already there.
+	CodeNotFound = "not-found"
+	CodeExists   = "exists"
 )
 
 // Request is one line a client sends. Params is the operation's own object, if it takes one.
@@ -94,6 +110,8 @@ type Response struct {
 	OK     bool            `json:"ok"`
 	Result json.RawMessage `json:"result,omitempty"`
 	Error  string          `json:"error,omitempty"`
+	// Problems accompanies the error CodeInvalid.
+	Problems []Problem `json:"problems,omitempty"`
 }
 
 // The vault states and unlock modes an answer reports.
@@ -183,8 +201,11 @@ type ApprovalsAllResult struct {
 	Failed []ApprovalFailure `json:"failed,omitempty"`
 }
 
-// Error is a failed operation, carrying one of the fixed codes.
-type Error struct{ Code string }
+// Error is a failed operation, carrying one of the fixed codes. Problems is set only with CodeInvalid.
+type Error struct {
+	Code     string
+	Problems []Problem
+}
 
 func (e *Error) Error() string { return "control: " + e.Code }
 
