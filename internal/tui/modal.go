@@ -24,8 +24,8 @@ func (m *Model) questionView() string { return m.questionText(*m.ask) }
 // screenBeneath is the screen a dialog stands over, and false for a screen that is none.
 func (m *Model) screenBeneath(s screen) (screen, bool) {
 	switch s {
-	case screenConfirm, screenPrompt:
-		return screenList, true
+	case screenConfirm, screenPrompt, screenPopup:
+		return m.home, true
 	}
 	return s, false
 }

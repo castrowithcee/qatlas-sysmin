@@ -18,6 +18,13 @@ type Options struct {
 	PrefsWarnings []string
 	// Redactor holds the secrets that must never reach the screen or the clipboard; nil knows none.
 	Redactor *redact.Redactor
+	// Backend serves the service interface. Nil runs the bare frame without a service.
+	Backend Backend
+	// PrefsPath is the file Settings writes the preferences to; empty means they cannot be saved.
+	PrefsPath string
+	// Version is the running program. Releases looks up the releases for Settings; nil offers no lookup.
+	Version  string
+	Releases ReleaseCheck
 	In, Out  *os.File
 }
 
@@ -42,6 +49,10 @@ func Run(opts Options) error {
 	}
 	applyKeys(prefs.Keys)
 	model := New(prefs, opts.Redactor)
+	model.prefsPath, model.version, model.releases = opts.PrefsPath, opts.Version, opts.Releases
+	if opts.Backend != nil {
+		model.enableAreas(opts.Backend)
+	}
 	if len(warnings) > 0 {
 		model.status = "warning: " + warnings[0]
 	}

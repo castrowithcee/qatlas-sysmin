@@ -40,9 +40,11 @@ func credentialNames(p config.Project) []string {
 	set := map[string]bool{}
 	for _, im := range p.Images {
 		set[im.Credential] = true
+		set[im.VersionRule.ChangelogCredential] = true
 	}
 	if p.Git != nil {
 		set[p.Git.Credential] = true
+		set[p.Git.VersionRule.ChangelogCredential] = true
 	}
 	if p.Webhook != nil {
 		set[p.Webhook.Secret] = true

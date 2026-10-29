@@ -163,7 +163,7 @@ func (m *Model) overlayDropdown(view string) string {
 	if d == nil {
 		return view
 	}
-	if !d.placed || m.screen != screenList || m.tooSmall {
+	if !d.placed || m.screen != m.home || m.tooSmall {
 		m.dd = nil
 		return view
 	}
@@ -177,7 +177,10 @@ func (m *Model) overlayDropdown(view string) string {
 		if r >= len(rows) {
 			break
 		}
-		rows[r] = ansi.Cut(rows[r], 0, x) + line + ansi.Cut(rows[r], x+w, m.termWidth)
+		// A row the screen leaves short is padded, so the list stands at its column.
+		left := ansi.Cut(rows[r], 0, x)
+		left += strings.Repeat(" ", max(x-ansi.StringWidth(left), 0))
+		rows[r] = left + line + ansi.Cut(rows[r], x+w, m.termWidth)
 	}
 	d.box.x0, d.box.y0, d.box.x1, d.box.y1 = x, y, x+w, y+len(box)
 	return strings.Join(rows, "\n")

@@ -79,9 +79,17 @@ const (
 	// repositories it names. It changes nothing and needs no admin session.
 	OpSourceTest = "source.test"
 
+	// OpProjectsChangelog reads the GitHub releases between the current and the target version of the sources
+	// of a project's approved state. It changes nothing and needs no admin session.
+	OpProjectsChangelog = "projects.changelog"
+
 	// OpNotifyTest sends a test message to one approved channel. It reads and changes nothing, so it needs
 	// no admin session.
 	OpNotifyTest = "notify.test"
+
+	// OpProjectsAdopt proposes a project for a running stack and, unless asked only to propose, stores it
+	// as an open approval, on the terms of the project operations. It deploys nothing.
+	OpProjectsAdopt = "projects.adopt"
 )
 
 // The codes an answer's error carries. They are fixed words, never text built from a request, so an answer
@@ -164,6 +172,15 @@ type StatusResult struct {
 	Unlock   string `json:"unlock,omitempty"`
 	Warning  string `json:"warning,omitempty"`
 	Socket   string `json:"socket,omitempty"`
+	// ConfigDir is the service's configuration directory.
+	ConfigDir string `json:"config_dir,omitempty"`
+	// Admin reports whether the asking connection has an admin session that covers a change now, without
+	// using it. AdminRemaining is the whole seconds (rounded up) it stays active while idle; it is 0 while
+	// the admin timeout is 0 (the passphrase covers one change). AdminTimeout is the effective admin timeout
+	// as a duration text such as "15m0s"; "0s" means every change asks for the passphrase.
+	Admin          bool   `json:"admin,omitempty"`
+	AdminRemaining int64  `json:"admin_remaining,omitempty"`
+	AdminTimeout   string `json:"admin_timeout,omitempty"`
 }
 
 // VaultStatusResult is the answer to OpVaultStatus. It never carries key material or entry values.

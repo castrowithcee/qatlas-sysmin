@@ -19,6 +19,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/approval"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/autounlock"
+	"github.com/castrowithcee/qatlas-sysmin/internal/changelog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
@@ -62,6 +63,11 @@ type Config struct {
 	// local servers and repositories.
 	SourceRegistry registry.Options
 	SourceGit      gitrepo.Options
+	// Changelog configures how projects.changelog reaches GitHub; tests point BaseURL and HTTPClient at a
+	// local server. The service sets Token and CacheDir for each request.
+	Changelog changelog.Options
+	// Runner runs the read-only docker commands of project adoption; nil runs the real programs.
+	Runner execute.Runner
 	// OnLogError is told about audit log writes that failed; nil logs them with slog.
 	OnLogError func(error)
 	// DeployRunner runs the programs of a deploy; nil runs them for real. Tests install a fake one.
@@ -127,6 +133,9 @@ func Open(cfg Config) (*Service, error) {
 	}
 	if cfg.SocketPath == "" {
 		cfg.SocketPath = control.DefaultSocketPath
+	}
+	if cfg.Runner == nil {
+		cfg.Runner = &execute.ExecRunner{MaxOutput: adoptMaxOutput}
 	}
 	s := &Service{cfg: cfg, log: auditlog.New(filepath.Join(cfg.StateDir, "logs"), auditlog.DefaultRetentionDays)}
 
@@ -295,9 +304,17 @@ func (s *Service) vaultState() string {
 	return string(st)
 }
 
-func (s *Service) fillStatus(r *control.StatusResult) {
+func (s *Service) fillStatus(c *daemon.Conn, r *control.StatusResult) {
 	r.Vault, r.Unlock, r.Warning = s.vaultState(), string(s.mode), s.mode.Warning()
-	r.Socket = s.cfg.SocketPath
+	r.Socket, r.ConfigDir = s.cfg.SocketPath, s.cfg.ConfigDir
+	// Reading the session never renews or uses it up.
+	timeout := s.adminTimeout()
+	st := c.State.(*connState)
+	r.AdminTimeout = timeout.String()
+	r.Admin = st.session.Active() || (st.once && timeout == 0)
+	if rem := st.session.Remaining(); rem > 0 {
+		r.AdminRemaining = int64((rem + time.Second - 1) / time.Second)
+	}
 }
 
 // guard admits a changing request only for an unlocked vault and a connection with an active admin
@@ -350,10 +367,19 @@ func (s *Service) register() error {
 	if err := s.registerChannels(); err != nil {
 		return err
 	}
+	if err := s.registerAdopt(); err != nil {
+		return err
+	}
 	if err := s.registerSources(); err != nil {
 		return err
 	}
+	if err := s.registerChangelog(); err != nil {
+		return err
+	}
 	if err := s.registerNotify(); err != nil {
+		return err
+	}
+	if err := s.registerVault(); err != nil {
 		return err
 	}
 	return s.registerDeploy()

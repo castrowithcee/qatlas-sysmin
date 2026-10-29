@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                                 ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+[Overview]  Projects   Activity   Access   Library   Settings 
+
+> ● Vault      open
+  ● Version    0.0.0-test
+    Press enter to open Settings › Update.
+  ● Config     /etc/sysmin-test
+  ● Unlock     manual
+  ⚠ Approvals  2 open
+    Press enter to open Access.
+  ● Projects   1 total
+  ○ Updates    no data
+    Press enter to open Projects.
+
+
+
+
+
+
+
+
+
+1-6 area  ctrl+l admin  i info  ? help  : cmds  q quit              up/down move

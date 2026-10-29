@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                                 ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+ Overview   Projects   Activity   Access   Library  [Settings]                  
+                                                                                
+ General  [Vault]  Update                                                       
+                                                                                
+>  Passp╔══════════════════════════════════════════════════════════════╗        
+   Admin║ Change passphrase                                            ║        
+   Unloc║                                                              ║        
+    Auto║   Current: ********                                          ║        
+        ║   New:     ********                                          ║        
+        ║   Confirm:                                                   ║        
+        ║     Verifies with the current passphrase.                    ║        
+        ║                                                              ║        
+        ║ > Ok <  [ Cancel ]                                           ║        
+        ║                                                              ║        
+        ║ enter ok · tab next · esc cancel                             ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

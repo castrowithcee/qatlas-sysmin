@@ -295,6 +295,9 @@ func (m *Model) backShown() bool {
 	if _, ok := keyByName(keyOf(actBack)); !ok {
 		return false
 	}
+	if m.home == screenArea {
+		return m.screen != screenArea
+	}
 	return m.screen != screenList || m.list.editing || m.list.query() != ""
 }
 
