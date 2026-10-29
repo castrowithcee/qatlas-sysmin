@@ -86,6 +86,7 @@ func newRootCommand(opts *Options) *cobra.Command {
 		"output format: table, json, or compact")
 
 	cmd.AddCommand(newVersionCommand(opts))
+	cmd.AddCommand(newLogCommand(opts))
 	// A command without a run function is a help topic: 'sysmin help <topic>' prints its text, and the
 	// root help lists it under the additional help topics.
 	for _, topic := range helptopics.All() {
