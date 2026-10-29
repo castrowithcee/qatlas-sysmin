@@ -12,7 +12,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 	"github.com/castrowithcee/qatlas-sysmin/internal/service"
 )
 
@@ -45,9 +44,6 @@ func newRunCommand(opts *Options) *cobra.Command {
 
 // runService serves until ctx ends. Signals and process hardening belong to the caller.
 func runService(ctx context.Context, cfg service.Config) error {
-	if cfg.Resolver == nil {
-		cfg.Resolver = daemon.SystemResolver{}
-	}
 	s, err := service.Open(cfg)
 	if err != nil {
 		return fmt.Errorf("start the service: %w", err)
