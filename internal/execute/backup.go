@@ -110,6 +110,30 @@ func removeBackupDir(root, project, dir string) error {
 	return os.RemoveAll(dir)
 }
 
+// ListBackups returns the backup directories of a project below root, oldest first. Only plain directories
+// with a backup name directly below the project directory count; a project without any has none.
+func ListBackups(root, project string) ([]string, error) {
+	pdir, err := projectBackupDir(root, project)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(pdir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, ent := range entries {
+		if ent.Type().IsDir() && isBackupName(ent.Name()) {
+			out = append(out, filepath.Join(pdir, ent.Name()))
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
 // retainBackups keeps the newest keep backup directories of the project, and the one just made, and removes
 // older ones. Only plain directories with a backup name directly below the project directory count.
 func retainBackups(root, project, current string, keep int) (removed []string, err error) {

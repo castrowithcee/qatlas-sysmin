@@ -21,6 +21,7 @@ const (
 	OperationDeployPlan     = "deploy.plan"
 	OperationDeployRun      = "deploy.run"
 	OperationDeployRollback = "deploy.rollback"
+	OperationDeployRestore  = "deploy.restore"
 
 	OperationVaultUnlock = "vault.unlock"
 	OperationVaultLock   = "vault.lock"
@@ -49,7 +50,7 @@ var knownOperations = map[string]bool{
 	OperationCredentialUse:   true,
 	OperationApprovalRequest: true, OperationApprovalGrant: true, OperationApprovalDeny: true,
 	OperationApprovalList: true, OperationApprovalShow: true,
-	OperationDeployPlan: true, OperationDeployRun: true, OperationDeployRollback: true,
+	OperationDeployPlan: true, OperationDeployRun: true, OperationDeployRollback: true, OperationDeployRestore: true,
 	OperationVaultUnlock: true, OperationVaultLock: true, OperationVaultRekey: true,
 	OperationWebhookReceive: true, OperationWebhookReject: true, OperationNotifySend: true,
 	OperationControlRequest: true, OperationControlRefuse: true, OperationControlStatus: true,
