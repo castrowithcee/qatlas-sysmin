@@ -27,7 +27,7 @@ func (v *Vault) Status() (Status, error) {
 	case StateLocked:
 		st.Entries = -1
 	case StateUnlocked:
-		st.Entries = len(v.doc.Entries)
+		st.Entries = v.doc.live()
 	}
 	names, err := v.pendingFiles()
 	if err != nil {

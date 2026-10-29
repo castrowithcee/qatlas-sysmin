@@ -41,7 +41,11 @@ func (m *Manager) writeSnapshot(s state) error {
 	if err != nil {
 		return fmt.Errorf("cannot encode the approved state of %s: %w", s.project.Name, err)
 	}
-	path := m.snapshotPath(s.project.Name)
+	return m.writeSnapshotFile(m.snapshotPath(s.project.Name), data)
+}
+
+// writeSnapshotFile replaces path atomically with a private file, creating the directories at 0700.
+func (m *Manager) writeSnapshotFile(path string, data []byte) error {
 	dir := filepath.Dir(path)
 	for _, d := range []string{filepath.Join(m.stateDir, approvedDir), dir} {
 		if err := os.MkdirAll(d, dirMode); err != nil {
@@ -53,7 +57,7 @@ func (m *Manager) writeSnapshot(s state) error {
 	}
 	tmp, err := os.CreateTemp(dir, ".sysmin-tmp-*")
 	if err != nil {
-		return fmt.Errorf("cannot write the approved state of %s: %w", s.project.Name, err)
+		return fmt.Errorf("cannot write the approved state: %w", err)
 	}
 	name := tmp.Name()
 	err = tmp.Chmod(snapshotMode)
@@ -71,7 +75,7 @@ func (m *Manager) writeSnapshot(s state) error {
 	}
 	if err != nil {
 		_ = os.Remove(name)
-		return fmt.Errorf("cannot write the approved state of %s: %w", s.project.Name, err)
+		return fmt.Errorf("cannot write the approved state: %w", err)
 	}
 	return nil
 }

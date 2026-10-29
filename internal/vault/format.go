@@ -22,6 +22,9 @@ type record struct {
 	Fields   map[string]string `json:"fields"`
 	Created  time.Time         `json:"created"`
 	Modified time.Time         `json:"modified"`
+	// Superseded marks an entry that Replace gave a successor of the same name. It stays readable by id
+	// until PurgeSuperseded removes it, and no name resolves to it.
+	Superseded bool `json:"superseded,omitempty"`
 }
 
 func (r record) entry() Entry {
@@ -71,14 +74,25 @@ func cloneFields(fields map[string]string) map[string]string {
 	return out
 }
 
-// byName returns the record named name and whether it exists.
+// byName returns the live record named name and whether it exists; a superseded record never matches.
 func (d *document) byName(name string) (record, bool) {
 	for _, r := range d.Entries {
-		if r.Name == name {
+		if r.Name == name && !r.Superseded {
 			return r, true
 		}
 	}
 	return record{}, false
+}
+
+// live counts the records that are not superseded.
+func (d *document) live() int {
+	n := 0
+	for _, r := range d.Entries {
+		if !r.Superseded {
+			n++
+		}
+	}
+	return n
 }
 
 // validateName refuses an empty or unprintable entry name. Names are not secret, so they may appear in

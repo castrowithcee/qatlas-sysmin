@@ -49,10 +49,10 @@ func approvalCode(err error) string {
 
 func approvalError(err error) error { return &control.Error{Code: approvalCode(err)} }
 
-// projectParams decodes the parameters of a request about one project.
+// projectParams decodes the parameters of a request about one project or about the channels.
 func projectParams(params json.RawMessage) (control.ApprovalParams, error) {
 	var p control.ApprovalParams
-	if err := json.Unmarshal(params, &p); err != nil || !config.ValidName(p.Project) {
+	if err := json.Unmarshal(params, &p); err != nil || !(config.ValidName(p.Project) || p.Project == approval.ChannelsName) {
 		return p, &control.Error{Code: control.CodeBadRequest}
 	}
 	return p, nil

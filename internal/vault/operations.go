@@ -232,7 +232,7 @@ func (v *Vault) GetByName(name string) (Entry, error) {
 	return r.entry(), nil
 }
 
-// List returns every entry without its values, sorted by name.
+// List returns every live entry without its values, sorted by name. Superseded entries are left out.
 func (v *Vault) List() ([]Info, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -241,7 +241,9 @@ func (v *Vault) List() ([]Info, error) {
 	}
 	infos := make([]Info, 0, len(v.doc.Entries))
 	for _, r := range v.doc.Entries {
-		infos = append(infos, r.info())
+		if !r.Superseded {
+			infos = append(infos, r.info())
+		}
 	}
 	sort.Slice(infos, func(i, j int) bool { return infos[i].Name < infos[j].Name })
 	return infos, nil
@@ -257,7 +259,7 @@ func (v *Vault) Set(id string, fields map[string]string) error {
 	}
 	return v.mutate(func(d *document) error {
 		r, ok := d.Entries[id]
-		if !ok {
+		if !ok || r.Superseded {
 			return ErrNotFound
 		}
 		if err := validateFields(r.Kind, fields); err != nil {
@@ -282,7 +284,7 @@ func (v *Vault) Rename(id, newName string) error {
 	}
 	return v.mutate(func(d *document) error {
 		r, ok := d.Entries[id]
-		if !ok {
+		if !ok || r.Superseded {
 			return ErrNotFound
 		}
 		if other, taken := d.byName(newName); taken && other.ID != id {
@@ -309,4 +311,67 @@ func (v *Vault) Delete(id string) error {
 		delete(d.Entries, id)
 		return nil
 	})
+}
+
+// Replace gives the live entry named name new fields under a new id and returns that id. The name now
+// resolves to the new entry; the previous one is superseded: it stays readable by its id, so a state
+// approved against it keeps working, until PurgeSuperseded removes it. fields must be exactly the fields
+// the entry's kind requires. Unlike Add it never queues the change: a locked vault returns ErrLocked.
+func (v *Vault) Replace(name string, fields map[string]string) (string, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if err := v.requireUnlocked(); err != nil {
+		return "", err
+	}
+	var newIDValue string
+	err := v.mutate(func(d *document) error {
+		old, ok := d.byName(name)
+		if !ok {
+			return ErrNotFound
+		}
+		if err := validateFields(old.Kind, fields); err != nil {
+			return err
+		}
+		now := time.Now().UTC()
+		next := record{ID: newID(), Name: name, Kind: old.Kind, Fields: cloneFields(fields), Created: now, Modified: now}
+		old.Superseded = true
+		d.Entries[old.ID] = old
+		d.Entries[next.ID] = next
+		newIDValue = next.ID
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return newIDValue, nil
+}
+
+// PurgeSuperseded removes every superseded entry whose id is not in keep and returns how many it removed.
+func (v *Vault) PurgeSuperseded(keep map[string]bool) (int, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if err := v.requireUnlocked(); err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, r := range v.doc.Entries {
+		if r.Superseded && !keep[r.ID] {
+			removed++
+		}
+	}
+	if removed == 0 {
+		return 0, nil
+	}
+	err := v.mutate(func(d *document) error {
+		for id, r := range d.Entries {
+			if r.Superseded && !keep[id] {
+				delete(d.Entries, id)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return removed, nil
 }

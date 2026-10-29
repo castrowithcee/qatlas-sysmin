@@ -394,6 +394,12 @@ func (s *Store) backup(rel string, schema int, data []byte) error {
 // ValidName reports whether name is usable as a project or template name and so as a file name.
 func ValidName(name string) bool { return nameRe.MatchString(name) }
 
+// SettingsRevision returns the revision of sysmin.yaml as it is now, RevisionAbsent when it does not exist.
+func (s *Store) SettingsRevision() (Revision, error) {
+	rev, _, err := s.current(SettingsPath())
+	return rev, err
+}
+
 // ProjectRevision returns the revision of the project file as it is now, RevisionAbsent when it does not
 // exist. It reads the one file only, so it works while other files of the configuration are broken.
 func (s *Store) ProjectRevision(name string) (Revision, error) {
