@@ -21,6 +21,8 @@ func (m *Model) typing() bool {
 		return (m.area == areaSettings && m.set.editing) || (m.area == areaProjects && m.prj.list.editing)
 	case screenPopup:
 		return m.pop != nil && m.pop.kind == popCommand
+	case screenConfirm:
+		return m.projectsPickerEditing()
 	}
 	return false
 }

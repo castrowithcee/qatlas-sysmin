@@ -231,7 +231,7 @@ var textEN = map[textID]string{
 	tInfoSetTimeout:                 "How long an idle admin session lasts. 0 asks for every change.",
 	tInfoSetUnlock:                  "Automatic unlock is set up on the host, not here.",
 	tInfoSetUpdate:                  "Looks up the newest signed release. Installing happens on the host.",
-	tInfoAreaProjects:               "The projects of this host. Commands: run, pause, resume, pin, unpin.",
+	tInfoAreaProjects:               "The projects of this host. u updates. Commands: run, pause, resume, pin, unpin, restore.",
 	tInfoAreaActivity:               "Runs and the log of this host.",
 	tInfoAreaAccess:                 "Open approvals wait here.",
 	tInfoAreaLibrary:                "Credentials, notifications and scenario templates.",

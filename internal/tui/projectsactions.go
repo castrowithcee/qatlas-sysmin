@@ -17,12 +17,17 @@ const (
 	projDlgResult projectDialogKind = iota
 	projDlgDelete
 	projDlgRun
+	projDlgRestore
+	projDlgPick
 )
 
 // projectDialog is the question or result over the area; it is shown through m.ask.
 type projectDialog struct {
 	kind           projectDialogKind
 	name, revision string
+	// backup is the backup a restore asks about; picker is the list of a projDlgPick.
+	backup string
+	picker *projectPicker
 }
 
 // projectControlOps maps the commands that steer a project to the operations of the service.
@@ -34,13 +39,13 @@ var projectControlOps = map[string]string{
 }
 
 // projectCommands are the commands of the area. They act on the project under the cursor and are the way to
-// run-now, pause, resume, pin and unpin: the letters of the key table are all taken by other meanings.
+// run-now, pause, resume, pin, unpin and restore: the letters of the key table are all taken by other meanings.
 func projectCommands() []commandEntry {
 	var list []commandEntry
 	for _, kind := range []string{"run", "pause", "resume", "pin", "unpin"} {
 		list = append(list, commandEntry{kind, func(m *Model) tea.Cmd { return m.projectAction(kind) }})
 	}
-	return list
+	return append(list, commandEntry{"restore", func(m *Model) tea.Cmd { return m.projectRestore() }})
 }
 
 // openProject shows the dialog d with the question q over the area.
@@ -63,6 +68,16 @@ func (m *Model) projectsDialogOpen() bool {
 func (m *Model) updateProjectDialog(key tea.KeyPressMsg) tea.Cmd {
 	d := m.prj.dialog
 	switch d.kind {
+	case projDlgPick:
+		return m.pickerKey(key)
+	case projDlgRestore:
+		switch {
+		case keyIs(key, actYes):
+			m.closeProjectDialog()
+			return m.restoreProject(d.name, d.backup)
+		case keyIs(key, actBack), keyIs(key, actNo):
+			m.closeProjectDialog()
+		}
 	case projDlgResult:
 		if keyIs(key, actBack) || keyIs(key, actEnter) {
 			m.closeProjectDialog()
@@ -110,6 +125,9 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 	p := m.prj
 	if p.log != nil {
 		return m.projectLogKey(key)
+	}
+	if p.upd != nil {
+		return m.projectUpdateKey(key)
 	}
 	wide := m.usable(0) >= projectsDetailMinWidth
 	step := func(by int) { p.tab = projectTab((int(p.tab) + by + int(projTabCount)) % int(projTabCount)) }
@@ -174,6 +192,8 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 		return m.projectDelete(), true
 	case keyIs(key, actLogs):
 		return m.projectOpenLog(), true
+	case keyIs(key, actUpdate):
+		return m.projectUpdateOpen(), true
 	case keyIs(key, actReload):
 		return tea.Batch(m.statusCmd(), m.projectsCmd()), true
 	}
@@ -183,7 +203,7 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 // projectsBackShown reports whether esc leads one level back inside the area.
 func (m *Model) projectsBackShown() bool {
 	p := m.prj
-	return m.area == areaProjects && p != nil && (p.log != nil || p.focusDetail || p.list.query() != "")
+	return m.area == areaProjects && p != nil && (p.log != nil || p.upd != nil || p.focusDetail || p.list.query() != "")
 }
 
 // selectedProject is the project under the cursor; without one it says so.
@@ -460,11 +480,15 @@ func (m *Model) projectsKeys() []string {
 	switch {
 	case p.log != nil:
 		return []string{"up/down scroll", "pgup/pgdown page", "home/end ends", "{back} back"}
+	case p.upd != nil && p.upd.results != nil:
+		return []string{"up/down scroll", "{back} close"}
+	case p.upd != nil:
+		return []string{"up/down item", "enter version", "pgup/pgdown notes", "y update", "n/{back} cancel"}
 	case p.focusDetail:
-		return []string{"up/down scroll", "left/right tab", "t test", "d delete", "o log", "{back} list"}
+		return []string{"up/down scroll", "left/right tab", "t test", "u update", "d delete", "o log", "{back} list"}
 	}
 	// The controls have no letter of their own; they are commands.
-	keys := []string{"up/down move", "t test", "o log", "space mark", "enter detail", "run/pause/pin via {command}", "/ filter", "d delete"}
+	keys := []string{"up/down move", "t test", "o log", "u update", "space mark", "enter detail", "run/pause/pin/restore via {command}", "/ filter", "d delete"}
 	if m.usable(0) >= projectsDetailMinWidth {
 		keys = append(keys, "left/right tab")
 	}

@@ -73,7 +73,7 @@ func (m *Model) enterPage() tea.Cmd {
 	case m.area == areaOverview:
 		return m.overviewCmd()
 	case m.area == areaProjects:
-		m.prj.log, m.prj.focusDetail = nil, false
+		m.prj.log, m.prj.upd, m.prj.focusDetail = nil, nil, false
 		return m.projectsCmd()
 	case m.area == areaSettings:
 		m.loadForms()

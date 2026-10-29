@@ -14,8 +14,10 @@ import (
 // action. esc ends the overlay and drops the action.
 
 // change is a changing action. call runs off the event loop; done gets its outcome on the event loop and may
-// be nil. A nil call is a request for the session alone.
+// be nil. A nil call is a request for the session alone. busy, when set, is what the screen says while the
+// call runs.
 type change struct {
+	busy string
 	call func(Backend) error
 	done func(m *Model, err error) tea.Cmd
 }
@@ -135,6 +137,9 @@ func (m *Model) serviceReady() (tea.Cmd, bool) {
 func (m *Model) runChange(c change, retried bool) tea.Cmd {
 	if c.call == nil {
 		return nil
+	}
+	if c.busy != "" {
+		m.busy = c.busy
 	}
 	b := m.backend
 	return func() tea.Msg { return changeDoneMsg{change: c, retried: retried, err: c.call(b)} }

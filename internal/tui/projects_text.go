@@ -78,6 +78,43 @@ const (
 	tSrcInvalid      textID = "SrcInvalid"
 )
 
+// The texts of the manual update, the restore and the pickers they use.
+const (
+	tProjVersionRefused  textID = "ProjVersionRefused"
+	tProjBackupGone      textID = "ProjBackupGone"
+	tProjNoRestore       textID = "ProjNoRestore"
+	tPickNoMatch         textID = "PickNoMatch"
+	tPickPosition        textID = "PickPosition"
+	tBusyBackups         textID = "BusyBackups"
+	tBusyRestore         textID = "BusyRestore"
+	tBusyUpdate          textID = "BusyUpdate"
+	tProjNoBackups       textID = "ProjNoBackups"
+	tProjRestorePick     textID = "ProjRestorePick"
+	tProjRestorePickNote textID = "ProjRestorePickNote"
+	tProjRestoreTitle    textID = "ProjRestoreTitle"
+	tProjRestoreNote     textID = "ProjRestoreNote"
+	tProjRestorePending  textID = "ProjRestorePending"
+	tProjRestoreNothing  textID = "ProjRestoreNothing"
+	tProjUpdTooMany      textID = "ProjUpdTooMany"
+	tProjUpdNone         textID = "ProjUpdNone"
+	tProjUpdDone         textID = "ProjUpdDone"
+	tProjUpdPending      textID = "ProjUpdPending"
+	tProjUpdRun          textID = "ProjUpdRun"
+	tProjUpdNothing      textID = "ProjUpdNothing"
+	tProjUpdLoading      textID = "ProjUpdLoading"
+	tProjUpdSkipped      textID = "ProjUpdSkipped"
+	tProjUpdNotes        textID = "ProjUpdNotes"
+	tProjUpdTitle        textID = "ProjUpdTitle"
+	tProjUpdResults      textID = "ProjUpdResults"
+	tProjUpdPick         textID = "ProjUpdPick"
+	tProjUpdPickNote     textID = "ProjUpdPickNote"
+	tChgNone             textID = "ChgNone"
+	tChgRateLimited      textID = "ChgRateLimited"
+	tChgFailed           textID = "ChgFailed"
+	tChgStale            textID = "ChgStale"
+	tChgMore             textID = "ChgMore"
+)
+
 // projectWords are the words of the area that are drawn as they come from the service or the files: they are
 // the same in English, and translated below.
 var projectWords = []string{"images", "git", "auto", "manual", "mixed", "paused", "pinned", "locked", "restore",
@@ -155,17 +192,59 @@ func init() {
 		tSrcCredential:     "credential problem",
 		tSrcInvalid:        "invalid source",
 
-		footerID("space mark"):                  "space mark",
-		footerID("enter detail"):                "enter detail",
-		footerID("d delete"):                    "d delete",
-		footerID("o log"):                       "o log",
-		footerID("left/right tab"):              "left/right tab",
-		footerID("{back} list"):                 "{back} list",
-		footerID("pgup/pgdown page"):            "pgup/pgdown page",
-		footerID("home/end ends"):               "home/end ends",
-		footerID("y run"):                       "y run",
-		footerID("n/{back} cancel"):             "n/{back} cancel",
-		footerID("run/pause/pin via {command}"): "run/pause/pin via {command}",
+		footerID("space mark"):                          "space mark",
+		footerID("enter detail"):                        "enter detail",
+		footerID("d delete"):                            "d delete",
+		footerID("o log"):                               "o log",
+		footerID("left/right tab"):                      "left/right tab",
+		footerID("{back} list"):                         "{back} list",
+		footerID("pgup/pgdown page"):                    "pgup/pgdown page",
+		footerID("home/end ends"):                       "home/end ends",
+		footerID("y run"):                               "y run",
+		footerID("n/{back} cancel"):                     "n/{back} cancel",
+		footerID("run/pause/pin/restore via {command}"): "run/pause/pin/restore via {command}",
+
+		tProjVersionRefused:  "That version is no available update any more. Reload with ctrl+r.",
+		tProjBackupGone:      "The backup does not exist any more.",
+		tProjNoRestore:       "The project has no restore command.",
+		tPickNoMatch:         "No match.",
+		tPickPosition:        "%d/%d",
+		tBusyBackups:         "Reading the backups of %s",
+		tBusyRestore:         "Restoring %s",
+		tBusyUpdate:          "Updating %d project(s)",
+		tProjNoBackups:       "%s has no backups.",
+		tProjRestorePick:     "Restore %s from",
+		tProjRestorePickNote: "Newest backup first.",
+		tProjRestoreTitle:    "Restore %s?",
+		tProjRestoreNote:     "The data of the project is replaced by this backup.",
+		tProjRestorePending:  "%s: the restore is still going.",
+		tProjRestoreNothing:  "%s: nothing was restored.",
+		tProjUpdTooMany:      "At most %d projects can be updated at once.",
+		tProjUpdNone:         "Nothing newer to update.",
+		tProjUpdDone:         "Update of %d project(s) finished.",
+		tProjUpdPending:      "still running",
+		tProjUpdRun:          "run %s",
+		tProjUpdNothing:      "nothing to do",
+		tProjUpdLoading:      "Loading release notes",
+		tProjUpdSkipped:      "Nothing newer: %s",
+		tProjUpdNotes:        "Release notes %s · %s → %s",
+		tProjUpdTitle:        "Update %d project(s)",
+		tProjUpdResults:      "Update result",
+		tProjUpdPick:         "Version of %s",
+		tProjUpdPickNote:     "Current: %s",
+		tChgNone:             "No release notes found.",
+		tChgRateLimited:      "GitHub limits requests. Try again later.",
+		tChgFailed:           "Release notes cannot be read (%s).",
+		tChgStale:            "Cached notes; they may be outdated.",
+		tChgMore:             "%d older release(s) not shown.",
+
+		footerID("u update"):          "u update",
+		footerID("up/down item"):      "up/down item",
+		footerID("enter version"):     "enter version",
+		footerID("pgup/pgdown notes"): "pgup/pgdown notes",
+		footerID("y update"):          "y update",
+		footerID("enter pick"):        "enter pick",
+		footerID("y restore"):         "y restore",
 	})
 	maps.Copy(textDE, map[textID]string{
 		tProjEmpty:         "Noch keine Projekte.",
@@ -238,17 +317,59 @@ func init() {
 		tSrcCredential:     "Credential-Problem",
 		tSrcInvalid:        "ungültige Quelle",
 
-		footerID("space mark"):                  "space markieren",
-		footerID("enter detail"):                "enter Detail",
-		footerID("d delete"):                    "d löschen",
-		footerID("o log"):                       "o Log",
-		footerID("left/right tab"):              "left/right Reiter",
-		footerID("{back} list"):                 "{back} Liste",
-		footerID("pgup/pgdown page"):            "pgup/pgdown Seite",
-		footerID("home/end ends"):               "home/end Enden",
-		footerID("y run"):                       "y ausführen",
-		footerID("n/{back} cancel"):             "n/{back} abbrechen",
-		footerID("run/pause/pin via {command}"): "run/pause/pin über {command}",
+		footerID("space mark"):                          "space markieren",
+		footerID("enter detail"):                        "enter Detail",
+		footerID("d delete"):                            "d löschen",
+		footerID("o log"):                               "o Log",
+		footerID("left/right tab"):                      "left/right Reiter",
+		footerID("{back} list"):                         "{back} Liste",
+		footerID("pgup/pgdown page"):                    "pgup/pgdown Seite",
+		footerID("home/end ends"):                       "home/end Enden",
+		footerID("y run"):                               "y ausführen",
+		footerID("n/{back} cancel"):                     "n/{back} abbrechen",
+		footerID("run/pause/pin/restore via {command}"): "run/pause/pin/restore über {command}",
+
+		tProjVersionRefused:  "Diese Version ist kein verfügbares Update mehr. ctrl+r lädt neu.",
+		tProjBackupGone:      "Das Backup gibt es nicht mehr.",
+		tProjNoRestore:       "Das Projekt hat keinen Wiederherstellungsbefehl.",
+		tPickNoMatch:         "Kein Treffer.",
+		tPickPosition:        "%d/%d",
+		tBusyBackups:         "Backups von %s werden gelesen",
+		tBusyRestore:         "%s wird wiederhergestellt",
+		tBusyUpdate:          "%d Projekt(e) werden aktualisiert",
+		tProjNoBackups:       "%s hat keine Backups.",
+		tProjRestorePick:     "%s wiederherstellen aus",
+		tProjRestorePickNote: "Neuestes Backup zuerst.",
+		tProjRestoreTitle:    "%s wiederherstellen?",
+		tProjRestoreNote:     "Die Daten des Projekts werden durch dieses Backup ersetzt.",
+		tProjRestorePending:  "%s: Die Wiederherstellung dauert noch.",
+		tProjRestoreNothing:  "%s: Nichts wurde wiederhergestellt.",
+		tProjUpdTooMany:      "Höchstens %d Projekte lassen sich gleichzeitig aktualisieren.",
+		tProjUpdNone:         "Nichts Neueres zu aktualisieren.",
+		tProjUpdDone:         "Update von %d Projekt(en) beendet.",
+		tProjUpdPending:      "läuft noch",
+		tProjUpdRun:          "Lauf %s",
+		tProjUpdNothing:      "nichts zu tun",
+		tProjUpdLoading:      "Release Notes werden geladen",
+		tProjUpdSkipped:      "Nichts Neueres: %s",
+		tProjUpdNotes:        "Release Notes %s · %s → %s",
+		tProjUpdTitle:        "%d Projekt(e) aktualisieren",
+		tProjUpdResults:      "Ergebnis des Updates",
+		tProjUpdPick:         "Version von %s",
+		tProjUpdPickNote:     "Aktuell: %s",
+		tChgNone:             "Keine Release Notes gefunden.",
+		tChgRateLimited:      "GitHub begrenzt die Anfragen. Später erneut versuchen.",
+		tChgFailed:           "Release Notes nicht lesbar (%s).",
+		tChgStale:            "Zwischengespeicherte Notes; sie können veraltet sein.",
+		tChgMore:             "%d ältere Release(s) nicht gezeigt.",
+
+		footerID("u update"):          "u aktualisieren",
+		footerID("up/down item"):      "up/down Eintrag",
+		footerID("enter version"):     "enter Version",
+		footerID("pgup/pgdown notes"): "pgup/pgdown Notes",
+		footerID("y update"):          "y aktualisieren",
+		footerID("enter pick"):        "enter wählen",
+		footerID("y restore"):         "y wiederherstellen",
 	})
 	for _, w := range projectWords {
 		textEN[wordID(w)] = w

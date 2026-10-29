@@ -231,7 +231,7 @@ var textDE = map[textID]string{
 	tInfoSetTimeout:                 "Wie lange eine ruhende Admin-Sitzung gilt. 0 fragt bei jeder Änderung.",
 	tInfoSetUnlock:                  "Das automatische Entsperren wird auf dem Host eingerichtet, nicht hier.",
 	tInfoSetUpdate:                  "Sucht das neueste signierte Release. Installiert wird auf dem Host.",
-	tInfoAreaProjects:               "Die Projekte dieses Hosts. Befehle: run, pause, resume, pin, unpin.",
+	tInfoAreaProjects:               "Die Projekte dieses Hosts. u aktualisiert. Befehle: run, pause, resume, pin, unpin, restore.",
 	tInfoAreaActivity:               "Läufe und Protokoll dieses Hosts.",
 	tInfoAreaAccess:                 "Hier warten offene Freigaben.",
 	tInfoAreaLibrary:                "Credentials, Benachrichtigungen und Szenario-Vorlagen.",

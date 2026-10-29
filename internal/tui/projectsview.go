@@ -21,6 +21,9 @@ func (m *Model) projectsBody() string {
 	if p.log != nil {
 		return m.projectLogView(room)
 	}
+	if p.upd != nil {
+		return m.projectUpdateView(room)
+	}
 	width, framed := m.usable(0), m.tableFramed()
 	rows := max(room-projectChrome(m, framed), 1)
 	switch {

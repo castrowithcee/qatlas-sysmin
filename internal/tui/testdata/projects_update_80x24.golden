@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                     [esc] back  ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+ Overview  [Projects]  Activity   Access   Library   Settings 
+
+Update 2 project(s)
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ > demo-app · app  1.0.0 → 2.0.0 ▾                                            ║
+║   demo-db · app   1.0.0 → 2.0.0 ▾                                            ║
+║ Release notes demo-app · app · 1.0.0 → 2.0.0                                 ║
+║ 2.0.0  Release 2.0.0                                                         ║
+║   Notes for 2.0.0                                                            ║
+║   Second line                                                                ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+1-6 area  enter version  y update  n/esc cancel  ctrl+l admin  ? help  : cmds

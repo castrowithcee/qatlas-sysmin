@@ -42,6 +42,12 @@ type Backend interface {
 	// RemoveProject deletes the project file the revision names; it needs the admin session to take effect at
 	// once.
 	RemoveProject(name, revision string) (control.ChangeResult, error)
+	// Backups and Changelog only read; Changelog may take minutes. DeployUpdate (versions a person chose, one
+	// run per project) and DeployRestore need the admin session.
+	Backups(project string) ([]string, error)
+	Changelog(project, image, to string) (control.ChangelogResult, error)
+	DeployUpdate(updates []control.ProjectUpdate) (control.DeployUpdateResult, error)
+	DeployRestore(project, backup string) (control.DeployRestoreResult, error)
 }
 
 // NewBackend is the Backend over the control socket at path. It dials on the first call and again after the
@@ -170,5 +176,25 @@ func (b *ClientBackend) DeployControl(op, project string) error {
 
 func (b *ClientBackend) RemoveProject(name, revision string) (res control.ChangeResult, err error) {
 	err = b.do(false, func(c *client.Client) (e error) { res, e = c.RemoveProject(name, revision); return e })
+	return res, err
+}
+
+func (b *ClientBackend) Backups(project string) (list []string, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Backups(project); return e })
+	return list, err
+}
+
+func (b *ClientBackend) Changelog(project, image, to string) (res control.ChangelogResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.Changelog(project, image, to); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployUpdate(updates []control.ProjectUpdate) (res control.DeployUpdateResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DeployUpdate(updates); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployRestore(project, backup string) (res control.DeployRestoreResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DeployRestore(project, backup); return e })
 	return res, err
 }

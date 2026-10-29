@@ -42,7 +42,7 @@ func TestProjectsListShowsTheColumns(t *testing.T) {
 	view := plain(m)
 	assertViewFits(t, view, 120, 30)
 	for _, want := range []string{"Projects (3)", "Name", "Source", "Current", "Available", "Mode", "State", "Last run",
-		"demo-app", "images", "1.0.0", "2.0.0", "auto", "● approved", "⚠ pending", "10-29 12:00 succeeded", "1/3"} {
+		"demo-app", "images", "1.0.0", "2.0.0", "auto", "● approved", "⚠ pending", "2026-10-29 12:00 succeeded", "1/3"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}
@@ -52,10 +52,22 @@ func TestProjectsListShowsTheColumns(t *testing.T) {
 	}
 }
 
-func TestProjectsNarrowDropsTheLeastImportantColumnsFirst(t *testing.T) {
+func TestProjectsLastRunIsAShortCellAndGivesWayFirst(t *testing.T) {
 	m := projectsModel(t, projectsFake(), 80, 24)
 	view := plain(m)
 	assertViewFits(t, view, 80, 24)
+	for _, want := range []string{"Last run", "✓ 10-29 12:00", "State", "Name"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("80 columns lack %q:\n%s", want, view)
+		}
+	}
+	m = projectsModel(t, projectsFake(), 150, 30)
+	if view := plain(m); !strings.Contains(view, "✓ 10-29 12:00") {
+		t.Errorf("a wide list lacks the last run:\n%s", view)
+	}
+	m = projectsModel(t, projectsFake(), 64, 24)
+	view = plain(m)
+	assertViewFits(t, view, 64, 24)
 	if strings.Contains(view, "Last run") || !strings.Contains(view, "State") || !strings.Contains(view, "Name") {
 		t.Errorf("the columns do not give way in order:\n%s", view)
 	}
@@ -343,12 +355,12 @@ func TestProjectsGerman(t *testing.T) {
 func TestProjectsFootersNameTheirKeys(t *testing.T) {
 	m := projectsModel(t, projectsFake(), 140, 30)
 	m.render()
-	for _, want := range []string{"space", "enter", "t test", "d delete", "o log", "run/pause/pin"} {
+	for _, want := range []string{"space", "enter", "t test", "u update", "d delete", "o log", "run/pause/pin/restore"} {
 		if !strings.Contains(m.footerLine(), want) && !strings.Contains(plain(m), want) {
 			t.Errorf("footer lacks %q: %q", want, m.screenKeys)
 		}
 	}
-	if !strings.Contains(m.screenKeys, "run/pause/pin via {command}") {
+	if !strings.Contains(m.screenKeys, "run/pause/pin/restore via {command}") {
 		t.Errorf("screenKeys = %q", m.screenKeys)
 	}
 }
@@ -372,7 +384,8 @@ func TestGoldenProjects(t *testing.T) {
 func TestProjectsViewsFitEverySize(t *testing.T) {
 	for _, size := range [][2]int{{40, 14}, {60, 16}, {80, 24}, {119, 30}, {120, 40}, {200, 50}} {
 		for name, keys := range map[string][]string{"list": nil, "detail": {"enter"}, "raw": {"enter", "right", "right"},
-			"log": {"o"}, "sources": {"t"}, "delete": {"d"}, "filter": {"/"}} {
+			"log": {"o"}, "sources": {"t"}, "delete": {"d"}, "filter": {"/"}, "update": {"u"}, "pick": {"u", "enter"},
+			"restore-pick": {":", "r", "e", "s", "t", "o", "r", "e", "enter"}} {
 			t.Run(fmt.Sprintf("%dx%d_%s", size[0], size[1], name), func(t *testing.T) {
 				m := projectsModel(t, projectsFake(), size[0], size[1])
 				send(m, keys...)

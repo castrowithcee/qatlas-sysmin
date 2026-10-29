@@ -62,7 +62,9 @@ type projectsState struct {
 	tab         projectTab
 	pane        paneScroll
 	log         *projectLog
-	dialog      *projectDialog
+	// upd is the update panel, shown in place of the list.
+	upd    *projectUpdate
+	dialog *projectDialog
 }
 
 func newProjectsState() *projectsState {
@@ -188,6 +190,10 @@ func (m *Model) takeProjects(msg projectsMsg) tea.Cmd {
 		m.takeProjectSource(msg)
 	case projectLogMsg:
 		m.takeProjectLog(msg)
+	case projectNotesMsg:
+		m.takeProjectNotes(msg)
+	case projectBackupsMsg:
+		m.takeProjectBackups(msg)
 	}
 	return nil
 }
@@ -257,6 +263,12 @@ func projectErrorText(err error) string {
 		return tr(tProjGone)
 	case isCode(err, control.CodeNotApproved):
 		return tr(tProjNotApproved)
+	case isCode(err, control.CodeVersionRefused):
+		return tr(tProjVersionRefused)
+	case isCode(err, control.CodeBackupUnknown):
+		return tr(tProjBackupGone)
+	case isCode(err, control.CodeNoRestore):
+		return tr(tProjNoRestore)
 	}
 	return errorText(err)
 }
@@ -273,7 +285,8 @@ const (
 )
 
 // projectColumns are the columns of the list. Where the width runs short the last run goes first, then the
-// source, the mode and the available version.
+// source, the mode and the available version. The last run is a short cell: the mark of its result and the
+// start time.
 func projectColumns() []column {
 	return []column{
 		{title: tr(tProjColName)},
@@ -282,7 +295,7 @@ func projectColumns() []column {
 		{title: tr(tProjColAvailable), optional: true, drop: 1},
 		{title: tr(tProjColMode), optional: true, drop: 2},
 		{title: tr(tProjColState), tone: projectStateTone},
-		{title: tr(tProjColLastRun), optional: true, drop: 4, tone: toneDim},
+		{title: tr(tProjColLastRun), optional: true, drop: 4, tone: projectRunTone},
 	}
 }
 
@@ -299,6 +312,30 @@ func projectStateTone(cell string) lipgloss.Style {
 	return styles.hint
 }
 
+// projectRunTone styles a last-run cell by the mark of its result.
+func projectRunTone(cell string) lipgloss.Style {
+	switch {
+	case strings.HasPrefix(cell, "✓"):
+		return styles.ok
+	case strings.HasPrefix(cell, "✗"):
+		return styles.fail
+	case strings.HasPrefix(cell, "↩"):
+		return styles.warning
+	}
+	return styles.hint
+}
+
+// runMarks are the marks of the results of a run; the words stand in the detail pane.
+var runMarks = map[string]string{"succeeded": "✓", "rolled-back": "↩", "failed": "✗", "rollback-failed": "✗"}
+
+// runMark is the mark of the result of a run.
+func runMark(result string) string {
+	if mark, ok := runMarks[result]; ok {
+		return mark
+	}
+	return "?"
+}
+
 // projectCells are the cells of a row. marked leads the name with the mark of a marked project.
 func projectCells(r *projectRow, marked bool) []string {
 	lead := "  "
@@ -308,7 +345,7 @@ func projectCells(r *projectRow, marked bool) []string {
 	kind, word := r.state()
 	last := "-"
 	if r.status != nil && r.status.LastRun != nil {
-		last = projectTime(r.status.LastRun.Started, "01-02 15:04") + " " + wordText(r.status.LastRun.Result)
+		last = runMark(r.status.LastRun.Result) + " " + projectTime(r.status.LastRun.Started, "01-02 15:04")
 	}
 	return []string{
 		lead + r.sum.Name,
