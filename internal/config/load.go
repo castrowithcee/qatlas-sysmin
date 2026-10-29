@@ -17,10 +17,24 @@ func LoadPath(dir string) (*Model, error) { return Load(os.DirFS(dir)) }
 // must be named after its entry. Load decodes only; Validate checks the content. All file errors are
 // reported together.
 func Load(fsys fs.FS) (*Model, error) {
+	m, _, err := load(fsys)
+	return m, err
+}
+
+// load is Load plus the revision of every file it read, keyed by layout path.
+func load(fsys fs.FS) (*Model, Revisions, error) {
 	var errs []error
 	m := &Model{}
+	revs := Revisions{}
+	readFile := func(name string) ([]byte, error) {
+		data, err := fs.ReadFile(fsys, name)
+		if err == nil {
+			revs[name] = revisionOf(data)
+		}
+		return data, err
+	}
 
-	data, err := fs.ReadFile(fsys, SettingsFile)
+	data, err := readFile(SettingsFile)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("%s: %w", SettingsFile, err))
 	} else if m.Settings, err = DecodeSettings(data); err != nil {
@@ -30,7 +44,7 @@ func Load(fsys fs.FS) (*Model, error) {
 	files, ferr := listYAML(fsys, ProjectsDir)
 	errs = append(errs, ferr...)
 	for _, f := range files {
-		data, err := fs.ReadFile(fsys, f)
+		data, err := readFile(f)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", f, err))
 			continue
@@ -49,7 +63,7 @@ func Load(fsys fs.FS) (*Model, error) {
 	files, ferr = listYAML(fsys, TemplatesDir)
 	errs = append(errs, ferr...)
 	for _, f := range files {
-		data, err := fs.ReadFile(fsys, f)
+		data, err := readFile(f)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", f, err))
 			continue
@@ -66,9 +80,9 @@ func Load(fsys fs.FS) (*Model, error) {
 	}
 
 	if len(errs) > 0 {
-		return nil, errors.Join(errs...)
+		return nil, nil, errors.Join(errs...)
 	}
-	return m, nil
+	return m, revs, nil
 }
 
 // listYAML returns the .yaml files of a directory in name order. A missing directory is empty; any other

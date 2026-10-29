@@ -7,6 +7,7 @@ Parts of this repository are copied from or derived from qatlas-cli
 
 - `internal/filelock`, `internal/redact`, `internal/i18n`, `internal/output`, `internal/helptopics`
 - the command and error handling patterns in `internal/cli`
+- the atomic store and revision check in `internal/config`
 
 Copyright (c) 2026 castrowithcee
 

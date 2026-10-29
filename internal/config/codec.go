@@ -35,8 +35,8 @@ func decode[T any](data []byte) (T, error) {
 	if err := yaml.Unmarshal(data, &head); err != nil {
 		return zero, fmt.Errorf("invalid YAML: %w", err)
 	}
-	if head.Schema != CurrentSchema {
-		return zero, &SchemaError{Got: head.Schema, Supported: CurrentSchema}
+	if head.Schema != schemaVersion {
+		return zero, &SchemaError{Got: head.Schema, Supported: schemaVersion}
 	}
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
@@ -76,7 +76,7 @@ func DecodeTemplate(data []byte) (Template, error) { return decode[Template](dat
 // EncodeSettings writes sysmin.yaml; a zero schema becomes the current one.
 func EncodeSettings(s Settings) ([]byte, error) {
 	if s.Schema == 0 {
-		s.Schema = CurrentSchema
+		s.Schema = schemaVersion
 	}
 	return encode(s)
 }
@@ -84,7 +84,7 @@ func EncodeSettings(s Settings) ([]byte, error) {
 // EncodeProject writes a project file; a zero schema becomes the current one.
 func EncodeProject(p Project) ([]byte, error) {
 	if p.Schema == 0 {
-		p.Schema = CurrentSchema
+		p.Schema = schemaVersion
 	}
 	return encode(p)
 }
@@ -92,7 +92,7 @@ func EncodeProject(p Project) ([]byte, error) {
 // EncodeTemplate writes a template file; a zero schema becomes the current one.
 func EncodeTemplate(t Template) ([]byte, error) {
 	if t.Schema == 0 {
-		t.Schema = CurrentSchema
+		t.Schema = schemaVersion
 	}
 	return encode(t)
 }
