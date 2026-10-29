@@ -384,10 +384,6 @@ func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 	if m.area != areaSettings {
 		t.Errorf("movement back wraps to %v", m.area)
 	}
-	send(m, "2")
-	if view := plain(m); !strings.Contains(view, "Nothing to show yet.") {
-		t.Errorf("a placeholder area shows no hint:\n%s", view)
-	}
 	for a := area(0); a < areaCount; a++ {
 		if b, ok := areaByName(strings.ToLower(a.key())); !ok || b != a {
 			t.Errorf("areaByName(%q) = %v", a.key(), b)

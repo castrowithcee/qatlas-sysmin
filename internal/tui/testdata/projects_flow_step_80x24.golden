@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                     [esc] back  ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+ Overview  [Projects]  Activity   Access   Library   Settings 
+
+New project › Source
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ Image 1                                                                      ║
+║    Name:         app                                                         ║
+║ >  Reference:                                                                ║
+║    Env variable: -                                                           ║
+║    Services:     -                                                           ║
+║    Credential:   none ▾                                                      ║
+║    + Add image                                                               ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+enter next  F2 next  esc back  ctrl+l admin                   up/down field  2/7

@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                     [esc] back  ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+ Overview  [Projects]  Activity   Access   Library   Settings 
+
+New project › Summary
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ Name           demo-app                                                      ║
+║ Scenario       image-tag                                                     ║
+║ Image app      registry.example.com/demo/app · manual                        ║
+║ Directory      /srv/demo/app                                                 ║
+║ Env file       -                                                             ║
+║ Compose files  -                                                             ║
+║ Backup         none                                                          ║
+║ Checks         -                                                             ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+F2 save  esc back  ctrl+l admin  i info  ? help  : cmds      up/down scroll  7/7

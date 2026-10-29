@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                             [esc] back  ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Overview  [Projects]  Activity   Access   Library   Settings 
+
+New project › Summary
+
+╭──────────────────╮ ╔═════════════════════════════════════════════════════════════════════════════════════════════════╗
+│   1 Start        │ ║ Name           demo-app                                                                         ║
+│   2 Source       │ ║ Scenario       image-tag                                                                        ║
+│   3 Target       │ ║ Image app      registry.example.com/demo/app · manual                                           ║
+│   4 Version rule │ ║ Directory      /srv/demo/app                                                                    ║
+│   5 Checks       │ ║ Env file       -                                                                                ║
+│   6 Notify       │ ║ Compose files  -                                                                                ║
+│ > 7 Summary      │ ║ Backup         none                                                                             ║
+╰──────────────────╯ ║ Checks         -                                                                                ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
+F2 save  esc back  ctrl+l admin  i info  ? help  : cmds                                              up/down scroll  7/7

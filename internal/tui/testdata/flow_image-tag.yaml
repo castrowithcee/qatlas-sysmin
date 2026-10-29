@@ -1,0 +1,44 @@
+schema: 1
+name: demo-app
+dir: /srv/demo/app
+template: image-tag
+env_file: /srv/demo/app/.env
+compose_files:
+  - /srv/demo/app/compose.yaml
+compose_project: demo-app
+poll_interval: 30m
+backup:
+  volume: demo-app-data
+  keep: 3
+checks:
+  - type: check-http
+    url: https://demo.example.com/health
+    status: 200
+    contains: ok
+  - type: check-container
+    services:
+      - app
+notify:
+  channels:
+    - ops-mail
+  events:
+    - update-succeeded
+    - update-failed
+webhook:
+  kind: github
+  secret: demo-hook
+images:
+  - name: app
+    ref: registry.example.com/demo/app
+    env_var: DEMO_APP_TAG
+    services:
+      - app
+      - worker
+    credential: demo-registry
+    version_rule:
+      mode: auto
+      max_update: minor
+      major_steps: stepwise
+      tag_filter: ^\d+\.\d+\.\d+$
+      changelog_repo: example/demo-app
+      changelog_credential: demo-github

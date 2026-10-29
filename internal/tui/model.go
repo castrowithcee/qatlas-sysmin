@@ -88,6 +88,8 @@ type Model struct {
 	act activityState
 	lib libraryState
 	set settingsState
+	// prj is the state of the Projects area; see projects.go.
+	prj *projectsState
 	pop *popup
 	// leave is the question before unsaved input is dropped, nil while there is none.
 	leave *leaveAsk
@@ -228,6 +230,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case updateMsg:
 		m.takeUpdate(msg)
 		return m, nil
+	case projectsAnswer:
+		return m, m.takeProjectsAnswer(msg)
 	}
 	return m, nil
 }
@@ -246,8 +250,14 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	if m.ov != nil {
 		return m.updateOverlay(key)
 	}
+	if m.projectPromptOpen() {
+		return m.projectPromptKey(key)
+	}
 	if m.screen == screenPopup {
 		return m.updatePopup(key)
+	}
+	if m.projectsDialogOpen() {
+		return m.updateProjectDialog(key)
 	}
 	if m.screen == screenConfirm && m.leave != nil {
 		return m.updateLeave(key)

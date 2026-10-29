@@ -29,6 +29,29 @@ type Backend interface {
 	Settings() (control.SettingsResult, error)
 	Approvals() ([]control.ApprovalSummary, error)
 	Projects() ([]control.ProjectSummary, error)
+	// SourceTest reads one project and asks the registries; it may take minutes. Project reads one project.
+	Project(name string) (control.ProjectDetail, error)
+	SourceTest(project string) (control.SourceTestResult, error)
+	// DeployRunNow deploys what the version rules of the project allow; DeployControl pauses, resumes, pins or
+	// unpins it, op being one of the control.OpDeploy names. Neither needs the admin session.
+	DeployRunNow(project string) (control.DeployRunNowResult, error)
+	DeployControl(op, project string) error
+	// RemoveProject deletes the project file the revision names; it needs the admin session to take effect at
+	// once.
+	RemoveProject(name, revision string) (control.ChangeResult, error)
+	// AddProject stores a new project and EditProject changes a stored one, both from the fields or the whole
+	// file of p; they need the admin session to take effect at once.
+	AddProject(p control.ProjectParams) (control.ChangeResult, error)
+	EditProject(p control.ProjectParams) (control.ChangeResult, error)
+	// Backups and Changelog only read; Changelog may take minutes. DeployUpdate (versions a person chose, one
+	// run per project) and DeployRestore need the admin session.
+	Backups(project string) ([]string, error)
+	Changelog(project, image, to string) (control.ChangelogResult, error)
+	DeployUpdate(updates []control.ProjectUpdate) (control.DeployUpdateResult, error)
+	DeployRestore(project, backup string) (control.DeployRestoreResult, error)
+	// AdoptProject proposes a project for the running stack in a directory. The interface asks with DryRun
+	// only: nothing is stored.
+	AdoptProject(p control.AdoptParams) (control.AdoptResult, error)
 	// Approval and Credentials only read; Credentials never carries a value.
 	Approval(project string) (control.ApprovalDetail, error)
 	Credentials() ([]control.CredentialSummary, error)
@@ -251,4 +274,64 @@ func (b *ClientBackend) RemoveChannel(name string) (res control.ChangeResult, er
 func (b *ClientBackend) DeriveTemplate(p control.TemplateDeriveParams) (d control.TemplateDetail, err error) {
 	err = b.do(false, func(c *client.Client) (e error) { d, e = c.DeriveTemplate(p); return e })
 	return d, err
+}
+
+func (b *ClientBackend) Project(name string) (res control.ProjectDetail, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.Project(name); return e })
+	return res, err
+}
+
+func (b *ClientBackend) SourceTest(project string) (res control.SourceTestResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.SourceTest(project); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployRunNow(project string) (res control.DeployRunNowResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DeployRunNow(project); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployControl(op, project string) error {
+	return b.do(false, func(c *client.Client) error { return c.DeployControl(op, project) })
+}
+
+func (b *ClientBackend) RemoveProject(name, revision string) (res control.ChangeResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.RemoveProject(name, revision); return e })
+	return res, err
+}
+
+func (b *ClientBackend) AddProject(p control.ProjectParams) (res control.ChangeResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.AddProject(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) EditProject(p control.ProjectParams) (res control.ChangeResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.EditProject(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) Backups(project string) (list []string, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Backups(project); return e })
+	return list, err
+}
+
+func (b *ClientBackend) Changelog(project, image, to string) (res control.ChangelogResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.Changelog(project, image, to); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployUpdate(updates []control.ProjectUpdate) (res control.DeployUpdateResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DeployUpdate(updates); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployRestore(project, backup string) (res control.DeployRestoreResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DeployRestore(project, backup); return e })
+	return res, err
+}
+
+func (b *ClientBackend) AdoptProject(p control.AdoptParams) (res control.AdoptResult, err error) {
+	// Only a request that stores nothing may be repeated on a fresh connection.
+	err = b.do(p.DryRun, func(c *client.Client) (e error) { res, e = c.AdoptProject(p); return e })
+	return res, err
 }

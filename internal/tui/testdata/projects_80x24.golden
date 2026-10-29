@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                                 ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+ Overview  [Projects]  Activity   Access   Library   Settings 
+
+Projects (3)                                                                 3/3
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║   Name          Source  Current  Available  Mode  State       Last run       ║
+║   ✓ demo-app    images  1.0.0    2.0.0      auto  ● approved  ✓ 10-29 12:00  ║
+║     demo-db     images  1.0.0    2.0.0      auto  ⚠ pending   ✓ 10-29 12:00  ║
+║ >   sample-job  images  1.0.0    2.0.0      auto  ● approved  ✓ 10-29 12:00  ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+1-6 area  t test  enter detail  d delete  ctrl+l admin  ? help  : cmds  q quit

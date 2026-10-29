@@ -47,6 +47,7 @@ func areaByName(name string) (area, bool) {
 func (m *Model) enableAreas(backend Backend) {
 	m.backend = backend
 	m.home, m.screen, m.area = screenArea, screenArea, areaOverview
+	m.prj = newProjectsState()
 }
 
 // setArea shows an area, on its first page. Unsaved input of Settings is asked about first.
@@ -81,6 +82,9 @@ func (m *Model) enterPage() tea.Cmd {
 	switch {
 	case m.area == areaOverview:
 		return m.overviewCmd()
+	case m.area == areaProjects:
+		m.prj.log, m.prj.upd, m.prj.focusDetail, m.prj.flow = nil, nil, false, nil
+		return m.projectListCmd()
 	case m.area == areaAccess:
 		return m.accessCmd()
 	case m.area == areaActivity && m.act.sub == actRuns:
@@ -111,10 +115,20 @@ func (m *Model) enterPage() tea.Cmd {
 // updateArea handles one key of the area screen.
 func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	if m.typing() {
+		switch {
+		case m.flowOpen():
+			return m.flowKey(key)
+		case m.area == areaProjects:
+			return m.projectsEditKey(key)
+		}
 		if p := m.currentPage(); p.filtering() {
 			return m.filterKey(p, key)
 		}
 		return m.editKey(key)
+	}
+	// The guided setup is a form: only help, the command line and the info leave it to the frame.
+	if m.flowOpen() && !keyIs(key, actHelp) && !keyIs(key, actCommand) && !m.infoKey(key) {
+		return m.flowKey(key)
 	}
 	switch {
 	case keyIs(key, actHelp):
@@ -133,6 +147,11 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.area == areaSettings {
 		if cmd, ok := m.settingsKey(key); ok {
+			return cmd
+		}
+	}
+	if m.area == areaProjects {
+		if cmd, ok := m.projectsKey(key); ok {
 			return cmd
 		}
 	}
@@ -258,8 +277,11 @@ func (m *Model) tabLine() (string, []navSpan) {
 
 // areaKeys is the key line of the area screen.
 func (m *Model) areaKeys() string {
+	if m.flowOpen() {
+		return m.flowKeyLine()
+	}
 	if m.typing() {
-		if m.currentPage().filtering() {
+		if m.area == areaProjects || m.currentPage().filtering() {
 			return "type to filter · up/down move · enter keep filter · {back} clear filter"
 		}
 		return "enter next · {back} stop · {save} save"
@@ -274,6 +296,8 @@ func (m *Model) areaKeys() string {
 	case areaSettings:
 		keys = append(keys, "left/right page")
 		keys = append(keys, m.settingsKeys()...)
+	case areaProjects:
+		keys = append(keys, m.projectsKeys()...)
 	case areaAccess:
 		keys = append(keys, m.accessKeys()...)
 	case areaLibrary:
@@ -283,19 +307,24 @@ func (m *Model) areaKeys() string {
 	default:
 		keys = append(keys, "left/right move")
 	}
-	switch state := m.vaultState(); {
-	case state == control.VaultAbsent:
-	case state == control.VaultLocked:
-		keys = append(keys, "{lock} unlock")
-	case !m.serviceUp():
-		keys = append(keys, "ctrl+r retry")
-	case m.adminActive():
-		keys = append(keys, "{lock} end admin")
-	default:
-		keys = append(keys, "{lock} admin")
-	}
+	keys = append(keys, m.lockKeys()...)
 	keys = append(keys, "{info} info", "{help} help", "{command} cmds", "q quit")
 	return strings.Join(keys, " · ")
+}
+
+// lockKeys is what the lock key does now, as a key group, or what stands in for it.
+func (m *Model) lockKeys() []string {
+	switch state := m.vaultState(); {
+	case state == control.VaultAbsent:
+		return nil
+	case state == control.VaultLocked:
+		return []string{"{lock} unlock"}
+	case !m.serviceUp():
+		return []string{"ctrl+r retry"}
+	case m.adminActive():
+		return []string{"{lock} end admin"}
+	}
+	return []string{"{lock} admin"}
 }
 
 // areaBody is the area under the tab line. Areas without content show one line.
@@ -305,6 +334,8 @@ func (m *Model) areaBody() string {
 		return m.overviewBody()
 	case areaSettings:
 		return m.settingsBody()
+	case areaProjects:
+		return m.projectsBody()
 	case areaAccess:
 		return m.accessBody()
 	case areaLibrary:

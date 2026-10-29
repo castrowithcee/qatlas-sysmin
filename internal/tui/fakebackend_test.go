@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"maps"
 	"slices"
 	"strconv"
 	"sync"
@@ -32,6 +33,8 @@ type fakeBackend struct {
 	unlockMode string
 	approvals  []control.ApprovalSummary
 	projects   []control.ProjectSummary
+	// proj is the state of the project reads and controls; see projectsfake_test.go.
+	proj fakeProjects
 	// invalidTimeout makes SetAdminTimeout refuse its input with a problem of the field.
 	invalidTimeout bool
 	// once makes the session cover one change only, like an admin timeout of 0.
@@ -307,6 +310,9 @@ func (f *fakeBackend) Credentials() ([]control.CredentialSummary, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.record("credentials")
+	if f.proj.credsErr != nil {
+		return nil, f.proj.credsErr
+	}
 	if f.vault != control.VaultUnlocked {
 		return nil, &control.Error{Code: control.CodeLocked}
 	}
@@ -387,7 +393,14 @@ func (f *fakeBackend) SetCredential(p control.CredentialSetParams) (control.Cred
 	if err := f.spend(); err != nil {
 		return control.CredentialResult{}, err
 	}
+	if f.proj.credErr != nil {
+		return control.CredentialResult{}, f.proj.credErr
+	}
+	// The request is kept with its own copy of the fields, secret included, so a test can compare it with what
+	// was typed.
+	p.Fields = maps.Clone(p.Fields)
 	f.set = append(f.set, p)
+	f.credentials = append(f.credentials, control.CredentialSummary{Name: p.Name, Kind: p.Kind})
 	return control.CredentialResult{Name: p.Name, Action: "created", State: control.StateApproved, Pending: f.pending}, nil
 }
 
@@ -441,6 +454,9 @@ func (f *fakeBackend) Channels() ([]control.ChannelSummary, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.record("channels")
+	if f.proj.channelsErr != nil {
+		return nil, f.proj.channelsErr
+	}
 	return slices.Clone(f.lib.channels), nil
 }
 
@@ -558,6 +574,12 @@ func (f *fakeBackend) DeployStatus(project string) (control.DeployStatusResult, 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.record("deploy-status " + project)
+	if err := f.proj.statusErr[project]; err != nil {
+		return control.DeployStatusResult{}, err
+	}
+	if st, ok := f.proj.status[project]; ok {
+		return st, nil
+	}
 	if f.lib.deployErr != nil {
 		return control.DeployStatusResult{}, f.lib.deployErr
 	}
@@ -582,6 +604,12 @@ func (f *fakeBackend) DeployLog(project, run string) (control.DeployLogResult, e
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.record("deploy-log " + project + " " + run)
+	if f.proj.logErr != nil {
+		return control.DeployLogResult{}, f.proj.logErr
+	}
+	if res, ok := f.proj.logs[project]; ok {
+		return res, nil
+	}
 	if f.lib.deployErr != nil {
 		return control.DeployLogResult{}, f.lib.deployErr
 	}
