@@ -19,9 +19,11 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/approval"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/autounlock"
+	"github.com/castrowithcee/qatlas-sysmin/internal/changelog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
+	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
 	"github.com/castrowithcee/qatlas-sysmin/internal/notify"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/gitrepo"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/registry"
@@ -60,6 +62,11 @@ type Config struct {
 	// local servers and repositories.
 	SourceRegistry registry.Options
 	SourceGit      gitrepo.Options
+	// Changelog configures how projects.changelog reaches GitHub; tests point BaseURL and HTTPClient at a
+	// local server. The service sets Token and CacheDir for each request.
+	Changelog changelog.Options
+	// Runner runs the read-only docker commands of project adoption; nil runs the real programs.
+	Runner execute.Runner
 	// OnLogError is told about audit log writes that failed; nil logs them with slog.
 	OnLogError func(error)
 }
@@ -116,6 +123,9 @@ func Open(cfg Config) (*Service, error) {
 	if cfg.SocketPath == "" {
 		cfg.SocketPath = control.DefaultSocketPath
 	}
+	if cfg.Runner == nil {
+		cfg.Runner = &execute.ExecRunner{MaxOutput: adoptMaxOutput}
+	}
 	s := &Service{cfg: cfg, log: auditlog.New(filepath.Join(cfg.StateDir, "logs"), auditlog.DefaultRetentionDays)}
 
 	vaultDir := filepath.Join(cfg.StateDir, "vault")
@@ -159,6 +169,9 @@ func Open(cfg Config) (*Service, error) {
 			return nil, err
 		}
 		s.refreshNotifier()
+	} else if state == vault.StateLocked {
+		// Once per process start; the notifier works in the background and falls back to the snapshot.
+		s.notifier.Notify(notify.Event{Type: notify.EventVaultLocked})
 	}
 	return s, nil
 }
@@ -322,7 +335,13 @@ func (s *Service) register() error {
 	if err := s.registerChannels(); err != nil {
 		return err
 	}
+	if err := s.registerAdopt(); err != nil {
+		return err
+	}
 	if err := s.registerSources(); err != nil {
+		return err
+	}
+	if err := s.registerChangelog(); err != nil {
 		return err
 	}
 	if err := s.registerNotify(); err != nil {

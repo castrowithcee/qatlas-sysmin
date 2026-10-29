@@ -422,3 +422,35 @@ func TestSnapshotPermissionsAndNoSecrets(t *testing.T) {
 		t.Fatal("snapshot holds a secret value")
 	}
 }
+
+func TestChangelogCredentialIsBoundToTheApproval(t *testing.T) {
+	e := newEnv(t)
+	id, err := e.vault.Add("demo-changelog", vault.KindSecret, map[string]string{vault.FieldValue: "test-token-not-real"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.write("projects/demo-app.yaml", demoProject+"    version_rule:\n      changelog_credential: demo-changelog\n")
+	e.approveDemo()
+	if a, err := e.mgr.Approved("demo-app"); err != nil || a.Credentials["demo-changelog"] != id {
+		t.Fatalf("approved credentials = %v, %v", a.Credentials, err)
+	}
+
+	// Another credential name, and a recreated credential, both reopen the project.
+	e.write("projects/demo-app.yaml", demoProject+"    version_rule:\n      changelog_credential: demo-registry\n")
+	if items := e.open(); len(items) != 1 || items[0].Project != "demo-app" {
+		t.Fatalf("Open() after renaming the credential = %+v", items)
+	}
+	e.write("projects/demo-app.yaml", demoProject+"    version_rule:\n      changelog_credential: demo-changelog\n")
+	if items := e.open(); len(items) != 0 {
+		t.Fatalf("Open() after restoring = %+v", items)
+	}
+	if err := e.vault.Delete(id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.vault.Add("demo-changelog", vault.KindSecret, map[string]string{vault.FieldValue: "test-token-not-real"}); err != nil {
+		t.Fatal(err)
+	}
+	if items := e.open(); len(items) != 1 {
+		t.Fatalf("Open() after recreating the credential = %+v", items)
+	}
+}

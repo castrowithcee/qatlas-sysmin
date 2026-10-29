@@ -20,6 +20,8 @@ const Bearer = "demo-bearer-value-not-real"
 type Config struct {
 	// User and Token are what the token endpoint accepts as basic credentials.
 	User, Token string
+	// Anonymous makes the token endpoint hand out the token without any credentials.
+	Anonymous bool
 	// Repos maps a repository name such as "demo/app" to its tags.
 	Repos map[string][]string
 	// Labels are the image labels of every tag.
@@ -61,7 +63,7 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	s.reqs = append(s.reqs, r.Method+" "+r.URL.Path)
 	s.mu.Unlock()
 	if r.URL.Path == "/token" {
-		if u, p, ok := r.BasicAuth(); !ok || u != s.cfg.User || p != s.cfg.Token {
+		if u, p, ok := r.BasicAuth(); !s.cfg.Anonymous && (!ok || u != s.cfg.User || p != s.cfg.Token) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

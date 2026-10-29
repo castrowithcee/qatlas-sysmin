@@ -176,6 +176,24 @@ func (m *Manager) ApprovedChannels() (ApprovedChannels, error) {
 	return ApprovedChannels{Fingerprint: want, Channels: s.channels, Credentials: s.credentials}, nil
 }
 
+// UnverifiedChannels returns the channels of the snapshot without checking it against the fingerprint in
+// the vault, so it works while the vault is locked. Only the vault.locked fallback of package notify may
+// use it, and only over channels that name no credential. The vault ids of the credentials are not
+// returned. It fails with ErrNotApproved when there is no snapshot and with ErrIntegrity when it cannot be
+// read.
+func (m *Manager) UnverifiedChannels() ([]config.Channel, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, err := m.readChannelsSnapshot()
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return nil, ErrNotApproved
+	case err != nil:
+		return nil, fmt.Errorf("%w: %v", ErrIntegrity, err)
+	}
+	return s.channels, nil
+}
+
 // openChannels returns the open approval of the channels, or nil when the channels are as approved. A
 // channel is "new" when none was approved before, "deleted" when approved channels are gone from the
 // settings; the item carries ChannelsName in Project.

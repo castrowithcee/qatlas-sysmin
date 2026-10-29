@@ -36,6 +36,18 @@ type fakeChannels struct {
 	state  approval.ApprovedChannels
 	err    error
 	called int
+	// snapshot is what UnverifiedChannels returns; snapshotErr fails it.
+	snapshot    []config.Channel
+	snapshotErr error
+}
+
+func (f *fakeChannels) UnverifiedChannels() ([]config.Channel, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.snapshotErr != nil {
+		return nil, f.snapshotErr
+	}
+	return f.snapshot, nil
 }
 
 func (f *fakeChannels) ApprovedChannels() (approval.ApprovedChannels, error) {

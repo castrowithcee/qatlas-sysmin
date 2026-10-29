@@ -21,6 +21,13 @@ type Channels interface {
 	ApprovedChannels() (approval.ApprovedChannels, error)
 }
 
+// UnverifiedChannels is optionally implemented by a Channels; *approval.Manager does. It returns the
+// channels of the approved snapshot without verifying it, which is only used for vault.locked while the
+// vault is locked and no verified state is known.
+type UnverifiedChannels interface {
+	UnverifiedChannels() ([]config.Channel, error)
+}
+
 // Credentials returns a vault entry by id; *vault.Vault does.
 type Credentials interface {
 	Get(id string) (vault.Entry, error)
@@ -201,6 +208,19 @@ func (n *Notifier) dispatch(ev Event, only []string) {
 	}
 	start := time.Now()
 	st, locked, err := n.approved()
+	if err != nil && locked && ev.Type == EventVaultLocked {
+		// Without a verified state, the unverified snapshot is read; restricted() then keeps every
+		// channel with a credential out. If it cannot be read, err stays the locked error.
+		if u, ok := n.channels.(UnverifiedChannels); ok {
+			if chans, uerr := u.UnverifiedChannels(); uerr == nil {
+				st, err = approval.ApprovedChannels{Channels: chans}, nil
+			}
+		}
+	}
+	if err != nil && locked && ev.Type != EventVaultLocked {
+		n.record("", start, codeVaultLocked)
+		return
+	}
 	if err != nil {
 		n.record("", start, stateCode(err, locked))
 		return
