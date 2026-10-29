@@ -4,7 +4,7 @@ package tui
 var textDE = map[textID]string{
 	tListEmpty:                      "Noch nichts anzuzeigen.",
 	tAreaSettings:                   "Einstellungen",
-	tHeaderTitle:                    "Sysmin",
+	tHeaderTitle:                    "sysmin",
 	tHeaderHelp:                     "Hilfe",
 	tHeaderBack:                     "Zurück",
 	tCopyHandedOver:                 "An das Terminal für die Zwischenablage übergeben; das Terminal bestätigt es nicht",
@@ -50,7 +50,6 @@ var textDE = map[textID]string{
 	tKeyHelpSummary:                 "Zusammenfassung",
 	tKeyHelpFilter:                  "Filter",
 	tKeyHelpRevert:                  "Zurücksetzen",
-	tKeyHelpSessions:                "MCP-Sitzungen",
 	tKeyHelpLogs:                    "Logs",
 	tKeyHelpDuplicate:               "Duplizieren",
 	tKeyHelpTest:                    "Testen",

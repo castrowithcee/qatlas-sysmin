@@ -78,3 +78,22 @@ func TestHelpTopic(t *testing.T) {
 		t.Errorf("code = %d, stdout = %q", code, stdout)
 	}
 }
+
+func TestTUIIsRegisteredAndRejectsArguments(t *testing.T) {
+	code, _, stderr := runCLI(t, "tui", "extra")
+	if code != exitUsage || !strings.Contains(stderr, "sysmin: usage: unexpected argument \"extra\"") ||
+		!strings.Contains(stderr, "Usage:") {
+		t.Errorf("code = %d, stderr = %q", code, stderr)
+	}
+}
+
+func TestTUIWithoutTerminalFailsCleanly(t *testing.T) {
+	code, stdout, stderr := runCLI(t, "tui")
+	if code != exitUsage || stdout != "" {
+		t.Fatalf("code = %d, stdout = %q", code, stdout)
+	}
+	if !strings.Contains(stderr, "sysmin: usage: the terminal interface needs a terminal") ||
+		strings.Contains(stderr, "Usage:") {
+		t.Errorf("stderr = %q", stderr)
+	}
+}

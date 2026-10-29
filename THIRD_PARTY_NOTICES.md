@@ -5,7 +5,7 @@
 Parts of this repository are copied from or derived from qatlas-cli
 (https://github.com/castrowithcee/qatlas-cli):
 
-- `internal/filelock`, `internal/redact`, `internal/i18n`, `internal/output`, `internal/helptopics`
+- `internal/filelock`, `internal/redact`, `internal/i18n`, `internal/output`, `internal/helptopics`, `internal/tui`, `internal/uiprefs`, `scripts/gen_tui_themes.go`
 - the command and error handling patterns in `internal/cli`
 
 Copyright (c) 2026 castrowithcee

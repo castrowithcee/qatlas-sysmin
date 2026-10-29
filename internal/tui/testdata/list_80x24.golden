@@ -1,0 +1,24 @@
+sysmin
+────────────────────────────────────────────────────────────────────────────────
+Services (4)                                                                 2/4
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║   Name         State    Note                                                 ║
+║   example-app  running  demo web service                                     ║
+║ > demo-db      running  demo database                                        ║
+║   sample-job   stopped  demo nightly job                                     ║
+║   test-proxy   failed   demo reverse proxy                                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+/ filter  q quit  c copy                                       up/down move  2/4

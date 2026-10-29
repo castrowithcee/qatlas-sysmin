@@ -61,7 +61,6 @@ const (
 	actSummary    action = "summary"
 	actFilter     action = "filter"
 	actRevert     action = "revert"
-	actSessions   action = "sessions"
 	actLogs       action = "logs"
 	actDuplicate  action = "duplicate"
 	actTest       action = "test"
@@ -122,7 +121,6 @@ var keyDefs = []struct {
 	{actSummary, levelLetter, []string{"s"}, tKeyHelpSummary},
 	{actFilter, levelLetter, []string{"f"}, tKeyHelpFilter},
 	{actRevert, levelLetter, []string{"b"}, tKeyHelpRevert},
-	{actSessions, levelLetter, []string{"m"}, tKeyHelpSessions},
 	{actLogs, levelLetter, []string{"o"}, tKeyHelpLogs},
 	{actDuplicate, levelLetter, []string{"p"}, tKeyHelpDuplicate},
 	{actTest, levelLetter, []string{"t"}, tKeyHelpTest},

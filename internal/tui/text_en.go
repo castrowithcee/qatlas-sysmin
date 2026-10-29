@@ -4,7 +4,7 @@ package tui
 var textEN = map[textID]string{
 	tListEmpty:                      "Nothing to show yet.",
 	tAreaSettings:                   "Settings",
-	tHeaderTitle:                    "Sysmin",
+	tHeaderTitle:                    "sysmin",
 	tHeaderHelp:                     "help",
 	tHeaderBack:                     "back",
 	tCopyHandedOver:                 "Handed to the terminal for the clipboard; the terminal does not confirm it",
@@ -50,7 +50,6 @@ var textEN = map[textID]string{
 	tKeyHelpSummary:                 "summary",
 	tKeyHelpFilter:                  "filter",
 	tKeyHelpRevert:                  "put back",
-	tKeyHelpSessions:                "MCP sessions",
 	tKeyHelpLogs:                    "logs",
 	tKeyHelpDuplicate:               "duplicate",
 	tKeyHelpTest:                    "test",

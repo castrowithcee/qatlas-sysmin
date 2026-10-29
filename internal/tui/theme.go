@@ -20,7 +20,7 @@ type palette struct {
 	accent, ok, fail, warn colour
 	selection              colour
 	heat                   [5]colour // 0 is an empty cell, 4 the strongest
-	brand                  [8]colour // fixed row of provider marks
+	brand                  [8]colour // fixed row of mark colours
 }
 
 var darkPalette = palette{
@@ -160,7 +160,7 @@ type theme struct {
 	warning     lipgloss.Style
 	focusBorder lipgloss.Style
 	quietBorder lipgloss.Style
-	// activeRow highlights the marked row of a table screen (a section list, the picker, the provider
+	// activeRow highlights the marked row of a table screen (a section list or the picker
 	// table) the full width of the row. It never carries the selection alone: the mark of listRow (an accent
 	// bar under colour, '>' without) still leads the row, so NO_COLOR or an ASCII terminal keeps showing which one
 	// is marked.

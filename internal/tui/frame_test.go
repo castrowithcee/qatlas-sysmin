@@ -42,7 +42,7 @@ func TestEmptyFrameHasHeaderFooterAndQuits(t *testing.T) {
 	view := plain(m)
 	assertViewFits(t, view, 80, 24)
 	lines := strings.Split(view, "\n")
-	if !strings.Contains(lines[0], "Sysmin") {
+	if !strings.Contains(lines[0], "sysmin") {
 		t.Errorf("header = %q, want the name", lines[0])
 	}
 	if !strings.Contains(lines[len(lines)-1], "q quit") {

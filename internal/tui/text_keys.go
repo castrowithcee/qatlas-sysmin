@@ -50,7 +50,6 @@ const (
 	tKeyHelpSummary             textID = "keyhelp.summary"
 	tKeyHelpFilter              textID = "keyhelp.filter"
 	tKeyHelpRevert              textID = "keyhelp.revert"
-	tKeyHelpSessions            textID = "keyhelp.sessions"
 	tKeyHelpLogs                textID = "keyhelp.logs"
 	tKeyHelpDuplicate           textID = "keyhelp.duplicate"
 	tKeyHelpTest                textID = "keyhelp.test"
