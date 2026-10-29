@@ -218,6 +218,7 @@ func TestLoadFailuresStayLocked(t *testing.T) {
 		"no env":        "",
 		"missing file":  empty,
 		"empty":         credDir(t, ""),
+		"blank":         credDir(t, "\n"),
 		"invalid":       credDir(t, "not-a-key"),
 		"other key":     credDir(t, other.String()),
 		"unreadable":    filepath.Join(empty, "nope"),
@@ -228,6 +229,9 @@ func TestLoadFailuresStayLocked(t *testing.T) {
 			got, st := Load(dir, cd)
 			if got != nil || st.Unlock != ModeManual || st.Message == "" || st.Warning() != "" {
 				t.Errorf("got %v, %+v", got, st)
+			}
+			if (name == "empty" || name == "blank" || name == "missing file") && st.Message != noCredentialMsg {
+				t.Errorf("message = %q, want the no-credential message", st.Message)
 			}
 			for _, k := range []string{good, other.String(), "AGE-SECRET-KEY"} {
 				if strings.Contains(st.Message, k) {

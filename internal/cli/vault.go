@@ -16,7 +16,7 @@ func newVaultCommand(opts *Options) *cobra.Command {
 		Args:  noVaultArgs,
 		RunE:  func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
-	cmd.AddCommand(newVaultBindCommand(opts), newVaultUnbindCommand(opts))
+	cmd.AddCommand(newVaultBindCommand(opts), newVaultUnbindCommand(opts), newVaultStatusCommand(opts))
 	return cmd
 }
 

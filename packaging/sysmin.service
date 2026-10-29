@@ -1,0 +1,28 @@
+[Unit]
+Description=sysmin server administration service
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/sysmin run
+User=sysmin
+Group=sysmin
+SupplementaryGroups=docker
+RuntimeDirectory=sysmin
+RuntimeDirectoryMode=0750
+StateDirectory=sysmin
+StateDirectoryMode=0700
+ConfigurationDirectory=sysmin
+ConfigurationDirectoryMode=0750
+# The blank default (systemd rejects an empty one) keeps a missing key file from failing the start; the vault then stays locked.
+LoadCredentialEncrypted=vault-key:/var/lib/sysmin/vault/key.cred
+SetCredential=vault-key:\n
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/sysmin
+PrivateTmp=yes
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
