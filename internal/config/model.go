@@ -48,10 +48,12 @@ func (d *Duration) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-// MarshalYAML writes the shortest exact form.
+// MarshalYAML writes the shortest exact form; zero is written as a bare 0.
 func (d Duration) MarshalYAML() (any, error) {
 	v := time.Duration(d)
 	switch {
+	case v == 0:
+		return 0, nil
 	case v != 0 && v%time.Hour == 0:
 		return fmt.Sprintf("%dh", v/time.Hour), nil
 	case v != 0 && v%time.Minute == 0:
@@ -73,7 +75,9 @@ type Settings struct {
 
 // VaultSettings configures the credential vault.
 type VaultSettings struct {
-	AdminTimeout Duration `yaml:"admin_timeout,omitempty"`
+	// AdminTimeout is a pointer so that an explicit 0 (every change asks for the passphrase) differs from
+	// a missing field (the default).
+	AdminTimeout *Duration `yaml:"admin_timeout,omitempty"`
 }
 
 // WebhookListener configures the one listener that receives project webhooks.
@@ -86,9 +90,12 @@ func (s Settings) EffectivePollInterval() time.Duration {
 	return orDuration(s.PollInterval, DefaultPollInterval)
 }
 
-// EffectiveAdminTimeout is the vault admin timeout with the built-in default applied.
+// EffectiveAdminTimeout is the vault admin timeout with the built-in default applied; an explicit 0 stays 0.
 func (s Settings) EffectiveAdminTimeout() time.Duration {
-	return orDuration(s.Vault.AdminTimeout, DefaultAdminTimeout)
+	if s.Vault.AdminTimeout == nil {
+		return DefaultAdminTimeout
+	}
+	return time.Duration(*s.Vault.AdminTimeout)
 }
 
 // EffectiveListen is the webhook listen address with the loopback default applied.
