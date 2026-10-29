@@ -273,6 +273,7 @@ func TestAdminTimeoutFromSettings(t *testing.T) {
 
 func TestAuditEntriesAreSignedOnlyAfterUnlock(t *testing.T) {
 	e := newEnv(t, true, false)
+	e.svc.notifier.Wait() // the vault.locked report of the start, which finds no approved channels
 	e.start(t)
 	c := e.dial(t)
 	_, _ = c.Status()
@@ -294,6 +295,7 @@ func TestAuditEntriesAreSignedOnlyAfterUnlock(t *testing.T) {
 		action, result, code string
 		signed               bool
 	}{
+		{"notify.send", "failure", "no-approved-state", false},
 		{"control.status", "success", "", false},
 		{"vault.unlock", "failure", "wrong-passphrase", false},
 		{"vault.unlock", "success", "", true}, // the key is set before the request is recorded

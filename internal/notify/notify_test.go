@@ -395,17 +395,112 @@ func TestLockedVaultSkipsOtherEvents(t *testing.T) {
 	}
 }
 
-func TestLockedVaultWithoutVerifiedStateSendsNothing(t *testing.T) {
+// coldStart is lockedSetup with a locked vault, no verified state and an unverified snapshot of the
+// approved channels.
+func coldStart(t *testing.T) (*Notifier, *fakeChannels, *recordingAudit, func() []captured) {
+	t.Helper()
 	n, chans, _, a, got := lockedSetup(t)
+	chans.snapshot = chans.state.Channels
 	chans.setErr(vault.ErrLocked)
+	return n, chans, a, got
+}
+
+func results(a *recordingAudit) map[string]string {
+	res := map[string]string{}
+	for _, e := range a.all() {
+		res[e.Project] = e.Result + "/" + e.ErrorCode
+	}
+	return res
+}
+
+func TestColdStartSendsVaultLockedOverChannelsWithoutSecret(t *testing.T) {
+	n, _, a, got := coldStart(t)
 	n.Notify(Event{Type: EventVaultLocked})
 	n.Wait()
-	if len(got()) != 0 {
-		t.Error("sent without a verified state")
+	reqs := got()
+	if len(reqs) != 1 || reqs[0].header.Get(HeaderSignature) != "" {
+		t.Fatalf("requests = %d", len(reqs))
 	}
+	res := results(a)
+	if res["plain"] != "success/" || res["signed"] != "failure/needs-secret" || res["tg"] != "failure/needs-secret" {
+		t.Errorf("results = %v", res)
+	}
+}
+
+func TestColdStartWithoutUsableSnapshotSendsNothing(t *testing.T) {
+	for name, err := range map[string]error{
+		"missing":   approval.ErrNotApproved,
+		"corrupted": approval.ErrIntegrity,
+	} {
+		t.Run(name, func(t *testing.T) {
+			n, chans, a, got := coldStart(t)
+			chans.snapshotErr = err
+			n.Notify(Event{Type: EventVaultLocked})
+			n.Wait()
+			if len(got()) != 0 {
+				t.Error("sent without a usable snapshot")
+			}
+			if es := a.all(); len(es) != 1 || es[0].ErrorCode != "no-approved-state" {
+				t.Errorf("entries = %+v", es)
+			}
+		})
+	}
+}
+
+func TestColdStartSkipsOtherEventsEvenWithSnapshot(t *testing.T) {
+	n, _, a, got := coldStart(t)
+	n.Notify(demoEvent)
+	n.Wait()
+	if len(got()) != 0 {
+		t.Error("an event other than vault.locked was sent")
+	}
+	if es := a.all(); len(es) != 1 || es[0].ErrorCode != "vault-locked" {
+		t.Errorf("entries = %+v", es)
+	}
+}
+
+func TestVerifiedStateBeatsTheSnapshot(t *testing.T) {
+	n, chans, _, got := coldStart(t)
+	chans.setErr(nil)
+	if err := n.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+	chans.setErr(vault.ErrLocked)
+	chans.snapshotErr = approval.ErrIntegrity
+	n.Notify(Event{Type: EventVaultLocked})
+	n.Wait()
+	if len(got()) != 1 {
+		t.Errorf("requests = %d, want 1", len(got()))
+	}
+}
+
+func TestSendNeverUsesTheSnapshot(t *testing.T) {
+	n, _, _, got := coldStart(t)
+	for _, ev := range []Event{{Type: EventVaultLocked}, demoEvent} {
+		if err := n.Send(context.Background(), "plain", ev); !errors.Is(err, ErrNeedsSecret) {
+			t.Errorf("Send(%s) = %v, want ErrNeedsSecret", ev.Type, err)
+		}
+	}
+	if len(got()) != 0 {
+		t.Error("Send used the unverified snapshot")
+	}
+}
+
+func TestColdStartWithoutSnapshotSupportSendsNothing(t *testing.T) {
+	// A Channels that cannot read a snapshot keeps the old behavior.
+	a := &recordingAudit{}
+	n := newNotifier(lockedOnly{}, &fakeCreds{}, a)
+	n.Notify(Event{Type: EventVaultLocked})
+	n.Wait()
 	if es := a.all(); len(es) != 1 || es[0].ErrorCode != "no-approved-state" {
 		t.Errorf("entries = %+v", es)
 	}
+}
+
+type lockedOnly struct{}
+
+func (lockedOnly) ApprovedChannels() (approval.ApprovedChannels, error) {
+	return approval.ApprovedChannels{}, vault.ErrLocked
 }
 
 func TestVaultLockedEventSkipsChannelsWithSecretEvenWhenUnlocked(t *testing.T) {
