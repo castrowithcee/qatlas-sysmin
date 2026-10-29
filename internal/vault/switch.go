@@ -1,5 +1,7 @@
 package vault
 
+import "filippo.io/age"
+
 // ChangePassphrase re-encrypts the vault's key with a new passphrase, verifying the old one first. Only
 // key.age changes: the key pair, the recipient and every entry stay exactly as they were. old is verified
 // fresh against key.age on every call, never against a cached passphrase.
@@ -36,6 +38,24 @@ func (v *Vault) VerifyPassphrase(passphrase string) error {
 	}
 	_, err := v.decryptIdentity(passphrase)
 	return err
+}
+
+// UnwrapIdentity decrypts key.age and checks it against the recipient file with passphrase and returns the
+// vault's private key. Unlike Unlock it reads no entries and writes nothing: no pending entry is merged,
+// and the key and state this value holds are neither consulted nor changed. The returned key is as secret
+// as every entry and must never be logged or formatted.
+func (v *Vault) UnwrapIdentity(passphrase string) (*age.X25519Identity, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if err := v.requireExists(); err != nil {
+		return nil, err
+	}
+	id, err := v.decryptIdentity(passphrase)
+	if err != nil {
+		return nil, err
+	}
+	return id.key, nil
 }
 
 // requireExists returns ErrAbsent unless the vault exists. The caller holds the mutex.
