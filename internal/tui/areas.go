@@ -142,6 +142,8 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case keyIs(key, actQuit):
 		return m.guarded(m.quit)
+	case keyIs(key, actSelfUpdate):
+		return m.selfUpdate()
 	case keyIs(key, actCopy) && m.copySource() != nil:
 		return m.copyCurrent()
 	}

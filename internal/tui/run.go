@@ -33,6 +33,12 @@ type Options struct {
 // caller starts it again under sudo -g sysmin.
 var ErrRegroup = errors.New("restart the interface under sudo -g sysmin")
 
+// UpdateRequest is what Run returns when the person asked to install a newer release of sysmin; the caller
+// installs it and starts the interface again.
+type UpdateRequest struct{ Version string }
+
+func (r *UpdateRequest) Error() string { return "install sysmin " + r.Version }
+
 // Run starts the editor on the terminal streams of opts and returns when the person quits.
 func Run(opts Options) error {
 	prefs := opts.Prefs
@@ -66,8 +72,13 @@ func Run(opts Options) error {
 		tea.WithFilter(fragments.filter), tea.WithColorProfile(toColorprofile(currentProfile())))
 	fragments.send = program.Send
 	final, err := program.Run()
-	if fm, ok := final.(*Model); ok && err == nil && fm.regroupAsked {
-		return ErrRegroup
+	if fm, ok := final.(*Model); ok && err == nil {
+		switch {
+		case fm.regroupAsked:
+			return ErrRegroup
+		case fm.updateTo != "":
+			return &UpdateRequest{fm.updateTo}
+		}
 	}
 	return err
 }

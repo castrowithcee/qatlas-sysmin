@@ -124,7 +124,9 @@ type Model struct {
 	quitting                             bool
 	// regroupAsked says the person quit to restart the interface under sudo -g sysmin; Run reports it.
 	regroupAsked bool
-	wheelSeen    wheelSeen
+	// updateTo is the release the person quit to install; Run reports it.
+	updateTo  string
+	wheelSeen wheelSeen
 	// now is the clock of the wheel filter; nil means time.Now.
 	now func() time.Time
 }
@@ -145,7 +147,7 @@ func (m *Model) Init() tea.Cmd {
 	if m.backend == nil {
 		return terminalColourQuery(m.prefs.Theme)
 	}
-	return tea.Batch(terminalColourQuery(m.prefs.Theme), m.statusCmd(), tickCmd())
+	return tea.Batch(terminalColourQuery(m.prefs.Theme), m.statusCmd(), tickCmd(), m.checkUpdate(false))
 }
 
 // Update handles one message.

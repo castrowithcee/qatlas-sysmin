@@ -112,6 +112,15 @@ func (m *Model) overviewRows() []ovRow {
 
 	version := ovRow{id: "version", label: tr(tOvVersion), kind: statusOK, value: st.Version}
 	version.next, version.key, version.act = open(areaSettings, subUpdate)
+	if latest := m.updateAvailable(); latest != "" {
+		// The lookup compares with this program, which can differ from the service until it restarts.
+		running := m.version
+		if running == "" {
+			running = st.Version
+		}
+		version.kind, version.value = statusWarn, running+" → "+latest
+		version.next, version.key, version.act = tr(tUpdNext, latest, keyLabel(actSelfUpdate)), "enter update", m.selfUpdate
+	}
 	rows = append(rows, version)
 
 	config := tr(tValUnknown)
