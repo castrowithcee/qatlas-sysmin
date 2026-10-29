@@ -460,3 +460,44 @@ func TestParseGroups(t *testing.T) {
 }
 
 func stringsReader(s string) *strings.Reader { return strings.NewReader(s) }
+
+func TestHandlerAuditsPerProject(t *testing.T) {
+	h := start(t, Config{})
+	err := h.srv.Register("multi", Handler{
+		Action: auditlog.OperationApprovalGrant,
+		Func: func(_ context.Context, c *Conn, _ json.RawMessage) (any, error) {
+			c.Audit("demo-app", "")
+			c.Audit("demo-two", control.CodeChanged)
+			return nil, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.srv.Register("plain", Handler{
+		Action: auditlog.OperationApprovalList,
+		Func:   func(context.Context, *Conn, json.RawMessage) (any, error) { return nil, nil },
+	}); err != nil {
+		t.Fatal(err)
+	}
+	c, err := client.Dial(h.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if err := c.Call("multi", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Call("plain", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	got := h.log.wait(t, 3)
+	if len(got) != 3 {
+		t.Fatalf("entries = %+v", got)
+	}
+	if got[0].Project != "demo-app" || got[0].Result != auditlog.ResultSuccess ||
+		got[1].Project != "demo-two" || got[1].Result != auditlog.ResultFailure || got[1].ErrorCode != control.CodeChanged ||
+		got[2].Action != auditlog.OperationApprovalList || got[2].Project != "" {
+		t.Fatalf("entries = %+v", got)
+	}
+}
