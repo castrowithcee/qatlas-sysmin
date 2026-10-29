@@ -276,3 +276,66 @@ func TestAccessLockedVaultShowsNote(t *testing.T) {
 		t.Errorf("no note about the locked vault:\n%s", view)
 	}
 }
+
+// changeBetween lets the service list another set of approvals once the question was asked.
+func changeBetween(t *testing.T, fb *fakeBackend, m *Model, keys ...string) {
+	t.Helper()
+	send(m, keys...)
+	if m.screen != screenConfirm {
+		t.Fatalf("no question:\n%s", plain(m))
+	}
+	fb.mu.Lock()
+	fb.approvals[1].Fingerprint = "fp-sample-changed-0003"
+	fb.mu.Unlock()
+}
+
+func TestApproveAllRefusesWhatChangedSinceTheQuestion(t *testing.T) {
+	fb := accessFake()
+	m := appModel(t, fb, 80, 24)
+	changeBetween(t, fb, m, "4", "a")
+	send(m, "y")
+	typed(m, testPass)
+	send(m, "enter")
+	if fb.count("approve-all") != 0 || fb.count("session") != 1 {
+		t.Errorf("calls = %v, want one passphrase and no approve-all", fb.log())
+	}
+	if !strings.Contains(m.fail, "Changed meanwhile") || len(m.acc.page.list.all) != 2 || m.acc.items["sample-app"].Fingerprint != "fp-sample-changed-0003" {
+		t.Errorf("no reload or note: fail %q", m.fail)
+	}
+}
+
+func TestDiscardAllRefusesWhatChangedSinceTheQuestion(t *testing.T) {
+	fb := accessFake()
+	fb.session = true
+	m := appModel(t, fb, 80, 24)
+	m.acc.discardAfter = true
+	send(m, "4")
+	changeBetween(t, fb, m)
+	send(m, "y")
+	if fb.count("discard-all") != 0 || !strings.Contains(m.fail, "Changed meanwhile") {
+		t.Errorf("calls = %v, fail %q", fb.log(), m.fail)
+	}
+}
+
+func TestDiscardAllUnchangedCallsOnce(t *testing.T) {
+	fb := accessFake()
+	fb.session = true
+	m := appModel(t, fb, 80, 24)
+	m.acc.discardAfter = true
+	send(m, "4", "y")
+	if fb.count("discard-all") != 1 || len(m.acc.page.list.all) != 0 {
+		t.Errorf("calls = %v", fb.log())
+	}
+}
+
+func TestAllAtOnceIsNotOfferedBeyondTheListedRows(t *testing.T) {
+	fb := accessFake()
+	for i := range 6 {
+		fb.approvals = append(fb.approvals, control.ApprovalSummary{Project: fmt.Sprintf("extra-%d", i), Kind: "new", Fingerprint: "fp"})
+	}
+	m := appModel(t, fb, 80, 24)
+	send(m, "4", "a")
+	if m.screen == screenConfirm || !strings.Contains(m.status, "one by one") {
+		t.Errorf("status %q, screen %v", m.status, m.screen)
+	}
+}

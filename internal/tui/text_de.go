@@ -308,7 +308,7 @@ var textDE = map[textID]string{
 	tCredRemoveConsequence:          "Sein Wert wird aus dem Tresor gelöscht.",
 	tCredRemoveUsed:                 "%d Projekte oder Kanäle nutzen es.",
 	tCredNoReveal:                   "Werte werden nie gezeigt.",
-	tCredMultiline:                  "Diese Art hält einen mehrzeiligen Wert; auf dem Host setzen.",
+	tCredMultiline:                  "Setzen mit: sysmin credential set NAME --kind ssh-key --from-stdin",
 	tErrChanged:                     "Zwischenzeitlich geändert. Erneut ansehen.",
 	tErrInUse:                       "In Gebrauch. Nichts wurde entfernt.",
 	tErrNothingOpen:                 "Für das Projekt ist nichts offen.",
@@ -333,4 +333,5 @@ var textDE = map[textID]string{
 	footerID("y discard all"):       "y alle verwerfen",
 	footerID("n/{back} cancel"):     "n/{back} abbrechen",
 	footerID("left/right kind"):     "left/right Art",
+	tAccTooMany:                     "%d offen, mehr als %d: Liste prüfen und einzeln entscheiden.",
 }

@@ -271,4 +271,5 @@ const (
 	tInfoLibChannels            textID = "InfoLibChannels"
 	tInfoLibTemplates           textID = "InfoLibTemplates"
 	tInfoAccFree                textID = "InfoAccFree"
+	tAccTooMany                 textID = "AccTooMany"
 )

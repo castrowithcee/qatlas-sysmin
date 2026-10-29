@@ -351,15 +351,58 @@ func (m *Model) accessDiscard() tea.Cmd {
 	return nil
 }
 
+// allListMax is the most approvals an all-at-once question lists. Beyond it the question is not asked: what is
+// approved or discarded in one call is exactly what the person saw, and a longer list does not fit the dialog.
+const allListMax = 6
+
+// approvalKey names an approval by what the question shows and the service binds: project, kind, fingerprint.
+func approvalKey(a control.ApprovalSummary) string {
+	return a.Project + "\x00" + a.Kind + "\x00" + a.Fingerprint
+}
+
+// shownApprovals are the approvals the list holds now, as the question will show them.
+func (m *Model) shownApprovals() []string {
+	var keys []string
+	for _, name := range m.acc.page.list.all {
+		keys = append(keys, approvalKey(m.acc.items[name]))
+	}
+	return keys
+}
+
+// sameApprovals reports whether the service lists exactly the approvals that were shown, in any order.
+func sameApprovals(shown []string, now []control.ApprovalSummary) bool {
+	if len(shown) != len(now) {
+		return false
+	}
+	have := map[string]bool{}
+	for _, k := range shown {
+		have[k] = true
+	}
+	for _, a := range now {
+		if !have[approvalKey(a)] {
+			return false
+		}
+	}
+	return true
+}
+
+// guardedAll runs the all-at-once call only when the service still lists what the question showed; otherwise
+// it answers as changed and calls nothing, because the service binds each approval to its own current state.
+func guardedAll(b Backend, shown []string, call func() (control.ApprovalsAllResult, error)) (control.ApprovalsAllResult, error) {
+	now, err := b.Approvals()
+	if err != nil {
+		return control.ApprovalsAllResult{}, err
+	}
+	if !sameApprovals(shown, now) {
+		return control.ApprovalsAllResult{}, &control.Error{Code: control.CodeChanged}
+	}
+	return call()
+}
+
 // approvalLines name the open approvals in a question, a few of them.
 func (m *Model) approvalLines() []string {
 	var lines []string
-	const most = 6
-	for i, name := range m.acc.page.list.all {
-		if i == most {
-			lines = append(lines, "    "+styles.hint.Render(tr(tAccMore, len(m.acc.page.list.all)-most)))
-			break
-		}
+	for _, name := range m.acc.page.list.all {
 		a := m.acc.items[name]
 		line := "    " + m.diffText(a.Project) + "  " + kindText(a.Kind) + "  " + strconv.Itoa(a.Changes)
 		if flags := accessFlags(a); flags != "" {
@@ -378,6 +421,11 @@ func (m *Model) accessApproveAll() tea.Cmd {
 		m.status = tr(tAccEmpty)
 		return nil
 	}
+	if n > allListMax {
+		m.status = tr(tAccTooMany, n, allListMax)
+		return nil
+	}
+	shown := m.shownApprovals()
 	free := false
 	for _, a := range m.acc.items {
 		free = free || a.FreeCommands
@@ -388,7 +436,10 @@ func (m *Model) accessApproveAll() tea.Cmd {
 	}, func() tea.Cmd {
 		var res control.ApprovalsAllResult
 		return m.requireAdmin(change{
-			call: func(b Backend) (err error) { res, err = b.ApproveAll(); return err },
+			call: func(b Backend) (err error) {
+				res, err = guardedAll(b, shown, b.ApproveAll)
+				return err
+			},
 			done: func(m *Model, err error) tea.Cmd {
 				if err == nil {
 					m.allDone(res, tAccApprovedN)
@@ -407,13 +458,21 @@ func (m *Model) discardAll() tea.Cmd {
 		m.status = tr(tAccEmpty)
 		return nil
 	}
+	if n := len(m.acc.page.list.all); n > allListMax {
+		m.status = tr(tAccTooMany, n, allListMax)
+		return nil
+	}
+	shown := m.shownApprovals()
 	m.askConfirm(question{
 		title: tr(tAccDiscardAllTitle), consequence: tr(tAccDiscardAllConsequence), warn: true, danger: true,
 		details: m.approvalLines(), keys: "y discard all · n/{back} cancel",
 	}, func() tea.Cmd {
 		var res control.ApprovalsAllResult
 		return m.requireAdmin(change{
-			call: func(b Backend) (err error) { res, err = b.DiscardAll(); return err },
+			call: func(b Backend) (err error) {
+				res, err = guardedAll(b, shown, b.DiscardAll)
+				return err
+			},
 			done: func(m *Model, err error) tea.Cmd {
 				if err == nil {
 					m.allDone(res, tAccDiscardedN)

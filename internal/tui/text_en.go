@@ -308,7 +308,7 @@ var textEN = map[textID]string{
 	tCredRemoveConsequence:          "Its value is deleted from the vault.",
 	tCredRemoveUsed:                 "%d projects or channels use it.",
 	tCredNoReveal:                   "Values are never shown.",
-	tCredMultiline:                  "This kind holds a multi-line value; set it on the host.",
+	tCredMultiline:                  "Set it with: sysmin credential set NAME --kind ssh-key --from-stdin",
 	tErrChanged:                     "Changed meanwhile. Review it again.",
 	tErrInUse:                       "In use. Nothing was removed.",
 	tErrNothingOpen:                 "Nothing open for that project.",
@@ -333,4 +333,5 @@ var textEN = map[textID]string{
 	footerID("y discard all"):       "y discard all",
 	footerID("n/{back} cancel"):     "n/{back} cancel",
 	footerID("left/right kind"):     "left/right kind",
+	tAccTooMany:                     "%d open, more than %d: check the list and approve one by one.",
 }
