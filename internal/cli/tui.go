@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
@@ -17,10 +18,12 @@ import (
 const configDirName = "sysmin"
 
 func newTUICommand(opts *Options) *cobra.Command {
-	return &cobra.Command{
+	var socket string
+	cmd := &cobra.Command{
 		Use:   "tui",
 		Short: "Open the terminal interface",
 		Long: "Open the terminal interface. It needs a terminal on both standard input and standard output.\n" +
+			"It talks to the running service; without the service it still opens and says what to check.\n" +
 			"Device-local preferences are read from tui.yaml in the sysmin folder of the user configuration\n" +
 			"directory; a missing file means the defaults.",
 		Args: func(_ *cobra.Command, args []string) error {
@@ -42,9 +45,13 @@ func newTUICommand(opts *Options) *cobra.Command {
 			} else {
 				prefs, warnings = uiprefs.Load(uiprefs.Path(filepath.Join(dir, configDirName)))
 			}
-			return tui.Run(tui.Options{Prefs: prefs, PrefsWarnings: warnings, Redactor: opts.Redactor, In: in, Out: out})
+			backend := tui.NewBackend(socket)
+			defer backend.Close()
+			return tui.Run(tui.Options{Prefs: prefs, PrefsWarnings: warnings, Redactor: opts.Redactor, Backend: backend, In: in, Out: out})
 		},
 	}
+	cmd.Flags().StringVar(&socket, "socket", control.DefaultSocketPath, "control socket path")
+	return cmd
 }
 
 // terminalFiles returns the standard streams of c when both are terminals. A buffer or a pipe is no terminal.

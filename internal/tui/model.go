@@ -37,6 +37,9 @@ const (
 	screenConfirm
 	// screenPrompt is a short input dialog, drawn like a question.
 	screenPrompt
+	// screenArea is the area screen of the service interface: the tab line with the current area. It is
+	// the base of the dialogs in place of screenList where the interface runs against a service.
+	screenArea
 )
 
 // Model is the state of the editor frame: the list in the workspace and the dialog over it. Areas of the
@@ -58,6 +61,17 @@ type Model struct {
 	dialog *promptDialog
 	// dd is the open list of a dropdown field (see dropdown.go).
 	dd *dropdown
+
+	// home is the base screen: screenList for the bare frame, screenArea once enableAreas ran.
+	home screen
+	// area is the current area of screenArea; backend serves it; svc is what the service last reported.
+	area    area
+	backend Backend
+	svc     svcState
+	// ov is the passphrase overlay drawn as the prompt of screenPrompt, nil while there is none; ovSeq numbers
+	// them.
+	ov    *passEntry
+	ovSeq int
 
 	status string
 	fail   string
@@ -99,7 +113,12 @@ func New(prefs uiprefs.Prefs, redactor *redact.Redactor) *Model {
 }
 
 // Init asks the terminal for its colours where the theme mixes from them.
-func (m *Model) Init() tea.Cmd { return terminalColourQuery(m.prefs.Theme) }
+func (m *Model) Init() tea.Cmd {
+	if m.backend == nil {
+		return terminalColourQuery(m.prefs.Theme)
+	}
+	return tea.Batch(terminalColourQuery(m.prefs.Theme), m.statusCmd(), tickCmd())
+}
 
 // Update handles one message.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -129,6 +148,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyPressMsg:
 		return m, m.updateKey(m.moveKey(legacyKey(msg)))
+	case statusMsg:
+		return m, m.takeStatus(msg)
+	case tickMsg:
+		return m, m.takeTick()
+	case verifiedMsg:
+		return m, m.takeVerified(msg)
+	case createdMsg:
+		return m, m.takeCreated(msg)
+	case changeDoneMsg:
+		return m, m.takeChange(msg)
+	case sessionEndedMsg:
+		return m, m.takeSessionEnded(msg)
 	}
 	return m, nil
 }
@@ -140,6 +171,15 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.dd != nil {
 		return m.updateDropdown(key)
+	}
+	if m.ov != nil {
+		return m.updateOverlay(key)
+	}
+	if m.screen == screenArea {
+		if keyIs(key, actLock) {
+			return m.lockKey()
+		}
+		return m.updateArea(key)
 	}
 	switch m.screen {
 	case screenConfirm, screenPrompt:
@@ -197,7 +237,7 @@ func (m *Model) quit() tea.Cmd {
 
 // closeDialog closes the question or input dialog and returns to the list.
 func (m *Model) closeDialog() {
-	m.screen, m.ask, m.dialog = screenList, nil, nil
+	m.screen, m.ask, m.dialog = m.home, nil, nil
 }
 
 // clearMessages forgets the status and the error of the last action.
@@ -258,6 +298,8 @@ func (m *Model) renderFrame() string {
 // workspaceView is the screen of the workspace.
 func (m *Model) workspaceView() string {
 	switch {
+	case m.screen == screenArea:
+		return m.boundView(m.areaView())
 	case m.questionScreen():
 		return m.boundKeepingKeys(m.framedQuestion(m.questionView), m.width, m.height) + m.notes()
 	case m.promptScreen():
@@ -274,7 +316,7 @@ func (m *Model) terminalTooSmall() bool {
 // resizeView is the notice that replaces the screen while the terminal is smaller than the editor needs.
 func (m *Model) resizeView() string {
 	way := "q quit"
-	if m.screen != screenList {
+	if m.screen != m.home {
 		way = "{back} leave"
 	}
 	// The way out comes first, so it is the last thing a terminal of a single row loses.

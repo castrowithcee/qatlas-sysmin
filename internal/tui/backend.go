@@ -1,0 +1,95 @@
+package tui
+
+import (
+	"errors"
+	"sync"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/client"
+	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+)
+
+// Backend is what the interface asks of the service. Every call runs as a command, off the event loop, so an
+// implementation may block; it must serialize its calls, because the connection behind it is not safe for
+// concurrent use. A failure the service reports is a *control.Error.
+type Backend interface {
+	// Status reports the vault and the admin session of this window.
+	Status() (control.StatusResult, error)
+	// Unlock opens the vault; OpenSession starts the admin session of this window.
+	Unlock(passphrase string) error
+	OpenSession(passphrase string) error
+	// EndSession ends the admin session of this window.
+	EndSession() error
+	// CreateVault creates the vault with its first passphrase and leaves it unlocked.
+	CreateVault(passphrase string) error
+}
+
+// NewBackend is the Backend over the control socket at path. It dials on the first call and again after the
+// connection broke; a new connection starts without an admin session, which is the truth after a loss.
+func NewBackend(socket string) *ClientBackend { return &ClientBackend{socket: socket} }
+
+// ClientBackend is a Backend over one connection to the service.
+type ClientBackend struct {
+	socket string
+	mu     sync.Mutex
+	conn   *client.Client
+}
+
+// Close ends the connection, if there is one.
+func (b *ClientBackend) Close() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.conn == nil {
+		return nil
+	}
+	err := b.conn.Close()
+	b.conn = nil
+	return err
+}
+
+// do runs fn on the connection. A failure that is no answer of the service means the connection is gone or
+// not trustworthy, so it is dropped and the next call dials again. A read-only call may be repeated once on a
+// fresh connection; a changing one never is, because its outcome is not known.
+func (b *ClientBackend) do(repeatable bool, fn func(*client.Client) error) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for attempt := 0; ; attempt++ {
+		if b.conn == nil {
+			c, err := client.Dial(b.socket)
+			if err != nil {
+				return err
+			}
+			b.conn = c
+		}
+		err := fn(b.conn)
+		var ce *control.Error
+		if err == nil || errors.As(err, &ce) {
+			return err
+		}
+		_ = b.conn.Close()
+		b.conn = nil
+		if !repeatable || attempt > 0 {
+			return err
+		}
+	}
+}
+
+func (b *ClientBackend) Status() (st control.StatusResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { st, e = c.Status(); return e })
+	return st, err
+}
+
+func (b *ClientBackend) Unlock(passphrase string) error {
+	return b.do(false, func(c *client.Client) error { return c.Unlock(passphrase) })
+}
+
+func (b *ClientBackend) OpenSession(passphrase string) error {
+	return b.do(false, func(c *client.Client) error { return c.OpenSession(passphrase) })
+}
+
+func (b *ClientBackend) EndSession() error {
+	return b.do(false, func(c *client.Client) error { return c.EndSession() })
+}
+
+func (b *ClientBackend) CreateVault(passphrase string) error {
+	return b.do(false, func(c *client.Client) error { return c.CreateVault(passphrase) })
+}

@@ -18,7 +18,9 @@ type Options struct {
 	PrefsWarnings []string
 	// Redactor holds the secrets that must never reach the screen or the clipboard; nil knows none.
 	Redactor *redact.Redactor
-	In, Out  *os.File
+	// Backend serves the service interface. Nil runs the bare frame without a service.
+	Backend Backend
+	In, Out *os.File
 }
 
 // Run starts the editor on the terminal streams of opts and returns when the person quits.
@@ -42,6 +44,9 @@ func Run(opts Options) error {
 	}
 	applyKeys(prefs.Keys)
 	model := New(prefs, opts.Redactor)
+	if opts.Backend != nil {
+		model.enableAreas(opts.Backend)
+	}
 	if len(warnings) > 0 {
 		model.status = "warning: " + warnings[0]
 	}

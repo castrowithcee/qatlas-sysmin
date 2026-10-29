@@ -25,7 +25,7 @@ func (m *Model) questionView() string { return m.questionText(*m.ask) }
 func (m *Model) screenBeneath(s screen) (screen, bool) {
 	switch s {
 	case screenConfirm, screenPrompt:
-		return screenList, true
+		return m.home, true
 	}
 	return s, false
 }

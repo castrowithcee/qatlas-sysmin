@@ -97,3 +97,10 @@ func TestTUIWithoutTerminalFailsCleanly(t *testing.T) {
 		t.Errorf("stderr = %q", stderr)
 	}
 }
+
+func TestTUIAcceptsTheSocketFlag(t *testing.T) {
+	code, _, stderr := runCLI(t, "tui", "--socket", "/nonexistent/sysmin.sock")
+	if code != exitUsage || !strings.Contains(stderr, "the terminal interface needs a terminal") {
+		t.Errorf("code = %d, stderr = %q", code, stderr)
+	}
+}
