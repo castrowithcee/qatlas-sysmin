@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
@@ -129,6 +131,31 @@ func TestOverviewStaysVisibleWithoutTheService(t *testing.T) {
 	send(m, "enter")
 	if !m.serviceUp() {
 		t.Error("enter on the service row does not ask again")
+	}
+}
+
+func TestOverviewOffersARestartToASessionWithoutTheGroup(t *testing.T) {
+	fb := newFake(control.VaultUnlocked)
+	fb.down = fmt.Errorf("cannot reach the service: %w", client.ErrSessionGroup)
+	m := appModel(t, fb, 120, 24)
+	view := plain(m)
+	if !strings.Contains(view, "session lacks group sysmin") || !strings.Contains(view, "Press enter to restart with sudo -g sysmin") {
+		t.Fatalf("the overview does not name the missing group:\n%s", view)
+	}
+	if got := errorText(fb.down); got != "This login session lacks the group sysmin; run regroup or log in again." {
+		t.Errorf("error text %q", got)
+	}
+	send(m, "enter")
+	if !m.regroupAsked || !m.quitting {
+		t.Errorf("enter does not quit to restart: regroup %v, quitting %v", m.regroupAsked, m.quitting)
+	}
+
+	m = appModel(t, fb, 120, 24)
+	send(m, ":")
+	typed(m, "regroup")
+	send(m, "enter")
+	if !m.regroupAsked || !m.quitting {
+		t.Errorf("the command does not quit to restart: regroup %v, quitting %v", m.regroupAsked, m.quitting)
 	}
 }
 

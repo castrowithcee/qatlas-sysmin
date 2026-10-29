@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
@@ -24,7 +25,9 @@ type svcState struct {
 	// reachable is false while the last Status failed; fail then says why, as a fixed text.
 	reachable bool
 	fail      string
-	st        control.StatusResult
+	// noGroup says the last Status failed because this login session does not carry the group sysmin yet.
+	noGroup bool
+	st      control.StatusResult
 	// at is when st arrived; checked is when the service was last asked, answered or not.
 	at, checked time.Time
 	// pending says a Status call is out; again says another was wanted meanwhile and follows.
@@ -65,6 +68,7 @@ func (m *Model) takeStatus(msg statusMsg) tea.Cmd {
 	now := m.timeNow()
 	m.svc.pending = false
 	m.svc.known, m.svc.checked = true, now
+	m.svc.noGroup = errors.Is(msg.err, client.ErrSessionGroup)
 	if msg.err != nil {
 		m.svc.reachable, m.svc.fail = false, errorText(msg.err)
 	} else {
@@ -132,6 +136,9 @@ func (m *Model) adminMinutes() int {
 // errorText is the fixed, short text of a failure. It never repeats what the service or the system said, so a
 // passphrase cannot reach the screen through it.
 func errorText(err error) string {
+	if errors.Is(err, client.ErrSessionGroup) {
+		return tr(tErrSessionGroup)
+	}
 	var ce *control.Error
 	if !errors.As(err, &ce) {
 		return tr(tErrUnreachable)

@@ -10,10 +10,12 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // ServiceGroup is the group whose members may use the control socket, besides root.
-const ServiceGroup = "sysmin"
+const ServiceGroup = control.ServiceGroup
 
 // NoUID stands in for the user id of a peer whose credentials could not be read.
 const NoUID = ^uint32(0)

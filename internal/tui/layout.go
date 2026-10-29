@@ -236,6 +236,8 @@ func (m *Model) headerMarks(level int) []string {
 	switch {
 	case !m.svc.known:
 		return append(parts, styles.hint.Render(tr(tHeaderChecking)))
+	case !m.svc.reachable && m.svc.noGroup:
+		return append(parts, statusMark(statusFail, pick(tServiceGroup, tServiceGroupShort)))
 	case !m.svc.reachable:
 		return append(parts, statusMark(statusFail, pick(tServiceDown, tServiceDownShort)))
 	}

@@ -178,8 +178,9 @@ main() {
 
 	printf '\nInstalled sysmin %s\n  program: /usr/local/bin/sysmin\n  service: sysmin.service (user %s)\n' "$version" "$service_user"
 	if [ -n "$operator" ]; then
-		printf '\nAdded %s to the group %s, which may use sysmin; it takes effect at the next login or after\n  newgrp %s\n' \
-			"$operator" "$service_user" "$service_user"
+		printf '\nAdded %s to the group %s, which may use sysmin. Sessions that started before take it up at the\n' \
+			"$operator" "$service_user"
+		printf 'next login; until then sysmin tui offers to restart itself with sudo -g %s.\n' "$service_user"
 	fi
 	if [ -n "$unlock" ]; then
 		printf '\nAutomatic vault unlocking (%s): once the vault exists, bind it with\n  sudo sysmin vault bind\n' "$unlock"

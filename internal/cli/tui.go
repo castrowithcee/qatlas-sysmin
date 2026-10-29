@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -50,13 +51,42 @@ func newTUICommand(opts *Options) *cobra.Command {
 				prefs, warnings = uiprefs.Load(prefsPath)
 			}
 			backend := tui.NewBackend(socket)
-			defer backend.Close()
-			return tui.Run(tui.Options{Prefs: prefs, PrefsWarnings: warnings, PrefsPath: prefsPath, Redactor: opts.Redactor,
+			err := tui.Run(tui.Options{Prefs: prefs, PrefsWarnings: warnings, PrefsPath: prefsPath, Redactor: opts.Redactor,
 				Backend: backend, Version: version, Releases: releaseCheck(opts), In: in, Out: out})
+			backend.Close()
+			if errors.Is(err, tui.ErrRegroup) {
+				return execWithGroup(os.Args)
+			}
+			return err
 		},
 	}
 	cmd.Flags().StringVar(&socket, "socket", control.DefaultSocketPath, "control socket path")
 	return cmd
+}
+
+// The calls execWithGroup makes to the host; variables so a test can stand in for them.
+var (
+	lookPath   = exec.LookPath
+	executable = os.Executable
+	execv      = unix.Exec
+)
+
+// execWithGroup replaces this process by the same command under sudo -g sysmin, which carries the group without
+// a new login. It returns only on failure.
+func execWithGroup(args []string) error {
+	sudo, err := lookPath("sudo")
+	if err != nil {
+		return fmt.Errorf("sudo is not installed; log in again to use the group %s", control.ServiceGroup)
+	}
+	exe, err := executable()
+	if err != nil {
+		return fmt.Errorf("cannot find this program: %w", err)
+	}
+	argv := append([]string{"sudo", "-g", control.ServiceGroup, exe}, args[1:]...)
+	if err := execv(sudo, argv, os.Environ()); err != nil {
+		return fmt.Errorf("cannot run sudo: %w", err)
+	}
+	return nil
 }
 
 // terminalFiles returns the standard streams of c when both are terminals. A buffer or a pipe is no terminal.

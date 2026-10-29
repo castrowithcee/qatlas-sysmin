@@ -16,7 +16,7 @@ import (
 func withService(socket string, fn func(*client.Client) error) error {
 	c, err := client.Dial(socket)
 	if err != nil {
-		return fmt.Errorf("%w (is the service running, and are you root or in the group sysmin?)", err)
+		return dialError(err)
 	}
 	defer c.Close()
 	err = fn(c)
@@ -25,6 +25,14 @@ func withService(socket string, fn func(*client.Client) error) error {
 		return errors.New("the service does not allow this user; only root and members of the group sysmin may use it")
 	}
 	return err
+}
+
+// dialError says what to check when the service cannot be reached.
+func dialError(err error) error {
+	if errors.Is(err, client.ErrSessionGroup) {
+		return fmt.Errorf("%w; log in again, or put \"sudo -g %s\" in front of the command", err, control.ServiceGroup)
+	}
+	return fmt.Errorf("%w (is the service running, and are you root or in the group sysmin?)", err)
 }
 
 func newStatusCommand(opts *Options) *cobra.Command {

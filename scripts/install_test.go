@@ -370,7 +370,7 @@ func TestInstallAddsSudoUserOnFreshInstall(t *testing.T) {
 			if got := strings.Contains(calls, "usermod -aG sysmin "); got != tc.added {
 				t.Errorf("added = %v, want %v:\n%s", got, tc.added, calls)
 			}
-			if got := strings.Contains(out, "newgrp sysmin"); got != tc.added {
+			if got := strings.Contains(out, "sudo -g sysmin"); got != tc.added {
 				t.Errorf("hint = %v, want %v:\n%s", got, tc.added, out)
 			}
 			if tc.added && !strings.Contains(calls, "usermod -aG sysmin alice") {
@@ -385,7 +385,7 @@ func TestInstallAddsSudoUserOnFreshInstall(t *testing.T) {
 		e.mustRun()
 		e.sudo = "alice"
 		e.publish("v1.0.1", "program two", releaseOptions{})
-		if out := e.mustRun(); strings.Contains(e.calls(), "usermod -aG sysmin") || strings.Contains(out, "newgrp") {
+		if out := e.mustRun(); strings.Contains(e.calls(), "usermod -aG sysmin") || strings.Contains(out, "sudo -g") {
 			t.Errorf("update added the sudo user:\n%s\n%s", e.calls(), out)
 		}
 	})
