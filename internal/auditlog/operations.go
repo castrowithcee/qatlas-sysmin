@@ -25,6 +25,15 @@ const (
 
 	OperationWebhookReceive = "webhook.receive"
 	OperationWebhookReject  = "webhook.reject"
+
+	// The control socket: a request that names no known operation, is malformed, too large or too slow
+	// is logged as OperationControlRequest; a peer turned away as OperationControlRefuse.
+	OperationControlRequest = "control.request"
+	OperationControlRefuse  = "control.refuse"
+	OperationControlStatus  = "control.status"
+	OperationVaultStatus    = "vault.status"
+	OperationSessionOpen    = "session.open"
+	OperationSessionEnd     = "session.end"
 )
 
 // knownOperations is every action Validate accepts, so a new one is added here.
@@ -36,4 +45,6 @@ var knownOperations = map[string]bool{
 	OperationDeployPlan: true, OperationDeployRun: true, OperationDeployRollback: true,
 	OperationVaultUnlock: true, OperationVaultLock: true, OperationVaultRekey: true,
 	OperationWebhookReceive: true, OperationWebhookReject: true,
+	OperationControlRequest: true, OperationControlRefuse: true, OperationControlStatus: true,
+	OperationVaultStatus: true, OperationSessionOpen: true, OperationSessionEnd: true,
 }
