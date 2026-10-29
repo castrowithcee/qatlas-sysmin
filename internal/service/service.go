@@ -159,6 +159,9 @@ func Open(cfg Config) (*Service, error) {
 			return nil, err
 		}
 		s.refreshNotifier()
+	} else if state == vault.StateLocked {
+		// Once per process start; the notifier works in the background and falls back to the snapshot.
+		s.notifier.Notify(notify.Event{Type: notify.EventVaultLocked})
 	}
 	return s, nil
 }

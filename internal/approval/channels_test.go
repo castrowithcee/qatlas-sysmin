@@ -2,6 +2,7 @@ package approval
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -405,5 +406,49 @@ func TestChannelSnapshotPermissionsAndNoSecrets(t *testing.T) {
 	err = e.mgr.Approve(ChannelsName, "stale")
 	if err == nil || strings.Contains(err.Error(), "secret-value") {
 		t.Fatalf("Approve() = %v", err)
+	}
+}
+
+func TestUnverifiedChannelsReadsTheSnapshotWithoutTheVault(t *testing.T) {
+	e := channelEnv(t)
+	approved, err := e.mgr.ApprovedChannels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := approved.Credentials["demo-hook"]
+	e.vault.Forget()
+	if _, err := e.mgr.ApprovedChannels(); !errors.Is(err, vault.ErrLocked) {
+		t.Fatalf("ApprovedChannels() = %v, want ErrLocked", err)
+	}
+	chans, err := e.mgr.UnverifiedChannels()
+	if err != nil || len(chans) != 1 || chans[0].Name != "ops-hook" || chans[0].Credential != "demo-hook" {
+		t.Fatalf("UnverifiedChannels() = %+v, %v", chans, err)
+	}
+	if id == "" || strings.Contains(fmt.Sprintf("%+v", chans), id) {
+		t.Errorf("the result names a vault id: %+v", chans)
+	}
+}
+
+func TestUnverifiedChannelsIsStrictAndReportsMissing(t *testing.T) {
+	e := newEnv(t)
+	if _, err := e.mgr.UnverifiedChannels(); !errors.Is(err, ErrNotApproved) {
+		t.Fatalf("missing snapshot: %v, want ErrNotApproved", err)
+	}
+	e = channelEnv(t)
+	path := e.mgr.channelsSnapshotPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{
+		"unknown field": string(data) + "surprise: 1\n",
+		"wrong schema":  strings.Replace(string(data), "schema: 1", "schema: 99", 1),
+	} {
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := e.mgr.UnverifiedChannels(); !errors.Is(err, ErrIntegrity) {
+			t.Errorf("%s: %v, want ErrIntegrity", name, err)
+		}
 	}
 }
