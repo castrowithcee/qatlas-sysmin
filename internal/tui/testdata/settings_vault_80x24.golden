@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                                 ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+ Overview   Projects   Activity   Access   Library  [Settings]
+
+ General  [Vault]  Update 
+
+>  Passphrase:    [ change ]
+   Admin timeout: 15m0s (default)
+   Unlock:        manual
+    Automatic unlock: sudo sysmin vault bind
+
+
+
+
+
+
+
+
+
+
+
+
+
+1-6 area  left/right page  enter edit  F2 save  ctrl+l admin  ? help  : cmds

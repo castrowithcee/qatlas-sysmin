@@ -46,6 +46,8 @@ func footerGroupRank(group string, index int) (rank int, right bool) {
 	switch {
 	case key == keyLabel(actHelp) && key != "":
 		return footerHelp, false
+	case group == "left/right page":
+		return footerPrimary, false
 	case isNavigation(key):
 		return footerNavigate + index, true
 	case slices.Contains(strings.Split(key, "/"), keyName(keyOf(actBack))):

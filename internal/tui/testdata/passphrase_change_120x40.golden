@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Overview   Projects   Activity   Access   Library  [Settings]                                                          
+                                                                                                                        
+ General  [Vault]  Update                                                                                               
+                                                                                                                        
+>  Passphrase:    [ change ]                                                                                            
+   Admin timeout: 15m0s (default)                                                                                       
+   Unlock:        manual                                                                                                
+    Automatic unlock: sudo sysmin vault bind                                                                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                            ╔══════════════════════════════════════════════════════════════╗                            
+                            ║ Change passphrase                                            ║                            
+                            ║                                                              ║                            
+                            ║   Current: ********                                          ║                            
+                            ║   New:     ********                                          ║                            
+                            ║   Confirm:                                                   ║                            
+                            ║     Verifies with the current passphrase.                    ║                            
+                            ║                                                              ║                            
+                            ║ > Ok <  [ Cancel ]                                           ║                            
+                            ║                                                              ║                            
+                            ║ enter ok · tab next · esc cancel                             ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

@@ -25,6 +25,7 @@ const (
 	OperationVaultUnlock = "vault.unlock"
 	OperationVaultLock   = "vault.lock"
 	OperationVaultRekey  = "vault.rekey"
+	OperationVaultCreate = "vault.create"
 
 	OperationWebhookReceive = "webhook.receive"
 	OperationWebhookReject  = "webhook.reject"
@@ -50,7 +51,7 @@ var knownOperations = map[string]bool{
 	OperationApprovalRequest: true, OperationApprovalGrant: true, OperationApprovalDeny: true,
 	OperationApprovalList: true, OperationApprovalShow: true,
 	OperationDeployPlan: true, OperationDeployRun: true, OperationDeployRollback: true,
-	OperationVaultUnlock: true, OperationVaultLock: true, OperationVaultRekey: true,
+	OperationVaultUnlock: true, OperationVaultLock: true, OperationVaultRekey: true, OperationVaultCreate: true,
 	OperationWebhookReceive: true, OperationWebhookReject: true, OperationNotifySend: true,
 	OperationControlRequest: true, OperationControlRefuse: true, OperationControlStatus: true,
 	OperationVaultStatus: true, OperationSessionOpen: true, OperationSessionEnd: true,

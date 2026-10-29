@@ -172,6 +172,15 @@ type StatusResult struct {
 	Unlock   string `json:"unlock,omitempty"`
 	Warning  string `json:"warning,omitempty"`
 	Socket   string `json:"socket,omitempty"`
+	// ConfigDir is the service's configuration directory.
+	ConfigDir string `json:"config_dir,omitempty"`
+	// Admin reports whether the asking connection has an admin session that covers a change now, without
+	// using it. AdminRemaining is the whole seconds (rounded up) it stays active while idle; it is 0 while
+	// the admin timeout is 0 (the passphrase covers one change). AdminTimeout is the effective admin timeout
+	// as a duration text such as "15m0s"; "0s" means every change asks for the passphrase.
+	Admin          bool   `json:"admin,omitempty"`
+	AdminRemaining int64  `json:"admin_remaining,omitempty"`
+	AdminTimeout   string `json:"admin_timeout,omitempty"`
 }
 
 // VaultStatusResult is the answer to OpVaultStatus. It never carries key material or entry values.

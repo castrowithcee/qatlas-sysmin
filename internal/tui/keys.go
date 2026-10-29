@@ -17,6 +17,10 @@ func (m *Model) typing() bool {
 		return true
 	case screenList:
 		return m.list.editing
+	case screenArea:
+		return m.area == areaSettings && m.set.editing
+	case screenPopup:
+		return m.pop != nil && m.pop.kind == popCommand
 	}
 	return false
 }
