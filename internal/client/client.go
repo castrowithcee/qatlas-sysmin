@@ -389,3 +389,10 @@ func (c *Client) DeriveTemplate(p control.TemplateDeriveParams) (control.Templat
 	err := c.Call(control.OpTemplatesDerive, p, &out)
 	return out, err
 }
+
+// DeployLog reads the log of one run of a project, cut to its end where it is long.
+func (c *Client) DeployLog(project, run string) (control.DeployLogResult, error) {
+	var out control.DeployLogResult
+	err := c.Call(control.OpDeployLog, control.DeployLogParams{Project: project, Run: run}, &out)
+	return out, err
+}
