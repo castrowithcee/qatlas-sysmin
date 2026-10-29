@@ -14,6 +14,8 @@ const (
 	OperationApprovalRequest = "approval.request"
 	OperationApprovalGrant   = "approval.grant"
 	OperationApprovalDeny    = "approval.deny"
+	OperationApprovalList    = "approval.list"
+	OperationApprovalShow    = "approval.show"
 
 	OperationDeployPlan     = "deploy.plan"
 	OperationDeployRun      = "deploy.run"
@@ -42,6 +44,7 @@ var knownOperations = map[string]bool{
 	OperationCredentialCreate: true, OperationCredentialChange: true, OperationCredentialDelete: true,
 	OperationCredentialUse:   true,
 	OperationApprovalRequest: true, OperationApprovalGrant: true, OperationApprovalDeny: true,
+	OperationApprovalList: true, OperationApprovalShow: true,
 	OperationDeployPlan: true, OperationDeployRun: true, OperationDeployRollback: true,
 	OperationVaultUnlock: true, OperationVaultLock: true, OperationVaultRekey: true,
 	OperationWebhookReceive: true, OperationWebhookReject: true,

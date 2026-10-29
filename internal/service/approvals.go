@@ -1,0 +1,233 @@
+package service
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"log/slog"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/approval"
+	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
+	"github.com/castrowithcee/qatlas-sysmin/internal/config"
+	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
+	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
+)
+
+func (s *Service) registerApprovals() error {
+	for op, h := range map[string]daemon.Handler{
+		control.OpApprovalsList:       {Action: auditlog.OperationApprovalList, Func: s.handleApprovalsList},
+		control.OpApprovalsShow:       {Action: auditlog.OperationApprovalShow, Func: s.handleApprovalsShow},
+		control.OpApprovalsApprove:    {Action: auditlog.OperationApprovalGrant, Mutating: true, Func: s.handleApprove},
+		control.OpApprovalsApproveAll: {Action: auditlog.OperationApprovalGrant, Mutating: true, Func: s.handleApproveAll},
+		control.OpApprovalsDiscard:    {Action: auditlog.OperationApprovalDeny, Mutating: true, Func: s.handleDiscard},
+		control.OpApprovalsDiscardAll: {Action: auditlog.OperationApprovalDeny, Mutating: true, Func: s.handleDiscardAll},
+	} {
+		if err := s.server.Register(op, h); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// approvalCode maps an error of the approval manager to a fixed code; its text, which could name paths,
+// stays in the service's own log.
+func approvalCode(err error) string {
+	switch {
+	case errors.Is(err, vault.ErrLocked), errors.Is(err, vault.ErrAbsent):
+		return control.CodeLocked
+	case errors.Is(err, approval.ErrNothingOpen):
+		return control.CodeNothingOpen
+	case errors.Is(err, approval.ErrChanged), errors.Is(err, config.ErrConflict):
+		return control.CodeChanged
+	case errors.Is(err, approval.ErrIntegrity), errors.Is(err, approval.ErrNotApproved):
+		return control.CodeCannotDiscard
+	}
+	slog.Warn("an approval operation failed", "error", err.Error())
+	return control.CodeInternal
+}
+
+func approvalError(err error) error { return &control.Error{Code: approvalCode(err)} }
+
+// projectParams decodes the parameters of a request about one project.
+func projectParams(params json.RawMessage) (control.ApprovalParams, error) {
+	var p control.ApprovalParams
+	if err := json.Unmarshal(params, &p); err != nil || !config.ValidName(p.Project) {
+		return p, &control.Error{Code: control.CodeBadRequest}
+	}
+	return p, nil
+}
+
+func summaryOf(it approval.Item) control.ApprovalSummary {
+	return control.ApprovalSummary{
+		Project: it.Project, Kind: string(it.Kind), Fingerprint: it.Fingerprint, Changes: len(it.Changes),
+		FreeCommands: it.FreeCommands(), Unverified: it.Unverified,
+	}
+}
+
+// openItems lists the open approvals. A locked vault is answered before the configuration is read, since
+// without it nothing can be compared.
+func (s *Service) openItems() ([]approval.Item, error) {
+	if s.vaultState() != control.VaultUnlocked {
+		return nil, &control.Error{Code: control.CodeLocked}
+	}
+	items, err := s.approvals.Open()
+	if err != nil {
+		return nil, approvalError(err)
+	}
+	return items, nil
+}
+
+// openItem returns the open approval of a project, or control.CodeNothingOpen.
+func (s *Service) openItem(name string) (approval.Item, error) {
+	items, err := s.openItems()
+	if err != nil {
+		return approval.Item{}, err
+	}
+	for _, it := range items {
+		if it.Project == name {
+			return it, nil
+		}
+	}
+	return approval.Item{}, &control.Error{Code: control.CodeNothingOpen}
+}
+
+func (s *Service) handleApprovalsList(context.Context, *daemon.Conn, json.RawMessage) (any, error) {
+	items, err := s.openItems()
+	if err != nil {
+		return nil, err
+	}
+	out := control.ApprovalsListResult{Approvals: make([]control.ApprovalSummary, 0, len(items))}
+	for _, it := range items {
+		out.Approvals = append(out.Approvals, summaryOf(it))
+	}
+	return out, nil
+}
+
+func (s *Service) handleApprovalsShow(_ context.Context, _ *daemon.Conn, params json.RawMessage) (any, error) {
+	p, err := projectParams(params)
+	if err != nil {
+		return nil, err
+	}
+	it, err := s.openItem(p.Project)
+	if err != nil {
+		return nil, err
+	}
+	out := control.ApprovalDetail{ApprovalSummary: summaryOf(it), Details: make([]control.ApprovalChange, 0, len(it.Changes))}
+	for _, c := range it.Changes {
+		out.Details = append(out.Details, control.ApprovalChange{Path: c.Path, Old: c.Old, New: c.New, Free: c.Free})
+	}
+	return out, nil
+}
+
+// audited records the outcome for one project and passes the error on.
+func audited(c *daemon.Conn, project string, err error) error {
+	c.Audit(project, codeOfErr(err))
+	return err
+}
+
+func (s *Service) handleApprove(_ context.Context, c *daemon.Conn, params json.RawMessage) (any, error) {
+	p, err := projectParams(params)
+	if err != nil {
+		return nil, err
+	}
+	return nil, audited(c, p.Project, s.approve(p))
+}
+
+func (s *Service) approve(p control.ApprovalParams) error {
+	if p.Fingerprint == "" {
+		// Only a deleted project has no fingerprint; for any other the approval would skip the check that
+		// ties it to what the client saw.
+		it, err := s.openItem(p.Project)
+		if err != nil {
+			return err
+		}
+		if it.Kind != approval.KindDeleted {
+			return &control.Error{Code: control.CodeBadRequest}
+		}
+	}
+	if err := s.approvals.Approve(p.Project, p.Fingerprint); err != nil {
+		return approvalError(err)
+	}
+	return nil
+}
+
+func (s *Service) handleDiscard(_ context.Context, c *daemon.Conn, params json.RawMessage) (any, error) {
+	p, err := projectParams(params)
+	if err != nil {
+		return nil, err
+	}
+	return nil, audited(c, p.Project, s.discard(p))
+}
+
+func (s *Service) discard(p control.ApprovalParams) error {
+	it, err := s.openItem(p.Project)
+	if err != nil {
+		return err
+	}
+	if it.Kind == approval.KindCredential {
+		return &control.Error{Code: control.CodeCannotDiscard}
+	}
+	if p.Fingerprint != "" && p.Fingerprint != it.Fingerprint {
+		return &control.Error{Code: control.CodeChanged}
+	}
+	if err := s.approvals.Discard(p.Project); err != nil {
+		return approvalError(err)
+	}
+	return nil
+}
+
+func (s *Service) handleApproveAll(_ context.Context, c *daemon.Conn, _ json.RawMessage) (any, error) {
+	return s.each(c, false)
+}
+
+func (s *Service) handleDiscardAll(_ context.Context, c *daemon.Conn, _ json.RawMessage) (any, error) {
+	return s.each(c, true)
+}
+
+// each handles every open approval one by one, so each project leaves its own audit entry and a failure
+// for one does not stop the others. Approving ties each to the fingerprint just listed; discarding leaves
+// out an item that restoring the file cannot undo.
+func (s *Service) each(c *daemon.Conn, discard bool) (any, error) {
+	items, err := s.openItems()
+	if err != nil {
+		return nil, err
+	}
+	out := control.ApprovalsAllResult{Done: []string{}}
+	for _, it := range items {
+		var err error
+		if discard {
+			if it.Kind == approval.KindCredential {
+				continue
+			}
+			err = s.discard(control.ApprovalParams{Project: it.Project, Fingerprint: it.Fingerprint})
+		} else {
+			err = s.approve(control.ApprovalParams{Project: it.Project, Fingerprint: it.Fingerprint})
+		}
+		c.Audit(it.Project, codeOfErr(err))
+		if err != nil {
+			out.Failed = append(out.Failed, control.ApprovalFailure{Project: it.Project, Code: codeOfErr(err)})
+			continue
+		}
+		out.Done = append(out.Done, it.Project)
+	}
+	return out, nil
+}
+
+func codeOfErr(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.(*control.Error).Code
+}
+
+// saveProjectApproved writes a project file for a change made in an admin session and approves exactly the
+// file it wrote, so the change is not an open approval. Only a mutating handler may call it, since the guard
+// has by then proved the session; a write outside one leaves the file for approval.
+func (s *Service) saveProjectApproved(p config.Project, base config.Revision) error {
+	rev, err := s.store.SaveProject(p, base)
+	if err != nil {
+		return err
+	}
+	return s.approvals.ApproveCurrent(p.Name, rev)
+}

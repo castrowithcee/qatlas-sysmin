@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/admin"
+	"github.com/castrowithcee/qatlas-sysmin/internal/approval"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/autounlock"
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
@@ -65,11 +66,13 @@ type connState struct {
 
 // Service is the vault, the audit log and the control socket server around them.
 type Service struct {
-	cfg    Config
-	vault  *vault.Vault
-	mode   autounlock.Mode
-	log    *auditlog.Logger
-	server *daemon.Server
+	cfg       Config
+	vault     *vault.Vault
+	store     *config.Store
+	approvals *approval.Manager
+	mode      autounlock.Mode
+	log       *auditlog.Logger
+	server    *daemon.Server
 
 	unlockMu sync.Mutex
 	mu       sync.Mutex // guards logKey
@@ -114,6 +117,9 @@ func Open(cfg Config) (*Service, error) {
 	if s.vault == nil {
 		s.vault = vault.New(vaultDir)
 	}
+
+	s.store = config.NewStore(cfg.ConfigDir)
+	s.approvals = approval.New(s.store, s.vault, cfg.StateDir)
 
 	srv, err := daemon.New(daemon.Config{
 		Logger:     s.log,
@@ -252,7 +258,7 @@ func (s *Service) register() error {
 			return err
 		}
 	}
-	return nil
+	return s.registerApprovals()
 }
 
 func (s *Service) handleVaultStatus(context.Context, *daemon.Conn, json.RawMessage) (any, error) {
