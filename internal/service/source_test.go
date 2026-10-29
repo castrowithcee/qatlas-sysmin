@@ -69,7 +69,8 @@ func newSourceFixture(t *testing.T, token string, mods ...func(*Config)) *source
 	f := &sourceFixture{dir: t.TempDir()}
 	f.reg = registrytest.New(t, demoRegistryConfig(demoSecret))
 	f.evil = registrytest.New(t, demoRegistryConfig(demoSecret))
-	mods = append(mods, func(cfg *Config) {
+	// The fixture's own setting comes first, so a mod can replace it.
+	mods = append([]func(*Config){func(cfg *Config) {
 		cfg.SourceRegistry.BaseURL = func(host string) string {
 			f.mu.Lock()
 			f.hosts = append(f.hosts, host)
@@ -82,7 +83,7 @@ func newSourceFixture(t *testing.T, token string, mods ...func(*Config)) *source
 			}
 			return "http://127.0.0.1:1"
 		}
-	})
+	}}, mods...)
 	f.env = newEnv(t, true, true, mods...)
 	if _, err := f.svc.vault.Add("demo-registry", vault.KindRegistry, map[string]string{
 		vault.FieldUser: "demo-user", vault.FieldToken: token}); err != nil {

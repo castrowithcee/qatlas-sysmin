@@ -79,6 +79,10 @@ const (
 	// repositories it names. It changes nothing and needs no admin session.
 	OpSourceTest = "source.test"
 
+	// OpProjectsChangelog reads the GitHub releases between the current and the target version of the sources
+	// of a project's approved state. It changes nothing and needs no admin session.
+	OpProjectsChangelog = "projects.changelog"
+
 	// OpNotifyTest sends a test message to one approved channel. It reads and changes nothing, so it needs
 	// no admin session.
 	OpNotifyTest = "notify.test"
