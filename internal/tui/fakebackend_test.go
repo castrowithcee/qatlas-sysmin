@@ -428,6 +428,13 @@ type fakeLibrary struct {
 	logCalls  []control.LogListParams
 	verify    control.LogVerifyResult
 	verifyErr error
+
+	// status and history are the deploy state and runs by project (history oldest first); logs the run logs by
+	// project and run ID; deployErr is what the three deploy reads answer instead.
+	status    map[string]control.DeployStatusResult
+	history   map[string][]control.DeployRun
+	logs      map[string]string
+	deployErr error
 }
 
 func (f *fakeBackend) Channels() ([]control.ChannelSummary, error) {
@@ -545,4 +552,42 @@ func (f *fakeBackend) VerifyLog() (control.LogVerifyResult, error) {
 	defer f.mu.Unlock()
 	f.record("log-verify")
 	return f.lib.verify, f.lib.verifyErr
+}
+
+func (f *fakeBackend) DeployStatus(project string) (control.DeployStatusResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("deploy-status " + project)
+	if f.lib.deployErr != nil {
+		return control.DeployStatusResult{}, f.lib.deployErr
+	}
+	st, ok := f.lib.status[project]
+	if !ok {
+		st = control.DeployStatusResult{Project: project, Sources: []control.DeploySource{}}
+	}
+	return st, nil
+}
+
+func (f *fakeBackend) DeployHistory(project string) (control.DeployHistoryResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("deploy-history " + project)
+	if f.lib.deployErr != nil {
+		return control.DeployHistoryResult{}, f.lib.deployErr
+	}
+	return control.DeployHistoryResult{Project: project, Runs: slices.Clone(f.lib.history[project])}, nil
+}
+
+func (f *fakeBackend) DeployLog(project, run string) (control.DeployLogResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("deploy-log " + project + " " + run)
+	if f.lib.deployErr != nil {
+		return control.DeployLogResult{}, f.lib.deployErr
+	}
+	text, ok := f.lib.logs[project+"/"+run]
+	if !ok {
+		return control.DeployLogResult{}, &control.Error{Code: control.CodeNotFound}
+	}
+	return control.DeployLogResult{Project: project, Run: run, Text: text}, nil
 }

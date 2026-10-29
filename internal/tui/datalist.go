@@ -271,6 +271,8 @@ func (m *Model) currentPage() *dataPage {
 	switch {
 	case m.area == areaAccess:
 		return &m.acc.page
+	case m.area == areaActivity && m.act.sub == actRuns:
+		return &m.act.runs.page
 	case m.area == areaActivity:
 		return &m.act.page
 	case m.area == areaLibrary && m.lib.sub == libCredentials:

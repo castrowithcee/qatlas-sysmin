@@ -48,6 +48,7 @@ var helpTopics = []struct {
 	{"channels", tHelpChannels},
 	{"templates", tHelpTemplates},
 	{"audit-log", tHelpAuditLog},
+	{"runs", tHelpRuns},
 }
 
 // openPopup shows a panel over the area screen.
@@ -130,7 +131,7 @@ func (m *Model) infoOf() (string, string) {
 	case areaLibrary:
 		return pick(libTitle(m.lib.sub), []textID{tInfoLibCredentials, tInfoLibChannels, tInfoLibTemplates}[m.lib.sub])
 	case areaActivity:
-		return pick(actTitle(m.act.sub), []textID{tInfoActLog}[m.act.sub])
+		return pick(actTitle(m.act.sub), []textID{tInfoActLog, tInfoActRuns}[m.act.sub])
 	default:
 		ids := map[area]textID{areaProjects: tInfoAreaProjects, areaActivity: tInfoAreaActivity, areaAccess: tInfoAreaAccess,
 			areaLibrary: tInfoAreaLibrary}

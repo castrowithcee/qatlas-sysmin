@@ -216,6 +216,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case verifyMsg:
 		m.takeVerify(msg)
 		return m, nil
+	case runsMsg:
+		m.takeRuns(msg)
+		return m, nil
+	case runLogMsg:
+		m.takeRunLog(msg)
+		return m, nil
 	case projectsMsg:
 		m.takeProjects(msg)
 		return m, nil

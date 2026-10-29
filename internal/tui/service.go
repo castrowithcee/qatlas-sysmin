@@ -187,7 +187,9 @@ func (m *Model) clearLists() {
 func (m *Model) listsCmd() tea.Cmd {
 	// The log is read once when the page opens, not again on a timer: reading it is an entry of the log.
 	switch {
-	case m.area == areaActivity && !m.act.asked:
+	case m.area == areaActivity && m.act.sub == actRuns && !m.act.runs.asked:
+		return m.runsCmd(m.act.runs.project)
+	case m.area == areaActivity && m.act.sub == actLog && !m.act.asked:
 		return m.activityCmd()
 	case m.area == areaLibrary && m.lib.sub == libChannels && !m.lib.chans.have:
 		return m.channelsCmd()

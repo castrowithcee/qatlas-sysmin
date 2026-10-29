@@ -20,7 +20,7 @@ func (m *Model) copySource() func() string {
 			// Only the name of the marked row: a credential's value is not in the interface to copy. A log entry
 			// has no name, so its row is copied as drawn.
 			if name, ok := p.current(); ok {
-				if m.area == areaActivity {
+				if m.area == areaActivity && m.act.sub == actLog {
 					return func() string { return strings.Join(p.rows[name], " ") }
 				}
 				return func() string { return name }

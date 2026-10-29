@@ -2,6 +2,8 @@ sysmin  ● vault open  ● admin off                                           
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
  Overview   Projects  [Activity]  Access   Library   Settings 
 
+[Log]  Runs 
+
 ⚠ Chain broken · 2026-10-27 entry 31 · hash mismatch · +1 more
   signatures not checked (vault locked)
 Log (12)                                                         1/12 ╭─ 12 ───────────────────────────────────────────╮
@@ -35,6 +37,4 @@ Log (12)                                                         1/12 ╭─ 12 
 
 
 
-
-
-1-6 area  enter details  f filter  t verify  ctrl+r reload  / search  ctrl+l admin  i info  ? help  : cmds  q quit
+1-6 area  left/right page  enter details  f filter  t verify  ctrl+r reload  ctrl+l admin  ? help  : cmds  q quit

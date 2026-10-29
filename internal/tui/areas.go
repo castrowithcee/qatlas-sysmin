@@ -65,17 +65,16 @@ func (m *Model) show(a area, sub int) tea.Cmd {
 		if a == areaLibrary {
 			m.lib.sub = sub
 		}
+		if a == areaActivity {
+			m.act.sub = sub
+		}
 		m.closeDetails()
 		return m.enterPage()
 	})
 }
 
 // showActivity makes page sub of Activity the screen.
-func (m *Model) showActivity(sub int) tea.Cmd {
-	cmd := m.show(areaActivity, sub)
-	m.act.sub = sub
-	return cmd
-}
+func (m *Model) showActivity(sub int) tea.Cmd { return m.show(areaActivity, sub) }
 
 // enterPage asks for what the page just shown needs and has not yet.
 func (m *Model) enterPage() tea.Cmd {
@@ -84,6 +83,8 @@ func (m *Model) enterPage() tea.Cmd {
 		return m.overviewCmd()
 	case m.area == areaAccess:
 		return m.accessCmd()
+	case m.area == areaActivity && m.act.sub == actRuns:
+		return m.runsCmd(m.act.runs.project)
 	case m.area == areaActivity:
 		return m.activityCmd()
 	case m.area == areaLibrary:
@@ -159,12 +160,30 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 func (m *Model) closeDetails() {
 	m.acc.page.open, m.lib.cred.page.open, m.lib.chans.page.open = false, false, false
 	m.lib.tmpls.page.open, m.act.page.open, m.lib.cred.problems = false, false, nil
+	m.act.runs.page.open = false
+	if m.act.runs.log.open {
+		m.act.runs.log.open = false
+		m.act.runs.log.gen++
+	}
 }
 
 // dataKey handles a key of the pages with a table: the table and its detail first, then the page's own keys,
 // and, in Library, the keys that change the page.
 func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
+	if m.area == areaActivity && m.act.runs.log.open {
+		if cmd, ok := m.runLogKey(key); ok {
+			return cmd, true
+		}
+	}
 	p := m.currentPage()
+	if m.area == areaActivity && (p == nil || !p.open) {
+		switch {
+		case keyIs(key, actRight):
+			return m.setActSub(m.act.sub + 1), true
+		case keyIs(key, actLeft):
+			return m.setActSub(m.act.sub - 1), true
+		}
+	}
 	if m.area == areaLibrary && (p == nil || !p.open) {
 		switch {
 		case keyIs(key, actRight):
@@ -177,7 +196,10 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, false
 	}
 	if m.area == areaActivity && !p.open && keyIs(key, actFilter) {
-		// f is the filter of the log here; the table is searched with /.
+		// f is the filter of the log and the project of the runs here; the table is searched with /.
+		if m.act.sub == actRuns {
+			return m.openRunsProject(), true
+		}
 		return m.openLogFilter(), true
 	}
 	if cmd, ok := m.pageKey(p, key); ok {

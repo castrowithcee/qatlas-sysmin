@@ -379,9 +379,8 @@ func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 	if m.area != areaActivity {
 		t.Errorf("right and tab reach %v", m.area)
 	}
-	send(m, "left")
-	send(m, "shift+tab")
-	send(m, "left")
+	// Left and right turn the pages of Activity; the area moves with tab.
+	send(m, "shift+tab", "shift+tab", "left")
 	if m.area != areaSettings {
 		t.Errorf("movement back wraps to %v", m.area)
 	}

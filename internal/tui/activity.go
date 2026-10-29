@@ -13,19 +13,19 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
-// Activity shows what the service did. It has one page now, the action log; a page of the runs docks on at
-// actPages in the same way Library docks its pages: a constant, a state in activityState, a body and a key
-// function. The log is read when the page opens, when the filter changes and on the reload key, never on a
+// Activity shows what the service did: the action log here and the runs of the projects in runs.go. A page
+// is a constant, a state in activityState, a body and a key function, as in Library. The log is read when the page opens, when the filter changes and on the reload key, never on a
 // timer, because every request to the service is an entry of this log itself.
 const (
 	actLog = iota
+	actRuns
 	actPages
 )
 
 // actKey is the English name of an Activity page, the one commands are given by.
-func actKey(sub int) string { return [...]string{"log"}[sub] }
+func actKey(sub int) string { return [...]string{"log", "runs"}[sub] }
 
-func actTitle(sub int) string { return tr([...]textID{tSubLog}[sub]) }
+func actTitle(sub int) string { return tr([...]textID{tSubLog, tSubRuns}[sub]) }
 
 // logPageSize is how many entries one request asks for.
 const logPageSize = 100
@@ -85,6 +85,7 @@ func periodText(period int) string {
 // activityState is the Activity area.
 type activityState struct {
 	sub  int
+	runs runsState
 	page dataPage
 	// order lists the sequence numbers shown, newest first; items holds their entries.
 	order []string
@@ -278,7 +279,7 @@ func logColumns() []column {
 // activityWant asks for the next page where the marked entry is the last one shown.
 func (m *Model) activityWant() tea.Cmd {
 	a := &m.act
-	if a.next == "" || a.loading || a.stalled || len(a.page.list.matches) == 0 || a.page.list.cursor < len(a.page.list.matches)-1 {
+	if a.sub != actLog || a.next == "" || a.loading || a.stalled || len(a.page.list.matches) == 0 || a.page.list.cursor < len(a.page.list.matches)-1 {
 		return nil
 	}
 	return m.logCmd(a.next)
@@ -431,23 +432,35 @@ func (m *Model) activityBody() string {
 		for i := range words {
 			words[i] = actTitle(i)
 		}
-		strip, _ := tabStrip(words, m.act.sub, false)
+		strip, cells := tabStrip(words, m.act.sub, false)
+		for i, c := range cells {
+			m.addHit(c[0], top, c[1], top+1, func() tea.Cmd { return m.setActSub(i) })
+		}
 		head = strip + "\n\n"
 		top += 2
+	}
+	if m.act.sub == actRuns {
+		return head + m.runsBody(top)
 	}
 	lines := m.chainLines(m.usable(0))
 	return head + strings.Join(lines, "\n") + "\n" + m.dataBody(&m.act.page, m.logSpec(), top+len(lines))
 }
 
 func (m *Model) activityKeys() []string {
+	if m.act.sub == actRuns {
+		return m.runsKeys()
+	}
 	if m.act.page.open {
 		return []string{"left/right tab", "up/down scroll", "{back} close"}
 	}
-	return []string{"up/down move", "enter details", "f filter", "t verify", "ctrl+r reload", "/ search"}
+	return []string{"left/right page", "up/down move", "enter details", "f filter", "t verify", "ctrl+r reload", "/ search"}
 }
 
 // activityKey handles the keys of Activity that the table does not.
 func (m *Model) activityKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
+	if m.act.sub == actRuns {
+		return m.runsKey(key)
+	}
 	switch {
 	case keyIs(key, actTest):
 		m.clearMessages()
@@ -534,4 +547,28 @@ func submitLogFilter(m *Model, f *formDlg) tea.Cmd {
 		result: f.row("result").value()}
 	m.closeForm()
 	return m.logCmd("")
+}
+
+// setActSub shows page sub of Activity.
+func (m *Model) setActSub(sub int) tea.Cmd {
+	m.act.sub = (sub + actPages) % actPages
+	m.closeDetails()
+	m.clearMessages()
+	return m.enterPage()
+}
+
+// openRunsProject opens the form that picks the project whose runs are shown.
+func (m *Model) openRunsProject() tea.Cmd {
+	r := &m.act.runs
+	if len(r.projects) == 0 {
+		return nil
+	}
+	f := &formDlg{title: tr(tRunsProjectTitle), saveText: "{save} apply", submit: func(m *Model, f *formDlg) tea.Cmd {
+		m.closeForm()
+		return m.runsCmd(f.row("project").value())
+	}}
+	row := choiceRow("project", tr(tColProject), r.projects, r.projects, max(slices.Index(r.projects, r.project), 0))
+	f.rows = []formRow{row}
+	m.openForm(f)
+	return nil
 }

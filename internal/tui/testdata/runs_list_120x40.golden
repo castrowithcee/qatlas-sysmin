@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Overview   Projects  [Activity]  Access   Library   Settings 
+
+ Log  [Runs]
+
+‖ paused
+Runs · demo-app (2)                                               1/2 ╭─ 20261028T120000.000000000Z ───────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Time                 Action  Result         Changes             ║ │                                                │
+║ > 2026-10-28 12:00:00  auto    ↩ rolled-back  app 1.1.0→1.2.0     ║ │ Time      2026-10-28 12:00:00                  │
+║   2026-10-28 11:00:00  manual  ✓ succeeded    app 1.0.0→1.1.0     ║ │ Action    auto                                 │
+╚═══════════════════════════════════════════════════════════════════╝ │ Result    ↩ rolled-back (step-failed)          │
+                                                                      │ Duration  9.1 s                                │
+                                                                      │ Changes   app 1.1.0 → 1.2.0                    │
+                                                                      ╰────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1-6 area  left/right page  enter details  o log  f project  ctrl+r reload  ctrl+l admin  ? help  : cmds  q quit

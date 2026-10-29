@@ -111,6 +111,18 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "3", "f", "right", "right", "right", "tab", "right")
 			return m
 		}},
+		{"runs_list", func(t *testing.T, w, h int) *Model {
+			utcClock(t)
+			m := goldenApp(t, runsFake(), w, h)
+			send(m, "3", "right")
+			return m
+		}},
+		{"runs_log", func(t *testing.T, w, h int) *Model {
+			utcClock(t)
+			m := goldenApp(t, runsFake(), w, h)
+			send(m, "3", "right", "o")
+			return m
+		}},
 		{"passphrase_change", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "6", "right", "enter")

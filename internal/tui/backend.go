@@ -47,6 +47,11 @@ type Backend interface {
 	Template(name string) (control.TemplateDetail, error)
 	LogEntries(p control.LogListParams) (control.LogListResult, error)
 	VerifyLog() (control.LogVerifyResult, error)
+	// DeployStatus, DeployHistory and DeployLog only read: the state of a project, its runs with the oldest
+	// first, and the log of one run. None needs the admin session.
+	DeployStatus(project string) (control.DeployStatusResult, error)
+	DeployHistory(project string) (control.DeployHistoryResult, error)
+	DeployLog(project, run string) (control.DeployLogResult, error)
 	// TestChannel sends one message to an approved channel; it needs no admin session but is never repeated.
 	TestChannel(name string) (control.NotifyTestResult, error)
 	// AddChannel, RemoveChannel and DeriveTemplate change the service and need the admin session.
@@ -210,6 +215,21 @@ func (b *ClientBackend) LogEntries(p control.LogListParams) (res control.LogList
 
 func (b *ClientBackend) VerifyLog() (res control.LogVerifyResult, err error) {
 	err = b.do(true, func(c *client.Client) (e error) { res, e = c.VerifyLog(); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployStatus(project string) (res control.DeployStatusResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.DeployStatus(project); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployHistory(project string) (res control.DeployHistoryResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.DeployHistory(project); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployLog(project, run string) (res control.DeployLogResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.DeployLog(project, run); return e })
 	return res, err
 }
 
