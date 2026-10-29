@@ -36,6 +36,13 @@ func startService(t *testing.T, bound bool) string {
 // startServiceWith also lets setup fill the service's configuration directory before it starts.
 func startServiceWith(t *testing.T, bound bool, setup func(configDir string)) string {
 	t.Helper()
+	sock, _, _ := startServiceDirs(t, bound, setup)
+	return sock
+}
+
+// startServiceDirs also returns the state and the configuration directory of the service.
+func startServiceDirs(t *testing.T, bound bool, setup func(configDir string)) (sock, state, configDir string) {
+	t.Helper()
 	vault.LowerWorkFactorForTests()
 	t.Setenv("CREDENTIALS_DIRECTORY", "")
 	sockDir, err := os.MkdirTemp("", "sysmin-")
@@ -43,7 +50,7 @@ func startServiceWith(t *testing.T, bound bool, setup func(configDir string)) st
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(sockDir) })
-	state := t.TempDir()
+	state = t.TempDir()
 	v := vault.New(filepath.Join(state, "vault"))
 	if err := v.Create("example-passphrase-1"); err != nil {
 		t.Fatal(err)
@@ -56,7 +63,7 @@ func startServiceWith(t *testing.T, bound bool, setup func(configDir string)) st
 			t.Fatal(err)
 		}
 	}
-	configDir := t.TempDir()
+	configDir = t.TempDir()
 	if setup != nil {
 		setup(configDir)
 	}
@@ -70,12 +77,12 @@ func startServiceWith(t *testing.T, bound bool, setup func(configDir string)) st
 	t.Cleanup(func() { cancel(); <-done })
 	for i := 0; i < 300; i++ {
 		if _, err := os.Lstat(cfg.SocketPath); err == nil {
-			return cfg.SocketPath
+			return cfg.SocketPath, state, configDir
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatal("service did not start")
-	return ""
+	return "", "", ""
 }
 
 func TestStatusAgainstLockedService(t *testing.T) {

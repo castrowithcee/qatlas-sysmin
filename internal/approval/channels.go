@@ -425,6 +425,14 @@ func (m *Manager) References(credential string) ([]Reference, error) {
 	return out, nil
 }
 
+// PurgeSuperseded removes the superseded vault entries that no approved state names. A caller that deleted a
+// credential uses it so that no old value of that credential outlives the deletion.
+func (m *Manager) PurgeSuperseded() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.purgeSuperseded()
+}
+
 // purgeSuperseded removes superseded vault entries that no verified approved state names any more. It
 // is best effort and does nothing when an approved snapshot cannot be verified, since that snapshot may
 // still name an entry; a leftover entry is harmless and removed with a later approval.

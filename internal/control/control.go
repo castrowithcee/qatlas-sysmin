@@ -61,6 +61,19 @@ const (
 	OpProjectsAdd    = "projects.add"
 	OpProjectsEdit   = "projects.edit"
 	OpProjectsRemove = "projects.remove"
+
+	// The credential operations. list reads without an admin session. set and remove change the vault
+	// without one as well: a credential that nothing uses is stored or removed at once, and what uses one
+	// stays an open approval, unless the connection has an admin session, which the change uses up.
+	OpCredentialsList   = "credentials.list"
+	OpCredentialsSet    = "credentials.set"
+	OpCredentialsRemove = "credentials.remove"
+
+	// The channel operations follow the rules of the project operations; the channels are approved as one
+	// unit.
+	OpChannelsList   = "channels.list"
+	OpChannelsAdd    = "channels.add"
+	OpChannelsRemove = "channels.remove"
 )
 
 // The codes an answer's error carries. They are fixed words, never text built from a request, so an answer
@@ -95,6 +108,11 @@ const (
 	// CodeNotFound and CodeExists answer a project operation for a project that is missing or already there.
 	CodeNotFound = "not-found"
 	CodeExists   = "exists"
+	// CodeInUse answers the removal of a credential that a project or channel names, without an admin
+	// session. The answer lists the uses as problems.
+	CodeInUse = "in-use"
+	// CodeKindMismatch answers a credential set whose kind differs from the stored credential of that name.
+	CodeKindMismatch = "kind-mismatch"
 )
 
 // Request is one line a client sends. Params is the operation's own object, if it takes one.

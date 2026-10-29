@@ -75,6 +75,9 @@ type Service struct {
 	server    *daemon.Server
 
 	unlockMu sync.Mutex
+	// credMu serializes the changes of credentials, which read the vault, change it and then settle the
+	// approvals that name the credential.
+	credMu   sync.Mutex
 	mu       sync.Mutex // guards logKey
 	logKey   *auditlog.Key
 	listener *net.UnixListener
@@ -268,7 +271,13 @@ func (s *Service) register() error {
 	if err := s.registerApprovals(); err != nil {
 		return err
 	}
-	return s.registerProjects()
+	if err := s.registerProjects(); err != nil {
+		return err
+	}
+	if err := s.registerCredentials(); err != nil {
+		return err
+	}
+	return s.registerChannels()
 }
 
 func (s *Service) handleVaultStatus(context.Context, *daemon.Conn, json.RawMessage) (any, error) {

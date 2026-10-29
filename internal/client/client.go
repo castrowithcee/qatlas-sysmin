@@ -186,3 +186,48 @@ func (c *Client) RemoveProject(name, revision string) (control.ChangeResult, err
 	err := c.Call(control.OpProjectsRemove, control.ProjectRef{Name: name, Revision: revision}, &out)
 	return out, err
 }
+
+// Credentials lists the credentials of the vault with what uses them. It never returns a value.
+func (c *Client) Credentials() ([]control.CredentialSummary, error) {
+	var out control.CredentialsListResult
+	err := c.Call(control.OpCredentialsList, nil, &out)
+	return out.Credentials, err
+}
+
+// SetCredential stores a credential, or replaces the one of that name under a new id. The fields carry the
+// secret. Whatever uses the credential becomes an open approval unless this connection has an admin
+// session; the result says which.
+func (c *Client) SetCredential(p control.CredentialSetParams) (control.CredentialResult, error) {
+	var out control.CredentialResult
+	err := c.Call(control.OpCredentialsSet, p, &out)
+	return out, err
+}
+
+// RemoveCredential deletes a credential. One that a project or channel names needs the admin session of
+// this connection, otherwise the answer is control.CodeInUse with the uses as problems.
+func (c *Client) RemoveCredential(name string) (control.CredentialResult, error) {
+	var out control.CredentialResult
+	err := c.Call(control.OpCredentialsRemove, control.CredentialRef{Name: name}, &out)
+	return out, err
+}
+
+// Channels lists the notification channels.
+func (c *Client) Channels() ([]control.ChannelSummary, error) {
+	var out control.ChannelsListResult
+	err := c.Call(control.OpChannelsList, nil, &out)
+	return out.Channels, err
+}
+
+// AddChannel stores a new channel, on the terms of AddProject; the approval is the one of the channels.
+func (c *Client) AddChannel(p control.ChannelParams) (control.ChangeResult, error) {
+	var out control.ChangeResult
+	err := c.Call(control.OpChannelsAdd, p, &out)
+	return out, err
+}
+
+// RemoveChannel removes a channel, on the terms of AddChannel.
+func (c *Client) RemoveChannel(name string) (control.ChangeResult, error) {
+	var out control.ChangeResult
+	err := c.Call(control.OpChannelsRemove, control.ChannelRef{Name: name}, &out)
+	return out, err
+}

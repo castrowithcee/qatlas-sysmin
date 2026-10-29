@@ -34,6 +34,9 @@ type Options struct {
 	binder func(dir string) *autounlock.Binder
 	// resolver answers the service's peer check; nil means the system's groups. Tests set it.
 	resolver daemon.Resolver
+	// readSecret asks for a secret on the terminal without echoing it; nil means the real terminal. Tests
+	// set it.
+	readSecret func(prompt string) ([]byte, error)
 	// sys supplies the host access of update and uninstall; nil means the real host. Tests set it.
 	sys *system
 }
@@ -97,7 +100,8 @@ func newRootCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newVersionCommand(opts))
 	cmd.AddCommand(newLogCommand(opts))
 	cmd.AddCommand(newVaultCommand(opts))
-	cmd.AddCommand(newRunCommand(opts), newStatusCommand(opts), newApprovalsCommand(opts), newProjectCommand(opts))
+	cmd.AddCommand(newRunCommand(opts), newStatusCommand(opts), newApprovalsCommand(opts), newProjectCommand(opts),
+		newCredentialCommand(opts), newNotifyCommand(opts))
 	cmd.AddCommand(newTUICommand(opts))
 	cmd.AddCommand(newUpdateCommand(opts), newUninstallCommand(opts))
 	// A command without a run function is a help topic: 'sysmin help <topic>' prints its text, and the

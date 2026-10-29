@@ -79,6 +79,11 @@ func problemsResult(probs []control.Problem) output.Collection {
 // finish returns nil for a successful call. For invalid input it prints the problem list and returns a
 // usage error, which exits with code 2; every other failure is a runtime error.
 func finish(c *cobra.Command, opts *Options, what string, changed bool, err error) error {
+	return finishWith(c, opts, what, changed, err, projectError)
+}
+
+// finishWith is finish with its own wording for the failures that are no list of problems.
+func finishWith(c *cobra.Command, opts *Options, what string, changed bool, err error, describe func(string, error) error) error {
 	if err == nil {
 		return nil
 	}
@@ -96,7 +101,7 @@ func finish(c *cobra.Command, opts *Options, what string, changed bool, err erro
 		}
 		return &UsageError{errors.New(msg)}
 	}
-	return projectError(what, err)
+	return describe(what, err)
 }
 
 // changeResult prints the outcome of a change and what it means.
