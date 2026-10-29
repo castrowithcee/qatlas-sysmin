@@ -181,6 +181,6 @@ func (m *Model) updatePage(p *pageDraw) {
 	}
 	p.add(statusRow(kind, padLine(labels[1], lw)+":  "+state))
 	if u.phase == updDone && u.info.Latest != "" && !u.info.Dev {
-		p.add(m.indented(tr(tUpdHint)))
+		p.add(m.indented(tr(tUpdHint, keyLabel(actSelfUpdate))))
 	}
 }

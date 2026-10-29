@@ -65,6 +65,7 @@ const (
 	actDuplicate  action = "duplicate"
 	actTest       action = "test"
 	actUpdate     action = "update"
+	actSelfUpdate action = "selfupdate"
 	actWrite      action = "write"
 
 	actRemoveField action = "removefield"
@@ -125,6 +126,7 @@ var keyDefs = []struct {
 	{actDuplicate, levelLetter, []string{"p"}, tKeyHelpDuplicate},
 	{actTest, levelLetter, []string{"t"}, tKeyHelpTest},
 	{actUpdate, levelLetter, []string{"u"}, tKeyHelpUpdate},
+	{actSelfUpdate, levelLetter, []string{"U"}, tKeyHelpSelfUpdate},
 	{actWrite, levelLetter, []string{"w"}, tKeyHelpWrite},
 
 	// The control keys of text lines and of the target picker. None can be rebound to a global action.

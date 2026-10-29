@@ -222,6 +222,19 @@ func placeBlock(line string, block headerRight, width int) (string, navSpan, boo
 // 2 leaves out the admin mark, 3 is the name alone. The marks pair a symbol with a word, so no state rests on
 // its colour.
 func (m *Model) headerMarks(level int) []string {
+	parts := m.stateMarks(level)
+	if latest := m.updateAvailable(); latest != "" && level < 3 {
+		text := tr(tUpdHeader, latest)
+		if level >= 1 {
+			text = tr(tUpdHeaderShort)
+		}
+		parts = append(parts, statusMark(statusWarn, text))
+	}
+	return parts
+}
+
+// stateMarks are the marks of the service, the vault and the admin session at a level of headerMarks.
+func (m *Model) stateMarks(level int) []string {
 	parts := m.headerStatus()
 	if level >= 3 {
 		return parts

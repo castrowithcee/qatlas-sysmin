@@ -314,7 +314,7 @@ func TestUpdatePageShowsTheLookupOfThisRun(t *testing.T) {
 		err  error
 		want []string
 	}{
-		{"available", ReleaseInfo{Latest: "v0.0.1-test"}, nil, []string{"v0.0.1-test available", "sudo sysmin update"}},
+		{"available", ReleaseInfo{Latest: "v0.0.1-test"}, nil, []string{"v0.0.1-test available", "Press U to install it."}},
 		{"current", ReleaseInfo{}, nil, []string{"up to date"}},
 		{"dev", ReleaseInfo{Dev: true}, nil, []string{"development build"}},
 		{"failed", ReleaseInfo{}, errors.New("no network"), []string{"check failed"}},

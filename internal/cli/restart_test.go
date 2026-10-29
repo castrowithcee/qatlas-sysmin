@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os/exec"
 	"slices"
 	"strings"
 	"testing"
@@ -40,5 +41,26 @@ func TestExecWithGroupRunsTheSameCommandUnderSudo(t *testing.T) {
 	lookPath = func(string) (string, error) { return "", errors.New("not found") }
 	if err := execWithGroup([]string{"sysmin", "tui"}); err == nil || !strings.Contains(err.Error(), "log in again") {
 		t.Errorf("without sudo: %v", err)
+	}
+}
+
+func TestUpdateAndRestartInstallsThenStartsTheInterfaceAgain(t *testing.T) {
+	var ran []string
+	var restarted []string
+	oldLook, oldExe, oldExec, oldRun := lookPath, executable, execv, runCommand
+	t.Cleanup(func() { lookPath, executable, execv, runCommand = oldLook, oldExe, oldExec, oldRun })
+	lookPath = func(string) (string, error) { return "/usr/bin/sudo", nil }
+	executable = func() (string, error) { return "/usr/local/bin/sysmin", nil }
+	runCommand = func(c *exec.Cmd) error { ran = c.Args; return nil }
+	execv = func(path string, argv, _ []string) error { restarted = append([]string{path}, argv...); return nil }
+
+	if err := updateAndRestart("v0.1.3", []string{"sysmin", "tui"}); err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"/usr/bin/sudo", "/usr/local/bin/sysmin", "update", "--to", "v0.1.3", "--yes"}; !slices.Equal(ran, want) {
+		t.Errorf("update ran %q", ran)
+	}
+	if want := []string{"/usr/local/bin/sysmin", "sysmin", "tui"}; !slices.Equal(restarted, want) {
+		t.Errorf("restart %q", restarted)
 	}
 }

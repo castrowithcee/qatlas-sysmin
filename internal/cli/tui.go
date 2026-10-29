@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -54,8 +55,12 @@ func newTUICommand(opts *Options) *cobra.Command {
 			err := tui.Run(tui.Options{Prefs: prefs, PrefsWarnings: warnings, PrefsPath: prefsPath, Redactor: opts.Redactor,
 				Backend: backend, Version: version, Releases: releaseCheck(opts), In: in, Out: out})
 			backend.Close()
-			if errors.Is(err, tui.ErrRegroup) {
+			var upd *tui.UpdateRequest
+			switch {
+			case errors.Is(err, tui.ErrRegroup):
 				return execWithGroup(os.Args)
+			case errors.As(err, &upd):
+				return updateAndRestart(upd.Version, os.Args)
 			}
 			return err
 		},
@@ -64,11 +69,12 @@ func newTUICommand(opts *Options) *cobra.Command {
 	return cmd
 }
 
-// The calls execWithGroup makes to the host; variables so a test can stand in for them.
+// The calls execWithGroup and updateAndRestart make to the host; variables so a test can stand in for them.
 var (
 	lookPath   = exec.LookPath
 	executable = os.Executable
 	execv      = unix.Exec
+	runCommand = func(c *exec.Cmd) error { return c.Run() }
 )
 
 // execWithGroup replaces this process by the same command under sudo -g sysmin, which carries the group without
@@ -85,6 +91,30 @@ func execWithGroup(args []string) error {
 	argv := append([]string{"sudo", "-g", control.ServiceGroup, exe}, args[1:]...)
 	if err := execv(sudo, argv, os.Environ()); err != nil {
 		return fmt.Errorf("cannot run sudo: %w", err)
+	}
+	return nil
+}
+
+// updateAndRestart installs version through sudo sysmin update on the terminal, then starts the interface
+// again: the new program after an update, the old one after a failure, once enter was pressed so the failure
+// can be read. It returns only when neither can start.
+func updateAndRestart(version string, args []string) error {
+	sudo, err := lookPath("sudo")
+	if err != nil {
+		return errors.New("sudo is not installed; run sysmin update as root")
+	}
+	exe, err := executable()
+	if err != nil {
+		return fmt.Errorf("cannot find this program: %w", err)
+	}
+	update := exec.Command(sudo, exe, "update", "--to", version, "--yes")
+	update.Stdin, update.Stdout, update.Stderr = os.Stdin, os.Stdout, os.Stderr
+	if err := runCommand(update); err != nil {
+		fmt.Fprintf(os.Stderr, "\nsysmin update did not finish (%v). Press enter to return to the interface.", err)
+		_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
+	}
+	if err := execv(exe, args, os.Environ()); err != nil {
+		return fmt.Errorf("cannot start the interface again: %w", err)
 	}
 	return nil
 }
