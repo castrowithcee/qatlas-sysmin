@@ -49,8 +49,8 @@ type Options struct {
 	// Run executes the prepared git command. It exists so tests can inspect the command; nil runs it.
 	Run func(*exec.Cmd) error
 
-	// extraProtocols are further schemes git may use; tests allow file and http.
-	extraProtocols []string
+	// ExtraProtocols are further schemes git may use. Production leaves it empty; tests allow file and http.
+	ExtraProtocols []string
 }
 
 // Lister lists remote tags.
@@ -130,6 +130,63 @@ func (l *Lister) Tags(ctx context.Context, rawURL string, cred Credential) ([]st
 	return parseTags(stdout.String()), nil
 }
 
+// CurrentTag returns the tag that the working copy in dir has checked out, or "" if HEAD is on no tag. git
+// runs in the same stripped environment as the listing, without hooks or a file system monitor, and does not
+// look for a repository above dir.
+func (l *Lister) CurrentTag(ctx context.Context, dir string) (string, error) {
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		return "", errors.New("git is not installed")
+	}
+	dir = filepath.Clean(dir)
+	tmp, err := os.MkdirTemp("", "sysmin-*")
+	if err != nil {
+		return "", fmt.Errorf("create temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tmp)
+	if err := os.Chmod(tmp, 0o700); err != nil {
+		return "", err
+	}
+	env, err := l.environment(tmp, remote{}, Credential{})
+	if err != nil {
+		return "", err
+	}
+	env = append(env, "GIT_CEILING_DIRECTORIES="+filepath.Dir(dir))
+
+	timeout := l.opts.Timeout
+	if timeout <= 0 {
+		timeout = DefaultTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, gitPath, "-C", dir, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null",
+		"describe", "--tags", "--exact-match", "HEAD")
+	cmd.Dir = tmp
+	cmd.Env = env
+	var stdout, stderr capped
+	stdout.limit, stderr.limit = maxErrorText, maxStderr
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	confine(cmd)
+	run := l.opts.Run
+	if run == nil {
+		run = (*exec.Cmd).Run
+	}
+	if err := run(cmd); err != nil {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+		if strings.Contains(stderr.String(), "no tag exactly matches") {
+			return "", nil
+		}
+		return "", fmt.Errorf("reading the checked-out tag failed: %s", failureText(err, stderr.String(), Credential{}))
+	}
+	if stdout.over {
+		return "", errors.New("git printed more output than expected")
+	}
+	return strings.TrimSpace(stdout.String()), nil
+}
+
 type remote struct {
 	scheme string // KindHTTPS or KindSSH, or an extra scheme
 	host   string
@@ -148,7 +205,7 @@ func (l *Lister) parseURL(raw string) (remote, error) {
 			return remote{}, errors.New("invalid git url")
 		}
 		allowed := u.Scheme == KindHTTPS || u.Scheme == KindSSH
-		for _, p := range l.opts.extraProtocols {
+		for _, p := range l.opts.ExtraProtocols {
 			allowed = allowed || p == u.Scheme
 		}
 		if !allowed {
@@ -179,7 +236,7 @@ func (l *Lister) environment(dir string, target remote, cred Credential) ([]stri
 		return nil, err
 	}
 	protocols := []string{KindHTTPS, KindSSH}
-	protocols = append(protocols, l.opts.extraProtocols...)
+	protocols = append(protocols, l.opts.ExtraProtocols...)
 	env := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=" + home,

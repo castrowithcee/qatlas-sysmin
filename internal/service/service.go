@@ -22,6 +22,8 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
+	"github.com/castrowithcee/qatlas-sysmin/internal/source/gitrepo"
+	"github.com/castrowithcee/qatlas-sysmin/internal/source/registry"
 	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
 )
 
@@ -52,6 +54,11 @@ type Config struct {
 	Resolver daemon.Resolver
 	// Clock is the admin sessions' clock; nil is time.Now.
 	Clock func() time.Time
+	// SourceRegistry and SourceGit configure how source.test reaches registries and repositories. The zero
+	// values are the production behavior (HTTPS registries, git over https and ssh); tests point them at
+	// local servers and repositories.
+	SourceRegistry registry.Options
+	SourceGit      gitrepo.Options
 	// OnLogError is told about audit log writes that failed; nil logs them with slog.
 	OnLogError func(error)
 }
@@ -277,7 +284,10 @@ func (s *Service) register() error {
 	if err := s.registerCredentials(); err != nil {
 		return err
 	}
-	return s.registerChannels()
+	if err := s.registerChannels(); err != nil {
+		return err
+	}
+	return s.registerSources()
 }
 
 func (s *Service) handleVaultStatus(context.Context, *daemon.Conn, json.RawMessage) (any, error) {

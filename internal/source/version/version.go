@@ -164,6 +164,39 @@ func Select(current string, tags []string, rule config.VersionRule) Selection {
 	return sel
 }
 
+// List returns the release tags of tags under the rule's tag filter, lowest version first, for a source whose
+// current version is unknown. All variants are listed and no target is chosen.
+func List(tags []string, rule config.VersionRule) Selection {
+	var sel Selection
+	var filter *regexp.Regexp
+	if rule.TagFilter != "" {
+		var err error
+		if filter, err = regexp.Compile(rule.TagFilter); err != nil {
+			sel.Problems = append(sel.Problems, Problem{
+				Code:    CodeInvalidTagFilter,
+				Message: "tag filter is not a valid RE2 expression",
+				Hint:    "Correct the tag_filter expression of the version rule.",
+			})
+			return sel
+		}
+	}
+	var out []parsedTag
+	seen := map[string]bool{}
+	for _, tag := range tags {
+		p, kind := parseTag(tag)
+		if kind != kindOK || seen[tag] || filter != nil && !filter.MatchString(tag) {
+			continue
+		}
+		seen[tag] = true
+		out = append(out, p)
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].less(out[j]) })
+	for _, p := range out {
+		sel.Available = append(sel.Available, p.tag)
+	}
+	return sel
+}
+
 // candidates returns the distinct versions above cur in cur's variant, lowest first. If a version exists
 // with and without the "v" prefix, the spelling of the current tag wins.
 func candidates(cur parsedTag, tags []string, filter *regexp.Regexp) []parsedTag {

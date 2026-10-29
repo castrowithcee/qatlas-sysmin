@@ -73,7 +73,7 @@ func bareRepo(t *testing.T, tags ...string) (root, bare string) {
 }
 
 func fileLister(opts Options) *Lister {
-	opts.extraProtocols = []string{"file", "http"}
+	opts.ExtraProtocols = []string{"file", "http"}
 	return New(opts)
 }
 

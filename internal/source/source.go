@@ -53,8 +53,17 @@ type GitResult struct {
 	version.Selection
 }
 
-// CheckGit lists the tags of the repository, then selects the target for the current tag under the source's
-// version rule. A repository that cannot be reached or refuses access is an error.
+// selectVersions chooses the target for current; an empty current means it is unknown, which lists the
+// versions and chooses none.
+func selectVersions(current string, tags []string, rule config.VersionRule) version.Selection {
+	if current == "" {
+		return version.List(tags, rule)
+	}
+	return version.Select(current, tags, rule)
+}
+
+// CheckGit lists the tags of the repository, then selects the target for the current tag (empty if unknown)
+// under the source's version rule. A repository that cannot be reached or refuses access is an error.
 func (c *Checker) CheckGit(ctx context.Context, g config.GitSource, current string) (GitResult, error) {
 	var cred gitrepo.Credential
 	if g.Credential != "" {
@@ -70,7 +79,7 @@ func (c *Checker) CheckGit(ctx context.Context, g config.GitSource, current stri
 	if err != nil {
 		return GitResult{}, err
 	}
-	return GitResult{Selection: version.Select(current, tags, g.VersionRule)}, nil
+	return GitResult{Selection: selectVersions(current, tags, g.VersionRule)}, nil
 }
 
 // CheckImage lists the tags of img.Ref, selects the target for the current tag under the image's version
@@ -96,7 +105,7 @@ func (c *Checker) CheckImage(ctx context.Context, img config.Image, current stri
 	if err != nil {
 		return ImageResult{}, err
 	}
-	res := ImageResult{Selection: version.Select(current, tags, img.VersionRule)}
+	res := ImageResult{Selection: selectVersions(current, tags, img.VersionRule)}
 	if res.Target == "" {
 		return res, nil
 	}

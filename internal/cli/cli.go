@@ -101,7 +101,7 @@ func newRootCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newLogCommand(opts))
 	cmd.AddCommand(newVaultCommand(opts))
 	cmd.AddCommand(newRunCommand(opts), newStatusCommand(opts), newApprovalsCommand(opts), newProjectCommand(opts),
-		newCredentialCommand(opts), newNotifyCommand(opts))
+		newCredentialCommand(opts), newNotifyCommand(opts), newSourceCommand(opts))
 	cmd.AddCommand(newTUICommand(opts))
 	cmd.AddCommand(newUpdateCommand(opts), newUninstallCommand(opts))
 	// A command without a run function is a help topic: 'sysmin help <topic>' prints its text, and the

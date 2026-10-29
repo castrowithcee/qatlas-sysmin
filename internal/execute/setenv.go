@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -263,6 +264,44 @@ func SetEnv(ctx context.Context, path string, assignments []config.Assignment) (
 		changes = append(changes, prev[a.Key])
 	}
 	return changes, nil
+}
+
+// maxReadEnvBytes bounds the env file ReadEnvValue reads.
+const maxReadEnvBytes = 1 << 20
+
+// ReadEnvValue returns the value the env file at path assigns to key, as SetEnv would report it as previous
+// value: the last assignment counts and no interpolation is applied. It only reads. A missing file
+// is an error that satisfies errors.Is(err, fs.ErrNotExist); a symbolic link, a file that is not regular and
+// a file over 1 MiB are refused.
+func ReadEnvValue(path, key string) (value string, found bool, err error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if errors.Is(err, syscall.ELOOP) {
+		return "", false, fmt.Errorf("env file %s is a symbolic link", path)
+	}
+	if err != nil {
+		return "", false, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return "", false, err
+	}
+	if !info.Mode().IsRegular() {
+		return "", false, fmt.Errorf("env file %s is not a regular file", path)
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxReadEnvBytes+1))
+	if err != nil {
+		return "", false, err
+	}
+	if len(data) > maxReadEnvBytes {
+		return "", false, fmt.Errorf("env file %s is larger than %d bytes", path, maxReadEnvBytes)
+	}
+	for _, l := range parseEnv(string(data)) {
+		if l.key == key {
+			value, found = l.value, true
+		}
+	}
+	return value, found, nil
 }
 
 type fileOwner struct {

@@ -2,6 +2,7 @@ package version
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
@@ -129,5 +130,21 @@ func TestParseTagKinds(t *testing.T) {
 		if _, kind := parseTag(tc.tag); kind != tc.kind {
 			t.Errorf("%q: kind %d, want %d", tc.tag, kind, tc.kind)
 		}
+	}
+}
+
+func TestListWithoutCurrentVersion(t *testing.T) {
+	tags := []string{"2.0.0", "latest", "v1.1.0", "1.0.0-rc1", "1.0.0", "1.0.0", "1.2", "1.0.0-alpine"}
+	got := List(tags, config.VersionRule{})
+	if want := []string{"1.0.0", "1.0.0-alpine", "v1.1.0", "2.0.0"}; !slices.Equal(got.Available, want) || got.Target != "" || len(got.Problems) != 0 {
+		t.Errorf("List = %+v, want available %v", got, want)
+	}
+	got = List(tags, config.VersionRule{TagFilter: "^v"})
+	if want := []string{"v1.1.0"}; !slices.Equal(got.Available, want) {
+		t.Errorf("filtered List = %+v", got)
+	}
+	got = List(tags, config.VersionRule{TagFilter: "("})
+	if len(got.Available) != 0 || len(got.Problems) != 1 || got.Problems[0].Code != CodeInvalidTagFilter {
+		t.Errorf("invalid filter List = %+v", got)
 	}
 }
