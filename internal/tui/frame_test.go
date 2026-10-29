@@ -276,3 +276,9 @@ func TestFragmentFilterDropsASplitMouseReport(t *testing.T) {
 		t.Error("a typed letter was dropped")
 	}
 }
+
+func TestViewUsesTheAlternateScreen(t *testing.T) {
+	if !frameModel(t, 80, 24).View().AltScreen {
+		t.Error("the interface draws inline instead of on the alternate screen")
+	}
+}
