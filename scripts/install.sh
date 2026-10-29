@@ -14,7 +14,8 @@
 #   -h, --help             show this help
 #
 # The signature of checksums.txt is verified with the release key embedded below, then the archive checksum;
-# the system is not touched before both match. Running the script again updates the installation.
+# the system is not touched before both match. Running the script again updates the installation. A fresh
+# install through sudo adds the calling user to the group sysmin, whose members may use the service.
 #
 # SYSMIN_INSTALL_ROOT is for tests only: it is prepended to every path the script writes.
 set -eu
@@ -149,6 +150,13 @@ main() {
 		useradd --system --gid "$service_user" --groups docker --no-create-home \
 			--home-dir /var/lib/sysmin --shell "$(nologin_shell)" "$service_user"
 	fi
+	# Whoever can run the installer through sudo can become root anyway. Only a fresh install adds them, so an
+	# update never undoes a deliberate removal.
+	operator=
+	if [ -n "$fresh" ] && [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != root ] && id "$SUDO_USER" >/dev/null 2>&1; then
+		usermod -aG "$service_user" "$SUDO_USER"
+		operator=$SUDO_USER
+	fi
 
 	mkdir -p "$config_dir" "$state_dir" "$bin_dir" "$unit_dir"
 	chown "$service_user:$service_user" "$config_dir" "$state_dir"
@@ -169,6 +177,10 @@ main() {
 	fi
 
 	printf '\nInstalled sysmin %s\n  program: /usr/local/bin/sysmin\n  service: sysmin.service (user %s)\n' "$version" "$service_user"
+	if [ -n "$operator" ]; then
+		printf '\nAdded %s to the group %s, which may use sysmin; it takes effect at the next login or after\n  newgrp %s\n' \
+			"$operator" "$service_user" "$service_user"
+	fi
 	if [ -n "$unlock" ]; then
 		printf '\nAutomatic vault unlocking (%s): once the vault exists, bind it with\n  sudo sysmin vault bind\n' "$unlock"
 		printf 'It asks for the vault passphrase and seals to the TPM2 when usable, otherwise to the host key.\n'

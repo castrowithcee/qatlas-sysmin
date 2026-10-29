@@ -25,12 +25,14 @@ import (
 var signerLine = regexp.MustCompile(`(?m)^signer_line='([^']*)'$`)
 
 // stubs are the system commands the installer calls. They record their calls in $STUB_LOG and keep the
-// state of the fake user database in $STUB_STATE, so the tests never touch the host.
+// state of the fake user database in $STUB_STATE, so the tests never touch the host. alice is the only
+// existing human user.
 var stubs = map[string]string{
 	"id": `if [ "$#" = 1 ] && [ "$1" = -u ]; then echo "$STUB_UID"; exit 0; fi
 case "$*" in
 "-nG sysmin") if [ -f "$STUB_STATE/in-docker" ]; then echo "sysmin docker"; else echo sysmin; fi; exit 0 ;;
 "sysmin") [ -f "$STUB_STATE/user" ]; exit $? ;;
+alice) exit 0 ;;
 esac
 exit 1`,
 	"getent": `[ "$1" = group ] || exit 2
@@ -41,7 +43,7 @@ esac
 exit 2`,
 	"groupadd":        `echo "groupadd $*" >>"$STUB_LOG"; touch "$STUB_STATE/group"`,
 	"useradd":         `echo "useradd $*" >>"$STUB_LOG"; touch "$STUB_STATE/user" "$STUB_STATE/in-docker"`,
-	"usermod":         `echo "usermod $*" >>"$STUB_LOG"; touch "$STUB_STATE/in-docker"`,
+	"usermod":         `echo "usermod $*" >>"$STUB_LOG"; [ "$2" != docker ] || touch "$STUB_STATE/in-docker"`,
 	"chown":           `echo "chown $*" >>"$STUB_LOG"`,
 	"systemctl":       `echo "systemctl $*" >>"$STUB_LOG"`,
 	"systemd-creds":   `exit 0`,
@@ -58,6 +60,7 @@ type env struct {
 	state   string
 	log     string
 	uid     string
+	sudo    string // SUDO_USER; "" leaves it unset
 	noDock  bool
 	tpm2    string
 }
@@ -202,6 +205,9 @@ func (e *env) run(script string, stdin bool, args ...string) (string, error) {
 	if e.noDock {
 		cmd.Env = append(cmd.Env, "STUB_NO_DOCKER=1")
 	}
+	if e.sudo != "" {
+		cmd.Env = append(cmd.Env, "SUDO_USER="+e.sudo)
+	}
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
@@ -342,6 +348,47 @@ func TestInstallAndReinstall(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestInstallAddsSudoUserOnFreshInstall(t *testing.T) {
+	tests := map[string]struct {
+		sudo  string
+		added bool
+	}{
+		"sudo user":    {"alice", true},
+		"no sudo":      {"", false},
+		"sudo as root": {"root", false},
+		"unknown user": {"mallory", false},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t)
+			e.sudo = tc.sudo
+			e.publish("v1.0.0", "program", releaseOptions{})
+			out := e.mustRun()
+			calls := e.calls()
+			if got := strings.Contains(calls, "usermod -aG sysmin "); got != tc.added {
+				t.Errorf("added = %v, want %v:\n%s", got, tc.added, calls)
+			}
+			if got := strings.Contains(out, "newgrp sysmin"); got != tc.added {
+				t.Errorf("hint = %v, want %v:\n%s", got, tc.added, out)
+			}
+			if tc.added && !strings.Contains(calls, "usermod -aG sysmin alice") {
+				t.Errorf("calls:\n%s", calls)
+			}
+		})
+	}
+
+	t.Run("update", func(t *testing.T) {
+		e := newEnv(t)
+		e.publish("v1.0.0", "program", releaseOptions{})
+		e.mustRun()
+		e.sudo = "alice"
+		e.publish("v1.0.1", "program two", releaseOptions{})
+		if out := e.mustRun(); strings.Contains(e.calls(), "usermod -aG sysmin") || strings.Contains(out, "newgrp") {
+			t.Errorf("update added the sudo user:\n%s\n%s", e.calls(), out)
+		}
+	})
 }
 
 func TestInstallFromStdinWithOptions(t *testing.T) {
