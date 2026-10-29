@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                                 ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+ Overview   Projects   Activity   Access  [Library]  Settings                   
+        ╔══════════════════════════════════════════════════════════════╗        
+ Credent║ New channel                                                  ║        
+        ║                                                              ║        
+Channels║   Name:       team-mail                                      ║     1/3
+╔═══════║ > Type:        < smtp >                                      ║═══════╗
+║   Name║   Host:                                                      ║       ║
+║ > chat║   Port:                                                      ║proval ║
+║   ops-║   From:                                                      ║       ║
+║   ops-║   To:                                                        ║       ║
+╚═══════║   Security:    default                                       ║═══════╝
+        ║   Credential:  none                                          ║        
+        ║     A secret is a credential. Choose it here by name.        ║        
+        ║                                                              ║        
+        ║ [ Save ]  [ Cancel ]                                         ║        
+        ║                                                              ║        
+        ║ left/right choose · tab next · F2 save · esc cancel          ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

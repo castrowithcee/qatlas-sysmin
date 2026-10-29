@@ -29,6 +29,35 @@ type Backend interface {
 	Settings() (control.SettingsResult, error)
 	Approvals() ([]control.ApprovalSummary, error)
 	Projects() ([]control.ProjectSummary, error)
+	// Approval and Credentials only read; Credentials never carries a value.
+	Approval(project string) (control.ApprovalDetail, error)
+	Credentials() ([]control.CredentialSummary, error)
+	// The calls below change the service and need the admin session. Approve approves exactly the state the
+	// fingerprint names; SetCredential is the one call that carries secret values.
+	Approve(project, fingerprint string) error
+	ApproveAll() (control.ApprovalsAllResult, error)
+	Discard(project string) error
+	DiscardAll() (control.ApprovalsAllResult, error)
+	SetCredential(p control.CredentialSetParams) (control.CredentialResult, error)
+	RemoveCredential(name string) (control.CredentialResult, error)
+	// Channels, Templates, Template, LogEntries and VerifyLog only read. LogEntries and VerifyLog never need the
+	// admin session; every call is an entry of the audit log itself, so none is made on a timer.
+	Channels() ([]control.ChannelSummary, error)
+	Templates() ([]control.TemplateSummary, error)
+	Template(name string) (control.TemplateDetail, error)
+	LogEntries(p control.LogListParams) (control.LogListResult, error)
+	VerifyLog() (control.LogVerifyResult, error)
+	// DeployStatus, DeployHistory and DeployLog only read: the state of a project, its runs with the oldest
+	// first, and the log of one run. None needs the admin session.
+	DeployStatus(project string) (control.DeployStatusResult, error)
+	DeployHistory(project string) (control.DeployHistoryResult, error)
+	DeployLog(project, run string) (control.DeployLogResult, error)
+	// TestChannel sends one message to an approved channel; it needs no admin session but is never repeated.
+	TestChannel(name string) (control.NotifyTestResult, error)
+	// AddChannel, RemoveChannel and DeriveTemplate change the service and need the admin session.
+	AddChannel(p control.ChannelParams) (control.ChangeResult, error)
+	RemoveChannel(name string) (control.ChangeResult, error)
+	DeriveTemplate(p control.TemplateDeriveParams) (control.TemplateDetail, error)
 }
 
 // NewBackend is the Backend over the control socket at path. It dials on the first call and again after the
@@ -124,4 +153,102 @@ func (b *ClientBackend) Approvals() (list []control.ApprovalSummary, err error) 
 func (b *ClientBackend) Projects() (list []control.ProjectSummary, err error) {
 	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Projects(); return e })
 	return list, err
+}
+
+func (b *ClientBackend) Approval(project string) (d control.ApprovalDetail, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { d, e = c.Approval(project); return e })
+	return d, err
+}
+
+func (b *ClientBackend) Credentials() (list []control.CredentialSummary, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Credentials(); return e })
+	return list, err
+}
+
+func (b *ClientBackend) Approve(project, fingerprint string) error {
+	return b.do(false, func(c *client.Client) error { return c.Approve(project, fingerprint) })
+}
+
+func (b *ClientBackend) ApproveAll() (res control.ApprovalsAllResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.ApproveAll(); return e })
+	return res, err
+}
+
+func (b *ClientBackend) Discard(project string) error {
+	return b.do(false, func(c *client.Client) error { return c.Discard(project) })
+}
+
+func (b *ClientBackend) DiscardAll() (res control.ApprovalsAllResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DiscardAll(); return e })
+	return res, err
+}
+
+func (b *ClientBackend) SetCredential(p control.CredentialSetParams) (res control.CredentialResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.SetCredential(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) RemoveCredential(name string) (res control.CredentialResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.RemoveCredential(name); return e })
+	return res, err
+}
+
+func (b *ClientBackend) Channels() (list []control.ChannelSummary, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Channels(); return e })
+	return list, err
+}
+
+func (b *ClientBackend) Templates() (list []control.TemplateSummary, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Templates(); return e })
+	return list, err
+}
+
+func (b *ClientBackend) Template(name string) (d control.TemplateDetail, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { d, e = c.Template(name); return e })
+	return d, err
+}
+
+func (b *ClientBackend) LogEntries(p control.LogListParams) (res control.LogListResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.LogEntries(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) VerifyLog() (res control.LogVerifyResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.VerifyLog(); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployStatus(project string) (res control.DeployStatusResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.DeployStatus(project); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployHistory(project string) (res control.DeployHistoryResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.DeployHistory(project); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployLog(project, run string) (res control.DeployLogResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.DeployLog(project, run); return e })
+	return res, err
+}
+
+func (b *ClientBackend) TestChannel(name string) (res control.NotifyTestResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.TestChannel(name); return e })
+	return res, err
+}
+
+func (b *ClientBackend) AddChannel(p control.ChannelParams) (res control.ChangeResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.AddChannel(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) RemoveChannel(name string) (res control.ChangeResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.RemoveChannel(name); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeriveTemplate(p control.TemplateDeriveParams) (d control.TemplateDetail, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { d, e = c.DeriveTemplate(p); return e })
+	return d, err
 }

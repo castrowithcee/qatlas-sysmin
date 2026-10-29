@@ -74,10 +74,19 @@ type Model struct {
 	// them.
 	ov    *passEntry
 	ovSeq int
+	// confirm is the question of screenConfirm that waits for y; cred is the form of a credential, drawn as the
+	// prompt of screenPrompt; both are nil while there is none.
+	confirm *confirmAsk
+	cred    *credForm
+	// form is a short form of Library or Activity, drawn as the prompt of screenPrompt like cred.
+	form *formDlg
 
 	// The state of the areas: the rows of the overview, the pages of Settings, the popup over the screen, the
 	// question before unsaved input is dropped; see overview.go, settings.go, popup.go.
 	ovr overviewState
+	acc accessState
+	act activityState
+	lib libraryState
 	set settingsState
 	pop *popup
 	// leave is the question before unsaved input is dropped, nil while there is none.
@@ -157,7 +166,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Height != 0 {
 			m.termHeight = max(msg.Height, 1)
 		}
-		return m, nil
+		return m, m.dataWant()
 	case tea.BackgroundColorMsg, tea.ForegroundColorMsg:
 		m.takeTerminalColour(msg)
 		return m, nil
@@ -180,6 +189,41 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case settingsMsg:
 		m.takeSettings(msg)
+		return m, nil
+	case accessMsg:
+		m.takeAccess(msg)
+		return m, m.dataWant()
+	case accDetailMsg:
+		m.takeAccDetail(msg)
+		return m, nil
+	case credentialsMsg:
+		m.takeCredentials(msg)
+		return m, nil
+	case channelsMsg:
+		m.takeChannels(msg)
+		return m, nil
+	case channelTestMsg:
+		m.takeChannelTest(msg)
+		return m, nil
+	case templatesMsg:
+		m.takeTemplates(msg)
+		return m, m.dataWant()
+	case templateDetailMsg:
+		m.takeTemplateDetail(msg)
+		return m, nil
+	case logMsg:
+		return m, m.takeLog(msg)
+	case verifyMsg:
+		m.takeVerify(msg)
+		return m, nil
+	case runsMsg:
+		m.takeRuns(msg)
+		return m, nil
+	case runLogMsg:
+		m.takeRunLog(msg)
+		return m, nil
+	case projectsMsg:
+		m.takeProjects(msg)
 		return m, nil
 	case updateMsg:
 		m.takeUpdate(msg)
@@ -207,6 +251,15 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.screen == screenConfirm && m.leave != nil {
 		return m.updateLeave(key)
+	}
+	if m.screen == screenConfirm && m.confirm != nil {
+		return m.updateConfirm(key)
+	}
+	if m.screen == screenPrompt && m.cred != nil {
+		return m.updateCred(key)
+	}
+	if m.screen == screenPrompt && m.form != nil {
+		return m.updateForm(key)
 	}
 	if m.screen == screenArea {
 		if keyIs(key, actLock) {
@@ -270,7 +323,7 @@ func (m *Model) quit() tea.Cmd {
 
 // closeDialog closes the question or input dialog and returns to the list.
 func (m *Model) closeDialog() {
-	m.screen, m.ask, m.dialog, m.leave = m.home, nil, nil, nil
+	m.screen, m.ask, m.dialog, m.leave, m.confirm = m.home, nil, nil, nil, nil
 }
 
 // clearMessages forgets the status and the error of the last action.

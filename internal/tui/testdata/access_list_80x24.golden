@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                                 ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+ Overview   Projects   Activity  [Access]  Library   Settings 
+
+Approvals (2)                                                                1/2
+╔══════════════════════════════════════════════════════════════════════════════╗
+║   Project     Kind     Changes  Notes                                        ║
+║ > demo-app    new            3                                               ║
+║   sample-app  changed        2  ⚠ free command                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+1-6 area  enter details  F2 approve  d discard  ctrl+l admin  ? help  : cmds

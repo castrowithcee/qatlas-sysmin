@@ -390,10 +390,16 @@ func (s *Service) register() error {
 	if err := s.registerNotify(); err != nil {
 		return err
 	}
+	if err := s.registerLog(); err != nil {
+		return err
+	}
+	if err := s.registerTemplates(); err != nil {
+		return err
+	}
 	if err := s.registerVault(); err != nil {
 		return err
 	}
-	return s.registerDeploy()
+	return errors.Join(s.registerDeploy(), s.registerRunLog())
 }
 
 func (s *Service) handleVaultStatus(context.Context, *daemon.Conn, json.RawMessage) (any, error) {

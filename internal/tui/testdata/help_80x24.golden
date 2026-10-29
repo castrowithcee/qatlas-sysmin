@@ -3,7 +3,7 @@ sysmin  ● vault open  ● admin off                                 ? help  : 
 [Overvie╔══════════════════════════════════════════════════════════════╗        
         ║ Help                                                         ║        
 > ● Vaul║                                                              ║        
-  ● Vers║ [keys]  vault   admin-session   approvals   unlock           ║        
+  ● Vers║ [keys]  vault   admin-session   approvals   unlock   secret… ║        
     Pres║                                                              ║        
   ● Conf║ This screen                                                  ║        
   ● Unlo║   1-6 area                                                   ║        

@@ -44,6 +44,11 @@ var helpTopics = []struct {
 	{"admin-session", tHelpAdmin},
 	{"approvals", tHelpApprovals},
 	{"unlock", tHelpUnlock},
+	{"secrets", tHelpCredentials},
+	{"channels", tHelpChannels},
+	{"templates", tHelpTemplates},
+	{"audit-log", tHelpAuditLog},
+	{"runs", tHelpRuns},
 }
 
 // openPopup shows a panel over the area screen.
@@ -123,6 +128,10 @@ func (m *Model) infoOf() (string, string) {
 		default:
 			return pick(subTitle(subUpdate), tInfoSetUpdate)
 		}
+	case areaLibrary:
+		return pick(libTitle(m.lib.sub), []textID{tInfoLibCredentials, tInfoLibChannels, tInfoLibTemplates}[m.lib.sub])
+	case areaActivity:
+		return pick(actTitle(m.act.sub), []textID{tInfoActLog, tInfoActRuns}[m.act.sub])
 	default:
 		ids := map[area]textID{areaProjects: tInfoAreaProjects, areaActivity: tInfoAreaActivity, areaAccess: tInfoAreaAccess,
 			areaLibrary: tInfoAreaLibrary}
@@ -163,7 +172,14 @@ func (m *Model) popupContent(inner int) (title string, body []string, keys strin
 		for _, t := range helpTopics {
 			ids = append(ids, t.id)
 		}
-		strip, _ := tabStrip(ids, p.topic, true)
+		// Topics before the first one that fits are left out, so the strip always shows the topic open.
+		first, strip := 0, ""
+		for ; first <= p.topic; first++ {
+			strip, _ = tabStrip(ids[first:], p.topic-first, true)
+			if lipgloss.Width(strip) <= inner {
+				break
+			}
+		}
 		return tr(tHelpTitle), append([]string{truncateCells(strip, inner), ""}, m.helpBody(inner)...),
 			"up/down scroll · left/right topic · {back} close"
 	case popInfo:
@@ -243,6 +259,22 @@ func commands() []commandEntry {
 			for sub := 0; sub < subCount; sub++ {
 				list = append(list, commandEntry{"settings " + subKey(sub), func(m *Model) tea.Cmd { return m.show(areaSettings, sub) }})
 			}
+		}
+		if a == areaActivity {
+			for sub := 0; sub < actPages; sub++ {
+				list = append(list, commandEntry{"activity " + actKey(sub), func(m *Model) tea.Cmd { return m.showActivity(sub) }})
+			}
+		}
+		if a == areaLibrary {
+			for sub := 0; sub < libCount; sub++ {
+				list = append(list, commandEntry{"library " + libKey(sub), func(m *Model) tea.Cmd { return m.show(areaLibrary, sub) }})
+			}
+		}
+		if a == areaAccess {
+			list = append(list, commandEntry{"access discard-all", func(m *Model) tea.Cmd {
+				m.acc.discardAfter = true
+				return m.show(areaAccess, 0)
+			}})
 		}
 	}
 	return append(list,

@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Overview   Projects  [Activity]  Access   Library   Settings                                                           
+                                                                                                                        
+[Log]  Runs                                                                                                             
+                                                                                                                        
+● Chain intact, 52 entries · signatures checked                                                                         
+Log (12)                                                         1/12 ╭─ 12 ───────────────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Time                 Action             Project   Result        ║ │                                                │
+║ > 2026-10-28 12:00:00  config.read        demo-app  success       ║ │ Time     2026-10-28 12:00:00                   │
+║   2026-10-28 11:59:00  approval.grant     -         success       ║ │ Action   config.read                           │
+║   2026-10-28 11:58:00  credential.create  demo-app  success       ║ │ Project  demo-app                              │
+║   2026-10-28 11:57:00  deploy.run         -         success       ║ │ Result   success                               │
+║   2026-10-28 11:56:00  ses╔══════════════════════════════════════════════════════════════╗                           │
+║   2026-10-28 11:55:00  con║ Filter the log                                               ║                           │
+║   2026-10-28 11:54:00  app║                                                              ║                           │
+║   2026-10-28 11:53:00  cre║   Period:   7 days                                           ║                           │
+║   2026-10-28 11:52:00  dep║ > Project:  < demo-app >                                     ║                           │
+║   2026-10-28 11:51:00  ses║   Action:   all                                              ║                           │
+║   2026-10-28 11:50:00  con║   Result:   all                                              ║                           │
+║   2026-10-28 11:49:00  app║                                                              ║                           │
+╚═══════════════════════════║ [ Apply ]  [ Cancel ]                                        ║───────────────────────────╯
+                            ║                                                              ║                            
+                            ║ left/right choose · tab next · F2 apply · esc cancel         ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  
