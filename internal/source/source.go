@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
+	"github.com/castrowithcee/qatlas-sysmin/internal/source/gitrepo"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/registry"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/version"
 )
@@ -24,6 +25,8 @@ const (
 type Credentials interface {
 	// Registry returns the login stored under name.
 	Registry(name string) (registry.Credential, error)
+	// Git returns the git-https or ssh-key login stored under name, with Kind set accordingly.
+	Git(name string) (gitrepo.Credential, error)
 }
 
 // ImageResult is the outcome for one image source.
@@ -41,6 +44,33 @@ type Checker struct {
 	Credentials Credentials
 	// Registry configures the registry client; its Credential field is set per image.
 	Registry registry.Options
+	// Git configures the git tag lister.
+	Git gitrepo.Options
+}
+
+// GitResult is the outcome for a git source.
+type GitResult struct {
+	version.Selection
+}
+
+// CheckGit lists the tags of the repository, then selects the target for the current tag under the source's
+// version rule. A repository that cannot be reached or refuses access is an error.
+func (c *Checker) CheckGit(ctx context.Context, g config.GitSource, current string) (GitResult, error) {
+	var cred gitrepo.Credential
+	if g.Credential != "" {
+		if c.Credentials == nil {
+			return GitResult{}, fmt.Errorf("credential %q is configured but no credential store is available", g.Credential)
+		}
+		var err error
+		if cred, err = c.Credentials.Git(g.Credential); err != nil {
+			return GitResult{}, fmt.Errorf("read git credential %q: %w", g.Credential, err)
+		}
+	}
+	tags, err := gitrepo.New(c.Git).Tags(ctx, g.URL, cred)
+	if err != nil {
+		return GitResult{}, err
+	}
+	return GitResult{Selection: version.Select(current, tags, g.VersionRule)}, nil
 }
 
 // CheckImage lists the tags of img.Ref, selects the target for the current tag under the image's version

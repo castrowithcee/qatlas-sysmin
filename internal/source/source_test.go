@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os/exec"
 	"strings"
 	"testing"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
+	"github.com/castrowithcee/qatlas-sysmin/internal/source/gitrepo"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/registry"
 )
 
@@ -22,6 +24,10 @@ func (f fakeCreds) Registry(name string) (registry.Credential, error) {
 		return registry.Credential{}, errors.New("no such credential")
 	}
 	return c, nil
+}
+
+func (f fakeCreds) Git(string) (gitrepo.Credential, error) {
+	return gitrepo.Credential{}, errors.New("no such credential")
 }
 
 func registryServer(t *testing.T, wantAuth string) *httptest.Server {
@@ -99,5 +105,25 @@ func TestCheckImageFloatingTag(t *testing.T) {
 	}
 	if len(res.Problems) != 1 || res.Problems[0].Code != "floating-tag" || res.Target != "" {
 		t.Errorf("got %+v", res)
+	}
+}
+
+func TestCheckGitSelectsVersion(t *testing.T) {
+	const out = "aaa\trefs/tags/v1.0.0\nbbb\trefs/tags/v1.1.0\nccc\trefs/tags/v2.0.0\nddd\trefs/tags/nightly\n"
+	c := &Checker{Git: gitrepo.Options{Run: func(cmd *exec.Cmd) error {
+		_, err := cmd.Stdout.Write([]byte(out))
+		return err
+	}}}
+	g := config.GitSource{URL: "https://git.example.invalid/team/app.git", VersionRule: config.VersionRule{MaxUpdate: "minor"}}
+	res, err := c.CheckGit(context.Background(), g, "v1.0.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Target != "v1.1.0" || fmt.Sprint(res.Available) != "[v1.1.0 v2.0.0]" {
+		t.Errorf("target %q available %v", res.Target, res.Available)
+	}
+	g.Credential = "missing"
+	if _, err := c.CheckGit(context.Background(), g, "v1.0.0"); err == nil {
+		t.Error("a credential without a store was accepted")
 	}
 }
