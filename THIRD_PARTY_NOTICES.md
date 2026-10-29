@@ -5,7 +5,7 @@
 Parts of this repository are copied from or derived from qatlas-cli
 (https://github.com/castrowithcee/qatlas-cli):
 
-- `internal/release` (with `internal/release/releasetest`), `internal/auditlog`, `internal/filelock`, `internal/redact`, `internal/i18n`, `internal/output`, `internal/helptopics`, `internal/vault`, `internal/admin`, `internal/control`, `internal/daemon`, `internal/client`, `internal/tui`, `internal/uiprefs`, `scripts/gen_tui_themes.go`
+- `internal/release` (with `internal/release/releasetest`), `internal/auditlog`, `internal/filelock`, `internal/redact`, `internal/selfupdate`, `internal/i18n`, `internal/output`, `internal/helptopics`, `internal/vault`, `internal/admin`, `internal/control`, `internal/daemon`, `internal/client`, `internal/tui`, `internal/uiprefs`, `scripts/gen_tui_themes.go`
 - the command and error handling patterns in `internal/cli`
 - the atomic store and revision check in `internal/config`
 
