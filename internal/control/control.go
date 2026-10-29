@@ -86,6 +86,10 @@ const (
 	// OpNotifyTest sends a test message to one approved channel. It reads and changes nothing, so it needs
 	// no admin session.
 	OpNotifyTest = "notify.test"
+
+	// OpProjectsAdopt proposes a project for a running stack and, unless asked only to propose, stores it
+	// as an open approval, on the terms of the project operations. It deploys nothing.
+	OpProjectsAdopt = "projects.adopt"
 )
 
 // The codes an answer's error carries. They are fixed words, never text built from a request, so an answer

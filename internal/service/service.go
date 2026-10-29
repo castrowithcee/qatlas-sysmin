@@ -23,6 +23,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
+	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
 	"github.com/castrowithcee/qatlas-sysmin/internal/notify"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/gitrepo"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/registry"
@@ -64,6 +65,8 @@ type Config struct {
 	// Changelog configures how projects.changelog reaches GitHub; tests point BaseURL and HTTPClient at a
 	// local server. The service sets Token and CacheDir for each request.
 	Changelog changelog.Options
+	// Runner runs the read-only docker commands of project adoption; nil runs the real programs.
+	Runner execute.Runner
 	// OnLogError is told about audit log writes that failed; nil logs them with slog.
 	OnLogError func(error)
 }
@@ -119,6 +122,9 @@ func Open(cfg Config) (*Service, error) {
 	}
 	if cfg.SocketPath == "" {
 		cfg.SocketPath = control.DefaultSocketPath
+	}
+	if cfg.Runner == nil {
+		cfg.Runner = &execute.ExecRunner{MaxOutput: adoptMaxOutput}
 	}
 	s := &Service{cfg: cfg, log: auditlog.New(filepath.Join(cfg.StateDir, "logs"), auditlog.DefaultRetentionDays)}
 
@@ -319,6 +325,9 @@ func (s *Service) register() error {
 		return err
 	}
 	if err := s.registerChannels(); err != nil {
+		return err
+	}
+	if err := s.registerAdopt(); err != nil {
 		return err
 	}
 	if err := s.registerSources(); err != nil {

@@ -58,6 +58,8 @@ func (c *Client) Call(op string, params, result any) error {
 		timeout = control.SourceTestTimeout + CallTimeout
 	case control.OpProjectsChangelog:
 		timeout = control.ChangelogTimeout + CallTimeout
+	case control.OpProjectsAdopt:
+		timeout = control.AdoptTimeout + CallTimeout
 	}
 	_ = c.conn.SetDeadline(time.Now().Add(timeout))
 	if err := control.WriteLine(c.conn, req); err != nil {
@@ -260,5 +262,13 @@ func (c *Client) SourceTest(project string) (control.SourceTestResult, error) {
 func (c *Client) Changelog(project, image, to string) (control.ChangelogResult, error) {
 	var out control.ChangelogResult
 	err := c.Call(control.OpProjectsChangelog, control.ChangelogParams{Project: project, Image: image, To: to}, &out)
+	return out, err
+}
+
+// AdoptProject asks the service to propose a project for the stack running from p.Dir and, unless p.DryRun,
+// to store it. The stored project is an open approval on the terms of AddProject.
+func (c *Client) AdoptProject(p control.AdoptParams) (control.AdoptResult, error) {
+	var out control.AdoptResult
+	err := c.Call(control.OpProjectsAdopt, p, &out)
 	return out, err
 }
