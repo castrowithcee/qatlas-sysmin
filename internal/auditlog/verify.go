@@ -30,7 +30,20 @@ type DayReport struct {
 	// 0 for a line that does not parse.
 	Problem    string
 	ProblemSeq uint64
+	// ProblemCode is the fixed word for the kind of the first problem (one of the Problem constants, ""
+	// when there is none) and ProblemLine its 1-based line number within the day file.
+	ProblemCode string
+	ProblemLine int
 }
+
+// The kinds of problem a DayReport names.
+const (
+	ProblemUnparsable = "unparsable-line"
+	ProblemGenesis    = "bad-genesis"
+	ProblemMissing    = "missing-entries"
+	ProblemChain      = "chain-broken"
+	ProblemMAC        = "check-value-mismatch"
+)
 
 // Signature states of a day, as SignatureState reports them.
 const (
@@ -138,16 +151,18 @@ func Verify(dir string, checker Checker) (Report, error) {
 	)
 	for _, d := range days {
 		day := DayReport{Date: d.date}
-		problem := func(seq uint64, text string) {
+		line := 0
+		problem := func(code string, seq uint64, text string) {
 			if day.Problem == "" {
-				day.Problem, day.ProblemSeq = text, seq
+				day.Problem, day.ProblemSeq, day.ProblemCode, day.ProblemLine = text, seq, code, line
 			}
 			report.Broken = true
 		}
-		for _, raw := range d.lines {
+		for i, raw := range d.lines {
+			line = i + 1
 			var entry Entry
 			if err := json.Unmarshal(raw, &entry); err != nil {
-				problem(0, "a line does not parse as a log entry")
+				problem(ProblemUnparsable, 0, "a line does not parse as a log entry")
 				continue
 			}
 			if entry.Kind != KindCut {
@@ -156,7 +171,7 @@ func Verify(dir string, checker Checker) (Report, error) {
 			switch {
 			case !sawFirstEntry && entry.Seq == 1:
 				if entry.PrevHash != genesisHash {
-					problem(entry.Seq, "the first entry does not chain from the genesis hash")
+					problem(ProblemGenesis, entry.Seq, "the first entry does not chain from the genesis hash")
 				}
 			case !sawFirstEntry && haveCut && entry.Seq == cutThroughSeq+1:
 				// Documented: this is exactly where the retained window's own retention cut says it continues.
@@ -166,12 +181,12 @@ func Verify(dir string, checker Checker) (Report, error) {
 				} else if !haveCut && entry.Seq > 1 {
 					day.Missing += entry.Seq - 1
 				}
-				problem(entry.Seq, fmt.Sprintf("entries before sequence %d are missing without a retention cut", entry.Seq))
+				problem(ProblemMissing, entry.Seq, fmt.Sprintf("entries before sequence %d are missing without a retention cut", entry.Seq))
 			case entry.Seq != previousSeq+1 || entry.PrevHash != hashHex(previousRaw):
 				if entry.Seq > previousSeq+1 {
 					day.Missing += entry.Seq - previousSeq - 1
 				}
-				problem(entry.Seq, fmt.Sprintf("entry with sequence %d does not chain from the previous entry", entry.Seq))
+				problem(ProblemChain, entry.Seq, fmt.Sprintf("entry with sequence %d does not chain from the previous entry", entry.Seq))
 			}
 			countMAC(&day, problem, checker != nil, &results, entry, raw)
 			sawFirstEntry = true
@@ -185,7 +200,7 @@ func Verify(dir string, checker Checker) (Report, error) {
 // countMAC counts the check value of one line into its day's report. results holds the checker's answers
 // for the well-formed check values not counted yet, in order; this takes the next one when the line has one
 // and checked is true.
-func countMAC(day *DayReport, problem func(uint64, string), checked bool, results *[]bool, entry Entry, raw []byte) {
+func countMAC(day *DayReport, problem func(string, uint64, string), checked bool, results *[]bool, entry Entry, raw []byte) {
 	action := entry.Kind != KindCut
 	switch {
 	case entry.MAC == "":
@@ -206,7 +221,7 @@ func countMAC(day *DayReport, problem func(uint64, string), checked bool, result
 		}
 	}
 	day.Changed++
-	problem(entry.Seq, fmt.Sprintf("entry with sequence %d does not match its check value", entry.Seq))
+	problem(ProblemMAC, entry.Seq, fmt.Sprintf("entry with sequence %d does not match its check value", entry.Seq))
 }
 
 func wellFormed(raw []byte) bool {

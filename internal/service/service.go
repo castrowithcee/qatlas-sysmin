@@ -347,6 +347,12 @@ func (s *Service) register() error {
 	if err := s.registerNotify(); err != nil {
 		return err
 	}
+	if err := s.registerLog(); err != nil {
+		return err
+	}
+	if err := s.registerTemplates(); err != nil {
+		return err
+	}
 	return s.registerVault()
 }
 

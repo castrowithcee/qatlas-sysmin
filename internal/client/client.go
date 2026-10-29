@@ -299,3 +299,41 @@ func (c *Client) AdoptProject(p control.AdoptParams) (control.AdoptResult, error
 	err := c.Call(control.OpProjectsAdopt, p, &out)
 	return out, err
 }
+
+// LogEntries reads one page of the action log, newest first. p.After continues from the Next of the
+// previous page. It needs no admin session.
+func (c *Client) LogEntries(p control.LogListParams) (control.LogListResult, error) {
+	var out control.LogListResult
+	err := c.Call(control.OpLogList, p, &out)
+	return out, err
+}
+
+// VerifyLog checks the hash chain of the action log, and its check values while the vault is unlocked. A
+// broken chain is a result with Intact false, not a failed call.
+func (c *Client) VerifyLog() (control.LogVerifyResult, error) {
+	var out control.LogVerifyResult
+	err := c.Call(control.OpLogVerify, nil, &out)
+	return out, err
+}
+
+// Templates lists the builtin and custom scenario templates.
+func (c *Client) Templates() ([]control.TemplateSummary, error) {
+	var out control.TemplatesListResult
+	err := c.Call(control.OpTemplatesList, nil, &out)
+	return out.Templates, err
+}
+
+// Template reads one template with its YAML text.
+func (c *Client) Template(name string) (control.TemplateDetail, error) {
+	var out control.TemplateDetail
+	err := c.Call(control.OpTemplatesShow, control.TemplateRef{Name: name}, &out)
+	return out, err
+}
+
+// DeriveTemplate stores a new custom template name with the steps of the template from. It needs the admin
+// session of this connection and never replaces an existing template.
+func (c *Client) DeriveTemplate(p control.TemplateDeriveParams) (control.TemplateDetail, error) {
+	var out control.TemplateDetail
+	err := c.Call(control.OpTemplatesDerive, p, &out)
+	return out, err
+}
