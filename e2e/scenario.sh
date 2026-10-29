@@ -18,6 +18,13 @@ s04_broken_tag_rollback|A tag whose check fails is rolled back and reported
 s05_adopt_stack|A running stack with two images and an override file is adopted without a deploy
 s06_manual_update|An available update with release notes is applied from the terminal interface
 s07_stepwise_major|Major updates go one major version at a time
+s08_git_project|A git tag project without an image runs its own steps
+s09_webhook|A signed webhook starts the check at once, a wrong signature is refused
+s10_notifications|The webhook channel received the events without secrets
+s11_restart_locked|After a restart the vault is locked, nothing deploys until it is unlocked
+s12_restart_auto_unlock|With automatic unlock the vault opens and deploys after a restart
+s13_self_update|Update to the newer signed release
+s14_uninstall|Uninstall keeps configuration, vault and running stacks
 '
 
 tui=sysmine2e-tui
@@ -253,10 +260,11 @@ has_run() {
 	[ -n "$(last_run "$1" "$2")" ]
 }
 
-# wait_run PROJECT TAG waits for a finished run to TAG, whoever started it, and prints its history line.
+# wait_run PROJECT TAG [SECONDS] waits for a finished run to TAG, whoever started it, and prints its history
+# line.
 wait_run() {
-	sc_note "poll: sysmin deploy history $1 until a run to $2 is listed"
-	poll 90 has_run "$1" "$2" || return 1
+	sc_note "poll: sysmin deploy history $1 until a run to $2 is listed (up to ${3:-90}s)"
+	poll "${3:-90}" has_run "$1" "$2" || return 1
 	last_run "$1" "$2"
 }
 
@@ -329,6 +337,7 @@ s02_image_project() {
 services:
   web:
     image: registry.sysmine2e.test/demo/web:${WEB_TAG}
+    restart: unless-stopped
     ports:
       - "127.0.0.1:18081:8080"
 EOF
@@ -545,8 +554,10 @@ s05_adopt_stack() {
 services:
   api:
     image: registry.sysmine2e.test/demo/api:${API_TAG}
+    restart: unless-stopped
   worker:
     image: registry.sysmine2e.test/demo/worker:${WORKER_TAG}
+    restart: unless-stopped
 EOF
 	cat >"$sc_dir/files/demo-shop/compose.override.yaml" <<'EOF'
 services:
@@ -677,6 +688,7 @@ s07_stepwise_major() {
 services:
   app:
     image: registry.sysmine2e.test/demo/major:${MAJOR_TAG}
+    restart: unless-stopped
 EOF
 	printf 'MAJOR_TAG=1.0.0\n' >"$sc_dir/files/demo-major/.env"
 	cat >"$sc_dir/files/demo-major.yaml" <<'EOF'
@@ -739,6 +751,493 @@ EOF
 		failed 'the runs do not go 1.0.0 -> 1.1.0 -> 2.1.0 -> 3.0.0'
 }
 
+# --- git project, webhooks, restarts, update and uninstall ------------------------------------------------
+
+site_dir=/srv/demo-site
+hook_url=http://127.0.0.1:8787/hooks/demo-site
+
+# git_release TAG commits site/VERSION with the tag to main on the git server, tags that commit and pushes
+# both, the way a developer releases.
+git_release() {
+	sc_note "# on the git server: commit site/VERSION=$1 to main, tag it $1 and push both"
+	docker exec -i "$prefix-git" sh -s "$1" >/dev/null 2>&1 <<'EOF'
+set -e
+tag=$1 at=@
+export GIT_AUTHOR_NAME='E2E Release' GIT_COMMITTER_NAME='E2E Release'
+export GIT_AUTHOR_EMAIL="release${at}sysmine2e.test" GIT_COMMITTER_EMAIL="release${at}sysmine2e.test"
+umask 022
+rm -rf /tmp/release
+git clone -q /srv/git/stacks.git /tmp/release
+cd /tmp/release
+mkdir -p site
+printf '%s\n' "$tag" >site/VERSION
+printf '/deployed.txt\n' >.gitignore
+git add -A
+git commit -q -m "Release $tag"
+git tag -a "$tag" -m "Release $tag"
+git push -q origin main "refs/tags/$tag"
+EOF
+}
+
+# site_clone clones the repository into the project directory at v1.0.0 the way an administrator does: the
+# git password goes from stdin into a credential file that exists only for the clone.
+site_clone() {
+	sc_note "# printf '%s\\n' \"\$E2E_GIT_PASSWORD\" | sh -c '<temporary credential file>; git clone --branch v1.0.0 $E2E_GIT_URL $site_dir; <file removed>; chown -R sysmin:sysmin $site_dir'"
+	printf '%s\n' "$E2E_GIT_PASSWORD" | docker exec -i "$host" sh -c '
+		IFS= read -r p
+		set -e
+		f=$(mktemp)
+		trap "rm -f $f" EXIT
+		printf "https://%s:%s@%s\n" "$1" "$p" "$(printf "%s" "$2" | cut -d / -f 3)" >"$f"
+		git -c credential.helper= -c "credential.helper=store --file=$f" -c advice.detachedHead=false \
+			clone -q --branch v1.0.0 "$2" "$3"
+		chown -R sysmin:sysmin "$3"' sh "$E2E_GIT_USER" "$E2E_GIT_URL" "$site_dir" >/dev/null 2>&1
+}
+
+# site_tag prints the tag the working copy has checked out.
+site_tag() {
+	docker exec -u sysmin "$host" git -C "$site_dir" describe --tags --exact-match 2>&1
+}
+
+# site_file [webhook] prints the project file of demo-site, with its webhook when asked. The long poll
+# interval keeps polling out of the webhook step.
+site_file() {
+	cat <<'EOF'
+schema: 1
+name: demo-site
+dir: /srv/demo-site
+poll_interval: 1h
+steps:
+  - type: git-checkout
+    tag: "{version}"
+  - type: command
+    run: cp site/VERSION deployed.txt && echo built {version}
+    timeout: 1m
+notify:
+  channels:
+    - e2e-hook
+  events:
+    - update-succeeded
+    - update-failed
+git:
+  url: https://git.sysmine2e.test/stacks.git
+  credential: e2e-git
+  version_rule:
+    mode: auto
+    tag_filter: ^v\d+\.\d+\.\d+$
+EOF
+	[ "${1:-}" != webhook ] || printf 'webhook:\n  kind: hmac\n  secret: demo-site-hook\n'
+}
+
+# hook_post VAR BODY signs the body file with the secret in the named variable, the way a git forge signs a
+# webhook (HMAC-SHA256 in X-Sysmin-Signature), posts it to the listener on the host and prints the status.
+hook_post() {
+	sig=$(eval "printf '%s\n' \"\${$1}\"" | "$work/ctx/fakes" sign "$2") || return 1
+	sc_note "\$ curl -X POST -H 'X-Sysmin-Signature: sha256=<HMAC-SHA256 of the body with \$$1>' --data-binary @${2#"$sc_dir/"} $hook_url"
+	docker exec -i -u "$admin" "$host" curl -sS -o /dev/null -w '%{http_code}' -X POST \
+		-H 'Content-Type: application/json' -H "X-Sysmin-Signature: $sig" --data-binary @- "$hook_url" <"$2" 2>/dev/null
+}
+
+listener_up() {
+	[ "$(docker exec "$host" curl -s -o /dev/null -w '%{http_code}' -X POST "$hook_url")" != 000 ]
+}
+
+# hook_bodies prints the bodies of the messages the webhook receiver got, one JSON object per line.
+hook_bodies() {
+	docker exec "$prefix-hooks" cat /data/requests.jsonl 2>/dev/null |
+		sed -n 's/.*"body":"\(.*\)","headers".*/\1/p' | sed 's/\\"/"/g' | grep -v '^{"check":true}$'
+}
+
+locked_reported() {
+	[ "$(hook_bodies | grep -c '"event":"vault.locked"')" -gt "$1" ]
+}
+
+# audit_lines PATTERN prints time, action, result and error code of the audit log entries that match.
+audit_lines() {
+	docker exec "$host" sh -c 'cat /var/lib/sysmin/logs/*.jsonl' 2>/dev/null | grep -F -- "$1" |
+		sed -E 's/.*"time":"([^"]*)".*"action":"([^"]*)".*"result":"([^"]*)"(,"error_code":"([^"]*)")?.*/\1 \2 \3 \5/'
+}
+
+host_running() {
+	state=$(docker exec "$host" systemctl is-system-running 2>/dev/null || true)
+	[ "$state" = running ] || [ "$state" = degraded ]
+}
+
+# restart_host restarts the host container, which stands for a reboot, and waits for systemd, the inner
+# Docker and the control socket of sysmin.
+restart_host() {
+	sc_note "# docker restart $host (stands for a reboot of the host)"
+	docker restart -t 30 "$host" >/dev/null || return 1
+	poll 120 host_running && poll 60 docker exec "$host" docker info && poll 60 cliq status
+}
+
+# stacks lists name, image and state of every container on the host.
+stacks() {
+	docker exec "$host" docker ps -a --format '{{.Names}} {{.Image}} {{.State}}' | sort
+}
+
+all_running() {
+	! stacks | grep -qv ' running$'
+}
+
+# containers lists name, id and start time of every running container on the host.
+containers() {
+	docker exec "$host" sh -c "docker ps -q | xargs -r docker inspect -f '{{.Name}} {{.Id}} {{.State.StartedAt}}' | sort"
+}
+
+s08_git_project() {
+	if ! git_release v1.0.0 || ! site_clone; then
+		failed 'the repository could not be released and cloned into the project directory'
+		return 1
+	fi
+	evidence "working copy $site_dir (owner sysmin) on $(site_tag), origin $(docker exec -u sysmin "$host" git -C "$site_dir" remote get-url origin)"
+	out=$(hsecret "$admin" E2E_GIT_PASSWORD sudo sysmin credential set e2e-git --kind git-https \
+		--user "$E2E_GIT_USER" --from-stdin --format compact 2>&1) && rc=0 || rc=$?
+	if [ "$rc" != 0 ]; then
+		failed "credential set: $out"
+		return 1
+	fi
+	evidence "credential set e2e-git (token on stdin): state=$(kv "$out" state)"
+	site_file >"$sc_dir/files/demo-site.yaml"
+	out=$(hfile "$sc_dir/files/demo-site.yaml" sudo sysmin project add demo-site --file - --format compact 2>&1) && rc=0 || rc=$?
+	if [ "$rc" != 0 ]; then
+		failed "project add: $out"
+		return 1
+	fi
+	evidence "project add demo-site (git source, steps git-checkout and command): state=$(kv "$out" state)"
+	out=$(cli approvals show demo-site --format compact 2>&1) || true
+	free=$(printf '%s\n' "$out" | grep '|true$')
+	evidence "approvals show demo-site, the change marked as a free command:
+$free"
+	printf '%s\n' "$free" | grep -q '^demo-site|new|steps\[1\]\.run|' || failed 'the command step is not marked as a free command'
+	tui_keys Escape 4
+	if tui_wait 'free command'; then
+		tui_save approval
+		evidence 'Access shows the open approval with "⚠ free command" and asks to read the command line before approving'
+	else
+		failed 'Access does not mark the free command'
+	fi
+	if ! tui_approve_all; then
+		tui_save approve-failed
+		failed 'approving in Access did not succeed'
+		return 1
+	fi
+	out=$(cli source test demo-site --format compact 2>&1) || true
+	line=$(printf '%s\n' "$out" | grep '^git|')
+	evidence "after the approval: source test: status=$(field "$line" 4) current=$(field "$line" 5)"
+	[ "$(field "$line" 5)" = v1.0.0 ] || failed 'the service does not read v1.0.0 from the working copy'
+
+	if ! git_release v2.0.0; then
+		failed 'v2.0.0 could not be pushed'
+		return 1
+	fi
+	out=$(cli deploy run-now demo-site --format compact 2>&1) || true
+	evidence "pushed tag v2.0.0; run-now: status=$(kv "$out" status) result=$(kv "$out" result) changes=$(kv "$out" changes)"
+	if ! line=$(wait_run demo-site v2.0.0); then
+		failed 'no run to v2.0.0 was listed'
+		return 1
+	fi
+	id=$(field "$line" 1) result=$(field "$line" 5)
+	log=$(run_log demo-site "$id")
+	tag=$(site_tag)
+	built=$(docker exec "$host" cat "$site_dir/deployed.txt" 2>&1)
+	evidence "run $id: result=$result; working copy on $tag, deployed.txt holds $built; log: logs/demo-site-$id.log"
+	evidence "run log:
+$(printf '%s\n' "$log" | grep -E ' (run|result=)|built |-> ' | sed 's/^[^ ]* //')"
+	evidence 'the service writes the working copy only because of the drop-in of s03 (ReadWritePaths=/srv)'
+	[ "$result" = succeeded ] && [ "$tag" = v2.0.0 ] && [ "$built" = v2.0.0 ] ||
+		failed 'the working copy is not on v2.0.0 after the run'
+	printf '%s\n' "$log" | grep -q 'type=git-checkout result=ok' && printf '%s\n' "$log" | grep -q 'type=command result=ok' ||
+		failed 'the log does not show both steps succeeding'
+}
+
+s09_webhook() {
+	out=$(hsecret "$admin" E2E_WEBHOOK_SECRET sudo sysmin credential set demo-site-hook --kind secret \
+		--from-stdin --format compact 2>&1) && rc=0 || rc=$?
+	if [ "$rc" != 0 ]; then
+		failed "credential set: $out"
+		return 1
+	fi
+	evidence "credential set demo-site-hook (secret on stdin): state=$(kv "$out" state)"
+	site_file webhook >"$sc_dir/files/demo-site-webhook.yaml"
+	out=$(hfile "$sc_dir/files/demo-site-webhook.yaml" sudo sysmin project edit demo-site --file - --format compact 2>&1) && rc=0 || rc=$?
+	if [ "$rc" != 0 ]; then
+		failed "project edit: $out"
+		return 1
+	fi
+	evidence "project edit demo-site adds webhook kind hmac, secret demo-site-hook: state=$(kv "$out" state)"
+	if ! tui_approve_all; then
+		tui_save approve-failed
+		failed 'approving in Access did not succeed'
+		return 1
+	fi
+	sc_note "poll: curl -X POST $hook_url until the listener answers"
+	if ! poll 30 listener_up; then
+		failed 'the webhook listener did not start on 127.0.0.1:8787 (the default)'
+		return 1
+	fi
+	evidence 'the listener runs on 127.0.0.1:8787, the default address, once the approved project has a webhook'
+	if ! git_release v2.1.0; then
+		failed 'v2.1.0 could not be pushed'
+		return 1
+	fi
+	st=$(cliq deploy status demo-site --format compact 2>&1) || true
+	evidence "pushed tag v2.1.0; poll interval 1h, last check $(kv "$st" last_check)"
+	printf '{"ref":"refs/tags/v2.1.0","repository":{"name":"stacks"}}' >"$sc_dir/files/hook-v2.1.0.json"
+	E2E_WRONG_SECRET=not-the-webhook-secret
+	code=$(hook_post E2E_WRONG_SECRET "$sc_dir/files/hook-v2.1.0.json") || true
+	sleep 3
+	evidence "signed with a wrong secret: HTTP $code; a run to v2.1.0 afterwards: $(last_run demo-site v2.1.0 | grep -c .)"
+	[ "$code" = 401 ] || failed 'the request with a wrong signature was not refused with 401'
+	! has_run demo-site v2.1.0 || failed 'a request with a wrong signature started a run'
+	sent=$(date +%s)
+	code=$(hook_post E2E_WEBHOOK_SECRET "$sc_dir/files/hook-v2.1.0.json") || true
+	evidence "signed with the secret at $(date -u -d "@$sent" +%Y-%m-%dT%H:%M:%SZ): HTTP $code"
+	[ "$code" = 202 ] || failed 'the signed request was not accepted with 202'
+	if ! line=$(wait_run demo-site v2.1.0 30); then
+		failed 'the signed request started no run to v2.1.0'
+		return 1
+	fi
+	started=$(field "$line" 3)
+	delay=$(($(date -d "$started" +%s) - sent))
+	evidence "run $(field "$line" 1): action=$(field "$line" 2) started=$started (${delay}s after the request, no run-now) result=$(field "$line" 5); working copy on $(site_tag)"
+	[ "$delay" -ge -1 ] && [ "$delay" -le 10 ] || failed 'the run did not follow the request at once'
+	[ "$(field "$line" 5)" = succeeded ] && [ "$(site_tag)" = v2.1.0 ] || failed 'the run did not check out v2.1.0'
+	evidence "audit log (time, action, result, error code; the first entry is the unsigned probe of the listener):
+$(audit_lines '"action":"webhook.' | tail -n 3)"
+	audit_lines '"action":"webhook.' | tail -n 3 | grep -q 'webhook.reject failure invalid-signature' ||
+		failed 'the audit log does not record the refused signature'
+}
+
+s10_notifications() {
+	file=$(kv "$(cliq project show demo-shop --format compact 2>&1)" file)
+	{
+		printf '%b' "$file"
+		printf 'notify:\n  channels:\n    - e2e-hook\n  events:\n    - update-available\n'
+	} >"$sc_dir/files/demo-shop-notify.yaml"
+	out=$(hfile "$sc_dir/files/demo-shop-notify.yaml" sudo sysmin project edit demo-shop --file - --format compact 2>&1) && rc=0 || rc=$?
+	evidence "demo-shop (manual) subscribes to update-available on e2e-hook: state=$(kv "$out" state)"
+	if [ "$rc" != 0 ] || ! tui_approve_all; then
+		tui_save approve-failed
+		failed "the notify settings of demo-shop could not be stored and approved: $out"
+		return 1
+	fi
+	if ! push_image worker 1.1.0 "$E2E_CHANGELOG_GIT_REPO"; then
+		failed 'worker:1.1.0 could not be pushed'
+		return 1
+	fi
+	out=$(cli deploy run-now demo-shop --format compact 2>&1) || true
+	evidence "pushed worker:1.1.0; run-now demo-shop: status=$(kv "$out" status) (manual mode, nothing deployed)"
+	sc_note 'poll: e2e/run.sh requests until update.available for demo-shop arrived'
+	poll 20 hook_has update.available demo-shop || true
+	sc_note 'e2e/run.sh requests'
+	bodies=$(hook_bodies)
+	evidence "bodies of the messages the webhook receiver got:
+$bodies"
+	for want in deploy.succeeded:demo-web deploy.rolled_back:demo-web deploy.succeeded:demo-site update.available:demo-shop; do
+		printf '%s\n' "$bodies" | grep -F "\"event\":\"${want%%:*}\"" | grep -qF "\"project\":\"${want#*:}\"" ||
+			failed "no ${want%%:*} message for ${want#*:}"
+	done
+	raw=$(docker exec "$prefix-hooks" cat /data/requests.jsonl 2>/dev/null)
+	leaks=0
+	for value in "$E2E_REGISTRY_PASSWORD" "$E2E_GIT_PASSWORD" "$E2E_VAULT_PASSPHRASE" "$E2E_WEBHOOK_SECRET"; do
+		printf '%s' "$raw" | grep -qF -- "$value" && leaks=$((leaks + 1))
+	done
+	evidence "none of the four secrets of the run occurs in a request: $leaks found; header names sent: $(printf '%s\n' "$raw" | grep -F X-Sysmin-Event | sed 's/.*"headers":{\([^}]*\)}.*/\1/' | grep -o '"[A-Za-z-]*":' | tr -d '":' | sort -u | tr '\n' ' ')"
+	[ "$leaks" = 0 ] || failed 'a secret occurs in a notification'
+}
+
+s11_restart_locked() {
+	out=$(cli project edit demo-site --poll-interval 1m --format compact 2>&1) || true
+	if ! tui_approve_all; then
+		tui_save approve-failed
+		failed "the poll interval of demo-site could not be approved: $out"
+		return 1
+	fi
+	evidence 'demo-site polls every minute from now on (edited on the command line, approved in Access)'
+	evidence "containers before the restart:
+$(stacks)"
+	reported=$(hook_bodies | grep -c '"event":"vault.locked"')
+	if ! restart_host; then
+		failed 'the host or sysmin did not come back after the restart'
+		return 1
+	fi
+	t0=$(date +%s)
+	out=$(cli status --format compact 2>&1) || true
+	evidence "after the restart: sysmin.service $(docker exec "$host" systemctl is-active sysmin), docker.service $(docker exec "$host" systemctl is-active docker); status: vault=$(kv "$out" vault) unlock=$(kv "$out" unlock)"
+	[ "$(kv "$out" vault)" = locked ] || failed 'the vault is not locked after the restart'
+	poll 30 all_running || true
+	evidence "containers after the restart (restart policy unless-stopped):
+$(stacks)"
+	all_running || failed 'not every container runs again after the restart'
+	sc_note 'poll: e2e/run.sh requests until a new vault.locked message arrived'
+	if poll 30 locked_reported "$reported"; then
+		evidence "webhook receiver: $(hook_bodies | grep '"event":"vault.locked"' | tail -n 1)"
+	else
+		failed 'no vault.locked message after the restart'
+	fi
+	if ! git_release v2.2.0; then
+		failed 'v2.2.0 could not be pushed'
+		return 1
+	fi
+	out=$(cli deploy run-now demo-site --format compact 2>&1) || true
+	evidence "pushed tag v2.2.0; run-now while locked: status=$(kv "$out" status) skipped=$(kv "$out" skipped)"
+	[ "$(kv "$out" skipped)" = locked ] || failed 'run-now did not report the locked vault'
+	printf '{"ref":"refs/tags/v2.2.0","repository":{"name":"stacks"}}' >"$sc_dir/files/hook-v2.2.0.json"
+	code=$(hook_post E2E_WEBHOOK_SECRET "$sc_dir/files/hook-v2.2.0.json") || true
+	evidence "signed webhook while locked: HTTP $code (000: the listener does not run while the vault is locked)"
+	# The planner places the first poll of each project up to five minutes after the start; waiting past it
+	# covers that poll and five poll intervals of demo-site.
+	sc_note 'wait until 320 seconds after the restart, the vault still locked'
+	while [ $(($(date +%s) - t0)) -lt 320 ]; do
+		sleep 5
+	done
+	out=$(cli deploy run-now demo-site --format compact 2>&1) || true
+	st=$(cli deploy status demo-site --format compact 2>&1) || true
+	evidence "$(($(date +%s) - t0))s after the restart: run-now: status=$(kv "$out" status) skipped=$(kv "$out" skipped); deploy status: locked=$(kv "$st" locked) sources=$(kv "$st" sources) last_run=$(kv "$st" last_run); runs to v2.2.0: $(last_run demo-site v2.2.0 | grep -c .)"
+	! has_run demo-site v2.2.0 || failed 'demo-site deployed while the vault was locked'
+	[ "$(site_tag)" = v2.1.0 ] || failed 'the working copy changed while the vault was locked'
+	if ! tui_start; then
+		failed 'the terminal interface did not start'
+		return 1
+	fi
+	tui_save locked
+	tui_has 'vault locked' || failed 'the interface does not show the locked vault'
+	if ! tui_unlock; then
+		tui_save unlock-failed
+		failed 'unlocking with ctrl+l did not succeed'
+		return 1
+	fi
+	unlocked=$(date +%s)
+	tui_save unlocked
+	evidence "vault unlocked with ctrl+l in the interface at $(date -u -d "@$unlocked" +%H:%M:%S)"
+	if line=$(wait_run demo-site v2.2.0 100); then
+		evidence 'demo-site deployed v2.2.0 on its own after the unlock'
+	else
+		st=$(cliq deploy status demo-site --format compact 2>&1) || true
+		deviation "expected: after the unlock demo-site deploys v2.2.0 within its poll interval of one minute; actual: no check within 100s after the unlock (last_check=$(kv "$st" last_check), from before the restart). The planner schedules a poll with the interval of the approved project only once a check has read the approved state (internal/engine/planner.go, interval and Run); after a start with a locked vault the first poll is skipped (internal/engine/run.go, check returns SkipLocked) and the next one is due after the default interval of one hour (config.DefaultPollInterval)"
+		out=$(cli deploy run-now demo-site --format compact 2>&1) || true
+		workaround "run-now after the unlock: status=$(kv "$out" status) result=$(kv "$out" result) changes=$(kv "$out" changes)"
+		line=$(wait_run demo-site v2.2.0 30) || true
+	fi
+	evidence "history: $line; working copy on $(site_tag)"
+	[ "$(field "$line" 5)" = succeeded ] && [ "$(site_tag)" = v2.2.0 ] || failed 'demo-site did not deploy v2.2.0 after the unlock'
+}
+
+s12_restart_auto_unlock() {
+	out=$(hsecret "$admin" E2E_VAULT_PASSPHRASE sudo sysmin vault bind --format compact 2>&1) && rc=0 || rc=$?
+	evidence "vault bind (passphrase on stdin): unlock=$(kv "$out" unlock) credential=$(kv "$out" credential)
+warning: $(kv "$out" warning)"
+	if [ "$rc" != 0 ]; then
+		failed "vault bind: $out"
+		return 1
+	fi
+	evidence "$(hroot 'ls -l /var/lib/sysmin/vault/key.cred /var/lib/sysmin/vault/key.cred.mode' 2>&1 | awk '{ print $1, $3, $NF }')"
+	# The service stops first, so the tag waits for the first poll after the restart and no earlier poll.
+	hroot 'systemctl stop sysmin'
+	if ! git_release v2.3.0; then
+		failed 'v2.3.0 could not be pushed'
+		return 1
+	fi
+	if ! restart_host; then
+		failed 'the host or sysmin did not come back after the restart'
+		return 1
+	fi
+	t0=$(date +%s)
+	out=$(cli status --format compact 2>&1) || true
+	evidence "pushed tag v2.3.0 before the restart; after it, without any input: vault=$(kv "$out" vault) unlock=$(kv "$out" unlock)"
+	[ "$(kv "$out" vault)" = unlocked ] && [ "$(kv "$out" unlock)" = host ] ||
+		failed 'the vault is not unlocked with the host key after the restart'
+	poll 30 all_running || failed "not every container runs again after the restart: $(stacks)"
+	if tui_start && tui_wait 'automatic (host key)'; then
+		tui_save overview
+		evidence "overview: $(tui_screen | grep -E 'Vault|Unlock' | sed 's/^ *> *//; s/  */ /g' | tr '\n' ';')"
+		tui_screen | grep -q '⚠ Unlock' || failed 'the overview shows no warning for the automatic unlock'
+	else
+		tui_save no-warning
+		failed 'the overview does not show the automatic unlock'
+	fi
+	if line=$(wait_run demo-site v2.3.0 330); then
+		started=$(field "$line" 3)
+		evidence "run $(field "$line" 1): action=$(field "$line" 2) started=$started ($(($(date -d "$started" +%s) - t0))s after the service was back, no run-now) result=$(field "$line" 5); working copy on $(site_tag)"
+		[ "$(field "$line" 5)" = succeeded ] && [ "$(site_tag)" = v2.3.0 ] || failed 'the run did not check out v2.3.0'
+	else
+		failed 'demo-site did not deploy v2.3.0 after the restart'
+	fi
+}
+
+s13_self_update() {
+	api=${E2E_RELEASES_URL%/releases}/repos/castrowithcee/qatlas-sysmin
+	projects=$(cliq project list --format compact 2>&1)
+	out=$(cli update --list --release-url "$api" --format compact 2>&1) || true
+	evidence "update --list:
+$out"
+	evidence "note: --release-url of sysmin update is the GitHub-API base of the repository, as its help says; the release URL of install.sh ($E2E_RELEASES_URL) is a download base and answers 404 there"
+	sc_note '# on the release server: v0.2.0/checksums.txt.sig replaced by the signature of v0.1.0'
+	docker exec "$prefix-releases" sh -c 'cd /srv/releases && cp v0.2.0/checksums.txt.sig /tmp/v0.2.0.sig && cp v0.1.0/checksums.txt.sig v0.2.0/checksums.txt.sig'
+	out=$(cli update --release-url "$api" --to v0.2.0 --yes --format compact 2>&1) && rc=0 || rc=$?
+	ver=$(docker exec "$host" sysmin version --format compact | sed 's/^version=//')
+	evidence "with the signature of another release: exit $rc: $out; installed: $ver"
+	[ "$rc" != 0 ] && [ "$ver" = v0.1.0 ] || failed 'a release with a wrong signature was installed'
+	sc_note '# on the release server: the signature of v0.2.0 restored'
+	docker exec "$prefix-releases" sh -c 'cp /tmp/v0.2.0.sig /srv/releases/v0.2.0/checksums.txt.sig'
+	out=$(cli update --release-url "$api" --yes --format compact 2>&1) && rc=0 || rc=$?
+	evidence "update: previous=$(kv "$out" previous) version=$(kv "$out" version) updated=$(kv "$out" updated) restarted=$(kv "$out" restarted)"
+	if [ "$rc" != 0 ]; then
+		failed "update: $out"
+		return 1
+	fi
+	poll 60 cliq status || true
+	ver=$(hrun sysmin version --format compact 2>&1 | sed 's/^version=//')
+	st=$(cli vault status --format compact 2>&1) || true
+	after=$(cliq project list --format compact 2>&1)
+	evidence "sysmin version: $ver; sysmin.service $(docker exec "$host" systemctl is-active sysmin); vault status: vault=$(kv "$st" vault) unlock=$(kv "$st" unlock)"
+	evidence "projects after the update (unchanged: $([ "$after" = "$projects" ] && echo yes || echo no)):
+$after"
+	[ "$ver" = v0.2.0 ] || failed 'sysmin version does not show v0.2.0'
+	[ "$(kv "$st" vault)" = unlocked ] && [ "$(kv "$st" unlock)" = host ] || failed 'the vault is not open by the automatic unlock'
+	[ "$after" = "$projects" ] || failed 'the projects changed'
+}
+
+s14_uninstall() {
+	before=$(containers)
+	out=$(cli uninstall --format compact 2>&1) && rc=0 || rc=$?
+	evidence "uninstall without --yes and without a terminal: exit $rc: $out"
+	[ "$rc" != 0 ] || failed 'uninstall ran without a confirmation'
+	hroot 'cp /usr/local/bin/sysmin /root/sysmin-kept'
+	out=$(cli uninstall --yes --format compact 2>&1) && rc=0 || rc=$?
+	evidence "uninstall --yes: exit $rc: uninstalled=$(kv "$out" uninstalled) purged=$(kv "$out" purged)"
+	[ "$rc" = 0 ] || failed "uninstall: $out"
+	gone=$(docker exec "$host" sh -c '
+		for f in /usr/local/bin/sysmin /etc/systemd/system/sysmin.service; do
+			[ -e "$f" ] && echo "$f present" || echo "$f absent"
+		done
+		echo "unit: $(systemctl show -p LoadState --value sysmin), service: $(systemctl is-active sysmin)"
+		id sysmin >/dev/null 2>&1 && echo "user sysmin present" || echo "user sysmin absent"')
+	evidence "after uninstall:
+$gone"
+	printf '%s\n' "$gone" | grep -qE 'bin/sysmin present|service present|LoadState|unit: loaded|service: active|user sysmin present' &&
+		failed 'program, unit, service or user remain'
+	kept=$(docker exec "$host" sh -c 'ls -d /etc/sysmin/sysmin.yaml /etc/sysmin/projects/* /var/lib/sysmin/vault/* 2>&1')
+	evidence "kept:
+$kept"
+	printf '%s\n' "$kept" | grep -q '/var/lib/sysmin/vault/secrets.age' && printf '%s\n' "$kept" | grep -q '/etc/sysmin/projects/demo-site.yaml' ||
+		failed 'configuration or vault were removed without --purge'
+	after=$(containers)
+	page=$(docker exec "$host" curl -fsS http://127.0.0.1:18081/ 2>&1) || true
+	evidence "running containers unchanged (name, id, start): $([ "$before" = "$after" ] && echo yes || echo no); demo-web answers '$page'"
+	[ "$before" = "$after" ] || failed "the stacks changed:
+$after"
+	out=$(hroot '/root/sysmin-kept uninstall --purge --yes --format compact; rm -f /root/sysmin-kept' 2>&1) || true
+	left=$(docker exec "$host" sh -c 'ls -d /etc/sysmin /var/lib/sysmin /etc/systemd/system/sysmin.service.d /srv/* 2>&1')
+	evidence "uninstall --purge with a copy of the program kept before: purged=$(kv "$out" purged); what is left (the drop-in is the workaround of s03, the project directories belong to the administrator):
+$left"
+	printf '%s\n' "$left" | grep -qE '^/etc/sysmin$|^/var/lib/sysmin$' && failed '--purge left configuration or state'
+	after=$(containers)
+	evidence "running containers unchanged after --purge: $([ "$before" = "$after" ] && echo yes || echo no)"
+	[ "$before" = "$after" ] || failed 'the stacks changed after --purge'
+}
+
 # --- runner -----------------------------------------------------------------------------------------------
 
 run_step() {
@@ -764,7 +1263,7 @@ run_step() {
 
 # mask replaces every secret of the test values in the files of the record.
 mask() {
-	for value in "$E2E_REGISTRY_PASSWORD" "$E2E_GIT_PASSWORD" "$E2E_VAULT_PASSPHRASE"; do
+	for value in "$E2E_REGISTRY_PASSWORD" "$E2E_GIT_PASSWORD" "$E2E_VAULT_PASSPHRASE" "$E2E_WEBHOOK_SECRET"; do
 		[ -n "$value" ] || continue
 		grep -rlF -- "$value" "$sc_dir" | while read -r f; do
 			awk -v s="$value" '{ while ((i = index($0, s)) > 0) $0 = substr($0, 1, i - 1) "***" substr($0, i + length(s)); print }' \
@@ -778,6 +1277,10 @@ run_scenario() {
 	if [ -z "${E2E_VAULT_PASSPHRASE:-}" ]; then
 		E2E_VAULT_PASSPHRASE=e2e-test-passphrase-$(openssl rand -hex 12)
 		printf 'E2E_VAULT_PASSPHRASE=%s\n' "$E2E_VAULT_PASSPHRASE" >>"$work/testenv"
+	fi
+	if [ -z "${E2E_WEBHOOK_SECRET:-}" ]; then
+		E2E_WEBHOOK_SECRET=e2e-test-hook-$(openssl rand -hex 12)
+		printf 'E2E_WEBHOOK_SECRET=%s\n' "$E2E_WEBHOOK_SECRET" >>"$work/testenv"
 	fi
 	sc_dir=$work/scenario
 	[ ! -e "$sc_dir" ] || fail "the scenario ran in this environment already; start again with: e2e/run.sh down && e2e/run.sh up"

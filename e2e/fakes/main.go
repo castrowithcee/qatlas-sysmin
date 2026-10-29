@@ -6,13 +6,18 @@
 package main
 
 import (
+	"bufio"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-const usage = "usage: fakes releases|git|webhook|demoapp|htpasswd <user> <password-from-stdin>"
+const usage = "usage: fakes releases|git|webhook|demoapp|htpasswd <user>|sign <body-file> (secret on stdin)"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -31,6 +36,8 @@ func main() {
 		err = runDemoApp()
 	case "htpasswd":
 		err = runHtpasswd(os.Args[2:])
+	case "sign":
+		err = runSign(os.Args[2:])
 	default:
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(2)
@@ -56,5 +63,25 @@ func runHtpasswd(args []string) error {
 		return err
 	}
 	fmt.Printf("%s:%s\n", args[0], hash)
+	return nil
+}
+
+// runSign prints the HMAC-SHA256 signature of a request body as sha256=<hex>, the form of the
+// X-Hub-Signature-256 header; the secret is the first line of stdin so it never appears in a process list.
+func runSign(args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: sign <body-file> (secret on stdin)")
+	}
+	secret, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil && secret == "" {
+		return fmt.Errorf("no secret on stdin")
+	}
+	body, err := os.ReadFile(args[0])
+	if err != nil {
+		return err
+	}
+	mac := hmac.New(sha256.New, []byte(strings.TrimRight(secret, "\r\n")))
+	mac.Write(body)
+	fmt.Printf("sha256=%s\n", hex.EncodeToString(mac.Sum(nil)))
 	return nil
 }

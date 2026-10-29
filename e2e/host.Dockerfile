@@ -20,5 +20,7 @@ RUN useradd --create-home --shell /bin/bash e2e-admin \
 	&& echo 'e2e-admin ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/e2e-admin \
 	&& chmod 0440 /etc/sudoers.d/e2e-admin
 
+# systemd leaves mount propagation to the container manager, and Docker makes every mount private. A real host
+# has shared mounts, which systemd needs to pass credentials to a service (LoadCredentialEncrypted).
 STOPSIGNAL SIGRTMIN+3
-CMD ["/sbin/init"]
+CMD ["/bin/sh", "-c", "mount --make-rshared / && exec /sbin/init"]
