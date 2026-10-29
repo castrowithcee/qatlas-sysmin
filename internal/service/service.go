@@ -30,8 +30,8 @@ const (
 	DefaultStateDir  = "/var/lib/sysmin"
 )
 
-// Admin timeouts outside this range are ignored in favor of the default; the configuration validation
-// enforces the same range.
+// Admin timeouts other than 0 (every change asks for the passphrase) outside this range are ignored in
+// favor of the default; the configuration validation enforces the same range.
 const (
 	minAdminTimeout = time.Second
 	maxAdminTimeout = 24 * time.Hour
@@ -57,7 +57,11 @@ type Config struct {
 
 // connState is what a connection owns: its admin session. A connection serves one request at a time, so
 // the session needs no lock.
-type connState struct{ session admin.Session }
+type connState struct {
+	session admin.Session
+	// once is the single change a passphrase covers while the admin timeout is 0.
+	once bool
+}
 
 // Service is the vault, the audit log and the control socket server around them.
 type Service struct {
@@ -119,7 +123,7 @@ func Open(cfg Config) (*Service, error) {
 		Status:     s.fillStatus,
 		Guard:      s.guard,
 		NewState:   func(*daemon.Conn) any { return &connState{session: admin.NewSession(cfg.Clock)} },
-		ConnClosed: func(c *daemon.Conn) { c.State.(*connState).session.End() },
+		ConnClosed: func(c *daemon.Conn) { st := c.State.(*connState); st.session.End(); st.once = false },
 	})
 	if err != nil {
 		return nil, err
@@ -198,7 +202,7 @@ func (s *Service) adminTimeout() time.Duration {
 		return config.DefaultAdminTimeout
 	}
 	d := settings.EffectiveAdminTimeout()
-	if d < minAdminTimeout || d > maxAdminTimeout {
+	if d != 0 && (d < minAdminTimeout || d > maxAdminTimeout) {
 		return config.DefaultAdminTimeout
 	}
 	return d
@@ -223,7 +227,15 @@ func (s *Service) guard(_ context.Context, c *daemon.Conn, _ string) error {
 	if s.vaultState() != control.VaultUnlocked {
 		return &control.Error{Code: control.CodeLocked}
 	}
-	if _, ok := c.State.(*connState).session.Authorize(s.adminTimeout()); !ok {
+	st := c.State.(*connState)
+	timeout := s.adminTimeout()
+	if st.once {
+		st.once = false
+		if timeout == 0 {
+			return nil
+		}
+	}
+	if _, ok := st.session.Authorize(timeout); !ok {
 		return &control.Error{Code: control.CodeAdminRequired}
 	}
 	return nil
@@ -296,14 +308,19 @@ func (s *Service) handleSessionOpen(_ context.Context, c *daemon.Conn, params js
 	if err != nil {
 		return nil, err
 	}
-	sess := &c.State.(*connState).session
-	if err := sess.Open(s.vault, pass, s.adminTimeout()); err != nil {
+	st := c.State.(*connState)
+	st.once = false
+	timeout := s.adminTimeout()
+	if err := st.session.Open(s.vault, pass, timeout); err != nil {
 		return nil, vaultError(err)
 	}
+	st.once = timeout == 0
 	return nil, nil
 }
 
 func (s *Service) handleSessionEnd(_ context.Context, c *daemon.Conn, _ json.RawMessage) (any, error) {
-	c.State.(*connState).session.End()
+	st := c.State.(*connState)
+	st.session.End()
+	st.once = false
 	return nil, nil
 }

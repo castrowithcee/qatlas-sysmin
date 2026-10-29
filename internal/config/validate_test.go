@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 var testCredentials = []string{"registry-example", "git-example", "hook-example", "mail-example"}
@@ -245,5 +246,25 @@ func TestQuotedPlaceholders(t *testing.T) {
 	}
 	if n != 2 {
 		t.Errorf("backup quoted problems: %d", n)
+	}
+}
+
+func TestAdminTimeoutValidation(t *testing.T) {
+	for _, c := range []struct {
+		d  time.Duration
+		ok bool
+	}{{0, true}, {time.Second, true}, {24 * time.Hour, true}, {500 * time.Millisecond, false}, {25 * time.Hour, false}} {
+		m := baseModel()
+		d := Duration(c.d)
+		m.Settings.Vault.AdminTimeout = &d
+		var found bool
+		for _, p := range Validate(m, testCredentials) {
+			if p.Code == CodeInvalidDuration && p.Field == "vault.admin_timeout" {
+				found = true
+			}
+		}
+		if found == c.ok {
+			t.Errorf("%v: reported = %v, want %v", c.d, found, !c.ok)
+		}
 	}
 }

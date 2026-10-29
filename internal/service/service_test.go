@@ -258,6 +258,10 @@ func TestAdminTimeoutFromSettings(t *testing.T) {
 	if got := e.svc.adminTimeout(); got != config15m {
 		t.Fatalf("implausible: %v", got)
 	}
+	write("schema: 1\nvault:\n  admin_timeout: 0\n")
+	if got := e.svc.adminTimeout(); got != 0 {
+		t.Fatalf("zero: %v", got)
+	}
 	write("not: [valid")
 	if got := e.svc.adminTimeout(); got != config15m {
 		t.Fatalf("broken: %v", got)
@@ -385,5 +389,59 @@ func TestShutdownLocksAndRemovesSocket(t *testing.T) {
 	}
 	if st, _ := e.svc.vault.State(); st == vault.StateUnlocked {
 		t.Fatal("vault still unlocked")
+	}
+}
+
+func TestAdminTimeoutZeroAsksEveryTime(t *testing.T) {
+	for _, tc := range []struct {
+		name, yaml string
+		reuse      bool
+	}{{"zero", "schema: 1\nvault:\n  admin_timeout: 0\n", false}, {"default", "schema: 1\n", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnv(t, true, false)
+			if err := e.svc.Server().Register("change", daemon.Handler{
+				Action: auditlog.OperationConfigApply, Mutating: true,
+				Func: func(context.Context, *daemon.Conn, json.RawMessage) (any, error) { return nil, nil },
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(e.cfg.ConfigDir, "sysmin.yaml"), []byte(tc.yaml), 0o640); err != nil {
+				t.Fatal(err)
+			}
+			e.start(t)
+			c := e.dial(t)
+			if err := c.Unlock(testPass); err != nil {
+				t.Fatal(err)
+			}
+			if err := c.OpenSession(testPass); err != nil {
+				t.Fatal(err)
+			}
+			// With timeout 0 one passphrase covers exactly one change; without it the window applies.
+			for i := 0; i < 2; i++ {
+				err := c.Call("change", nil, nil)
+				if (tc.reuse || i == 0) && err != nil {
+					t.Fatalf("call %d: %v", i, err)
+				}
+				if !tc.reuse && i == 1 {
+					wantCode(t, err, control.CodeAdminRequired)
+				}
+			}
+			if !tc.reuse {
+				if err := c.OpenSession(testPass); err != nil {
+					t.Fatal(err)
+				}
+				if err := c.Call("change", nil, nil); err != nil {
+					t.Fatalf("after reopen: %v", err)
+				}
+				wantCode(t, c.Call("change", nil, nil), control.CodeAdminRequired)
+				if err := c.OpenSession(testPass); err != nil {
+					t.Fatal(err)
+				}
+				if err := c.EndSession(); err != nil {
+					t.Fatal(err)
+				}
+				wantCode(t, c.Call("change", nil, nil), control.CodeAdminRequired)
+			}
+		})
 	}
 }

@@ -143,7 +143,11 @@ func checkHTTPURL(raw string) (string, bool) {
 func validateSettings(sc scope, s Settings, creds map[string]bool) {
 	checkSchema(sc, s.Schema)
 	checkRange(sc, "poll_interval", s.PollInterval, time.Minute, 30*24*time.Hour)
-	checkRange(sc, "vault.admin_timeout", s.Vault.AdminTimeout, time.Second, 24*time.Hour)
+	if at := s.Vault.AdminTimeout; at != nil && *at != 0 {
+		if v := time.Duration(*at); v < time.Second || v > 24*time.Hour {
+			sc.add("vault.admin_timeout", CodeInvalidDuration, "duration %s is outside the allowed range %s to %s, or 0 for a passphrase on every change", v, time.Second, 24*time.Hour)
+		}
+	}
 	if s.Webhook.Listen != "" {
 		host, port, err := net.SplitHostPort(s.Webhook.Listen)
 		n, perr := strconv.Atoi(port)

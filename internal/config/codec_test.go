@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 func TestDecodeRejects(t *testing.T) {
@@ -98,6 +99,30 @@ func TestPlaceholderParsing(t *testing.T) {
 	for _, in := range []string{"{", "}", "{Version}", "{a b}", "{}", "${HOME}"} {
 		if _, err := parseText(in); err == nil {
 			t.Errorf("%q must not parse", in)
+		}
+	}
+}
+
+func TestAdminTimeoutZeroIsDistinctFromMissing(t *testing.T) {
+	cases := []struct {
+		name, yaml string
+		want       time.Duration
+	}{
+		{"zero", "schema: 1\nvault:\n  admin_timeout: 0\n", 0},
+		{"missing", "schema: 1\n", DefaultAdminTimeout},
+		{"set", "schema: 1\nvault:\n  admin_timeout: 2m\n", 2 * time.Minute},
+	}
+	for _, c := range cases {
+		s, err := DecodeSettings([]byte(c.yaml))
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got := s.EffectiveAdminTimeout(); got != c.want {
+			t.Errorf("%s: effective = %v, want %v", c.name, got, c.want)
+		}
+		out, err := EncodeSettings(s)
+		if err != nil || string(out) != c.yaml {
+			t.Errorf("%s: round trip %v\n%s", c.name, err, out)
 		}
 	}
 }
