@@ -629,6 +629,14 @@ func TestRedirectIsNotFollowed(t *testing.T) {
 	}
 }
 
+func TestRestoreEventsAreValid(t *testing.T) {
+	for _, typ := range []EventType{EventRestoreSucceeded, EventRestoreFailed} {
+		if !typ.valid() {
+			t.Errorf("%s is not valid", typ)
+		}
+	}
+}
+
 func TestSendErrors(t *testing.T) {
 	n, chans, creds, _, _ := lockedSetup(t)
 	if err := n.Send(context.Background(), "nope", demoEvent); !errors.Is(err, ErrUnknownChannel) {

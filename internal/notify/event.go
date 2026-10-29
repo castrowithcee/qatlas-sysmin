@@ -13,20 +13,22 @@ type EventType string
 
 // The events that are reported. EventTest is only for a manual test of a channel.
 const (
-	EventDeploySucceeded EventType = "deploy.succeeded"
-	EventDeployFailed    EventType = "deploy.failed"
-	EventDeployRolled    EventType = "deploy.rolled_back"
-	EventRollbackFailed  EventType = "rollback.failed"
-	EventUpdateAvailable EventType = "update.available"
-	EventApprovalsOpen   EventType = "approvals.pending"
-	EventVaultLocked     EventType = "vault.locked"
-	EventTest            EventType = "notify.test"
+	EventDeploySucceeded  EventType = "deploy.succeeded"
+	EventDeployFailed     EventType = "deploy.failed"
+	EventDeployRolled     EventType = "deploy.rolled_back"
+	EventRollbackFailed   EventType = "rollback.failed"
+	EventUpdateAvailable  EventType = "update.available"
+	EventRestoreSucceeded EventType = "restore.succeeded"
+	EventRestoreFailed    EventType = "restore.failed"
+	EventApprovalsOpen    EventType = "approvals.pending"
+	EventVaultLocked      EventType = "vault.locked"
+	EventTest             EventType = "notify.test"
 )
 
 func (t EventType) valid() bool {
 	switch t {
 	case EventDeploySucceeded, EventDeployFailed, EventDeployRolled, EventRollbackFailed,
-		EventUpdateAvailable, EventApprovalsOpen, EventVaultLocked, EventTest:
+		EventUpdateAvailable, EventRestoreSucceeded, EventRestoreFailed, EventApprovalsOpen, EventVaultLocked, EventTest:
 		return true
 	}
 	return false

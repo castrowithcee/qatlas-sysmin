@@ -21,6 +21,11 @@ const (
 	OperationDeployPlan     = "deploy.plan"
 	OperationDeployRun      = "deploy.run"
 	OperationDeployRollback = "deploy.rollback"
+	OperationDeployRestore  = "deploy.restore"
+	// OperationDeployRead is a read of the deploy state; OperationDeployControl a pause, resume, pin or
+	// unpin of a project.
+	OperationDeployRead    = "deploy.read"
+	OperationDeployControl = "deploy.control"
 
 	OperationVaultUnlock = "vault.unlock"
 	OperationVaultLock   = "vault.lock"
@@ -50,7 +55,8 @@ var knownOperations = map[string]bool{
 	OperationCredentialUse:   true,
 	OperationApprovalRequest: true, OperationApprovalGrant: true, OperationApprovalDeny: true,
 	OperationApprovalList: true, OperationApprovalShow: true,
-	OperationDeployPlan: true, OperationDeployRun: true, OperationDeployRollback: true,
+	OperationDeployPlan: true, OperationDeployRun: true, OperationDeployRollback: true, OperationDeployRestore: true,
+	OperationDeployRead: true, OperationDeployControl: true,
 	OperationVaultUnlock: true, OperationVaultLock: true, OperationVaultRekey: true, OperationVaultCreate: true,
 	OperationWebhookReceive: true, OperationWebhookReject: true, OperationNotifySend: true,
 	OperationControlRequest: true, OperationControlRefuse: true, OperationControlStatus: true,
