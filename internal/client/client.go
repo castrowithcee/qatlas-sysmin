@@ -101,3 +101,43 @@ func (c *Client) OpenSession(passphrase string) error {
 
 // EndSession ends the admin session of this connection.
 func (c *Client) EndSession() error { return c.Call(control.OpSessionEnd, nil, nil) }
+
+// Approvals lists the open approvals of projects.
+func (c *Client) Approvals() ([]control.ApprovalSummary, error) {
+	var out control.ApprovalsListResult
+	err := c.Call(control.OpApprovalsList, nil, &out)
+	return out.Approvals, err
+}
+
+// Approval shows the open approval of one project with its differing fields.
+func (c *Client) Approval(project string) (control.ApprovalDetail, error) {
+	var out control.ApprovalDetail
+	err := c.Call(control.OpApprovalsShow, control.ApprovalParams{Project: project}, &out)
+	return out, err
+}
+
+// Approve approves the state of a project that a list or show reported with fingerprint. It needs the admin
+// session of this connection.
+func (c *Client) Approve(project, fingerprint string) error {
+	return c.Call(control.OpApprovalsApprove, control.ApprovalParams{Project: project, Fingerprint: fingerprint}, nil)
+}
+
+// ApproveAll approves every open approval as it is now. It needs the admin session of this connection.
+func (c *Client) ApproveAll() (control.ApprovalsAllResult, error) {
+	var out control.ApprovalsAllResult
+	err := c.Call(control.OpApprovalsApproveAll, nil, &out)
+	return out, err
+}
+
+// Discard restores a project from its approved state. It needs the admin session of this connection.
+func (c *Client) Discard(project string) error {
+	return c.Call(control.OpApprovalsDiscard, control.ApprovalParams{Project: project}, nil)
+}
+
+// DiscardAll restores every project that has an open approval a restore can undo. It needs the admin
+// session of this connection.
+func (c *Client) DiscardAll() (control.ApprovalsAllResult, error) {
+	var out control.ApprovalsAllResult
+	err := c.Call(control.OpApprovalsDiscardAll, nil, &out)
+	return out, err
+}
