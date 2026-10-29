@@ -1,16 +1,21 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/approval"
@@ -210,6 +215,7 @@ func (s *Service) registerDeploy() error {
 	for op, h := range map[string]daemon.Handler{
 		control.OpDeployStatus:  {Action: auditlog.OperationDeployRead, Func: s.handleDeployStatus},
 		control.OpDeployHistory: {Action: auditlog.OperationDeployRead, Func: s.handleDeployHistory},
+		control.OpDeployLog:     {Action: auditlog.OperationDeployRead, Func: s.handleDeployLog},
 		control.OpBackupsList:   {Action: auditlog.OperationDeployRead, Func: s.handleBackupsList},
 		control.OpDeployRunNow:  {Action: auditlog.OperationDeployRun, Func: s.handleDeployRunNow},
 		control.OpDeployPause:   {Action: auditlog.OperationDeployControl, Func: s.deployControl(s.engine.Pause)},
@@ -332,6 +338,79 @@ func (s *Service) handleDeployHistory(_ context.Context, c *daemon.Conn, params 
 	}
 	c.Audit(project, "")
 	return out, nil
+}
+
+// runIDRE is the form of a run id, the start time of the run.
+var runIDRE = regexp.MustCompile(`^[0-9]{8}T[0-9]{6}\.[0-9]{9}Z$`)
+
+// handleDeployLog reads the log of one run. The path comes from the engine for a validated id only, and the
+// file is opened without following a link.
+func (s *Service) handleDeployLog(_ context.Context, c *daemon.Conn, params json.RawMessage) (any, error) {
+	var p control.DeployLogParams
+	if err := json.Unmarshal(params, &p); err != nil || !config.ValidName(p.Project) || (p.Run != "" && !runIDRE.MatchString(p.Run)) {
+		return nil, &control.Error{Code: control.CodeBadRequest}
+	}
+	if err := s.existing(p.Project); err != nil {
+		return nil, audited(c, p.Project, err)
+	}
+	if p.Run == "" {
+		history, err := s.engine.History(p.Project)
+		if err != nil {
+			return nil, audited(c, p.Project, &control.Error{Code: deployCode(err)})
+		}
+		for i := len(history) - 1; i >= 0 && p.Run == ""; i-- {
+			p.Run = history[i].ID
+		}
+		if p.Run == "" || !runIDRE.MatchString(p.Run) {
+			return nil, audited(c, p.Project, &control.Error{Code: control.CodeNotFound})
+		}
+	}
+	path, err := s.engine.RunLogPath(p.Project, p.Run+".log")
+	if err != nil {
+		return nil, audited(c, p.Project, &control.Error{Code: control.CodeBadRequest})
+	}
+	text, truncated, err := readLogTail(path, control.MaxLogBytes)
+	switch {
+	case errors.Is(err, fs.ErrNotExist), errors.Is(err, syscall.ELOOP):
+		return nil, audited(c, p.Project, &control.Error{Code: control.CodeNotFound})
+	case err != nil:
+		return nil, audited(c, p.Project, internalError("cannot read a run log", err))
+	}
+	c.Audit(p.Project, "")
+	return control.DeployLogResult{Project: p.Project, Run: p.Run, Text: text, Truncated: truncated}, nil
+}
+
+// readLogTail reads the last max bytes of a regular file. A cut log starts at the first full line, and
+// invalid UTF-8 is replaced, so the text always travels as valid JSON.
+func readLogTail(path string, max int64) (string, bool, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return "", false, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return "", false, err
+	}
+	if !info.Mode().IsRegular() {
+		return "", false, fs.ErrNotExist
+	}
+	truncated := info.Size() > max
+	if truncated {
+		if _, err := f.Seek(info.Size()-max, io.SeekStart); err != nil {
+			return "", false, err
+		}
+	}
+	data, err := io.ReadAll(io.LimitReader(f, max))
+	if err != nil {
+		return "", false, err
+	}
+	if truncated {
+		if i := bytes.IndexByte(data, '\n'); i >= 0 && i+1 < len(data) {
+			data = data[i+1:]
+		}
+	}
+	return strings.ToValidUTF8(string(data), "\uFFFD"), truncated, nil
 }
 
 func (s *Service) handleBackupsList(_ context.Context, c *daemon.Conn, params json.RawMessage) (any, error) {

@@ -385,7 +385,7 @@ func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 	if m.area != areaSettings {
 		t.Errorf("movement back wraps to %v", m.area)
 	}
-	send(m, "2")
+	send(m, "3")
 	if view := plain(m); !strings.Contains(view, "Nothing to show yet.") {
 		t.Errorf("a placeholder area shows no hint:\n%s", view)
 	}

@@ -7,6 +7,10 @@ import "time"
 // status and history tell the outcome.
 const DeployWait = 20 * time.Second
 
+// MaxLogBytes bounds the text of an OpDeployLog answer. The limit keeps the answer below MaxResponseBytes
+// even where JSON escaping widens every byte.
+const MaxLogBytes = 128 << 10
+
 // MaxUpdateProjects bounds how many projects one OpDeployUpdate request names.
 const MaxUpdateProjects = 20
 
@@ -17,6 +21,7 @@ const MaxUpdateProjects = 20
 const (
 	OpDeployStatus  = "deploy.status"
 	OpDeployHistory = "deploy.history"
+	OpDeployLog     = "deploy.log"
 	OpDeployRunNow  = "deploy.run-now"
 	OpDeployPause   = "deploy.pause"
 	OpDeployResume  = "deploy.resume"
@@ -135,6 +140,22 @@ type DeployRunNowResult struct {
 	Skipped string     `json:"skipped,omitempty"`
 	Run     *DeployRun `json:"run,omitempty"`
 	Pending bool       `json:"pending,omitempty"`
+}
+
+// DeployLogParams are the parameters of OpDeployLog. Run is the id of a run as OpDeployHistory reports it;
+// empty names the latest run of the project.
+type DeployLogParams struct {
+	Project string `json:"project"`
+	Run     string `json:"run,omitempty"`
+}
+
+// DeployLogResult is the answer to OpDeployLog: the log of one run, redacted when it was written. A log longer
+// than MaxLogBytes keeps its end and says so in Truncated.
+type DeployLogResult struct {
+	Project   string `json:"project"`
+	Run       string `json:"run"`
+	Text      string `json:"text"`
+	Truncated bool   `json:"truncated,omitempty"`
 }
 
 // ProjectUpdate asks for versions of one project.

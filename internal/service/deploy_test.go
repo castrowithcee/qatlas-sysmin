@@ -545,3 +545,74 @@ func (c capture) Run(ctx context.Context, cmd execute.Command) (execute.Result, 
 	c.fn(cmd)
 	return c.Runner.Run(ctx, cmd)
 }
+
+func TestDeployLogReadsARunLog(t *testing.T) {
+	f := newDeployFixture(t, true)
+	admin, reader := f.approved(t)
+	if _, err := admin.DeployUpdate([]control.ProjectUpdate{appUpdate("demo-app", "1.1.0")}); err != nil {
+		t.Fatal(err)
+	}
+	h, err := reader.DeployHistory("demo-app")
+	if err != nil || len(h.Runs) != 1 {
+		t.Fatalf("history = %+v %v", h, err)
+	}
+	id := h.Runs[0].ID
+
+	// No session is needed; an empty run id names the latest run.
+	for _, run := range []string{"", id} {
+		got, err := reader.DeployLog("demo-app", run)
+		if err != nil || got.Run != id || got.Project != "demo-app" || got.Truncated {
+			t.Fatalf("log(%q) = %+v %v", run, got, err)
+		}
+		if !strings.Contains(got.Text, "1.0.0 -> 1.1.0") || strings.Contains(got.Text, demoSecret) {
+			t.Errorf("text = %q", got.Text)
+		}
+	}
+
+	// A run that is not one of the project's, a project without runs and a project that does not exist.
+	_, err = reader.DeployLog("demo-app", "20990101T000000.000000000Z")
+	wantCode(t, err, control.CodeNotFound)
+	_, err = reader.DeployLog("demo-two", "")
+	wantCode(t, err, control.CodeNotFound)
+	_, err = reader.DeployLog("demo-none", "")
+	wantCode(t, err, control.CodeNotFound)
+
+	// An id that is not of the form of a run id never reaches the file system.
+	for _, run := range []string{"../../vault", id + ".log", "x", strings.ToLower(id), id + "\n"} {
+		_, err = reader.DeployLog("demo-app", run)
+		wantCode(t, err, control.CodeBadRequest)
+	}
+	_, err = reader.DeployLog("Bad Name", "")
+	wantCode(t, err, control.CodeBadRequest)
+}
+
+func TestDeployLogKeepsTheEndOfALongLog(t *testing.T) {
+	f := newDeployFixture(t, true)
+	_, reader := f.approved(t)
+	dir := filepath.Join(f.cfg.StateDir, "deploy", "demo-app", "runs")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	const id = "20260301T120000.000000000Z"
+	line := strings.Repeat("x", 99) + "\n"
+	text := strings.Repeat(line, control.MaxLogBytes/len(line)*2) + "last line\n"
+	if err := os.WriteFile(filepath.Join(dir, id+".log"), []byte(text), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	got, err := reader.DeployLog("demo-app", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Truncated || len(got.Text) > control.MaxLogBytes || !strings.HasSuffix(got.Text, "last line\n") ||
+		!strings.HasPrefix(got.Text, "xxx") || len(got.Text) < control.MaxLogBytes/2 {
+		t.Errorf("truncated=%v len=%d tail=%q", got.Truncated, len(got.Text), got.Text[max(len(got.Text)-12, 0):])
+	}
+
+	// A link in place of the log file is not followed.
+	const linked = "20260301T120001.000000000Z"
+	if err := os.Symlink(filepath.Join(dir, id+".log"), filepath.Join(dir, linked+".log")); err != nil {
+		t.Fatal(err)
+	}
+	_, err = reader.DeployLog("demo-app", linked)
+	wantCode(t, err, control.CodeNotFound)
+}

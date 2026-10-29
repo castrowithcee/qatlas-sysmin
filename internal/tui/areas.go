@@ -47,6 +47,7 @@ func areaByName(name string) (area, bool) {
 func (m *Model) enableAreas(backend Backend) {
 	m.backend = backend
 	m.home, m.screen, m.area = screenArea, screenArea, areaOverview
+	m.prj = newProjectsState()
 }
 
 // setArea shows an area, on its first page. Unsaved input of Settings is asked about first.
@@ -71,6 +72,9 @@ func (m *Model) enterPage() tea.Cmd {
 	switch {
 	case m.area == areaOverview:
 		return m.overviewCmd()
+	case m.area == areaProjects:
+		m.prj.log, m.prj.focusDetail = nil, false
+		return m.projectsCmd()
 	case m.area == areaSettings:
 		m.loadForms()
 		switch m.set.sub {
@@ -86,6 +90,9 @@ func (m *Model) enterPage() tea.Cmd {
 // updateArea handles one key of the area screen.
 func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	if m.typing() {
+		if m.area == areaProjects {
+			return m.projectsEditKey(key)
+		}
 		return m.editKey(key)
 	}
 	switch {
@@ -103,6 +110,11 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.area == areaSettings {
 		if cmd, ok := m.settingsKey(key); ok {
+			return cmd
+		}
+	}
+	if m.area == areaProjects {
+		if cmd, ok := m.projectsKey(key); ok {
 			return cmd
 		}
 	}
@@ -166,6 +178,9 @@ func (m *Model) tabLine() (string, []navSpan) {
 // areaKeys is the key line of the area screen.
 func (m *Model) areaKeys() string {
 	if m.typing() {
+		if m.area == areaProjects {
+			return "type to filter · up/down move · enter keep filter · {back} clear filter"
+		}
 		return "enter next · {back} stop · {save} save"
 	}
 	keys := []string{"1-6 area"}
@@ -178,6 +193,8 @@ func (m *Model) areaKeys() string {
 	case areaSettings:
 		keys = append(keys, "left/right page")
 		keys = append(keys, m.settingsKeys()...)
+	case areaProjects:
+		keys = append(keys, m.projectsKeys()...)
 	default:
 		keys = append(keys, "left/right move")
 	}
@@ -203,6 +220,8 @@ func (m *Model) areaBody() string {
 		return m.overviewBody()
 	case areaSettings:
 		return m.settingsBody()
+	case areaProjects:
+		return m.projectsBody()
 	}
 	return m.wrapped(styles.hint, tr(tListEmpty))
 }

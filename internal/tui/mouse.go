@@ -296,7 +296,7 @@ func (m *Model) backShown() bool {
 		return false
 	}
 	if m.home == screenArea {
-		return m.screen != screenArea
+		return m.screen != screenArea || m.projectsBackShown()
 	}
 	return m.screen != screenList || m.list.editing || m.list.query() != ""
 }

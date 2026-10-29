@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"sort"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -195,6 +196,9 @@ type column struct {
 	flex     bool
 	// right aligns the cells and the title at the right edge of the column.
 	right bool
+	// drop ranks the order a narrow table gives the column up: the higher rank goes first, among equal ranks
+	// the one further right.
+	drop  int
 	short map[string]string
 	// shown draws a value of the column in the language of the editor; nil draws it as it is.
 	shown func(string) string
@@ -269,7 +273,10 @@ func (t table) layout(width int) layout {
 			l.widths[i] = natural(i)
 		}
 	}
-	for i := n - 1; i > 0 && tableWidth(l.widths) > width; i-- {
+	for _, i := range t.dropOrder() {
+		if tableWidth(l.widths) <= width {
+			break
+		}
 		if t.columns[i].optional && i != flex {
 			l.widths[i] = 0
 		}
@@ -294,6 +301,16 @@ func (t table) layout(width int) layout {
 		l.widths[flex] = min(flexWidth, l.widths[flex]+max(width-tableWidth(l.widths), 0))
 	}
 	return l
+}
+
+// dropOrder is the order the optional columns after the first are given up in.
+func (t table) dropOrder() []int {
+	order := make([]int, 0, len(t.columns))
+	for i := len(t.columns) - 1; i > 0; i-- {
+		order = append(order, i)
+	}
+	sort.SliceStable(order, func(a, b int) bool { return t.columns[order[a]].drop > t.columns[order[b]].drop })
+	return order
 }
 
 // tableWidth is how wide a line of columns of the given widths is, the gaps between them included.

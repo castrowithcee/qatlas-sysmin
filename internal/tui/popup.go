@@ -245,6 +245,7 @@ func commands() []commandEntry {
 			}
 		}
 	}
+	list = append(list, projectCommands()...)
 	return append(list,
 		commandEntry{"lock", func(m *Model) tea.Cmd { return m.lockKey() }},
 		commandEntry{"setup", func(m *Model) tea.Cmd {

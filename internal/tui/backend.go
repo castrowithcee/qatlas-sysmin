@@ -29,6 +29,19 @@ type Backend interface {
 	Settings() (control.SettingsResult, error)
 	Approvals() ([]control.ApprovalSummary, error)
 	Projects() ([]control.ProjectSummary, error)
+	// Project, DeployStatus, DeployLog and SourceTest read one project; SourceTest asks the registries and may
+	// take minutes.
+	Project(name string) (control.ProjectDetail, error)
+	DeployStatus(project string) (control.DeployStatusResult, error)
+	DeployLog(project, run string) (control.DeployLogResult, error)
+	SourceTest(project string) (control.SourceTestResult, error)
+	// DeployRunNow deploys what the version rules of the project allow; DeployControl pauses, resumes, pins or
+	// unpins it, op being one of the control.OpDeploy names. Neither needs the admin session.
+	DeployRunNow(project string) (control.DeployRunNowResult, error)
+	DeployControl(op, project string) error
+	// RemoveProject deletes the project file the revision names; it needs the admin session to take effect at
+	// once.
+	RemoveProject(name, revision string) (control.ChangeResult, error)
 }
 
 // NewBackend is the Backend over the control socket at path. It dials on the first call and again after the
@@ -124,4 +137,38 @@ func (b *ClientBackend) Approvals() (list []control.ApprovalSummary, err error) 
 func (b *ClientBackend) Projects() (list []control.ProjectSummary, err error) {
 	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Projects(); return e })
 	return list, err
+}
+
+func (b *ClientBackend) Project(name string) (res control.ProjectDetail, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.Project(name); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployStatus(project string) (res control.DeployStatusResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.DeployStatus(project); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployLog(project, run string) (res control.DeployLogResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.DeployLog(project, run); return e })
+	return res, err
+}
+
+func (b *ClientBackend) SourceTest(project string) (res control.SourceTestResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.SourceTest(project); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployRunNow(project string) (res control.DeployRunNowResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DeployRunNow(project); return e })
+	return res, err
+}
+
+func (b *ClientBackend) DeployControl(op, project string) error {
+	return b.do(false, func(c *client.Client) error { return c.DeployControl(op, project) })
+}
+
+func (b *ClientBackend) RemoveProject(name, revision string) (res control.ChangeResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.RemoveProject(name, revision); return e })
+	return res, err
 }

@@ -31,6 +31,8 @@ type fakeBackend struct {
 	unlockMode string
 	approvals  []control.ApprovalSummary
 	projects   []control.ProjectSummary
+	// proj is the state of the project reads and controls; see projectsfake_test.go.
+	proj fakeProjects
 	// invalidTimeout makes SetAdminTimeout refuse its input with a problem of the field.
 	invalidTimeout bool
 }

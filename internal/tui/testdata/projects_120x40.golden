@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Overview  [Projects]  Activity   Access   Library   Settings 
+
+Projects (3)                                                        3/3 sample-job
+                                                                        
+╔══════════════════════════════════════════════════════════════════════╗╭──────────────────────────────────────────────╮
+║   Name          Source  Current  Available  Mode  State              ║│ ● approved                                   │
+║   ✓ demo-app    images  1.0.0    2.0.0      auto  ● approved         ║│ [Overview]  Details   Raw                    │
+║     demo-db     images  1.0.0    2.0.0      auto  ⚠ pending          ║│                                              │
+║ >   sample-job  images  1.0.0    2.0.0      auto  ● approved         ║│ Source      images                           │
+║                                                                      ║│ Mode        auto                             │
+║                                                                      ║│ Last check  2026-10-29 12:00                 │
+║                                                                      ║│ Last run    2026-10-29 12:00 succeeded       │
+║                                                                      ║│             (auto)                           │
+║                                                                      ║│ app         1.0.0 → 2.0.0 (2 newer)          │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+║                                                                      ║│                                              │
+╚══════════════════════════════════════════════════════════════════════╝╰──────────────────────────────────────────────╯
+1-6 area  t test  o log  space mark  enter detail  run/pause/pin via :  d delete  ctrl+l admin  ? help  : cmds  q quit

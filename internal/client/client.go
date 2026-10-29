@@ -297,6 +297,13 @@ func (c *Client) DeployHistory(project string) (control.DeployHistoryResult, err
 	return out, err
 }
 
+// DeployLog reads the log of a run of a project; an empty run id names the latest run.
+func (c *Client) DeployLog(project, run string) (control.DeployLogResult, error) {
+	var out control.DeployLogResult
+	err := c.Call(control.OpDeployLog, control.DeployLogParams{Project: project, Run: run}, &out)
+	return out, err
+}
+
 // DeployRunNow checks the sources of a project at once and deploys what its version rules allow without a
 // human. The service waits for the run up to control.DeployWait; a longer run goes on and the result says
 // it is pending.
