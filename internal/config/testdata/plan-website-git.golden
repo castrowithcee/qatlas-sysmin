@@ -2,7 +2,7 @@ project example-site
 1. backup timeout=30m0s free=true
    dir: /srv/example/site
    env_file: /srv/example/site/.env
-   backup: command="tar -C /srv/example/site -czf /srv/example/backups/site.tar.gz public" volume="" keep=5 restore=""
+   backup: command="tar -C /srv/example/site -czf \"$SYSMIN_BACKUP_DIR/site.tar.gz\" public" volume="" keep=5 restore=""
 2. git-checkout timeout=2m0s free=false
    dir: /srv/example/site
    env_file: /srv/example/site/.env

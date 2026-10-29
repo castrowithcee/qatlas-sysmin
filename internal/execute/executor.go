@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -31,8 +32,20 @@ type Executor struct {
 	GitEnv []string
 	// MaxOutput caps the output kept per step; zero means DefaultMaxOutput.
 	MaxOutput int
-	// Now supplies the log time stamps; nil means time.Now.
+	// Now supplies the log time stamps and the backup directory names; nil means time.Now.
 	Now func() time.Time
+	// BackupRoot holds one directory per project with one directory per backup; empty means
+	// DefaultBackupRoot.
+	BackupRoot string
+	// BackupImage is the helper image of volume backups; empty means DefaultBackupImage. It must be pinned by
+	// digest.
+	BackupImage string
+	// PollInterval is the pause between two checks of check-container and check-http; zero means
+	// DefaultPollInterval.
+	PollInterval time.Duration
+	// HTTPClient performs the requests of check-http; nil means a client with default settings. Redirects are
+	// never followed.
+	HTTPClient *http.Client
 }
 
 // EnvChange is the value a set-env step replaced. WasSet tells an unset variable from an empty one.
@@ -54,6 +67,8 @@ type StepResult struct {
 	Error string
 	// Previous lists the values a set-env step replaced, for a later rollback.
 	Previous []EnvChange
+	// BackupDir is the directory a backup step wrote its backup to.
+	BackupDir string
 }
 
 // Report is the outcome of a run: one entry per planned step.
@@ -87,32 +102,30 @@ func (e redactedError) Unwrap() error { return e.err }
 // block is one building block.
 type block struct {
 	run      func(ctx context.Context, s *stepRun, st config.ResolvedStep) error
-	describe func(st config.ResolvedStep) ([]string, error)
+	describe func(d describeCtx, st config.ResolvedStep) ([]string, error)
 }
 
-var errNotImplemented = errors.New("not implemented")
+// describeCtx is what a dry run knows besides the step.
+type describeCtx struct {
+	project    string
+	backupRoot string
+}
 
-func unimplemented(t config.StepType) block {
-	return block{
-		run: func(context.Context, *stepRun, config.ResolvedStep) error {
-			return fmt.Errorf("step type %s is %w", t, errNotImplemented)
-		},
-		describe: func(config.ResolvedStep) ([]string, error) {
-			return []string{string(t) + " (not implemented)"}, nil
-		},
-	}
+// plain adapts a description that needs nothing but the step.
+func plain(f func(config.ResolvedStep) ([]string, error)) func(describeCtx, config.ResolvedStep) ([]string, error) {
+	return func(_ describeCtx, st config.ResolvedStep) ([]string, error) { return f(st) }
 }
 
 // blocks maps every step type to its implementation.
 var blocks = map[config.StepType]block{
-	config.StepSetEnv:         {run: runSetEnv, describe: describeSetEnv},
-	config.StepComposePull:    {run: runCompose("pull"), describe: describeCompose("pull")},
-	config.StepComposeUp:      {run: runCompose("up", "-d"), describe: describeCompose("up", "-d")},
-	config.StepGitCheckout:    {run: runGitCheckout, describe: describeGitCheckout},
-	config.StepCommand:        {run: runCommand, describe: describeCommand},
-	config.StepBackup:         unimplemented(config.StepBackup),
-	config.StepCheckContainer: unimplemented(config.StepCheckContainer),
-	config.StepCheckHTTP:      unimplemented(config.StepCheckHTTP),
+	config.StepSetEnv:         {run: runSetEnv, describe: plain(describeSetEnv)},
+	config.StepComposePull:    {run: runCompose("pull"), describe: plain(describeCompose("pull"))},
+	config.StepComposeUp:      {run: runCompose("up", "-d"), describe: plain(describeCompose("up", "-d"))},
+	config.StepGitCheckout:    {run: runGitCheckout, describe: plain(describeGitCheckout)},
+	config.StepCommand:        {run: runCommand, describe: plain(describeCommand)},
+	config.StepBackup:         {run: runBackup, describe: describeBackup},
+	config.StepCheckContainer: {run: runCheckContainer, describe: describeCheckContainer},
+	config.StepCheckHTTP:      {run: runCheckHTTP, describe: describeCheckHTTP},
 }
 
 // Execute runs the steps in order and stops at the first failure. The report lists every step, those after
@@ -136,8 +149,21 @@ func (e *Executor) Execute(ctx context.Context, plan config.Plan) (Report, error
 }
 
 func (e *Executor) runStep(ctx context.Context, plan config.Plan, i int, st config.ResolvedStep) (StepResult, error) {
-	res := StepResult{Index: i, Type: st.Type, Status: StatusFailed}
-	s := &stepRun{e: e, label: fmt.Sprintf("project=%s step=%d/%d type=%s", plan.Project, i+1, len(plan.Steps), st.Type)}
+	label := fmt.Sprintf("project=%s step=%d/%d type=%s", plan.Project, i+1, len(plan.Steps), st.Type)
+	var fn func(context.Context, *stepRun, config.ResolvedStep) error
+	if b, known := blocks[st.Type]; known {
+		fn = b.run
+	}
+	res, err := e.runBlock(ctx, plan.Project, label, st, fn)
+	res.Index = i
+	return res, err
+}
+
+// runBlock runs fn under the time limit of the step and collects its log and output. A nil fn is an unknown
+// step type.
+func (e *Executor) runBlock(ctx context.Context, project, label string, st config.ResolvedStep, fn func(context.Context, *stepRun, config.ResolvedStep) error) (StepResult, error) {
+	res := StepResult{Type: st.Type, Status: StatusFailed}
+	s := &stepRun{e: e, project: project, label: label}
 	s.out.limit = e.MaxOutput
 	if s.out.limit <= 0 {
 		s.out.limit = DefaultMaxOutput
@@ -145,16 +171,15 @@ func (e *Executor) runStep(ctx context.Context, plan config.Plan, i int, st conf
 	start := time.Now()
 
 	var err error
-	b, known := blocks[st.Type]
 	switch {
-	case !known:
+	case fn == nil:
 		err = fmt.Errorf("unknown step type %q", st.Type)
 	case st.Timeout <= 0:
 		err = errors.New("step has no time limit")
 	default:
 		s.logf("start timeout=%s", st.Timeout)
 		sctx, cancel := context.WithTimeout(ctx, st.Timeout)
-		err = b.run(sctx, s, st)
+		err = fn(sctx, s, st)
 		if err != nil && sctx.Err() != nil {
 			if errors.Is(sctx.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
 				err = fmt.Errorf("timed out after %s: %w", st.Timeout, err)
@@ -167,6 +192,7 @@ func (e *Executor) runStep(ctx context.Context, plan config.Plan, i int, st conf
 
 	res.Duration = time.Since(start)
 	res.Previous = s.prev
+	res.BackupDir = s.backupDir
 	if s.out.omitted > 0 {
 		s.logf("%s", s.out.marker())
 	}
@@ -201,10 +227,12 @@ func (e *Executor) now() time.Time {
 
 // stepRun is the view of the executor one step gets: it runs commands and logs them.
 type stepRun struct {
-	e     *Executor
-	label string
-	out   capBuf
-	prev  []EnvChange
+	e         *Executor
+	project   string
+	label     string
+	out       capBuf
+	prev      []EnvChange
+	backupDir string
 }
 
 // logf writes one log line: time stamp, project, step, message.

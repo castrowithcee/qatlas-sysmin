@@ -21,12 +21,15 @@ type PlannedStep struct {
 }
 
 // DryRun lists what each step of the plan would do. It starts no program and reads or writes no file.
-func DryRun(plan config.Plan) []PlannedStep {
+func DryRun(plan config.Plan) []PlannedStep { return dryRun(plan, DefaultBackupRoot) }
+
+func dryRun(plan config.Plan, backupRoot string) []PlannedStep {
+	d := describeCtx{project: plan.Project, backupRoot: backupRoot}
 	out := make([]PlannedStep, len(plan.Steps))
 	for i, st := range plan.Steps {
 		p := PlannedStep{Index: i, Type: st.Type, Timeout: st.Timeout}
 		if b, ok := blocks[st.Type]; ok {
-			p.Actions, p.Err = b.describe(st)
+			p.Actions, p.Err = b.describe(d, st)
 		} else {
 			p.Err = fmt.Errorf("unknown step type %q", st.Type)
 		}
@@ -39,7 +42,7 @@ func DryRun(plan config.Plan) []PlannedStep {
 func (e *Executor) WriteDryRun(w io.Writer, plan config.Plan) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "project %s: %d steps (dry run, nothing is executed)\n", plan.Project, len(plan.Steps))
-	for _, p := range DryRun(plan) {
+	for _, p := range dryRun(plan, e.backupRoot()) {
 		fmt.Fprintf(&b, "step %d/%d %s (timeout %s)\n", p.Index+1, len(plan.Steps), p.Type, p.Timeout)
 		for _, a := range p.Actions {
 			fmt.Fprintf(&b, "  %s\n", a)

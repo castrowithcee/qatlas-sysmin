@@ -11,9 +11,9 @@ compose_files:
 compose_project: shop-stack
 poll_interval: 15m
 backup:
-  command: mkdir -p /srv/example/backups && docker compose -f /srv/example/shop-stack/compose.yaml exec -T db pg_dump -U example shop > /srv/example/backups/shop.sql
+  command: docker compose -f /srv/example/shop-stack/compose.yaml exec -T db pg_dump -U example shop > "$SYSMIN_BACKUP_DIR/shop.sql"
   keep: 3
-  restore_command: docker compose -f /srv/example/shop-stack/compose.yaml exec -T db psql -U example shop < /srv/example/backups/shop.sql
+  restore_command: docker compose -f /srv/example/shop-stack/compose.yaml exec -T db psql -U example shop < "$SYSMIN_BACKUP_DIR/shop.sql"
   timeout: 20m
 checks:
   - type: check-container

@@ -6,7 +6,7 @@ values:
   site_url: https://www.example.com/
   build_script: scripts/build.sh
 backup:
-  command: tar -C /srv/example/site -czf /srv/example/backups/site.tar.gz public
+  command: tar -C /srv/example/site -czf "$SYSMIN_BACKUP_DIR/site.tar.gz" public
   keep: 5
 checks:
   - type: check-http

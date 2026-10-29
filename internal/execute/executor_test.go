@@ -129,7 +129,7 @@ func TestDryRunExecutesNothing(t *testing.T) {
 		compose(config.StepComposePull, []string{"/a", "/b"}, "name", "app", "db"),
 		{Type: config.StepGitCheckout, Timeout: time.Second, Dir: "/srv/example/site", Tag: "v1.0.0"},
 		{Type: config.StepCommand, Timeout: time.Second, Dir: "/srv/example/shop", Shell: "echo 'x y'"},
-		{Type: config.StepBackup, Timeout: time.Second, Dir: "/srv/example/shop"},
+		{Type: config.StepBackup, Timeout: time.Second, Dir: "/srv/example/shop", Backup: &config.BackupParams{Command: "tar -czf \"$SYSMIN_BACKUP_DIR/a.tgz\" x", Keep: 3}},
 	}}
 	fr := &fakeRunner{}
 	var out bytes.Buffer
@@ -148,19 +148,11 @@ func TestDryRunExecutesNothing(t *testing.T) {
 		"docker compose -f /a -f /b -p name pull app db (in /srv/example/shop)",
 		"git checkout --detach refs/tags/v1.0.0 -- (in /srv/example/site)",
 		`/bin/sh -c 'echo '\''x y'\''' (in /srv/example/shop)`,
-		"backup (not implemented)",
+		"backup command in /var/lib/sysmin/backups/shop/<timestamp>/: /bin/sh -c ",
+		"keep last 3 backups of shop",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("dry run lacks %q:\n%s", want, out.String())
-		}
-	}
-}
-
-func TestUnimplementedBlocksFail(t *testing.T) {
-	for _, typ := range []config.StepType{config.StepBackup, config.StepCheckContainer, config.StepCheckHTTP} {
-		_, err := (&Executor{Runner: &fakeRunner{}}).Execute(context.Background(), config.Plan{Steps: []config.ResolvedStep{{Type: typ, Timeout: time.Second}}})
-		if !errors.Is(err, errNotImplemented) {
-			t.Errorf("%s: %v", typ, err)
 		}
 	}
 }
