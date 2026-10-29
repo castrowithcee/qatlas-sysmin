@@ -50,6 +50,7 @@ func (c *Client) Call(op string, params, result any) error {
 			return fmt.Errorf("cannot encode the parameters: %w", err)
 		}
 		req.Params = data
+		defer clear(data) // the parameters may carry a passphrase
 	}
 	_ = c.conn.SetDeadline(time.Now().Add(CallTimeout))
 	if err := control.WriteLine(c.conn, req); err != nil {
@@ -74,9 +75,29 @@ func (c *Client) Call(op string, params, result any) error {
 	return nil
 }
 
-// Status asks for the service's protocol and program version.
+// Status asks for the service's versions, vault state and socket.
 func (c *Client) Status() (control.StatusResult, error) {
 	var out control.StatusResult
 	err := c.Call(control.OpStatus, nil, &out)
 	return out, err
 }
+
+// VaultStatus asks for the vault's state and how it was unlocked.
+func (c *Client) VaultStatus() (control.VaultStatusResult, error) {
+	var out control.VaultStatusResult
+	err := c.Call(control.OpVaultStatus, nil, &out)
+	return out, err
+}
+
+// Unlock opens the service's vault with its passphrase. A wrong one is control.CodeWrongPassphrase.
+func (c *Client) Unlock(passphrase string) error {
+	return c.Call(control.OpUnlock, control.PassphraseParams{Passphrase: passphrase}, nil)
+}
+
+// OpenSession starts the admin session of this connection with the vault passphrase.
+func (c *Client) OpenSession(passphrase string) error {
+	return c.Call(control.OpSessionOpen, control.PassphraseParams{Passphrase: passphrase}, nil)
+}
+
+// EndSession ends the admin session of this connection.
+func (c *Client) EndSession() error { return c.Call(control.OpSessionEnd, nil, nil) }

@@ -31,8 +31,18 @@ const (
 	WriteTimeout = 10 * time.Second
 )
 
-// OpStatus asks for the service's protocol and program version.
-const OpStatus = "status"
+// The operations of the service.
+const (
+	// OpStatus asks for the service's versions, vault state and socket.
+	OpStatus = "status"
+	// OpVaultStatus asks for the vault's state and how it was unlocked.
+	OpVaultStatus = "vault.status"
+	// OpUnlock opens a locked vault with its passphrase.
+	OpUnlock = "unlock"
+	// OpSessionOpen and OpSessionEnd start and end the admin session of the connection.
+	OpSessionOpen = "session.open"
+	OpSessionEnd  = "session.end"
+)
 
 // The codes an answer's error carries. They are fixed words, never text built from a request, so an answer
 // can neither carry a secret nor echo what a peer sent.
@@ -48,6 +58,12 @@ const (
 	// check for it is installed.
 	CodeUnavailable = "unavailable"
 	CodeInternal    = "internal"
+	// CodeLocked answers a changing request while the vault is locked or does not exist.
+	CodeLocked = "locked"
+	// CodeAdminRequired answers a changing request of a connection without an active admin session.
+	CodeAdminRequired   = "admin-required"
+	CodeWrongPassphrase = "wrong-passphrase"
+	CodeVaultAbsent     = "vault-absent"
 )
 
 // Request is one line a client sends. Params is the operation's own object, if it takes one.
@@ -65,10 +81,38 @@ type Response struct {
 	Error  string          `json:"error,omitempty"`
 }
 
-// StatusResult is the answer to OpStatus.
+// The vault states and unlock modes an answer reports.
+const (
+	VaultAbsent   = "absent"
+	VaultLocked   = "locked"
+	VaultUnlocked = "unlocked"
+
+	UnlockManual = "manual"
+	UnlockTPM2   = "tpm2"
+	UnlockHost   = "host"
+)
+
+// StatusResult is the answer to OpStatus. The fields after Version are empty for a server without a vault.
 type StatusResult struct {
 	Protocol int    `json:"protocol"`
 	Version  string `json:"version"`
+	Vault    string `json:"vault,omitempty"`
+	Unlock   string `json:"unlock,omitempty"`
+	Warning  string `json:"warning,omitempty"`
+	Socket   string `json:"socket,omitempty"`
+}
+
+// VaultStatusResult is the answer to OpVaultStatus. It never carries key material or entry values.
+type VaultStatusResult struct {
+	Vault   string `json:"vault"`
+	Unlock  string `json:"unlock"`
+	Warning string `json:"warning,omitempty"`
+}
+
+// PassphraseParams are the parameters of OpUnlock and OpSessionOpen. The passphrase travels only in the
+// request; no answer, log entry or error repeats it.
+type PassphraseParams struct {
+	Passphrase string `json:"passphrase"`
 }
 
 // Error is a failed operation, carrying one of the fixed codes.

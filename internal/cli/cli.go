@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/autounlock"
+	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
@@ -31,6 +32,8 @@ type Options struct {
 
 	// binder builds the vault binder; nil means the real one. Tests set it.
 	binder func(dir string) *autounlock.Binder
+	// resolver answers the service's peer check; nil means the system's groups. Tests set it.
+	resolver daemon.Resolver
 }
 
 // Run executes the root command against the given streams and returns the process exit code. It never
@@ -92,6 +95,7 @@ func newRootCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newVersionCommand(opts))
 	cmd.AddCommand(newLogCommand(opts))
 	cmd.AddCommand(newVaultCommand(opts))
+	cmd.AddCommand(newRunCommand(opts), newStatusCommand(opts))
 	// A command without a run function is a help topic: 'sysmin help <topic>' prints its text, and the
 	// root help lists it under the additional help topics.
 	for _, topic := range helptopics.All() {

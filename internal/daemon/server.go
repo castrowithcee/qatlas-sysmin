@@ -56,6 +56,9 @@ type Config struct {
 	OnLogError func(error)
 	// Version is the program version the status operation reports.
 	Version string
+	// Status, if set, completes the answer of the built-in status operation with what only the owner of the
+	// server knows.
+	Status func(*control.StatusResult)
 	// Resolver answers the peer check's group questions. Default: SystemResolver.
 	Resolver Resolver
 	// Credentials reads the peer of a connection. Default: SO_PEERCRED.
@@ -112,7 +115,11 @@ func New(cfg Config) (*Server, error) {
 	err := s.Register(control.OpStatus, Handler{
 		Action: auditlog.OperationControlStatus,
 		Func: func(context.Context, *Conn, json.RawMessage) (any, error) {
-			return control.StatusResult{Protocol: control.Version, Version: cfg.Version}, nil
+			st := control.StatusResult{Protocol: control.Version, Version: cfg.Version}
+			if cfg.Status != nil {
+				cfg.Status(&st)
+			}
+			return st, nil
 		},
 	})
 	return s, err
@@ -273,6 +280,7 @@ func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 		}
 
 		action, resp, code := s.dispatch(ctx, c, line)
+		clear(line) // a request may carry a passphrase
 		s.record(peer.UID, action, start, code)
 		if !s.write(conn, resp) {
 			return
