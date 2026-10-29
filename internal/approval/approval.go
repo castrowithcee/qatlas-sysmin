@@ -140,6 +140,9 @@ func (m *Manager) ApprovedModel(model *config.Model) (approved *config.Model, sk
 	}
 	sort.Strings(names)
 	for _, n := range names {
+		if n == ChannelsName {
+			continue
+		}
 		a, err := m.approved(n, approvals)
 		if err != nil {
 			skipped[n] = err
@@ -155,8 +158,8 @@ func (m *Manager) ApprovedModel(model *config.Model) (approved *config.Model, sk
 	return out, skipped, nil
 }
 
-// Open lists every open approval, sorted by project name: new, changed and deleted projects, and projects
-// whose credential is another vault entry than the approved one. A credential is open exactly when a project
+// Open lists every open approval, sorted by name: new, changed and deleted projects, the notification
+// channels as one item named ChannelsName, and projects or channels whose credential is another vault entry than the approved one. A credential is open exactly when a project
 // that was approved names it and its vault id differs from the approved id (or it was missing then and
 // exists now, or the reverse); a project that is new is approved together with its credentials.
 func (m *Manager) Open() ([]Item, error) {
@@ -201,7 +204,7 @@ func (m *Manager) open(model *config.Model) ([]Item, error) {
 				item.Unverified = true
 			}
 		}
-		if item.Changes, err = diff(old, &cur); err != nil {
+		if item.Changes, err = diffStates(old, &cur); err != nil {
 			return nil, err
 		}
 		if known && !item.Unverified && onlyCredentials(item.Changes) {
@@ -210,7 +213,7 @@ func (m *Manager) open(model *config.Model) ([]Item, error) {
 		items = append(items, item)
 	}
 	for name, want := range approvals {
-		if current[name] {
+		if current[name] || name == ChannelsName {
 			continue
 		}
 		item := Item{Kind: KindDeleted, Project: name}
@@ -220,10 +223,17 @@ func (m *Manager) open(model *config.Model) ([]Item, error) {
 		} else {
 			item.Unverified = true
 		}
-		if item.Changes, err = diff(old, nil); err != nil {
+		if item.Changes, err = diffStates(old, nil); err != nil {
 			return nil, err
 		}
 		items = append(items, item)
+	}
+	ch, err := m.openChannels(model, approvals, ids)
+	if err != nil {
+		return nil, err
+	}
+	if ch != nil {
+		items = append(items, *ch)
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Project < items[j].Project })
 	return items, nil
@@ -252,6 +262,19 @@ func (m *Manager) Approve(name, expect string) error {
 }
 
 func (m *Manager) approve(model *config.Model, approvals, ids map[string]string, name, expect string) error {
+	var err error
+	if name == ChannelsName {
+		err = m.approveChannels(model, approvals, ids, expect)
+	} else {
+		err = m.approveProject(model, approvals, ids, name, expect)
+	}
+	if err == nil {
+		m.purgeSuperseded()
+	}
+	return err
+}
+
+func (m *Manager) approveProject(model *config.Model, approvals, ids map[string]string, name, expect string) error {
 	p, exists := model.Project(name)
 	if !exists {
 		if _, known := approvals[name]; !known {
@@ -363,6 +386,9 @@ func (m *Manager) Discard(name string) error {
 }
 
 func (m *Manager) discard(name string) error {
+	if name == ChannelsName {
+		return m.discardChannels()
+	}
 	approvals, err := m.vault.Approvals()
 	if err != nil {
 		return err

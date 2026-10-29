@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -12,9 +11,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/approval"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
-	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
 )
 
@@ -289,62 +286,5 @@ func TestDiscardRefusesCredentialOnlyItem(t *testing.T) {
 	res, err := adm.DiscardAll()
 	if err != nil || len(res.Done) != 0 || len(res.Failed) != 0 {
 		t.Fatalf("discard-all = %+v, %v", res, err)
-	}
-}
-
-// A change made in an admin session is approved with the write; the same write without one is left open.
-func TestSaveProjectApproved(t *testing.T) {
-	e := approvalEnv(t)
-	adm := e.admin(t)
-	if _, err := adm.ApproveAll(); err != nil {
-		t.Fatal(err)
-	}
-	save := func(name string) {
-		model, revs, err := e.svc.store.Load()
-		if err != nil {
-			t.Fatal(err)
-		}
-		p, _ := model.Project("demo-app")
-		next := *p
-		next.Dir = name
-		if err := e.svc.saveProjectApproved(next, revs[config.ProjectPath("demo-app")]); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// The test operation stands for a later handler that changes a project.
-	if err := e.svc.Server().Register("test.save", daemon.Handler{
-		Action: auditlog.OperationConfigApply, Mutating: true,
-		Func: func(context.Context, *daemon.Conn, json.RawMessage) (any, error) {
-			save("/srv/demo/in-session")
-			return nil, nil
-		},
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	wantCode(t, e.dial(t).Call("test.save", nil, nil), control.CodeAdminRequired)
-	if strings.Contains(e.read(t, "projects/demo-app.yaml"), "/srv/demo/in-session") {
-		t.Fatal("saved without a session")
-	}
-	if err := adm.Call("test.save", nil, nil); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(e.read(t, "projects/demo-app.yaml"), "/srv/demo/in-session") {
-		t.Fatal("not saved with a session")
-	}
-	if items, _ := adm.Approvals(); len(items) != 0 {
-		t.Fatalf("a change with a session is open: %+v", items)
-	}
-
-	// The same write outside a session stays open.
-	model, revs, _ := e.svc.store.Load()
-	p, _ := model.Project("demo-app")
-	next := *p
-	next.Dir = "/srv/demo/by-hand"
-	if _, err := e.svc.store.SaveProject(next, revs[config.ProjectPath("demo-app")]); err != nil {
-		t.Fatal(err)
-	}
-	if got := openOf(t, adm, "demo-app"); got.Kind != "changed" {
-		t.Fatalf("summary = %+v", got)
 	}
 }

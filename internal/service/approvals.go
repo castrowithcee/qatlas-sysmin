@@ -49,10 +49,10 @@ func approvalCode(err error) string {
 
 func approvalError(err error) error { return &control.Error{Code: approvalCode(err)} }
 
-// projectParams decodes the parameters of a request about one project.
+// projectParams decodes the parameters of a request about one project or about the channels.
 func projectParams(params json.RawMessage) (control.ApprovalParams, error) {
 	var p control.ApprovalParams
-	if err := json.Unmarshal(params, &p); err != nil || !config.ValidName(p.Project) {
+	if err := json.Unmarshal(params, &p); err != nil || !(config.ValidName(p.Project) || p.Project == approval.ChannelsName) {
 		return p, &control.Error{Code: control.CodeBadRequest}
 	}
 	return p, nil
@@ -219,15 +219,4 @@ func codeOfErr(err error) string {
 		return ""
 	}
 	return err.(*control.Error).Code
-}
-
-// saveProjectApproved writes a project file for a change made in an admin session and approves exactly the
-// file it wrote, so the change is not an open approval. Only a mutating handler may call it, since the guard
-// has by then proved the session; a write outside one leaves the file for approval.
-func (s *Service) saveProjectApproved(p config.Project, base config.Revision) error {
-	rev, err := s.store.SaveProject(p, base)
-	if err != nil {
-		return err
-	}
-	return s.approvals.ApproveCurrent(p.Name, rev)
 }

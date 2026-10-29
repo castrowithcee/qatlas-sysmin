@@ -83,14 +83,10 @@ func flatten(prefix string, v any, out map[string]string) {
 	}
 }
 
-func leaves(s state) (map[string]string, error) {
-	doc, err := s.canonical()
-	if err != nil {
-		return nil, err
-	}
+func leaves(doc map[string]any) map[string]string {
 	out := map[string]string{}
 	flatten("", doc, out)
-	return out, nil
+	return out
 }
 
 func isFree(path string) bool {
@@ -98,24 +94,11 @@ func isFree(path string) bool {
 	return freeKeys[path[i+1:]] && !strings.HasPrefix(path, keyCredentials+".")
 }
 
-// diff lists the differences between two states, sorted by path. A nil old side lists everything as new.
-func diff(old *state, cur *state) ([]Change, error) {
-	oldLeaves := map[string]string{}
-	if old != nil {
-		l, err := leaves(*old)
-		if err != nil {
-			return nil, err
-		}
-		oldLeaves = l
-	}
-	newLeaves := map[string]string{}
-	if cur != nil {
-		l, err := leaves(*cur)
-		if err != nil {
-			return nil, err
-		}
-		newLeaves = l
-	}
+// diff lists the differences between two canonical documents, sorted by path. A nil side lists
+// everything of the other as new or removed.
+func diff(old, cur map[string]any) []Change {
+	oldLeaves := leaves(old)
+	newLeaves := leaves(cur)
 	paths := map[string]bool{}
 	for p := range oldLeaves {
 		paths[p] = true
@@ -133,7 +116,7 @@ func diff(old *state, cur *state) ([]Change, error) {
 		changes = append(changes, Change{Path: p, Old: o, New: n, Free: isFree(p)})
 	}
 	sort.Slice(changes, func(i, j int) bool { return changes[i].Path < changes[j].Path })
-	return changes, nil
+	return changes
 }
 
 // onlyCredentials reports whether every change is a credential id.
@@ -144,4 +127,21 @@ func onlyCredentials(changes []Change) bool {
 		}
 	}
 	return len(changes) > 0
+}
+
+// diffStates compares two project states; a nil side is absent.
+func diffStates(old, cur *state) ([]Change, error) {
+	var o, c map[string]any
+	var err error
+	if old != nil {
+		if o, err = old.canonical(); err != nil {
+			return nil, err
+		}
+	}
+	if cur != nil {
+		if c, err = cur.canonical(); err != nil {
+			return nil, err
+		}
+	}
+	return diff(o, c), nil
 }

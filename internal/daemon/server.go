@@ -334,7 +334,12 @@ func (s *Server) dispatch(ctx context.Context, c *Conn, line []byte) (string, co
 	}
 	result, err := s.call(ctx, h, c, req.Params)
 	if err != nil {
-		return fail(h.Action, codeOf(err))
+		code := codeOf(err)
+		var ce *control.Error
+		if errors.As(err, &ce) && len(ce.Problems) > 0 {
+			return h.Action, control.Response{V: control.Version, Error: code, Problems: ce.Problems}, code
+		}
+		return fail(h.Action, code)
 	}
 	resp := control.Response{V: control.Version, OK: true}
 	if result != nil {
