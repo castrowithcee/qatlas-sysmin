@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"slices"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/approval"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
@@ -131,7 +132,11 @@ func (s *Service) handleApprove(_ context.Context, c *daemon.Conn, params json.R
 	if err != nil {
 		return nil, err
 	}
-	return nil, audited(c, p.Project, s.approve(p))
+	err = s.approve(p)
+	if err == nil && p.Project == approval.ChannelsName {
+		s.refreshNotifier()
+	}
+	return nil, audited(c, p.Project, err)
 }
 
 func (s *Service) approve(p control.ApprovalParams) error {
@@ -210,6 +215,9 @@ func (s *Service) each(c *daemon.Conn, discard bool) (any, error) {
 			continue
 		}
 		out.Done = append(out.Done, it.Project)
+	}
+	if !discard && slices.Contains(out.Done, approval.ChannelsName) {
+		s.refreshNotifier()
 	}
 	return out, nil
 }

@@ -3,6 +3,7 @@ package service
 import (
 	"log/slog"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/approval"
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
@@ -77,6 +78,8 @@ func (s *Service) applyChange(c *daemon.Conn, ch configChange) (res control.Chan
 		// The file is stored either way; a failed approval leaves it open, which the state then says.
 		if err := ch.approve(rev); err != nil {
 			slog.Warn("a change made in an admin session could not be approved", "error", err.Error())
+		} else if ch.target == approval.ChannelsName {
+			s.refreshNotifier()
 		}
 	}
 	res.State = s.stateOf(ch.target)

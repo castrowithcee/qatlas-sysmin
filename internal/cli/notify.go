@@ -15,11 +15,11 @@ import (
 func newNotifyCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "notify",
-		Short: "Manage notification channels",
+		Short: "Manage and test notification channels",
 		Args:  noArgs,
 		RunE:  func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
-	cmd.AddCommand(newChannelCommand(opts))
+	cmd.AddCommand(newChannelCommand(opts), newNotifyTestCommand(opts))
 	return cmd
 }
 
@@ -179,4 +179,48 @@ func newChannelRemoveCommand(opts *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&socket, "socket", control.DefaultSocketPath, "control socket path")
 	return cmd
+}
+
+func newNotifyTestCommand(opts *Options) *cobra.Command {
+	var socket string
+	cmd := &cobra.Command{
+		Use:   "test CHANNEL",
+		Short: "Send a test message to an approved channel",
+		Long: "test makes the service send one test message (event notify.test) to the channel and reports whether\n" +
+			"the channel took it. Only approved channels can be tested; a channel that is stored but not yet\n" +
+			"approved is reported as missing. The delivery is tried once and recorded in the audit log. The\n" +
+			"vault must be unlocked.",
+		Example: "  sysmin notify test ops-hook",
+		Args:    oneNamed("test", "channel"),
+		RunE: func(c *cobra.Command, args []string) error {
+			var res control.NotifyTestResult
+			err := withService(socket, func(cl *client.Client) (err error) {
+				res, err = cl.TestChannel(args[0])
+				return err
+			})
+			if err != nil {
+				return testChannelError("notify test", err)
+			}
+			return emit(c, opts, output.Object{Fields: []output.Field{
+				{Name: "channel", Value: res.Channel},
+				{Name: "event", Value: res.Event},
+				{Name: "result", Value: "sent"},
+			}})
+		},
+	}
+	cmd.Flags().StringVar(&socket, "socket", control.DefaultSocketPath, "control socket path")
+	return cmd
+}
+
+func testChannelError(what string, err error) error {
+	var ce *control.Error
+	if errors.As(err, &ce) {
+		switch ce.Code {
+		case control.CodeNotFound:
+			return fmt.Errorf("%s: no approved channel has this name; check 'sysmin notify channel list'", what)
+		case control.CodeSendFailed:
+			return fmt.Errorf("%s: the channel did not take the message; see the audit log of the service", what)
+		}
+	}
+	return channelError(what, err)
 }

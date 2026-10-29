@@ -28,6 +28,17 @@ type ChannelSummary struct {
 	State string `json:"state"`
 }
 
+// NotifyTestParams are the parameters of OpNotifyTest.
+type NotifyTestParams struct {
+	Channel string `json:"channel"`
+}
+
+// NotifyTestResult is the answer to a test message that the channel took.
+type NotifyTestResult struct {
+	Channel string `json:"channel"`
+	Event   string `json:"event"`
+}
+
 // ChannelsListResult is the answer to OpChannelsList.
 type ChannelsListResult struct {
 	Channels []ChannelSummary `json:"channels"`

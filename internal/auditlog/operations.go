@@ -29,6 +29,9 @@ const (
 	OperationWebhookReceive = "webhook.receive"
 	OperationWebhookReject  = "webhook.reject"
 
+	// OperationNotifySend is one delivery to a notification channel; Project holds the channel name.
+	OperationNotifySend = "notify.send"
+
 	// The control socket: a request that names no known operation, is malformed, too large or too slow
 	// is logged as OperationControlRequest; a peer turned away as OperationControlRefuse.
 	OperationControlRequest = "control.request"
@@ -48,7 +51,7 @@ var knownOperations = map[string]bool{
 	OperationApprovalList: true, OperationApprovalShow: true,
 	OperationDeployPlan: true, OperationDeployRun: true, OperationDeployRollback: true,
 	OperationVaultUnlock: true, OperationVaultLock: true, OperationVaultRekey: true,
-	OperationWebhookReceive: true, OperationWebhookReject: true,
+	OperationWebhookReceive: true, OperationWebhookReject: true, OperationNotifySend: true,
 	OperationControlRequest: true, OperationControlRefuse: true, OperationControlStatus: true,
 	OperationVaultStatus: true, OperationSessionOpen: true, OperationSessionEnd: true,
 }
