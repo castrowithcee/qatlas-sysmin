@@ -29,6 +29,17 @@ type Backend interface {
 	Settings() (control.SettingsResult, error)
 	Approvals() ([]control.ApprovalSummary, error)
 	Projects() ([]control.ProjectSummary, error)
+	// Approval and Credentials only read; Credentials never carries a value.
+	Approval(project string) (control.ApprovalDetail, error)
+	Credentials() ([]control.CredentialSummary, error)
+	// The calls below change the service and need the admin session. Approve approves exactly the state the
+	// fingerprint names; SetCredential is the one call that carries secret values.
+	Approve(project, fingerprint string) error
+	ApproveAll() (control.ApprovalsAllResult, error)
+	Discard(project string) error
+	DiscardAll() (control.ApprovalsAllResult, error)
+	SetCredential(p control.CredentialSetParams) (control.CredentialResult, error)
+	RemoveCredential(name string) (control.CredentialResult, error)
 }
 
 // NewBackend is the Backend over the control socket at path. It dials on the first call and again after the
@@ -124,4 +135,42 @@ func (b *ClientBackend) Approvals() (list []control.ApprovalSummary, err error) 
 func (b *ClientBackend) Projects() (list []control.ProjectSummary, err error) {
 	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Projects(); return e })
 	return list, err
+}
+
+func (b *ClientBackend) Approval(project string) (d control.ApprovalDetail, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { d, e = c.Approval(project); return e })
+	return d, err
+}
+
+func (b *ClientBackend) Credentials() (list []control.CredentialSummary, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Credentials(); return e })
+	return list, err
+}
+
+func (b *ClientBackend) Approve(project, fingerprint string) error {
+	return b.do(false, func(c *client.Client) error { return c.Approve(project, fingerprint) })
+}
+
+func (b *ClientBackend) ApproveAll() (res control.ApprovalsAllResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.ApproveAll(); return e })
+	return res, err
+}
+
+func (b *ClientBackend) Discard(project string) error {
+	return b.do(false, func(c *client.Client) error { return c.Discard(project) })
+}
+
+func (b *ClientBackend) DiscardAll() (res control.ApprovalsAllResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DiscardAll(); return e })
+	return res, err
+}
+
+func (b *ClientBackend) SetCredential(p control.CredentialSetParams) (res control.CredentialResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.SetCredential(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) RemoveCredential(name string) (res control.CredentialResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.RemoveCredential(name); return e })
+	return res, err
 }

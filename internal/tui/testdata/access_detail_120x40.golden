@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Overview   Projects   Activity  [Access]  Library   Settings 
+
+Approvals (2)                                                     2/2 ╭─ sample-app ───────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │  Overview  [Details]  Raw                      │
+║   Project     Kind     Changes  Notes                             ║ │                                                │
+║   demo-app    new            3                                    ║ │ images[0].ref                                  │
+║ > sample-app  changed        2  ⚠ free command                    ║ │   - registry.example.test/web:1                │
+╚═══════════════════════════════════════════════════════════════════╝ │   + registry.example.test/web:2                │
+                                                                      │ ⚠ hooks.post_deploy  (free command)            │
+                                                                      │   - (none)                                     │
+                                                                      │   + echo hello-test                            │
+                                                                      ╰────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1-6 area  enter details  F2 approve  d discard  a approve all  / filter  ctrl+l admin  i info  ? help  : cmds  q quit

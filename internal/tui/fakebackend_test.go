@@ -33,6 +33,22 @@ type fakeBackend struct {
 	projects   []control.ProjectSummary
 	// invalidTimeout makes SetAdminTimeout refuse its input with a problem of the field.
 	invalidTimeout bool
+	// once makes the session cover one change only, like an admin timeout of 0.
+	once bool
+	// details are the differing fields of an approval by project; credentials the vault listing.
+	details     map[string][]control.ApprovalChange
+	credentials []control.CredentialSummary
+	// stale makes Approve refuse its fingerprint as changed; inUse makes RemoveCredential refuse as in use.
+	stale, inUse bool
+	// set holds what SetCredential received, by name; removed the names RemoveCredential took.
+	set     []control.CredentialSetParams
+	removed []string
+	// fingerprints are handed out by Approval and Approvals; approved the projects approved, discarded the
+	// ones discarded.
+	approved, discarded []string
+	failApproveAll      []control.ApprovalFailure
+	// pending is what SetCredential reports as open approvals.
+	pending []string
 }
 
 func newFake(vault string) *fakeBackend {
@@ -57,6 +73,9 @@ func (f *fakeBackend) Status() (control.StatusResult, error) {
 	}
 	if f.session {
 		st.Admin, st.AdminRemaining = true, f.remaining
+		if f.once {
+			st.AdminRemaining = 0
+		}
 	}
 	return st, nil
 }
@@ -257,3 +276,130 @@ func clockModel(m *Model, start time.Time) *time.Time {
 }
 
 var errDropped = errors.New("connection dropped")
+
+// spend checks the session for a changing call and uses it up where it covers one change only.
+func (f *fakeBackend) spend() error {
+	if !f.session {
+		return &control.Error{Code: control.CodeAdminRequired}
+	}
+	if f.once {
+		f.session = false
+	}
+	return nil
+}
+
+func (f *fakeBackend) Approval(project string) (control.ApprovalDetail, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("approval " + project)
+	for _, a := range f.approvals {
+		if a.Project == project {
+			return control.ApprovalDetail{ApprovalSummary: a, Details: slices.Clone(f.details[project])}, nil
+		}
+	}
+	return control.ApprovalDetail{}, &control.Error{Code: control.CodeNothingOpen}
+}
+
+func (f *fakeBackend) Credentials() ([]control.CredentialSummary, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("credentials")
+	if f.vault != control.VaultUnlocked {
+		return nil, &control.Error{Code: control.CodeLocked}
+	}
+	return slices.Clone(f.credentials), nil
+}
+
+func (f *fakeBackend) drop(project string) {
+	f.approvals = slices.DeleteFunc(f.approvals, func(a control.ApprovalSummary) bool { return a.Project == project })
+}
+
+func (f *fakeBackend) Approve(project, fingerprint string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("approve " + project + " " + fingerprint)
+	if err := f.spend(); err != nil {
+		return err
+	}
+	if f.stale {
+		return &control.Error{Code: control.CodeChanged}
+	}
+	f.approved = append(f.approved, project)
+	f.drop(project)
+	return nil
+}
+
+func (f *fakeBackend) ApproveAll() (control.ApprovalsAllResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("approve-all")
+	if err := f.spend(); err != nil {
+		return control.ApprovalsAllResult{}, err
+	}
+	var res control.ApprovalsAllResult
+	for _, a := range slices.Clone(f.approvals) {
+		failed := slices.IndexFunc(f.failApproveAll, func(x control.ApprovalFailure) bool { return x.Project == a.Project })
+		if failed >= 0 {
+			res.Failed = append(res.Failed, f.failApproveAll[failed])
+			continue
+		}
+		res.Done = append(res.Done, a.Project)
+		f.approved = append(f.approved, a.Project)
+		f.drop(a.Project)
+	}
+	return res, nil
+}
+
+func (f *fakeBackend) Discard(project string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("discard " + project)
+	if err := f.spend(); err != nil {
+		return err
+	}
+	f.discarded = append(f.discarded, project)
+	f.drop(project)
+	return nil
+}
+
+func (f *fakeBackend) DiscardAll() (control.ApprovalsAllResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("discard-all")
+	if err := f.spend(); err != nil {
+		return control.ApprovalsAllResult{}, err
+	}
+	var res control.ApprovalsAllResult
+	for _, a := range f.approvals {
+		res.Done = append(res.Done, a.Project)
+	}
+	f.approvals = nil
+	return res, nil
+}
+
+func (f *fakeBackend) SetCredential(p control.CredentialSetParams) (control.CredentialResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("credential-set " + p.Name)
+	if err := f.spend(); err != nil {
+		return control.CredentialResult{}, err
+	}
+	f.set = append(f.set, p)
+	return control.CredentialResult{Name: p.Name, Action: "created", State: control.StateApproved, Pending: f.pending}, nil
+}
+
+func (f *fakeBackend) RemoveCredential(name string) (control.CredentialResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("credential-remove " + name)
+	if f.inUse {
+		return control.CredentialResult{}, &control.Error{Code: control.CodeInUse, Problems: []control.Problem{
+			{Field: "project:demo-app", Code: control.CodeInUse, Message: "the project demo-app uses the credential in the current configuration"}}}
+	}
+	if err := f.spend(); err != nil {
+		return control.CredentialResult{}, err
+	}
+	f.removed = append(f.removed, name)
+	f.credentials = slices.DeleteFunc(f.credentials, func(c control.CredentialSummary) bool { return c.Name == name })
+	return control.CredentialResult{Name: name, Action: "removed", State: control.StateApproved}, nil
+}

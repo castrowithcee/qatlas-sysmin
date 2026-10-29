@@ -48,6 +48,29 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "?")
 			return m
 		}},
+		{"access_list", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, accessFake(), w, h)
+			send(m, "4")
+			return m
+		}},
+		{"access_detail", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, accessFake(), w, h)
+			send(m, "4", "down", "enter", "right")
+			if w >= wideDetailMin {
+				send(m, "esc")
+			}
+			return m
+		}},
+		{"credentials_list", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, accessFake(), w, h)
+			send(m, "5")
+			return m
+		}},
+		{"credential_form", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, accessFake(), w, h)
+			typeNewSecret(m)
+			return m
+		}},
 		{"passphrase_change", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "6", "right", "enter")
@@ -62,7 +85,7 @@ func TestGoldenAreas(t *testing.T) {
 			t.Run(fmt.Sprintf("%s_%dx%d", s.name, size[0], size[1]), func(t *testing.T) {
 				m := s.build(t, size[0], size[1])
 				got := m.render()
-				if strings.Contains(got, "old pass") || strings.Contains(got, "new pass") {
+				if strings.Contains(got, "old pass") || strings.Contains(got, "new pass") || strings.Contains(got, secretValue) {
 					t.Error("a typed passphrase is in the frame")
 				}
 				assertViewFits(t, plain(m), size[0], size[1])

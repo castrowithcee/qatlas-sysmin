@@ -44,6 +44,7 @@ var helpTopics = []struct {
 	{"admin-session", tHelpAdmin},
 	{"approvals", tHelpApprovals},
 	{"unlock", tHelpUnlock},
+	{"secrets", tHelpCredentials},
 }
 
 // openPopup shows a panel over the area screen.
@@ -123,6 +124,8 @@ func (m *Model) infoOf() (string, string) {
 		default:
 			return pick(subTitle(subUpdate), tInfoSetUpdate)
 		}
+	case areaLibrary:
+		return pick(libTitle(m.lib.sub), []textID{tInfoLibCredentials, tInfoLibChannels, tInfoLibTemplates}[m.lib.sub])
 	default:
 		ids := map[area]textID{areaProjects: tInfoAreaProjects, areaActivity: tInfoAreaActivity, areaAccess: tInfoAreaAccess,
 			areaLibrary: tInfoAreaLibrary}
@@ -243,6 +246,17 @@ func commands() []commandEntry {
 			for sub := 0; sub < subCount; sub++ {
 				list = append(list, commandEntry{"settings " + subKey(sub), func(m *Model) tea.Cmd { return m.show(areaSettings, sub) }})
 			}
+		}
+		if a == areaLibrary {
+			for sub := 0; sub < libCount; sub++ {
+				list = append(list, commandEntry{"library " + libKey(sub), func(m *Model) tea.Cmd { return m.show(areaLibrary, sub) }})
+			}
+		}
+		if a == areaAccess {
+			list = append(list, commandEntry{"access discard-all", func(m *Model) tea.Cmd {
+				m.acc.discardAfter = true
+				return m.show(areaAccess, 0)
+			}})
 		}
 	}
 	return append(list,

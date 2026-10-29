@@ -73,12 +73,13 @@ func (m *Model) takeStatus(msg statusMsg) tea.Cmd {
 	}
 	if m.vaultState() != control.VaultUnlocked {
 		m.ovr.clear()
+		m.clearLists()
 	}
 	if m.svc.again {
 		m.svc.again = false
-		return tea.Batch(m.statusCmd(), m.overviewCmd())
+		return tea.Batch(m.statusCmd(), m.overviewCmd(), m.listsCmd())
 	}
-	return m.overviewCmd()
+	return tea.Batch(m.overviewCmd(), m.listsCmd())
 }
 
 // takeTick schedules the next tick and asks the service when the last question is old enough.
@@ -152,6 +153,18 @@ func errorText(err error) string {
 		return tr(tErrTimeout)
 	case control.CodeRefused:
 		return tr(tErrRefused)
+	case control.CodeChanged:
+		return tr(tErrChanged)
+	case control.CodeInUse:
+		return tr(tErrInUse)
+	case control.CodeNothingOpen:
+		return tr(tErrNothingOpen)
+	case control.CodeCannotDiscard:
+		return tr(tErrCannotDiscard)
+	case control.CodeNotFound:
+		return tr(tErrNotFound)
+	case control.CodeKindMismatch:
+		return tr(tErrKindMismatch)
 	case control.CodeBadRequest, control.CodeInvalid:
 		return tr(tErrInvalid)
 	}
@@ -162,4 +175,24 @@ func errorText(err error) string {
 func isCode(err error, code string) bool {
 	var ce *control.Error
 	return errors.As(err, &ce) && ce.Code == code
+}
+
+// clearLists drops the lists of Access and Library, which the service reports only for an open vault.
+func (m *Model) clearLists() {
+	m.acc = accessState{page: dataPage{tab: m.acc.page.tab}}
+	m.lib.cred = credState{page: dataPage{tab: m.lib.cred.page.tab}}
+}
+
+// listsCmd reads the list of the page shown when it has none yet, such as after the vault was unlocked.
+func (m *Model) listsCmd() tea.Cmd {
+	if m.vaultState() != control.VaultUnlocked {
+		return nil
+	}
+	switch {
+	case m.area == areaAccess && !m.acc.have:
+		return m.accessCmd()
+	case m.area == areaLibrary && m.lib.sub == libCredentials && !m.lib.cred.have:
+		return m.credentialsCmd()
+	}
+	return nil
 }

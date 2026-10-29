@@ -15,6 +15,15 @@ import (
 // copySource is where the copy key takes its text from right now, or nil when there is nothing to copy: the
 // name of the marked row of the list. The text is built only when the key is pressed.
 func (m *Model) copySource() func() string {
+	if m.screen == screenArea && m.dd == nil && !m.typing() {
+		if p := m.currentPage(); p != nil {
+			// Only the name of the marked row: a credential's value is not in the interface to copy.
+			if name, ok := p.current(); ok {
+				return func() string { return name }
+			}
+		}
+		return nil
+	}
 	if m.screen != screenList || m.list.editing || m.dd != nil {
 		return nil
 	}
