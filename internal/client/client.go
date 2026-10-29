@@ -229,6 +229,13 @@ func (c *Client) AddChannel(p control.ChannelParams) (control.ChangeResult, erro
 	return out, err
 }
 
+// TestChannel sends a test message to the approved channel with the given name.
+func (c *Client) TestChannel(name string) (control.NotifyTestResult, error) {
+	var out control.NotifyTestResult
+	err := c.Call(control.OpNotifyTest, control.NotifyTestParams{Channel: name}, &out)
+	return out, err
+}
+
 // RemoveChannel removes a channel, on the terms of AddChannel.
 func (c *Client) RemoveChannel(name string) (control.ChangeResult, error) {
 	var out control.ChangeResult

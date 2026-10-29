@@ -78,6 +78,10 @@ const (
 	// OpSourceTest reads the versions of the sources of a project's approved state from the registries and
 	// repositories it names. It changes nothing and needs no admin session.
 	OpSourceTest = "source.test"
+
+	// OpNotifyTest sends a test message to one approved channel. It reads and changes nothing, so it needs
+	// no admin session.
+	OpNotifyTest = "notify.test"
 )
 
 // The codes an answer's error carries. They are fixed words, never text built from a request, so an answer
@@ -119,6 +123,9 @@ const (
 	CodeNotApproved = "not-approved"
 	// CodeKindMismatch answers a credential set whose kind differs from the stored credential of that name.
 	CodeKindMismatch = "kind-mismatch"
+	// CodeSendFailed answers a test message that the channel did not take. The reason is in the audit log
+	// of the service, not in the answer.
+	CodeSendFailed = "send-failed"
 )
 
 // Request is one line a client sends. Params is the operation's own object, if it takes one.

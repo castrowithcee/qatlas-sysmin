@@ -22,6 +22,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
+	"github.com/castrowithcee/qatlas-sysmin/internal/notify"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/gitrepo"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/registry"
 	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
@@ -79,6 +80,7 @@ type Service struct {
 	approvals *approval.Manager
 	mode      autounlock.Mode
 	log       *auditlog.Logger
+	notifier  *notify.Notifier
 	server    *daemon.Server
 
 	unlockMu sync.Mutex
@@ -130,6 +132,7 @@ func Open(cfg Config) (*Service, error) {
 
 	s.store = config.NewStore(cfg.ConfigDir)
 	s.approvals = approval.New(s.store, s.vault, cfg.StateDir)
+	s.notifier = notify.New(s.approvals, s.vault, notifyAudit{s})
 
 	srv, err := daemon.New(daemon.Config{
 		Logger:     s.log,
@@ -146,13 +149,16 @@ func Open(cfg Config) (*Service, error) {
 	}
 	s.server = srv
 	if err := s.register(); err != nil {
+		s.notifier.Close()
 		return nil, err
 	}
 	if state, _ := s.vault.State(); state == vault.StateUnlocked {
 		if err := s.startSigning(); err != nil {
 			s.vault.Forget()
+			s.notifier.Close()
 			return nil, err
 		}
+		s.refreshNotifier()
 	}
 	return s, nil
 }
@@ -180,11 +186,32 @@ func (s *Service) Serve(ctx context.Context) error {
 }
 
 func (s *Service) shutdown() {
+	s.notifier.Close()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.vault.Forget()
 	s.logKey.Clear()
 	s.logKey = nil
+}
+
+// notifyAudit writes the notifier's entries with the current signing key, which changes when the vault is
+// unlocked.
+type notifyAudit struct{ s *Service }
+
+func (a notifyAudit) Append(f auditlog.Fields) error {
+	a.s.mu.Lock()
+	l := a.s.log.WithKey(a.s.logKey)
+	a.s.mu.Unlock()
+	return l.Append(f)
+}
+
+// refreshNotifier lets the notifier read the approved state again. A failure only costs the fallback for
+// vault.locked, so it is logged and nothing else.
+func (s *Service) refreshNotifier() {
+	// Without any approved channels there is nothing to remember yet.
+	if err := s.notifier.Refresh(); err != nil && !errors.Is(err, approval.ErrNotApproved) {
+		slog.Warn("cannot refresh the notifier", "error", err.Error())
+	}
 }
 
 // startSigning has the audit log sign its entries with the key derived from the unlocked vault.
@@ -287,7 +314,10 @@ func (s *Service) register() error {
 	if err := s.registerChannels(); err != nil {
 		return err
 	}
-	return s.registerSources()
+	if err := s.registerSources(); err != nil {
+		return err
+	}
+	return s.registerNotify()
 }
 
 func (s *Service) handleVaultStatus(context.Context, *daemon.Conn, json.RawMessage) (any, error) {
@@ -335,6 +365,7 @@ func (s *Service) handleUnlock(_ context.Context, _ *daemon.Conn, params json.Ra
 		s.vault.Forget()
 		return nil, &control.Error{Code: control.CodeInternal}
 	}
+	s.refreshNotifier()
 	return nil, nil
 }
 
