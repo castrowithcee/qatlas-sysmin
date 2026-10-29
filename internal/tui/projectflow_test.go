@@ -14,7 +14,7 @@ import (
 func flowModel(t *testing.T, fb *fakeBackend, w, h int) *Model {
 	t.Helper()
 	m := projectsModel(t, fb, w, h)
-	send(m, "n")
+	send(m, "n", "enter")
 	if m.prj.flow == nil {
 		t.Fatal("n does not open the guided setup")
 	}
@@ -39,6 +39,29 @@ func flowFill(t *testing.T, m *Model, id, text string) {
 	t.Helper()
 	flowToRow(t, m, id)
 	typed(m, text)
+}
+
+// flowFakeLists gives the fake service the credentials and the channel the setups of the tests name.
+func flowFakeLists(fb *fakeBackend) {
+	fb.proj.creds = []control.CredentialSummary{{Name: "demo-registry", Kind: "registry"}, {Name: "demo-git", Kind: "git-https"},
+		{Name: "demo-github", Kind: "secret"}, {Name: "demo-hook", Kind: "secret"}}
+	fb.proj.channels = []control.ChannelSummary{{ChannelParams: control.ChannelParams{Name: "ops-mail", Type: "email"}}}
+}
+
+// flowPickFrom chooses the credential name from the list of the pick row id, searching the list for it.
+func flowPickFrom(t *testing.T, m *Model, id, name string) {
+	t.Helper()
+	flowToRow(t, m, id)
+	send(m, "enter")
+	if m.prj.dialog == nil || m.prj.dialog.picker == nil {
+		t.Fatalf("enter on %q opens no list: fail = %q", id, m.fail)
+	}
+	send(m, "/")
+	typed(m, name)
+	send(m, "enter", "enter")
+	if m.prj.dialog != nil {
+		t.Fatalf("the list stays open after the pick of %q", name)
+	}
 }
 
 // flowOpenAdvanced opens the advanced rows of step s.
@@ -82,6 +105,7 @@ func flowReadFile(t *testing.T, name string) string {
 // testdata/flow_image-tag.yaml` sends; the CLI test of the same file proves the other half.
 func TestFlowImageTagSendsTheFileOfTheCLI(t *testing.T) {
 	fb := projectsFake()
+	flowFakeLists(fb)
 	fb.session = true
 	m := flowModel(t, fb, 120, 40)
 	typed(m, "demo-app")
@@ -91,7 +115,7 @@ func TestFlowImageTagSendsTheFileOfTheCLI(t *testing.T) {
 	flowFill(t, m, "images[0].ref", "registry.example.com/demo/app")
 	flowFill(t, m, "images[0].env_var", "DEMO_APP_TAG")
 	flowFill(t, m, "images[0].services", "app, worker")
-	flowFill(t, m, "images[0].credential", "demo-registry")
+	flowPickFrom(t, m, "images[0].credential", "demo-registry")
 	send(m, "f2")
 	flowAtStep(t, m, flowTarget)
 	flowFill(t, m, "dir", "/srv/demo/app")
@@ -111,7 +135,7 @@ func TestFlowImageTagSendsTheFileOfTheCLI(t *testing.T) {
 	send(m, "right", "right")
 	flowFill(t, m, "images[0].version_rule.tag_filter", `^\d+\.\d+\.\d+$`)
 	flowFill(t, m, "images[0].version_rule.changelog_repo", "example/demo-app")
-	flowFill(t, m, "images[0].version_rule.changelog_credential", "demo-github")
+	flowPickFrom(t, m, "images[0].version_rule.changelog_credential", "demo-github")
 	send(m, "f2")
 	flowAtStep(t, m, flowChecks)
 	flowToRow(t, m, "backup.mode")
@@ -132,7 +156,8 @@ func TestFlowImageTagSendsTheFileOfTheCLI(t *testing.T) {
 	typed(m, "app")
 	send(m, "f2")
 	flowAtStep(t, m, flowNotify)
-	flowFill(t, m, "notify.channels", "ops-mail")
+	flowToRow(t, m, "notify.channels/ops-mail")
+	send(m, "space")
 	flowToRow(t, m, "notify.events/update-succeeded")
 	send(m, "space")
 	flowToRow(t, m, "notify.events/update-failed")
@@ -140,7 +165,7 @@ func TestFlowImageTagSendsTheFileOfTheCLI(t *testing.T) {
 	flowOpenAdvanced(t, m, flowNotify)
 	flowToRow(t, m, "webhook.kind")
 	send(m, "right")
-	flowFill(t, m, "webhook.secret", "demo-hook")
+	flowPickFrom(t, m, "webhook.secret", "demo-hook")
 	send(m, "f2")
 	flowAtStep(t, m, flowSummary)
 	if fb.count("add demo-app") != 0 {
@@ -165,6 +190,7 @@ func TestFlowImageTagSendsTheFileOfTheCLI(t *testing.T) {
 
 func TestFlowGitTagSendsTheFileOfTheCLI(t *testing.T) {
 	fb := projectsFake()
+	flowFakeLists(fb)
 	fb.session = true
 	m := flowModel(t, fb, 80, 24)
 	typed(m, "demo-site")
@@ -178,8 +204,7 @@ func TestFlowGitTagSendsTheFileOfTheCLI(t *testing.T) {
 		t.Fatalf("the git-tag scenario asks for %q first", m.prj.flow.focus)
 	}
 	typed(m, "https://git.example.com/demo/site.git")
-	send(m, "enter")
-	typed(m, "demo-git")
+	flowPickFrom(t, m, "git.credential", "demo-git")
 	send(m, "f2")
 	flowFill(t, m, "dir", "/srv/demo/site")
 	send(m, "f2")
@@ -211,7 +236,7 @@ func TestFlowEscAsksBeforeUnsavedInputIsLost(t *testing.T) {
 	}
 
 	// esc on the question keeps editing, with the input.
-	send(m, "n")
+	send(m, "n", "enter")
 	typed(m, "demo-app")
 	send(m, "esc")
 	if m.screen != screenConfirm || m.leave == nil {
@@ -235,7 +260,7 @@ func TestFlowEscAsksBeforeUnsavedInputIsLost(t *testing.T) {
 	}
 
 	// F2 saves; an incomplete project stays open with its problems.
-	send(m, "n")
+	send(m, "n", "enter")
 	typed(m, "demo-app")
 	send(m, "esc", "f2")
 	if m.prj.flow == nil || fb.count("add demo-app") != 0 || m.fail == "" {
@@ -455,6 +480,7 @@ func TestFlowPathCompletes(t *testing.T) {
 func TestFlowFromTheCommandLineAndInfo(t *testing.T) {
 	m := appModel(t, projectsFake(), 120, 40)
 	command(m, "new project")
+	send(m, "enter")
 	if !m.flowOpen() {
 		t.Fatalf("the command does not open the setup: area = %v", m.area)
 	}
@@ -496,7 +522,7 @@ func TestGoldenProjectsFlow(t *testing.T) {
 		t.Run(fmt.Sprintf("step_%dx%d", size[0], size[1]), func(t *testing.T) {
 			fb := projectsFake()
 			m := goldenApp(t, fb, size[0], size[1])
-			send(m, "2", "n")
+			send(m, "2", "n", "enter")
 			typed(m, "demo-app")
 			send(m, "f2")
 			typed(m, "app")
@@ -507,7 +533,7 @@ func TestGoldenProjectsFlow(t *testing.T) {
 		t.Run(fmt.Sprintf("summary_%dx%d", size[0], size[1]), func(t *testing.T) {
 			fb := projectsFake()
 			m := goldenApp(t, fb, size[0], size[1])
-			send(m, "2", "n")
+			send(m, "2", "n", "enter")
 			flowMinimal(t, m)
 			assertViewFits(t, plain(m), size[0], size[1])
 			assertGolden(t, fmt.Sprintf("projects_flow_summary_%dx%d", size[0], size[1]), m.render())
@@ -566,7 +592,7 @@ func TestFlowNewSetupAsksAboutTheOpenOne(t *testing.T) {
 	if m.screen != screenConfirm || m.prj.flow.draft.name != "demo-app" {
 		t.Fatalf("a new setup drops the open one: screen = %v", m.screen)
 	}
-	send(m, "d")
+	send(m, "d", "enter")
 	if m.prj.flow == nil || m.prj.flow.draft.name != "" {
 		t.Errorf("discard does not open a new setup: %+v", m.prj.flow)
 	}

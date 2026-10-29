@@ -10,7 +10,7 @@ New project › Source
 │   3 Target       │ ║ >  Reference:                                                                                   ║
 │   4 Version rule │ ║    Env variable: -                                                                              ║
 │   5 Checks       │ ║    Services:     -                                                                              ║
-│   6 Notify       │ ║    Credential:   -                                                                              ║
+│   6 Notify       │ ║    Credential:   none ▾                                                                         ║
 │   7 Summary      │ ║    + Add image                                                                                  ║
 ╰──────────────────╯ ║                                                                                                 ║
                      ║                                                                                                 ║

@@ -98,7 +98,7 @@ func (m *Model) flowBody(inner, rows, top, left int) []string {
 	shown := f.shownRows(f.step)
 	lw := 0
 	for _, r := range shown {
-		if r.kind != flowToggle && r.kind != flowAction && r.kind != flowFold {
+		if r.kind != flowToggle && r.kind != flowAction && r.kind != flowFold && r.kind != flowLine {
 			lw = max(lw, lipgloss.Width(r.label))
 		}
 	}
@@ -207,6 +207,8 @@ func (m *Model) flowRowLine(r flowRow, focused bool, lw, inner int) string {
 		return marker + style.Render(truncateCells(" "+box+" "+r.label+" ", room))
 	case flowAction:
 		return marker + style.Render(truncateCells(" + "+r.label+" ", room))
+	case flowLine:
+		return marker + styles.hint.Render(truncateCells(" "+r.label, room))
 	}
 	head := style.Render(" " + padLine(truncateCells(r.label, lw)+":", lw+1) + " ")
 	valueRoom := max(room-lipgloss.Width(head), 1)
@@ -214,7 +216,7 @@ func (m *Model) flowRowLine(r flowRow, focused bool, lw, inner int) string {
 		return marker + head + inputView(fitInput(f.in.Model, valueRoom))
 	}
 	value := oneLine(r.value())
-	if r.kind == flowChoice {
+	if r.kind == flowChoice || r.kind == flowPick {
 		return marker + head + truncateCells(value, max(valueRoom-2, 1)) + " " + dropdownArrow
 	}
 	if value == "" {
@@ -323,6 +325,8 @@ func (m *Model) flowKeyLine() string {
 		keys = append(keys, "enter next")
 	case r.kind == flowChoice:
 		keys = append(keys, "enter choose", "left/right switch")
+	case r.kind == flowPick:
+		keys = append(keys, "enter pick")
 	case r.kind == flowToggle:
 		keys = append(keys, "space toggle")
 	case r.kind == flowAction:

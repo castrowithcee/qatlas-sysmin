@@ -67,6 +67,9 @@ type projectsState struct {
 	dialog *projectDialog
 	// flow is the guided setup, shown in place of the list; see projectflow.go.
 	flow *projectFlow
+	// prompt is the short input panel; promptSeq numbers them.
+	prompt    *projectPrompt
+	promptSeq int
 }
 
 func newProjectsState() *projectsState {
@@ -196,6 +199,14 @@ func (m *Model) takeProjects(msg projectsMsg) tea.Cmd {
 		m.takeProjectNotes(msg)
 	case projectBackupsMsg:
 		m.takeProjectBackups(msg)
+	case projectAdoptMsg:
+		m.takeProjectAdopt(msg)
+	case projectChannelsMsg:
+		m.takeProjectChannels(msg)
+	case projectCredsMsg:
+		m.takeProjectCreds(msg)
+	case projectFileMsg:
+		return m.takeProjectFile(msg)
 	}
 	return nil
 }

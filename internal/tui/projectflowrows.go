@@ -42,6 +42,17 @@ const (
 	flowAction
 	// flowFold opens or closes the advanced rows of the step.
 	flowFold
+	// flowPick holds the name of a vault credential; enter opens the list of those that fit.
+	flowPick
+	// flowLine is a line of text that takes no input.
+	flowLine
+)
+
+// The kinds of vault credential each use accepts.
+var (
+	flowKindsImage  = []string{"registry"}
+	flowKindsGit    = []string{"git-https", "ssh-key"}
+	flowKindsSecret = []string{"secret"}
 )
 
 // flowRow is one row of a step.
@@ -56,9 +67,12 @@ type flowRow struct {
 	// choices are the values of a choice row; show is how a value is drawn.
 	choices []string
 	show    func(string) string
-	// mode and start serve a path row.
+	// mode and start serve a path row; kinds are the credential kinds a pick row accepts.
 	mode  projectPathMode
 	start func() string
+	kinds []string
+	// locked shows a text row as a value that cannot be typed into.
+	locked bool
 	// act runs a toggle, an action or a fold; remove deletes the entry the row belongs to.
 	act    func()
 	remove func()
@@ -70,7 +84,7 @@ type flowRow struct {
 	info    textID
 }
 
-func (r *flowRow) typed() bool { return r.kind == flowText || r.kind == flowPath }
+func (r *flowRow) typed() bool { return (r.kind == flowText || r.kind == flowPath) && !r.locked }
 
 // value is the text of the row as drawn while it is not being typed into.
 func (r *flowRow) value() string {
@@ -112,6 +126,13 @@ func flowPathRow(id string, label textID, value *string, mode projectPathMode, s
 	return r
 }
 
+// flowPickRow is a text row for the name of a credential, picked from the vault instead of typed.
+func flowPickRow(id string, label textID, value *string, kinds []string, info textID) flowRow {
+	r := flowTextRow(id, label, value, info)
+	r.kind, r.kinds, r.show = flowPick, kinds, flowNoneOr
+	return r
+}
+
 func flowChoiceRow(id string, label textID, value *string, choices []string, show func(string) string, info textID) flowRow {
 	if show == nil {
 		show = wordText
@@ -140,10 +161,17 @@ func (f *projectFlow) rows(s flowStepID) []flowRow {
 		for _, t := range config.BuiltinTemplates() {
 			names = append(names, t.Name)
 		}
-		scenario := flowChoiceRow("template", tFlowLblScenario, &d.scenario, append(names, flowCustom), nil, tInfoFlowScenario)
+		choices := append(names, flowCustom)
+		if d.ownTemplate != "" {
+			choices = append([]string{d.ownTemplate}, choices...)
+		}
+		scenario := flowChoiceRow("template", tFlowLblScenario, &d.scenario, choices, nil, tInfoFlowScenario)
 		scenario.set = f.setScenario
 		scenario.aliases = []string{"steps"}
-		out = append(out, flowTextRow("name", tFlowLblName, &d.name, tInfoFlowName), scenario)
+		name := flowTextRow("name", tFlowLblName, &d.name, tInfoFlowName)
+		// The service refuses a change of the name of a stored project.
+		name.locked = f.revision != ""
+		out = append(out, name, scenario)
 	case flowSource:
 		out = f.sourceRows()
 	case flowTarget:
@@ -173,9 +201,7 @@ func (f *projectFlow) rows(s flowStepID) []flowRow {
 	case flowChecks:
 		out = f.checkRows()
 	case flowNotify:
-		channels := flowTextRow("notify.channels", tFlowLblChannels, &d.channels, tInfoFlowChannels)
-		channels.aliases = []string{"notify"}
-		out = append(out, channels)
+		out = append(out, f.channelRows()...)
 		for i, e := range flowEvents {
 			r := flowRow{id: "notify.events/" + e, kind: flowToggle, label: wordText(e), info: tInfoFlowEvents,
 				on: func() bool { return d.events[e] }}
@@ -194,7 +220,7 @@ func (f *projectFlow) rows(s flowStepID) []flowRow {
 		kind := flowChoiceRow("webhook.kind", tFlowLblHookKind, &d.hookKind,
 			[]string{"", config.WebhookGitHub, config.WebhookGitLab, config.WebhookGitea, config.WebhookHMAC}, flowNoneOr, tInfoFlowHookKind)
 		kind.aliases = []string{"webhook"}
-		secret := flowTextRow("webhook.secret", tFlowLblHookSecret, &d.hookCred, tInfoFlowHookSecret)
+		secret := flowPickRow("webhook.secret", tFlowLblHookSecret, &d.hookCred, flowKindsSecret, tInfoFlowHookSecret)
 		kind.advanced, secret.advanced = true, true
 		out = append(out, kind)
 		if d.hookKind != "" {
@@ -252,7 +278,7 @@ func (f *projectFlow) sourceRows() []flowRow {
 	if d.source == control.SourceGit {
 		out = append(out,
 			flowTextRow("git.url", tFlowLblGitURL, &d.gitURL, tInfoFlowGitURL),
-			flowTextRow("git.credential", tFlowLblCredential, &d.gitCred, tInfoFlowCredential))
+			flowPickRow("git.credential", tFlowLblCredential, &d.gitCred, flowKindsGit, tInfoFlowCredential))
 	} else {
 		for i := range d.images {
 			im := &d.images[i]
@@ -262,7 +288,7 @@ func (f *projectFlow) sourceRows() []flowRow {
 				flowTextRow(p+".ref", tFlowLblImageRef, &im.ref, tInfoFlowImageRef),
 				flowTextRow(p+".env_var", tFlowLblEnvVar, &im.envVar, tInfoFlowEnvVar),
 				flowTextRow(p+".services", tFlowLblServices, &im.services, tInfoFlowServices),
-				flowTextRow(p+".credential", tFlowLblCredential, &im.credential, tInfoFlowCredential),
+				flowPickRow(p+".credential", tFlowLblCredential, &im.credential, flowKindsImage, tInfoFlowCredential),
 			}
 			rows[0].heading, rows[0].aliases = tr(tFlowHeadImage, i+1), []string{p}
 			if len(d.images) > 1 {
@@ -294,7 +320,7 @@ func (f *projectFlow) ruleRows() []flowRow {
 				flowOrDefault(config.MajorDirect), tInfoFlowMajorSteps),
 			flowTextRow(p+"tag_filter", tFlowLblTagFilter, &r.tagFilter, tInfoFlowTagFilter),
 			flowTextRow(p+"changelog_repo", tFlowLblChangelogRepo, &r.changelogRepo, tInfoFlowChangelogRepo),
-			flowTextRow(p+"changelog_credential", tFlowLblChangelogCred, &r.changelogCredential, tInfoFlowChangelogCred),
+			flowPickRow(p+"changelog_credential", tFlowLblChangelogCred, &r.changelogCredential, flowKindsSecret, tInfoFlowChangelogCred),
 		}
 		rows[0].aliases = []string{prefix + ".version_rule"}
 		for i := range rows {
@@ -433,4 +459,45 @@ func (f *projectFlow) advancedOpen(s flowStepID, advanced []flowRow) bool {
 		}
 	}
 	return false
+}
+
+// channelRows are the notification channels: one toggle per channel of the service once the list is known,
+// and a channel the project names that the list lacks stays on the list so it can be taken off. Without the
+// list the names are typed.
+func (f *projectFlow) channelRows() []flowRow {
+	d := &f.draft
+	if !f.channelsKnown {
+		r := flowTextRow("notify.channels", tFlowLblChannels, &d.channels, tInfoFlowChannels)
+		r.aliases = []string{"notify"}
+		return []flowRow{r}
+	}
+	names := slices.Clone(f.channels)
+	for _, n := range flowList(d.channels) {
+		if !slices.Contains(names, n) {
+			names = append(names, n)
+		}
+	}
+	if len(names) == 0 {
+		return []flowRow{{id: "notify.channels", kind: flowLine, label: tr(tFlowNoChannels), info: tInfoFlowChannels,
+			aliases: []string{"notify"}}}
+	}
+	var out []flowRow
+	for i, n := range names {
+		r := flowRow{id: "notify.channels/" + n, kind: flowToggle, label: n, info: tInfoFlowChannels,
+			on: func() bool { return slices.Contains(flowList(d.channels), n) }}
+		r.act = func() {
+			list := flowList(d.channels)
+			if at := slices.Index(list, n); at >= 0 {
+				list = slices.Delete(list, at, at+1)
+			} else {
+				list = append(list, n)
+			}
+			d.channels = strings.Join(list, ", ")
+		}
+		if i == 0 {
+			r.heading, r.aliases = tr(tFlowLblChannels), []string{"notify.channels", "notify"}
+		}
+		out = append(out, r)
+	}
+	return out
 }

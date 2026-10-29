@@ -52,6 +52,14 @@ type Backend interface {
 	Changelog(project, image, to string) (control.ChangelogResult, error)
 	DeployUpdate(updates []control.ProjectUpdate) (control.DeployUpdateResult, error)
 	DeployRestore(project, backup string) (control.DeployRestoreResult, error)
+	// AdoptProject proposes a project for the running stack in a directory. The interface asks with DryRun
+	// only: nothing is stored.
+	AdoptProject(p control.AdoptParams) (control.AdoptResult, error)
+	// Credentials and Channels only read; neither carries a secret. SetCredential stores one and needs the
+	// admin session to take effect at once.
+	Credentials() ([]control.CredentialSummary, error)
+	SetCredential(p control.CredentialSetParams) (control.CredentialResult, error)
+	Channels() ([]control.ChannelSummary, error)
 }
 
 // NewBackend is the Backend over the control socket at path. It dials on the first call and again after the
@@ -211,4 +219,25 @@ func (b *ClientBackend) DeployUpdate(updates []control.ProjectUpdate) (res contr
 func (b *ClientBackend) DeployRestore(project, backup string) (res control.DeployRestoreResult, err error) {
 	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DeployRestore(project, backup); return e })
 	return res, err
+}
+
+func (b *ClientBackend) AdoptProject(p control.AdoptParams) (res control.AdoptResult, err error) {
+	// Only a request that stores nothing may be repeated on a fresh connection.
+	err = b.do(p.DryRun, func(c *client.Client) (e error) { res, e = c.AdoptProject(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) Credentials() (list []control.CredentialSummary, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Credentials(); return e })
+	return list, err
+}
+
+func (b *ClientBackend) SetCredential(p control.CredentialSetParams) (res control.CredentialResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.SetCredential(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) Channels() (list []control.ChannelSummary, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Channels(); return e })
+	return list, err
 }

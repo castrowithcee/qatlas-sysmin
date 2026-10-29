@@ -19,6 +19,7 @@ const (
 	projDlgRun
 	projDlgRestore
 	projDlgPick
+	projDlgAdopt
 )
 
 // projectDialog is the question or result over the area; it is shown through m.ask.
@@ -28,6 +29,9 @@ type projectDialog struct {
 	// backup is the backup a restore asks about; picker is the list of a projDlgPick.
 	backup string
 	picker *projectPicker
+	// adopt is the proposal of a projDlgAdopt; blocked says it cannot be taken over.
+	adopt   *control.AdoptResult
+	blocked bool
 }
 
 // projectControlOps maps the commands that steer a project to the operations of the service.
@@ -46,7 +50,11 @@ func projectCommands() []commandEntry {
 		list = append(list, commandEntry{kind, func(m *Model) tea.Cmd { return m.projectAction(kind) }})
 	}
 	return append(list, commandEntry{"restore", func(m *Model) tea.Cmd { return m.projectRestore() }},
-		commandEntry{"new project", func(m *Model) tea.Cmd { return m.projectFlowStart() }})
+		commandEntry{"new project", func(m *Model) tea.Cmd { return m.projectFlowStart() }},
+		commandEntry{"adopt stack", func(m *Model) tea.Cmd { return m.projectAdoptStart() }},
+		commandEntry{"edit project", func(m *Model) tea.Cmd { return m.projectRead(false) }},
+		commandEntry{"duplicate project", func(m *Model) tea.Cmd { return m.projectRead(true) }},
+		commandEntry{"new from project", func(m *Model) tea.Cmd { return m.projectRead(true) }})
 }
 
 // openProject shows the dialog d with the question q over the area.
@@ -71,6 +79,15 @@ func (m *Model) updateProjectDialog(key tea.KeyPressMsg) tea.Cmd {
 	switch d.kind {
 	case projDlgPick:
 		return m.pickerKey(key)
+	case projDlgAdopt:
+		switch {
+		case keyIs(key, actEnter) && !d.blocked:
+			res := *d.adopt
+			m.closeProjectDialog()
+			return m.projectFlowShow(flowDraftOf(projectOfAdoption(res)), "")
+		case keyIs(key, actBack):
+			m.closeProjectDialog()
+		}
 	case projDlgRestore:
 		switch {
 		case keyIs(key, actYes):
@@ -191,6 +208,10 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 		return m.projectFlowStart(), true
 	case keyIs(key, actTest):
 		return m.projectSourceTest(), true
+	case keyIs(key, actEdit):
+		return m.projectRead(false), true
+	case keyIs(key, actDuplicate):
+		return m.projectRead(true), true
 	case keyIs(key, actDelete):
 		return m.projectDelete(), true
 	case keyIs(key, actLogs):
@@ -488,11 +509,11 @@ func (m *Model) projectsKeys() []string {
 	case p.upd != nil:
 		return []string{"up/down item", "enter version", "pgup/pgdown notes", "y update", "n/{back} cancel"}
 	case p.focusDetail:
-		return []string{"up/down scroll", "left/right tab", "t test", "u update", "d delete", "o log", "{back} list"}
+		return []string{"up/down scroll", "left/right tab", "t test", "u update", "e edit", "p duplicate", "d delete", "o log", "{back} list"}
 	}
 	// The controls have no letter of their own; they are commands.
 	keys := []string{"up/down move", "t test", "o log", "u update", "space mark", "enter detail",
-		"run/pause/pin/restore via {command}", "g/n new", "/ filter", "d delete"}
+		"run/pause/pin/restore via {command}", "g/n new", "e edit", "p duplicate", "/ filter", "d delete"}
 	if m.usable(0) >= projectsDetailMinWidth {
 		keys = append(keys, "left/right tab")
 	}

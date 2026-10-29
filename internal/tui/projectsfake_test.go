@@ -28,6 +28,18 @@ type fakeProjects struct {
 	// saved records every add and edit request; saveErr refuses them.
 	saved   []control.ProjectParams
 	saveErr error
+	// creds and channels are what Credentials and Channels list; credsErr and channelsErr make the reads
+	// fail. credSet records every SetCredential request; credErr refuses them.
+	creds       []control.CredentialSummary
+	channels    []control.ChannelSummary
+	credsErr    error
+	channelsErr error
+	credSet     []control.CredentialSetParams
+	credErr     error
+	// adopt is the proposal AdoptProject answers; adoptAsked records every request.
+	adopt      control.AdoptResult
+	adoptErr   error
+	adoptAsked []control.AdoptParams
 }
 
 const fakeProjectFile = `schema: 1
@@ -242,4 +254,55 @@ func (f *fakeBackend) saveProject(op string, p control.ProjectParams) (control.C
 		f.projects = append(f.projects, control.ProjectSummary{Name: p.Name, Source: "images", State: control.StateApproved})
 	}
 	return control.ChangeResult{Project: p.Name, State: control.StateApproved, Revision: "rev-" + p.Name}, nil
+}
+
+func (f *fakeBackend) Credentials() ([]control.CredentialSummary, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("credentials")
+	if f.proj.credsErr != nil {
+		return nil, f.proj.credsErr
+	}
+	return f.proj.creds, nil
+}
+
+func (f *fakeBackend) Channels() ([]control.ChannelSummary, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("channels")
+	if f.proj.channelsErr != nil {
+		return nil, f.proj.channelsErr
+	}
+	return f.proj.channels, nil
+}
+
+// SetCredential keeps the request, secret included, so a test can compare it with what was typed.
+func (f *fakeBackend) SetCredential(p control.CredentialSetParams) (control.CredentialResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("credential " + p.Name)
+	if !f.session {
+		return control.CredentialResult{}, &control.Error{Code: control.CodeAdminRequired}
+	}
+	if f.proj.credErr != nil {
+		return control.CredentialResult{}, f.proj.credErr
+	}
+	fields := map[string]string{}
+	for k, v := range p.Fields {
+		fields[k] = v
+	}
+	f.proj.credSet = append(f.proj.credSet, control.CredentialSetParams{Name: p.Name, Kind: p.Kind, Fields: fields})
+	f.proj.creds = append(f.proj.creds, control.CredentialSummary{Name: p.Name, Kind: p.Kind})
+	return control.CredentialResult{Name: p.Name, Action: "created", State: control.StateApproved}, nil
+}
+
+func (f *fakeBackend) AdoptProject(p control.AdoptParams) (control.AdoptResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("adopt " + p.Dir)
+	f.proj.adoptAsked = append(f.proj.adoptAsked, p)
+	if f.proj.adoptErr != nil {
+		return control.AdoptResult{}, f.proj.adoptErr
+	}
+	return f.proj.adopt, nil
 }

@@ -67,9 +67,12 @@ type flowDraft struct {
 	name string
 	// scenario is the name of a template or flowCustom; source is flowImages or control.SourceGit.
 	scenario, source string
-	images           []flowImage
-	gitURL, gitCred  string
-	gitRule          flowRule
+	// ownTemplate is the template of the project the draft came from when it is no built-in one, so the
+	// choice of the scenario keeps offering it after another one was chosen.
+	ownTemplate     string
+	images          []flowImage
+	gitURL, gitCred string
+	gitRule         flowRule
 
 	dir, envFile   string
 	composeFiles   []string
@@ -103,6 +106,8 @@ func flowDraftOf(p config.Project) flowDraft {
 		events: map[string]bool{}, backup: flowBackup{mode: flowNone}}
 	if len(p.Steps) > 0 || p.Template == "" {
 		d.scenario = flowCustom
+	} else if !slices.ContainsFunc(config.BuiltinTemplates(), func(t config.Template) bool { return t.Name == p.Template }) {
+		d.ownTemplate = p.Template
 	}
 	if p.PollInterval != 0 {
 		d.poll = flowDurationText(p.PollInterval)

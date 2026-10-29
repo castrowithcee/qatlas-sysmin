@@ -39,6 +39,10 @@ type projectFlow struct {
 	other    []control.Problem
 	// scroll is the first line of the step drawn last.
 	scroll int
+	// channels are the notification channels of the service; channelsKnown says the list was read. Until it
+	// is, and when it cannot be, the channels are typed.
+	channels      []string
+	channelsKnown bool
 }
 
 // newProjectFlow is the setup over d, on its first step. A setup that changes a stored project names its
@@ -70,20 +74,25 @@ func (m *Model) flowDirty() bool {
 	return m.flowOpen() && m.prj.flow.draft.signature() != m.prj.flow.initial
 }
 
-// projectFlowStart opens the guided setup of a new project, in the Projects area.
-func (m *Model) projectFlowStart() tea.Cmd {
-	return m.projectFlowOpen(newFlowDraft(), "")
-}
-
 // projectFlowOpen opens the guided setup over d; revision names the stored project it changes, empty for a
 // new one. From another area it goes to Projects first, which asks about unsaved input there.
 func (m *Model) projectFlowOpen(d flowDraft, revision string) tea.Cmd {
+	return m.projectFlowThen(func() tea.Cmd { return m.projectFlowShow(d, revision) })
+}
+
+// projectFlowShow puts a setup over d on screen in place of what the area shows, and asks for the lists it
+// offers.
+func (m *Model) projectFlowShow(d flowDraft, revision string) tea.Cmd {
+	m.clearMessages()
+	f := newProjectFlow(d, revision)
+	m.prj.flow = f
+	return m.flowLoadCmd(f)
+}
+
+// projectFlowThen runs open in the Projects area. From another area it goes there first, and an open setup
+// that holds unsaved input is asked about before open drops it.
+func (m *Model) projectFlowThen(open func() tea.Cmd) tea.Cmd {
 	if m.backend == nil || m.prj == nil {
-		return nil
-	}
-	open := func() tea.Cmd {
-		m.clearMessages()
-		m.prj.flow = newProjectFlow(d, revision)
 		return nil
 	}
 	if m.area != areaProjects {
@@ -226,6 +235,9 @@ func (m *Model) flowKey(key tea.KeyPressMsg) tea.Cmd {
 		switch r.kind {
 		case flowChoice:
 			m.flowChoose(r)
+		case flowPick:
+			return m.flowPickOpen(r)
+		case flowLine:
 		case flowAction:
 			before := f.shownRows(f.step)
 			r.act()
@@ -237,7 +249,9 @@ func (m *Model) flowKey(key tea.KeyPressMsg) tea.Cmd {
 				}
 			}
 		default:
-			r.act()
+			if r.act != nil {
+				r.act()
+			}
 		}
 	case keyIs(key, actSpace), keyIs(key, actRight):
 		if r.kind == flowChoice {

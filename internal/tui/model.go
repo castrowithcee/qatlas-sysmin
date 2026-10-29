@@ -206,6 +206,9 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	if m.ov != nil {
 		return m.updateOverlay(key)
 	}
+	if m.projectPromptOpen() {
+		return m.projectPromptKey(key)
+	}
 	if m.screen == screenPopup {
 		return m.updatePopup(key)
 	}
