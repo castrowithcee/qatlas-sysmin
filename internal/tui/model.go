@@ -359,9 +359,10 @@ func (m *Model) selected() (string, bool) {
 	return name, true
 }
 
-// View draws the frame.
+// View draws the frame on the alternate screen, so it stays a fixed window and the shell is left as it was.
 func (m *Model) View() tea.View {
 	v := tea.NewView(m.render())
+	v.AltScreen = true
 	v.MouseMode = m.mouseMode()
 	return v
 }
