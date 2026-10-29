@@ -1,0 +1,29 @@
+schema: 1
+name: example-site
+dir: /srv/example/site
+env_file: /srv/example/site/.env
+values:
+  site_url: https://www.example.com/
+  build_script: scripts/build.sh
+backup:
+  command: tar -C /srv/example/site -czf "$SYSMIN_BACKUP_DIR/site.tar.gz" public
+  keep: 5
+checks:
+  - type: check-http
+    url: "{site_url}"
+    contains: Example
+steps:
+  - type: backup
+  - type: git-checkout
+    tag: "{version}"
+  - type: command
+    run: cd {dir} && {build_script} {version}
+    timeout: 15m
+  - type: compose-up
+  - type: check-http
+git:
+  url: https://git.example.com/example/site.git
+  credential: git-example
+  version_rule:
+    mode: manual
+    tag_filter: ^v\d+\.\d+\.\d+$

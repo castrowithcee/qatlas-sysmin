@@ -1,0 +1,6 @@
+schema: 1
+poll_interval: 1h
+vault:
+  admin_timeout: 15m
+webhook:
+  listen: 127.0.0.1:8787

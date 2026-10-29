@@ -1,0 +1,35 @@
+project shop
+1. backup timeout=30m0s free=false
+   dir: /srv/example/shop
+   env_file: /srv/example/shop/.env
+   compose_files: ["/srv/example/shop/compose.yaml" "/srv/example/shop/compose.override.yaml"]
+   backup: command="" volume="shop-data" keep=2 restore=""
+2. set-env timeout=10s free=false
+   dir: /srv/example/shop
+   env_file: /srv/example/shop/.env
+   compose_files: ["/srv/example/shop/compose.yaml" "/srv/example/shop/compose.override.yaml"]
+   assign: APP_TAG=2.0.0
+   assign: DB_TAG=16.4
+3. compose-pull timeout=10m0s free=false
+   dir: /srv/example/shop
+   env_file: /srv/example/shop/.env
+   compose_files: ["/srv/example/shop/compose.yaml" "/srv/example/shop/compose.override.yaml"]
+   services: ["app" "db"]
+4. compose-up timeout=5m0s free=false
+   dir: /srv/example/shop
+   env_file: /srv/example/shop/.env
+   compose_files: ["/srv/example/shop/compose.yaml" "/srv/example/shop/compose.override.yaml"]
+   services: ["app" "db"]
+5. check-container timeout=2m0s free=false
+   dir: /srv/example/shop
+   env_file: /srv/example/shop/.env
+   compose_files: ["/srv/example/shop/compose.yaml" "/srv/example/shop/compose.override.yaml"]
+   services: ["app" "db"]
+   containers: []
+6. check-http timeout=1m0s free=false
+   dir: /srv/example/shop
+   env_file: /srv/example/shop/.env
+   compose_files: ["/srv/example/shop/compose.yaml" "/srv/example/shop/compose.override.yaml"]
+   url: https://shop.example.com/health
+   status: 200
+   contains: "ok"

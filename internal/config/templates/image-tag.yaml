@@ -1,0 +1,17 @@
+schema: 1
+name: image-tag
+description: Update container images to a new tag and recreate their services.
+steps:
+  # Bare backup and check steps use the backup and checks of the project; without them they are left out.
+  - type: backup
+  - type: set-env
+    assign:
+      - "{var}={version}"
+  - type: compose-pull
+    services:
+      - "{services}"
+  - type: compose-up
+    services:
+      - "{services}"
+  - type: check-container
+  - type: check-http

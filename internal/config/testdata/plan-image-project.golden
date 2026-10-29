@@ -1,0 +1,34 @@
+project notes-app
+1. backup timeout=30m0s free=false
+   dir: /srv/example/notes-app
+   env_file: /srv/example/notes-app/.env
+   compose_project: notes-app
+   backup: command="" volume="notes-app-data" keep=7 restore=""
+2. set-env timeout=10s free=false
+   dir: /srv/example/notes-app
+   env_file: /srv/example/notes-app/.env
+   compose_project: notes-app
+   assign: NOTES_APP_TAG=2.4.1
+3. compose-pull timeout=10m0s free=false
+   dir: /srv/example/notes-app
+   env_file: /srv/example/notes-app/.env
+   compose_project: notes-app
+   services: ["app"]
+4. compose-up timeout=5m0s free=false
+   dir: /srv/example/notes-app
+   env_file: /srv/example/notes-app/.env
+   compose_project: notes-app
+   services: ["app"]
+5. check-container timeout=2m0s free=false
+   dir: /srv/example/notes-app
+   env_file: /srv/example/notes-app/.env
+   compose_project: notes-app
+   services: ["app"]
+   containers: []
+6. check-http timeout=1m0s free=false
+   dir: /srv/example/notes-app
+   env_file: /srv/example/notes-app/.env
+   compose_project: notes-app
+   url: https://notes.example.com/health
+   status: 200
+   contains: "ok"

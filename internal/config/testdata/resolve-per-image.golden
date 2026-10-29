@@ -1,0 +1,19 @@
+project shop
+1. command timeout=10m0s free=true
+   dir: /srv/example/shop
+   env_file: /srv/example/shop/.env
+   shell: echo 'APP_TAG' '1.9.0' to '2.0.0' in '/srv/example/shop'; svc='app' 'db'
+2. command timeout=10m0s free=true
+   dir: /srv/example/shop
+   env_file: /srv/example/shop/.env
+   shell: echo 'DB_TAG' '16.3' to '16.4' in '/srv/example/shop'; svc='app' 'db'
+3. set-env timeout=10s free=false
+   dir: /srv/example/shop
+   env_file: /srv/example/shop/.env
+   assign: FIXED=1
+   assign: APP_TAG=2.0.0
+   assign: DB_TAG=16.4
+4. compose-up timeout=5m0s free=false
+   dir: /srv/example/shop
+   env_file: /srv/example/shop/.env
+   services: ["app" "db" "extra"]

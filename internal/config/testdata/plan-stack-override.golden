@@ -1,0 +1,41 @@
+project shop-stack
+1. backup timeout=20m0s free=true
+   dir: /srv/example/shop-stack
+   env_file: /srv/example/shop-stack/.env
+   compose_files: ["/srv/example/shop-stack/compose.yaml" "/srv/example/shop-stack/compose.override.yaml"]
+   compose_project: shop-stack
+   backup: command="docker compose -f /srv/example/shop-stack/compose.yaml exec -T db pg_dump -U example shop > \"$SYSMIN_BACKUP_DIR/shop.sql\"" volume="" keep=3 restore="docker compose -f /srv/example/shop-stack/compose.yaml exec -T db psql -U example shop < \"$SYSMIN_BACKUP_DIR/shop.sql\""
+2. set-env timeout=10s free=false
+   dir: /srv/example/shop-stack
+   env_file: /srv/example/shop-stack/.env
+   compose_files: ["/srv/example/shop-stack/compose.yaml" "/srv/example/shop-stack/compose.override.yaml"]
+   compose_project: shop-stack
+   assign: SHOP_APP_TAG=5.1.0
+   assign: SHOP_DB_TAG=16.4
+3. compose-pull timeout=10m0s free=false
+   dir: /srv/example/shop-stack
+   env_file: /srv/example/shop-stack/.env
+   compose_files: ["/srv/example/shop-stack/compose.yaml" "/srv/example/shop-stack/compose.override.yaml"]
+   compose_project: shop-stack
+   services: ["app" "worker" "db"]
+4. compose-up timeout=5m0s free=false
+   dir: /srv/example/shop-stack
+   env_file: /srv/example/shop-stack/.env
+   compose_files: ["/srv/example/shop-stack/compose.yaml" "/srv/example/shop-stack/compose.override.yaml"]
+   compose_project: shop-stack
+   services: ["app" "worker" "db"]
+5. check-container timeout=2m0s free=false
+   dir: /srv/example/shop-stack
+   env_file: /srv/example/shop-stack/.env
+   compose_files: ["/srv/example/shop-stack/compose.yaml" "/srv/example/shop-stack/compose.override.yaml"]
+   compose_project: shop-stack
+   services: ["app" "db"]
+   containers: []
+6. check-http timeout=1m0s free=false
+   dir: /srv/example/shop-stack
+   env_file: /srv/example/shop-stack/.env
+   compose_files: ["/srv/example/shop-stack/compose.yaml" "/srv/example/shop-stack/compose.override.yaml"]
+   compose_project: shop-stack
+   url: https://shop.example.com/health
+   status: 200
+   contains: ""
