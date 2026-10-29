@@ -30,6 +30,12 @@ func runCLIArgs(args ...string) (int, string, string) {
 // startService runs the service through runService, as sysmin run does, on temporary directories.
 func startService(t *testing.T, bound bool) string {
 	t.Helper()
+	return startServiceWith(t, bound, nil)
+}
+
+// startServiceWith also lets setup fill the service's configuration directory before it starts.
+func startServiceWith(t *testing.T, bound bool, setup func(configDir string)) string {
+	t.Helper()
 	vault.LowerWorkFactorForTests()
 	t.Setenv("CREDENTIALS_DIRECTORY", "")
 	sockDir, err := os.MkdirTemp("", "sysmin-")
@@ -50,8 +56,12 @@ func startService(t *testing.T, bound bool) string {
 			t.Fatal(err)
 		}
 	}
+	configDir := t.TempDir()
+	if setup != nil {
+		setup(configDir)
+	}
 	cfg := service.Config{
-		ConfigDir: t.TempDir(), StateDir: state, SocketPath: filepath.Join(sockDir, "s.sock"),
+		ConfigDir: configDir, StateDir: state, SocketPath: filepath.Join(sockDir, "s.sock"),
 		Version: "9.9.9", Resolver: testGroups{}, CredentialsDir: credentials,
 	}
 	ctx, cancel := context.WithCancel(context.Background())

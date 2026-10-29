@@ -40,6 +40,8 @@ func (r record) info() Info {
 type document struct {
 	Schema  int               `json:"schema"`
 	Entries map[string]record `json:"entries"`
+	// Approvals maps a project name to the fingerprint of its approved state.
+	Approvals map[string]string `json:"approvals,omitempty"`
 }
 
 func newDocument() *document {
@@ -51,6 +53,12 @@ func (d *document) clone() *document {
 	for id, r := range d.Entries {
 		r.Fields = cloneFields(r.Fields)
 		c.Entries[id] = r
+	}
+	if len(d.Approvals) > 0 {
+		c.Approvals = make(map[string]string, len(d.Approvals))
+		for k, v := range d.Approvals {
+			c.Approvals[k] = v
+		}
 	}
 	return c
 }

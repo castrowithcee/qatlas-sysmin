@@ -42,6 +42,15 @@ const (
 	// OpSessionOpen and OpSessionEnd start and end the admin session of the connection.
 	OpSessionOpen = "session.open"
 	OpSessionEnd  = "session.end"
+
+	// OpApprovalsList and OpApprovalsShow read the open approvals of projects. The others change the
+	// approved state and need the admin session.
+	OpApprovalsList       = "approvals.list"
+	OpApprovalsShow       = "approvals.show"
+	OpApprovalsApprove    = "approvals.approve"
+	OpApprovalsApproveAll = "approvals.approve-all"
+	OpApprovalsDiscard    = "approvals.discard"
+	OpApprovalsDiscardAll = "approvals.discard-all"
 )
 
 // The codes an answer's error carries. They are fixed words, never text built from a request, so an answer
@@ -64,6 +73,12 @@ const (
 	CodeAdminRequired   = "admin-required"
 	CodeWrongPassphrase = "wrong-passphrase"
 	CodeVaultAbsent     = "vault-absent"
+	// CodeNothingOpen answers an approval request for a project that has no open approval.
+	CodeNothingOpen = "nothing-open"
+	// CodeChanged answers an approval request whose project differs from what the client was shown.
+	CodeChanged = "changed"
+	// CodeCannotDiscard answers a discard of an open approval that restoring the project file cannot undo.
+	CodeCannotDiscard = "cannot-discard"
 )
 
 // Request is one line a client sends. Params is the operation's own object, if it takes one.
@@ -113,6 +128,59 @@ type VaultStatusResult struct {
 // request; no answer, log entry or error repeats it.
 type PassphraseParams struct {
 	Passphrase string `json:"passphrase"`
+}
+
+// ApprovalParams are the parameters of OpApprovalsShow, OpApprovalsApprove and OpApprovalsDiscard.
+// Fingerprint is the one an earlier list or show reported; approving it approves exactly that state. It may
+// be empty only for a project whose file is gone.
+type ApprovalParams struct {
+	Project     string `json:"project"`
+	Fingerprint string `json:"fingerprint,omitempty"`
+}
+
+// ApprovalSummary is one open approval as OpApprovalsList reports it.
+type ApprovalSummary struct {
+	Project string `json:"project"`
+	// Kind is new, changed, deleted or credential.
+	Kind        string `json:"kind"`
+	Fingerprint string `json:"fingerprint,omitempty"`
+	Changes     int    `json:"changes"`
+	// FreeCommands is set when a free command line was added, changed or removed.
+	FreeCommands bool `json:"free_commands,omitempty"`
+	// Unverified means the approved state could not be checked, so the changes list the whole project.
+	Unverified bool `json:"unverified,omitempty"`
+}
+
+// ApprovalsListResult is the answer to OpApprovalsList.
+type ApprovalsListResult struct {
+	Approvals []ApprovalSummary `json:"approvals"`
+}
+
+// ApprovalChange is one differing field of an open approval. Old and New are empty when the field is absent
+// on that side; Free marks a free command line.
+type ApprovalChange struct {
+	Path string `json:"path"`
+	Old  string `json:"old,omitempty"`
+	New  string `json:"new,omitempty"`
+	Free bool   `json:"free,omitempty"`
+}
+
+// ApprovalDetail is the answer to OpApprovalsShow.
+type ApprovalDetail struct {
+	ApprovalSummary
+	Details []ApprovalChange `json:"details"`
+}
+
+// ApprovalFailure is a project an all-at-once operation could not handle, with the fixed code why.
+type ApprovalFailure struct {
+	Project string `json:"project"`
+	Code    string `json:"code"`
+}
+
+// ApprovalsAllResult is the answer to OpApprovalsApproveAll and OpApprovalsDiscardAll.
+type ApprovalsAllResult struct {
+	Done   []string          `json:"done"`
+	Failed []ApprovalFailure `json:"failed,omitempty"`
 }
 
 // Error is a failed operation, carrying one of the fixed codes.
