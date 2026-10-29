@@ -48,6 +48,81 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "?")
 			return m
 		}},
+		{"access_list", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, accessFake(), w, h)
+			send(m, "4")
+			return m
+		}},
+		{"access_detail", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, accessFake(), w, h)
+			send(m, "4", "down", "enter", "right")
+			if w >= wideDetailMin {
+				send(m, "esc")
+			}
+			return m
+		}},
+		{"credentials_list", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, accessFake(), w, h)
+			send(m, "5")
+			return m
+		}},
+		{"credential_form", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, accessFake(), w, h)
+			typeNewSecret(m)
+			return m
+		}},
+		{"channels_list", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, libFake(), w, h)
+			send(m, "5", "right")
+			return m
+		}},
+		{"channel_form", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, libFake(), w, h)
+			send(m, "5", "right", "n")
+			typed(m, "team-mail")
+			send(m, "tab", "right")
+			return m
+		}},
+		{"templates_detail", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, libFake(), w, h)
+			send(m, "5", "right", "right", "enter", "right")
+			if w >= wideDetailMin {
+				send(m, "esc")
+			}
+			return m
+		}},
+		{"activity_intact", func(t *testing.T, w, h int) *Model {
+			utcClock(t)
+			m := goldenApp(t, libFake(), w, h)
+			send(m, "3")
+			return m
+		}},
+		{"activity_broken", func(t *testing.T, w, h int) *Model {
+			utcClock(t)
+			fb := libFake()
+			fb.lib.verify = brokenChain()
+			m := goldenApp(t, fb, w, h)
+			send(m, "3")
+			return m
+		}},
+		{"activity_filter", func(t *testing.T, w, h int) *Model {
+			utcClock(t)
+			m := goldenApp(t, libFake(), w, h)
+			send(m, "3", "f", "right", "right", "right", "tab", "right")
+			return m
+		}},
+		{"runs_list", func(t *testing.T, w, h int) *Model {
+			utcClock(t)
+			m := goldenApp(t, runsFake(), w, h)
+			send(m, "3", "right")
+			return m
+		}},
+		{"runs_log", func(t *testing.T, w, h int) *Model {
+			utcClock(t)
+			m := goldenApp(t, runsFake(), w, h)
+			send(m, "3", "right", "o")
+			return m
+		}},
 		{"passphrase_change", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "6", "right", "enter")
@@ -62,7 +137,7 @@ func TestGoldenAreas(t *testing.T) {
 			t.Run(fmt.Sprintf("%s_%dx%d", s.name, size[0], size[1]), func(t *testing.T) {
 				m := s.build(t, size[0], size[1])
 				got := m.render()
-				if strings.Contains(got, "old pass") || strings.Contains(got, "new pass") {
+				if strings.Contains(got, "old pass") || strings.Contains(got, "new pass") || strings.Contains(got, secretValue) {
 					t.Error("a typed passphrase is in the frame")
 				}
 				assertViewFits(t, plain(m), size[0], size[1])

@@ -18,7 +18,7 @@ type projectChannelsMsg struct {
 	err  error
 }
 
-func (projectChannelsMsg) projectsMsg() {}
+func (projectChannelsMsg) projectsAnswer() {}
 
 // flowLoadCmd reads the channels the setup f offers.
 func (m *Model) flowLoadCmd(f *projectFlow) tea.Cmd {
@@ -68,7 +68,7 @@ type projectCredsMsg struct {
 	err  error
 }
 
-func (projectCredsMsg) projectsMsg() {}
+func (projectCredsMsg) projectsAnswer() {}
 
 // flowPickOpen reads the credentials to list the ones row r accepts.
 func (m *Model) flowPickOpen(r flowRow) tea.Cmd {

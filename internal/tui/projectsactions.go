@@ -219,7 +219,7 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 	case keyIs(key, actUpdate):
 		return m.projectUpdateOpen(), true
 	case keyIs(key, actReload):
-		return tea.Batch(m.statusCmd(), m.projectsCmd()), true
+		return tea.Batch(m.statusCmd(), m.projectListCmd()), true
 	}
 	return nil, false
 }
@@ -362,13 +362,6 @@ func projectSourceLines(s control.SourceResult) []string {
 	return append(lines, "    "+truncateCells(safeText(detail), width-2))
 }
 
-func orDash(s string) string {
-	if s == "" {
-		return "-"
-	}
-	return s
-}
-
 // sourceErrorText is the fixed text of the code a source could not be read with.
 func sourceErrorText(code string) string {
 	ids := map[string]textID{
@@ -408,7 +401,7 @@ func (m *Model) removeProject(name, revision string) tea.Cmd {
 				return nil
 			}
 			m.status = tr(tProjRemoved, name)
-			return m.projectsCmd()
+			return m.projectListCmd()
 		},
 	})
 }
@@ -442,6 +435,17 @@ func (m *Model) projectOpenLog() tea.Cmd {
 	m.busy = tr(tBusyLog, name)
 	b := m.backend
 	return func() tea.Msg {
+		// The state of the project is not read yet: the history names its last run.
+		if run == "" {
+			h, err := b.DeployHistory(name)
+			if err != nil {
+				return projectLogMsg{name: name, err: err}
+			}
+			if len(h.Runs) == 0 {
+				return projectLogMsg{name: name, none: true}
+			}
+			run = h.Runs[len(h.Runs)-1].ID
+		}
 		res, err := b.DeployLog(name, run)
 		return projectLogMsg{name: name, result: res, err: err}
 	}
@@ -450,6 +454,8 @@ func (m *Model) projectOpenLog() tea.Cmd {
 func (m *Model) takeProjectLog(msg projectLogMsg) {
 	m.busy = ""
 	switch {
+	case msg.none:
+		m.fail = tr(tProjLogNone)
 	case isCode(msg.err, control.CodeNotFound):
 		m.fail = tr(tProjLogGone)
 	case msg.err != nil:

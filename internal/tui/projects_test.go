@@ -297,7 +297,7 @@ func TestProjectsLogOpensAndScrolls(t *testing.T) {
 	fb.proj.logs["demo-app"] = control.DeployLogResult{Project: "demo-app", Run: "20261029T120000.000000000Z", Text: b.String() + "\x1b[31mred\x1b[0m\n", Truncated: true}
 	m := projectsModel(t, fb, 80, 24)
 	send(m, "o")
-	if fb.count("log demo-app 20261029T120000.000000000Z") != 1 || m.prj.log == nil {
+	if fb.count("deploy-log demo-app 20261029T120000.000000000Z") != 1 || m.prj.log == nil {
 		t.Fatalf("calls = %v", fb.log())
 	}
 	view := plain(m)
@@ -335,8 +335,26 @@ func TestProjectsLogWithoutARun(t *testing.T) {
 	fb.proj.status["demo-app"] = st
 	m := projectsModel(t, fb, 120, 30)
 	send(m, "o")
-	if fb.count("log demo-app ") != 0 || !strings.Contains(plain(m), "has no run yet") {
+	if fb.count("deploy-log demo-app ") != 0 || !strings.Contains(plain(m), "has no run yet") {
 		t.Errorf("calls = %v\n%s", fb.log(), plain(m))
+	}
+}
+
+func TestProjectsLogNamesTheLastRunFromTheHistory(t *testing.T) {
+	fb := projectsFake()
+	m := projectsModel(t, fb, 120, 30)
+	r, _ := m.prj.currentRow()
+	r.status = nil
+	fb.lib.history = map[string][]control.DeployRun{"demo-app": {{ID: "20261028T120000.000000000Z"}, {ID: "20261029T120000.000000000Z"}}}
+	send(m, "o")
+	if fb.count("deploy-history demo-app") != 1 || fb.count("deploy-log demo-app 20261029T120000.000000000Z") != 1 || m.prj.log == nil {
+		t.Errorf("calls = %v", fb.log())
+	}
+	m.prj.log = nil
+	fb.lib.history = nil
+	send(m, "o")
+	if !strings.Contains(plain(m), "has no run yet") {
+		t.Errorf("view:\n%s", plain(m))
 	}
 }
 

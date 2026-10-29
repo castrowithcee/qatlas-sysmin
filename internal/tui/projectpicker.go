@@ -146,7 +146,7 @@ type projectBackupsMsg struct {
 	err  error
 }
 
-func (projectBackupsMsg) projectsMsg() {}
+func (projectBackupsMsg) projectsAnswer() {}
 
 func (m *Model) takeProjectBackups(msg projectBackupsMsg) {
 	m.busy = ""

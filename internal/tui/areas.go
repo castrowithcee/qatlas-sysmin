@@ -53,7 +53,7 @@ func (m *Model) enableAreas(backend Backend) {
 // setArea shows an area, on its first page. Unsaved input of Settings is asked about first.
 func (m *Model) setArea(a area) tea.Cmd { return m.show(a, 0) }
 
-// show makes page sub of area a the screen; only Settings has pages.
+// show makes page sub of area a the screen; only Settings and Library have pages.
 func (m *Model) show(a area, sub int) tea.Cmd {
 	return m.guarded(func() tea.Cmd {
 		m.area = a
@@ -63,9 +63,19 @@ func (m *Model) show(a area, sub int) tea.Cmd {
 		if a == areaSettings {
 			m.set.sub = sub
 		}
+		if a == areaLibrary {
+			m.lib.sub = sub
+		}
+		if a == areaActivity {
+			m.act.sub = sub
+		}
+		m.closeDetails()
 		return m.enterPage()
 	})
 }
+
+// showActivity makes page sub of Activity the screen.
+func (m *Model) showActivity(sub int) tea.Cmd { return m.show(areaActivity, sub) }
 
 // enterPage asks for what the page just shown needs and has not yet.
 func (m *Model) enterPage() tea.Cmd {
@@ -74,7 +84,22 @@ func (m *Model) enterPage() tea.Cmd {
 		return m.overviewCmd()
 	case m.area == areaProjects:
 		m.prj.log, m.prj.upd, m.prj.focusDetail, m.prj.flow = nil, nil, false, nil
-		return m.projectsCmd()
+		return m.projectListCmd()
+	case m.area == areaAccess:
+		return m.accessCmd()
+	case m.area == areaActivity && m.act.sub == actRuns:
+		return m.runsCmd(m.act.runs.project)
+	case m.area == areaActivity:
+		return m.activityCmd()
+	case m.area == areaLibrary:
+		switch m.lib.sub {
+		case libCredentials:
+			return m.credentialsCmd()
+		case libChannels:
+			return m.channelsCmd()
+		case libTemplates:
+			return m.templatesCmd()
+		}
 	case m.area == areaSettings:
 		m.loadForms()
 		switch m.set.sub {
@@ -96,6 +121,9 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 		case m.area == areaProjects:
 			return m.projectsEditKey(key)
 		}
+		if p := m.currentPage(); p.filtering() {
+			return m.filterKey(p, key)
+		}
 		return m.editKey(key)
 	}
 	// The guided setup is a form: only help, the command line and the info leave it to the frame.
@@ -114,6 +142,8 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case keyIs(key, actQuit):
 		return m.guarded(m.quit)
+	case keyIs(key, actCopy) && m.copySource() != nil:
+		return m.copyCurrent()
 	}
 	if m.area == areaSettings {
 		if cmd, ok := m.settingsKey(key); ok {
@@ -124,6 +154,9 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 		if cmd, ok := m.projectsKey(key); ok {
 			return cmd
 		}
+	}
+	if cmd, ok := m.dataKey(key); ok {
+		return cmd
 	}
 	switch {
 	case keyIs(key, actRight), keyIs(key, actNext):
@@ -140,6 +173,66 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 		return m.overviewKey(key)
 	}
 	return nil
+}
+
+// closeDetails closes the detail of every table page and drops the notes of a refused removal.
+func (m *Model) closeDetails() {
+	m.acc.page.open, m.lib.cred.page.open, m.lib.chans.page.open = false, false, false
+	m.lib.tmpls.page.open, m.act.page.open, m.lib.cred.problems = false, false, nil
+	m.act.runs.page.open = false
+	if m.act.runs.log.open {
+		m.act.runs.log.open = false
+		m.act.runs.log.gen++
+	}
+}
+
+// dataKey handles a key of the pages with a table: the table and its detail first, then the page's own keys,
+// and, in Library, the keys that change the page.
+func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
+	if m.area == areaActivity && m.act.runs.log.open {
+		if cmd, ok := m.runLogKey(key); ok {
+			return cmd, true
+		}
+	}
+	p := m.currentPage()
+	if m.area == areaActivity && (p == nil || !p.open) {
+		switch {
+		case keyIs(key, actRight):
+			return m.setActSub(m.act.sub + 1), true
+		case keyIs(key, actLeft):
+			return m.setActSub(m.act.sub - 1), true
+		}
+	}
+	if m.area == areaLibrary && (p == nil || !p.open) {
+		switch {
+		case keyIs(key, actRight):
+			return m.setLibSub(m.lib.sub + 1), true
+		case keyIs(key, actLeft):
+			return m.setLibSub(m.lib.sub - 1), true
+		}
+	}
+	if p == nil {
+		return nil, false
+	}
+	if m.area == areaActivity && !p.open && keyIs(key, actFilter) {
+		// f is the filter of the log and the project of the runs here; the table is searched with /.
+		if m.act.sub == actRuns {
+			return m.openRunsProject(), true
+		}
+		return m.openLogFilter(), true
+	}
+	if cmd, ok := m.pageKey(p, key); ok {
+		return cmd, true
+	}
+	switch m.area {
+	case areaAccess:
+		return m.accessKey(key)
+	case areaLibrary:
+		return m.libraryKey(key)
+	case areaActivity:
+		return m.activityKey(key)
+	}
+	return nil, false
 }
 
 // infoKey reports whether key asks for the info: the letter, or the second key of the preferences, which also
@@ -188,7 +281,7 @@ func (m *Model) areaKeys() string {
 		return m.flowKeyLine()
 	}
 	if m.typing() {
-		if m.area == areaProjects {
+		if m.area == areaProjects || m.currentPage().filtering() {
 			return "type to filter · up/down move · enter keep filter · {back} clear filter"
 		}
 		return "enter next · {back} stop · {save} save"
@@ -205,6 +298,12 @@ func (m *Model) areaKeys() string {
 		keys = append(keys, m.settingsKeys()...)
 	case areaProjects:
 		keys = append(keys, m.projectsKeys()...)
+	case areaAccess:
+		keys = append(keys, m.accessKeys()...)
+	case areaLibrary:
+		keys = append(keys, m.libraryKeys()...)
+	case areaActivity:
+		keys = append(keys, m.activityKeys()...)
 	default:
 		keys = append(keys, "left/right move")
 	}
@@ -237,6 +336,12 @@ func (m *Model) areaBody() string {
 		return m.settingsBody()
 	case areaProjects:
 		return m.projectsBody()
+	case areaAccess:
+		return m.accessBody()
+	case areaLibrary:
+		return m.libraryBody()
+	case areaActivity:
+		return m.activityBody()
 	}
 	return m.wrapped(styles.hint, tr(tListEmpty))
 }

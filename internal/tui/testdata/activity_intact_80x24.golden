@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                                 ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────
+ Overview   Projects  [Activity]  Access   Library   Settings 
+
+[Log]  Runs 
+
+● Chain intact, 52 entries · signatures checked
+Log (12)                                                                    1/12
+╔══════════════════════════════════════════════════════════════════════════════╗
+║   Time                 Action             Project   Result   Duration   UID  ║
+║ > 2026-10-28 12:00:00  config.read        demo-app  success      3 ms     0  ║
+║   2026-10-28 11:59:00  approval.grant     -         success     10 ms  1000  ║
+║   2026-10-28 11:58:00  credential.create  demo-app  success     17 ms  1000  ║
+║   2026-10-28 11:57:00  deploy.run         -         success     24 ms     0  ║
+║   2026-10-28 11:56:00  session.open       demo-app  failure     31 ms  1000  ║
+║   2026-10-28 11:55:00  config.read        -         success     38 ms  1000  ║
+║   2026-10-28 11:54:00  approval.grant     demo-app  success     45 ms     0  ║
+║   2026-10-28 11:53:00  credential.create  -         success     52 ms  1000  ║
+║   2026-10-28 11:52:00  deploy.run         demo-app  success     59 ms  1000  ║
+║   2026-10-28 11:51:00  session.open       -         failure     66 ms     0  ║
+║   2026-10-28 11:50:00  config.read        demo-app  success     73 ms  1000  ║
+║   2026-10-28 11:49:00  approval.grant     -         success     80 ms  1000  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+1-6 area  left/right page  enter details  f filter  ctrl+l admin  ? help  : cmds

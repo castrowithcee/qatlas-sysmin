@@ -62,3 +62,6 @@ var knownOperations = map[string]bool{
 	OperationControlRequest: true, OperationControlRefuse: true, OperationControlStatus: true,
 	OperationVaultStatus: true, OperationSessionOpen: true, OperationSessionEnd: true,
 }
+
+// KnownOperation reports whether action is one of the Operation constants.
+func KnownOperation(action string) bool { return knownOperations[action] }

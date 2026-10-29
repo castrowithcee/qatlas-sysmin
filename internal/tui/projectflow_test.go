@@ -43,9 +43,9 @@ func flowFill(t *testing.T, m *Model, id, text string) {
 
 // flowFakeLists gives the fake service the credentials and the channel the setups of the tests name.
 func flowFakeLists(fb *fakeBackend) {
-	fb.proj.creds = []control.CredentialSummary{{Name: "demo-registry", Kind: "registry"}, {Name: "demo-git", Kind: "git-https"},
+	fb.credentials = []control.CredentialSummary{{Name: "demo-registry", Kind: "registry"}, {Name: "demo-git", Kind: "git-https"},
 		{Name: "demo-github", Kind: "secret"}, {Name: "demo-hook", Kind: "secret"}}
-	fb.proj.channels = []control.ChannelSummary{{ChannelParams: control.ChannelParams{Name: "ops-mail", Type: "email"}}}
+	fb.lib.channels = []control.ChannelSummary{{ChannelParams: control.ChannelParams{Name: "ops-mail", Type: "email"}}}
 }
 
 // flowPickFrom chooses the credential name from the list of the pick row id, searching the list for it.

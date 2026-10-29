@@ -379,15 +379,10 @@ func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 	if m.area != areaActivity {
 		t.Errorf("right and tab reach %v", m.area)
 	}
-	send(m, "left")
-	send(m, "shift+tab")
-	send(m, "left")
+	// Left and right turn the pages of Activity; the area moves with tab.
+	send(m, "shift+tab", "shift+tab", "left")
 	if m.area != areaSettings {
 		t.Errorf("movement back wraps to %v", m.area)
-	}
-	send(m, "3")
-	if view := plain(m); !strings.Contains(view, "Nothing to show yet.") {
-		t.Errorf("a placeholder area shows no hint:\n%s", view)
 	}
 	for a := area(0); a < areaCount; a++ {
 		if b, ok := areaByName(strings.ToLower(a.key())); !ok || b != a {

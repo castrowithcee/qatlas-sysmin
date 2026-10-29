@@ -416,7 +416,7 @@ func (m *Model) flowSave() tea.Cmd {
 				if res.State == control.StateApproved {
 					m.status = tr(tFlowSaved, p.Name)
 				}
-				return m.projectsCmd()
+				return m.projectListCmd()
 			case !current:
 				m.fail = projectErrorText(err)
 			case errors.As(err, &ce) && ce.Code == control.CodeInvalid && len(ce.Problems) > 0:

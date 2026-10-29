@@ -297,13 +297,6 @@ func (c *Client) DeployHistory(project string) (control.DeployHistoryResult, err
 	return out, err
 }
 
-// DeployLog reads the log of a run of a project; an empty run id names the latest run.
-func (c *Client) DeployLog(project, run string) (control.DeployLogResult, error) {
-	var out control.DeployLogResult
-	err := c.Call(control.OpDeployLog, control.DeployLogParams{Project: project, Run: run}, &out)
-	return out, err
-}
-
 // DeployRunNow checks the sources of a project at once and deploys what its version rules allow without a
 // human. The service waits for the run up to control.DeployWait; a longer run goes on and the result says
 // it is pending.
@@ -356,5 +349,50 @@ func (c *Client) Changelog(project, image, to string) (control.ChangelogResult, 
 func (c *Client) AdoptProject(p control.AdoptParams) (control.AdoptResult, error) {
 	var out control.AdoptResult
 	err := c.Call(control.OpProjectsAdopt, p, &out)
+	return out, err
+}
+
+// LogEntries reads one page of the action log, newest first. p.After continues from the Next of the
+// previous page. It needs no admin session.
+func (c *Client) LogEntries(p control.LogListParams) (control.LogListResult, error) {
+	var out control.LogListResult
+	err := c.Call(control.OpLogList, p, &out)
+	return out, err
+}
+
+// VerifyLog checks the hash chain of the action log, and its check values while the vault is unlocked. A
+// broken chain is a result with Intact false, not a failed call.
+func (c *Client) VerifyLog() (control.LogVerifyResult, error) {
+	var out control.LogVerifyResult
+	err := c.Call(control.OpLogVerify, nil, &out)
+	return out, err
+}
+
+// Templates lists the builtin and custom scenario templates.
+func (c *Client) Templates() ([]control.TemplateSummary, error) {
+	var out control.TemplatesListResult
+	err := c.Call(control.OpTemplatesList, nil, &out)
+	return out.Templates, err
+}
+
+// Template reads one template with its YAML text.
+func (c *Client) Template(name string) (control.TemplateDetail, error) {
+	var out control.TemplateDetail
+	err := c.Call(control.OpTemplatesShow, control.TemplateRef{Name: name}, &out)
+	return out, err
+}
+
+// DeriveTemplate stores a new custom template name with the steps of the template from. It needs the admin
+// session of this connection and never replaces an existing template.
+func (c *Client) DeriveTemplate(p control.TemplateDeriveParams) (control.TemplateDetail, error) {
+	var out control.TemplateDetail
+	err := c.Call(control.OpTemplatesDerive, p, &out)
+	return out, err
+}
+
+// DeployLog reads the log of one run of a project, cut to its end where it is long.
+func (c *Client) DeployLog(project, run string) (control.DeployLogResult, error) {
+	var out control.DeployLogResult
+	err := c.Call(control.OpDeployLog, control.DeployLogParams{Project: project, Run: run}, &out)
 	return out, err
 }

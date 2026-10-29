@@ -70,7 +70,7 @@ type projectAdoptMsg struct {
 	err error
 }
 
-func (projectAdoptMsg) projectsMsg() {}
+func (projectAdoptMsg) projectsAnswer() {}
 
 func (m *Model) takeProjectAdopt(msg projectAdoptMsg) {
 	p := m.prj.prompt

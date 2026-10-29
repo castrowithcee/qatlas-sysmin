@@ -30,7 +30,6 @@ const (
 	tCredNew       textID = "CredNew"
 	tBusyCreds     textID = "BusyCreds"
 	tCredTitle     textID = "CredTitle"
-	tCredHint      textID = "CredHint"
 	tCredName      textID = "CredName"
 	tCredKind      textID = "CredKind"
 	tCredBadName   textID = "CredBadName"
@@ -71,7 +70,6 @@ func init() {
 		tCredNew:       "New credential...",
 		tBusyCreds:     "Reading credentials",
 		tCredTitle:     "New credential",
-		tCredHint:      "The value goes to the vault and is never shown again.",
 		tCredName:      "Name",
 		tCredKind:      "Kind",
 		tCredBadName:   "Use lower-case letters, digits, dots, underscores and hyphens.",
@@ -116,7 +114,6 @@ func init() {
 		tCredNew:       "Neues Credential...",
 		tBusyCreds:     "Credentials werden gelesen",
 		tCredTitle:     "Neues Credential",
-		tCredHint:      "Der Wert geht in den Tresor und wird nie wieder angezeigt.",
 		tCredName:      "Name",
 		tCredKind:      "Art",
 		tCredBadName:   "Kleinbuchstaben, Ziffern, Punkte, Unterstriche und Bindestriche verwenden.",

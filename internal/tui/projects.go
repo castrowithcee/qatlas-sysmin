@@ -110,8 +110,8 @@ func (p *projectsState) markedProjects() []string {
 	return out
 }
 
-// projectsMsg is implemented by every answer of the Projects area.
-type projectsMsg interface{ projectsMsg() }
+// projectsAnswer is implemented by every answer of the Projects area.
+type projectsAnswer interface{ projectsAnswer() }
 
 // projectsListMsg is the answer of the list read.
 type projectsListMsg struct {
@@ -148,17 +148,18 @@ type projectSourceMsg struct {
 type projectLogMsg struct {
 	name   string
 	result control.DeployLogResult
+	none   bool
 	err    error
 }
 
-func (projectsListMsg) projectsMsg()  {}
-func (projectDataMsg) projectsMsg()   {}
-func (projectActionMsg) projectsMsg() {}
-func (projectSourceMsg) projectsMsg() {}
-func (projectLogMsg) projectsMsg()    {}
+func (projectsListMsg) projectsAnswer()  {}
+func (projectDataMsg) projectsAnswer()   {}
+func (projectActionMsg) projectsAnswer() {}
+func (projectSourceMsg) projectsAnswer() {}
+func (projectLogMsg) projectsAnswer()    {}
 
-// projectsCmd reads the list of projects; the state of each follows with the answer.
-func (m *Model) projectsCmd() tea.Cmd {
+// projectListCmd reads the list of projects; the state of each follows with the answer.
+func (m *Model) projectListCmd() tea.Cmd {
 	if m.backend == nil || m.area != areaProjects {
 		return nil
 	}
@@ -182,8 +183,8 @@ func (m *Model) projectDataCmd(name string) tea.Cmd {
 	}
 }
 
-// takeProjects handles an answer of the area.
-func (m *Model) takeProjects(msg projectsMsg) tea.Cmd {
+// takeProjectsAnswer handles an answer of the area.
+func (m *Model) takeProjectsAnswer(msg projectsAnswer) tea.Cmd {
 	switch msg := msg.(type) {
 	case projectsListMsg:
 		return m.takeProjectsList(msg)
@@ -336,17 +337,6 @@ func projectRunTone(cell string) lipgloss.Style {
 		return styles.warning
 	}
 	return styles.hint
-}
-
-// runMarks are the marks of the results of a run; the words stand in the detail pane.
-var runMarks = map[string]string{"succeeded": "✓", "rolled-back": "↩", "failed": "✗", "rollback-failed": "✗"}
-
-// runMark is the mark of the result of a run.
-func runMark(result string) string {
-	if mark, ok := runMarks[result]; ok {
-		return mark
-	}
-	return "?"
 }
 
 // projectCells are the cells of a row. marked leads the name with the mark of a marked project.

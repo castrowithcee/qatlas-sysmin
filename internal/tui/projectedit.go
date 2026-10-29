@@ -21,7 +21,7 @@ type projectFileMsg struct {
 	err    error
 }
 
-func (projectFileMsg) projectsMsg() {}
+func (projectFileMsg) projectsAnswer() {}
 
 // projectRead reads the project under the cursor for an edit, or with copied for a new project made from it.
 func (m *Model) projectRead(copied bool) tea.Cmd {

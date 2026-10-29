@@ -60,7 +60,7 @@ type projectNotesMsg struct {
 	err                      error
 }
 
-func (projectNotesMsg) projectsMsg() {}
+func (projectNotesMsg) projectsAnswer() {}
 
 // projectUpdateOpen opens the update panel for the marked projects, or the one under the cursor.
 func (m *Model) projectUpdateOpen() tea.Cmd {
@@ -235,7 +235,7 @@ func (m *Model) projectUpdateStart() tea.Cmd {
 				u.results = append([]control.ProjectUpdateResult{}, res.Results...)
 				u.scroll.reset()
 			}
-			return m.projectsCmd()
+			return m.projectListCmd()
 		},
 	})
 }

@@ -18,7 +18,7 @@ func (m *Model) typing() bool {
 	case screenList:
 		return m.list.editing
 	case screenArea:
-		return (m.area == areaSettings && m.set.editing) || (m.area == areaProjects && m.prj.list.editing) || m.flowTyping()
+		return (m.area == areaSettings && m.set.editing) || (m.area == areaProjects && m.prj.list.editing) || m.flowTyping() || m.currentPage().filtering()
 	case screenPopup:
 		return m.pop != nil && m.pop.kind == popCommand
 	case screenConfirm:

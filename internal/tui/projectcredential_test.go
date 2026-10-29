@@ -107,17 +107,17 @@ func TestCredentialCreatedOnTheWayAsksThePassphraseAndSetsTheField(t *testing.T)
 	}
 	send(m, "backspace")
 	send(m, "f2")
-	if m.ov == nil || len(fb.proj.credSet) != 0 || fb.count("credential new-registry") != 0 {
+	if m.ov == nil || len(fb.set) != 0 || fb.count("credential-set new-registry") != 0 {
 		t.Fatalf("F2 without a session: overlay = %v, calls = %v", m.ov, fb.log())
 	}
 	noSecret(t, m, "passphrase")
 	typed(m, testPass)
 	send(m, "enter")
-	if len(fb.proj.credSet) != 1 {
+	if len(fb.set) != 1 {
 		t.Fatalf("calls = %v, fail = %q", fb.log(), m.fail)
 	}
 	want := control.CredentialSetParams{Name: "new-registry", Kind: "registry", Fields: map[string]string{"user": "demo-user", "token": credSecret}}
-	got := fb.proj.credSet[0]
+	got := fb.set[0]
 	if got.Name != want.Name || got.Kind != want.Kind || got.Fields["user"] != "demo-user" || got.Fields["token"] != credSecret || len(got.Fields) != 2 {
 		t.Fatalf("request = %+v", got)
 	}
@@ -157,7 +157,7 @@ func TestCredentialWithASessionSavesAtOnce(t *testing.T) {
 	send(m, "down")
 	typed(m, credSecret)
 	send(m, "f2")
-	if m.ov != nil || len(fb.proj.credSet) != 1 || m.prj.flow.draft.images[0].credential != "new-registry" {
+	if m.ov != nil || len(fb.set) != 1 || m.prj.flow.draft.images[0].credential != "new-registry" {
 		t.Fatalf("overlay = %v, calls = %v", m.ov, fb.log())
 	}
 	noSecret(t, m, "saved")
@@ -182,7 +182,7 @@ func TestCredentialPanelRefusesWhatIsWrongBeforeSending(t *testing.T) {
 	send(m, "ctrl+u")
 	typed(m, "other")
 	send(m, "f2")
-	if m.fail != tr(tCredFill) || len(fb.proj.credSet) != 0 {
+	if m.fail != tr(tCredFill) || len(fb.set) != 0 {
 		t.Fatalf("empty value: fail = %q, calls = %v", m.fail, fb.log())
 	}
 	send(m, "esc")
@@ -273,7 +273,7 @@ func TestCredentialKindChangeEmptiesWhatWasTyped(t *testing.T) {
 
 func TestFlowChannelsArePickedFromTheService(t *testing.T) {
 	fb := projectsFake()
-	fb.proj.channels = []control.ChannelSummary{{ChannelParams: control.ChannelParams{Name: "ops-mail"}},
+	fb.lib.channels = []control.ChannelSummary{{ChannelParams: control.ChannelParams{Name: "ops-mail"}},
 		{ChannelParams: control.ChannelParams{Name: "ops-chat"}}}
 	m := flowModel(t, fb, 120, 40)
 	f := m.prj.flow
