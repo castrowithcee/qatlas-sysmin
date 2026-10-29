@@ -240,3 +240,30 @@ func TestRestore(t *testing.T) {
 		t.Error("bad project accepted")
 	}
 }
+
+func TestListBackups(t *testing.T) {
+	root := t.TempDir()
+	if got, err := ListBackups(root, "shop"); err != nil || got != nil {
+		t.Fatalf("no backups: %v %v", got, err)
+	}
+	pdir := filepath.Join(root, "shop")
+	for _, d := range []string{"20261029T101600Z", "20261029T101500Z", "not-a-backup", "20261399T000000Z"} {
+		if err := os.MkdirAll(filepath.Join(pdir, d), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(pdir, "20261029T101700Z"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(pdir, "20261029T101500Z"), filepath.Join(pdir, "20261029T101800Z")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ListBackups(root, "shop")
+	want := []string{filepath.Join(pdir, "20261029T101500Z"), filepath.Join(pdir, "20261029T101600Z")}
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v %v", got, err)
+	}
+	if _, err := ListBackups(root, "../shop"); err == nil {
+		t.Error("invalid project accepted")
+	}
+}
