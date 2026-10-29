@@ -696,3 +696,36 @@ func TestUnwrapIdentityHasNoSideEffects(t *testing.T) {
 		t.Errorf("absent err = %v", err)
 	}
 }
+
+func TestApprovalsNeedKeyAndSurviveReopen(t *testing.T) {
+	v := newVault(t)
+	if err := v.SetApproval("demo-app", "abc123"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := v.Approvals()
+	if err != nil || got["demo-app"] != "abc123" {
+		t.Fatalf("Approvals() = %v, %v", got, err)
+	}
+	v.Forget()
+	if err := v.SetApproval("demo-app", "x"); !errors.Is(err, ErrLocked) {
+		t.Fatalf("SetApproval locked = %v, want ErrLocked", err)
+	}
+	if _, err := v.Approvals(); !errors.Is(err, ErrLocked) {
+		t.Fatalf("Approvals locked = %v, want ErrLocked", err)
+	}
+	if err := v.DeleteApproval("demo-app"); !errors.Is(err, ErrLocked) {
+		t.Fatalf("DeleteApproval locked = %v, want ErrLocked", err)
+	}
+	if _, err := v.Unlock(testPass); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := v.Approvals(); got["demo-app"] != "abc123" {
+		t.Fatalf("approval lost after reopen: %v", got)
+	}
+	if err := v.DeleteApproval("demo-app"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := v.Approvals(); len(got) != 0 {
+		t.Fatalf("Approvals() = %v after delete", got)
+	}
+}

@@ -390,3 +390,16 @@ func (s *Store) backup(rel string, schema int, data []byte) error {
 		return syncDir(dir)
 	}
 }
+
+// ValidName reports whether name is usable as a project or template name and so as a file name.
+func ValidName(name string) bool { return nameRe.MatchString(name) }
+
+// ProjectRevision returns the revision of the project file as it is now, RevisionAbsent when it does not
+// exist. It reads the one file only, so it works while other files of the configuration are broken.
+func (s *Store) ProjectRevision(name string) (Revision, error) {
+	if !nameRe.MatchString(name) {
+		return RevisionAbsent, fmt.Errorf("invalid project name %q", name)
+	}
+	rev, _, err := s.current(ProjectPath(name))
+	return rev, err
+}
