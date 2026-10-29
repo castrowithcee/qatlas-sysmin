@@ -21,6 +21,14 @@ type Backend interface {
 	EndSession() error
 	// CreateVault creates the vault with its first passphrase and leaves it unlocked.
 	CreateVault(passphrase string) error
+	// ChangePassphrase replaces the vault passphrase; SetAdminTimeout sets vault.admin_timeout from a duration
+	// text. Both need the admin session.
+	ChangePassphrase(oldPassphrase, newPassphrase string) error
+	SetAdminTimeout(timeout string) (control.SettingsResult, error)
+	// Settings, Approvals and Projects only read.
+	Settings() (control.SettingsResult, error)
+	Approvals() ([]control.ApprovalSummary, error)
+	Projects() ([]control.ProjectSummary, error)
 }
 
 // NewBackend is the Backend over the control socket at path. It dials on the first call and again after the
@@ -92,4 +100,28 @@ func (b *ClientBackend) EndSession() error {
 
 func (b *ClientBackend) CreateVault(passphrase string) error {
 	return b.do(false, func(c *client.Client) error { return c.CreateVault(passphrase) })
+}
+
+func (b *ClientBackend) ChangePassphrase(oldPassphrase, newPassphrase string) error {
+	return b.do(false, func(c *client.Client) error { return c.ChangePassphrase(oldPassphrase, newPassphrase) })
+}
+
+func (b *ClientBackend) SetAdminTimeout(timeout string) (res control.SettingsResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.SetAdminTimeout(timeout); return e })
+	return res, err
+}
+
+func (b *ClientBackend) Settings() (res control.SettingsResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.Settings(); return e })
+	return res, err
+}
+
+func (b *ClientBackend) Approvals() (list []control.ApprovalSummary, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Approvals(); return e })
+	return list, err
+}
+
+func (b *ClientBackend) Projects() (list []control.ProjectSummary, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { list, e = c.Projects(); return e })
+	return list, err
 }

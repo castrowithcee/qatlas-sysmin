@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[Overview]  Projects   Activity   Access   Library   Settings                                                           
+                                                                                                                        
+> ● Vault      open                                                                                                     
+  ● Version    0.0.0-test                                                                                               
+    Press enter to open Settings › Update.                                                                              
+  ● Config     /etc/sysmin-test                                                                                         
+  ● Unlock     manual                                                                                                   
+  ⚠ Approvals  2 open                                                                                                   
+    Press enter to open Acce╔══════════════════════════════════════════════════════════════╗                            
+  ● Projects   1 total      ║ Help                                                         ║                            
+  ○ Updates    no data      ║                                                              ║                            
+    Press enter to open Proj║ [keys]  vault   admin-session   approvals   unlock           ║                            
+                            ║                                                              ║                            
+                            ║ This screen                                                  ║                            
+                            ║   1-6 area                                                   ║                            
+                            ║   up/down move                                               ║                            
+                            ║                                                              ║                            
+                            ║ Everywhere                                                   ║                            
+                            ║   ? help                                                     ║                            
+                            ║   : cmds                                                     ║                            
+                            ║   i info                                                     ║                            
+                            ║   ctrl+l admin                                               ║                            
+                            ║   F2 save                                                    ║                            
+                            ║   esc back                                                   ║                            
+                            ║   q quit                                                     ║                            
+                            ║                                                              ║                            
+                            ║ up/down scroll · left/right topic · esc close                ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

@@ -23,8 +23,8 @@ func TestStartsReadOnlyWithoutAPassphrase(t *testing.T) {
 	if m.area != areaOverview || m.screen != screenArea {
 		t.Fatalf("area %v screen %v, want the overview", m.area, m.screen)
 	}
-	if got := fb.log(); len(got) != 1 || got[0] != "status" {
-		t.Errorf("calls = %v, want one status and nothing else", got)
+	if got := fb.log(); strings.Join(got, " ") != "status approvals projects" {
+		t.Errorf("calls = %v, want the status and the two reads of the overview, nothing that changes", got)
 	}
 	if view := plain(m); !strings.Contains(view, "vault open") || !strings.Contains(view, "admin off") {
 		t.Errorf("header lacks the states:\n%s", view)
@@ -385,6 +385,7 @@ func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 	if m.area != areaSettings {
 		t.Errorf("movement back wraps to %v", m.area)
 	}
+	send(m, "2")
 	if view := plain(m); !strings.Contains(view, "Nothing to show yet.") {
 		t.Errorf("a placeholder area shows no hint:\n%s", view)
 	}

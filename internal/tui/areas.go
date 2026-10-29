@@ -49,33 +49,84 @@ func (m *Model) enableAreas(backend Backend) {
 	m.home, m.screen, m.area = screenArea, screenArea, areaOverview
 }
 
+// setArea shows an area, on its first page. Unsaved input of Settings is asked about first.
+func (m *Model) setArea(a area) tea.Cmd { return m.show(a, 0) }
+
+// show makes page sub of area a the screen; only Settings has pages.
+func (m *Model) show(a area, sub int) tea.Cmd {
+	return m.guarded(func() tea.Cmd {
+		m.area = a
+		m.resetForms()
+		m.clearMessages()
+		m.ovr.cursor = 0
+		if a == areaSettings {
+			m.set.sub = sub
+		}
+		return m.enterPage()
+	})
+}
+
+// enterPage asks for what the page just shown needs and has not yet.
+func (m *Model) enterPage() tea.Cmd {
+	switch {
+	case m.area == areaOverview:
+		return m.overviewCmd()
+	case m.area == areaSettings:
+		m.loadForms()
+		switch m.set.sub {
+		case subVault:
+			return m.settingsCmd()
+		case subUpdate:
+			return m.checkUpdate(false)
+		}
+	}
+	return nil
+}
+
 // updateArea handles one key of the area screen.
 func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
+	if m.typing() {
+		return m.editKey(key)
+	}
 	switch {
+	case keyIs(key, actHelp):
+		m.openPopup(popHelp)
+		return nil
+	case keyIs(key, actCommand):
+		m.openPopup(popCommand)
+		return nil
+	case m.infoKey(key):
+		m.openPopup(popInfo)
+		return nil
 	case keyIs(key, actQuit):
-		return m.quit()
+		return m.guarded(m.quit)
+	}
+	if m.area == areaSettings {
+		if cmd, ok := m.settingsKey(key); ok {
+			return cmd
+		}
+	}
+	switch {
 	case keyIs(key, actRight), keyIs(key, actNext):
-		m.area = (m.area + 1) % areaCount
-		return nil
+		return m.setArea((m.area + 1) % areaCount)
 	case keyIs(key, actLeft), keyIs(key, actPrev):
-		m.area = (m.area + areaCount - 1) % areaCount
-		return nil
+		return m.setArea((m.area + areaCount - 1) % areaCount)
 	case keyIs(key, actReload):
 		return m.statusCmd()
 	}
 	if len(key.Text) == 1 && key.Text[0] >= '1' && key.Text[0] < '1'+byte(areaCount) {
-		m.area = area(key.Text[0] - '1')
-		return nil
+		return m.setArea(area(key.Text[0] - '1'))
 	}
-	return m.areaKey(key)
-}
-
-// areaKey is the key handling of the current area.
-func (m *Model) areaKey(key tea.KeyPressMsg) tea.Cmd {
-	if m.area == areaOverview && keyIs(key, actEnter) && m.vaultState() == control.VaultAbsent {
-		m.openOverlay(entrySetup, 2, false, nil, false)
+	if m.area == areaOverview {
+		return m.overviewKey(key)
 	}
 	return nil
+}
+
+// infoKey reports whether key asks for the info: the letter, or the second key of the preferences, which also
+// works where text is typed.
+func (m *Model) infoKey(key tea.KeyPressMsg) bool {
+	return keyIs(key, actInfo) || (infoExtra != "" && key.String() == infoExtra)
 }
 
 // areaView is the workspace of the area screen: the tab line and the area under it.
@@ -83,10 +134,10 @@ func (m *Model) areaView() string {
 	line, spans := m.tabLine()
 	top := m.workspaceTop()
 	for i, span := range spans {
-		m.addHit(span.x0, top, span.x1, top+1, func() tea.Cmd { m.area = area(i); return nil })
+		m.addHit(span.x0, top, span.x1, top+1, func() tea.Cmd { return m.setArea(area(i)) })
 	}
 	m.keyHint(m.areaKeys())
-	return line + "\n\n" + m.areaBody()
+	return line + "\n\n" + m.areaBody() + m.notes()
 }
 
 // tabLine draws the tab line and the cells of each tab. Where the titles do not fit the width, the tabs that
@@ -114,10 +165,24 @@ func (m *Model) tabLine() (string, []navSpan) {
 
 // areaKeys is the key line of the area screen.
 func (m *Model) areaKeys() string {
-	keys := []string{"1-6 area", "left/right move"}
+	if m.typing() {
+		return "enter next · {back} stop · {save} save"
+	}
+	keys := []string{"1-6 area"}
+	switch m.area {
+	case areaOverview:
+		keys = append(keys, "up/down move")
+		if row := m.overviewCurrent(); row.key != "" {
+			keys = append(keys, row.key)
+		}
+	case areaSettings:
+		keys = append(keys, "left/right page")
+		keys = append(keys, m.settingsKeys()...)
+	default:
+		keys = append(keys, "left/right move")
+	}
 	switch state := m.vaultState(); {
 	case state == control.VaultAbsent:
-		keys = append(keys, "enter set up")
 	case state == control.VaultLocked:
 		keys = append(keys, "{lock} unlock")
 	case !m.serviceUp():
@@ -127,38 +192,17 @@ func (m *Model) areaKeys() string {
 	default:
 		keys = append(keys, "{lock} admin")
 	}
-	keys = append(keys, "q quit")
+	keys = append(keys, "{info} info", "{help} help", "{command} cmds", "q quit")
 	return strings.Join(keys, " · ")
 }
 
 // areaBody is the area under the tab line. Areas without content show one line.
 func (m *Model) areaBody() string {
-	if m.area == areaOverview {
+	switch m.area {
+	case areaOverview:
 		return m.overviewBody()
+	case areaSettings:
+		return m.settingsBody()
 	}
 	return m.wrapped(styles.hint, tr(tListEmpty))
-}
-
-// overviewBody is the state of the service and the vault with the next step.
-func (m *Model) overviewBody() string {
-	var mark, next string
-	switch state := m.vaultState(); {
-	case !m.svc.known:
-		return m.wrapped(styles.hint, tr(tChecking))
-	case !m.serviceUp():
-		mark, next = statusMark(statusFail, tr(tServiceDown)), tr(tNextRetry, keyName(keyOf(actReload)))
-	case state == control.VaultAbsent:
-		mark, next = statusMark(statusWarn, tr(tVaultNone)), tr(tNextSetup)
-	case state == control.VaultLocked:
-		mark, next = statusMark(statusWarn, tr(tVaultLocked)), tr(tNextUnlock, keyLabel(actLock))
-	case state == control.VaultUnlocked:
-		mark = statusMark(statusOK, tr(tVaultOpen))
-	default:
-		mark = statusMark(statusWarn, tr(tErrService))
-	}
-	out := m.wrapped(lipgloss.NewStyle(), mark)
-	if next != "" {
-		out += "\n" + m.indented(next)
-	}
-	return out
 }

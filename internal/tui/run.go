@@ -20,7 +20,12 @@ type Options struct {
 	Redactor *redact.Redactor
 	// Backend serves the service interface. Nil runs the bare frame without a service.
 	Backend Backend
-	In, Out *os.File
+	// PrefsPath is the file Settings writes the preferences to; empty means they cannot be saved.
+	PrefsPath string
+	// Version is the running program. Releases looks up the releases for Settings; nil offers no lookup.
+	Version  string
+	Releases ReleaseCheck
+	In, Out  *os.File
 }
 
 // Run starts the editor on the terminal streams of opts and returns when the person quits.
@@ -44,6 +49,7 @@ func Run(opts Options) error {
 	}
 	applyKeys(prefs.Keys)
 	model := New(prefs, opts.Redactor)
+	model.prefsPath, model.version, model.releases = opts.PrefsPath, opts.Version, opts.Releases
 	if opts.Backend != nil {
 		model.enableAreas(opts.Backend)
 	}

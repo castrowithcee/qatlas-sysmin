@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate"
 	"github.com/castrowithcee/qatlas-sysmin/internal/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
@@ -39,15 +41,18 @@ func newTUICommand(opts *Options) *cobra.Command {
 			}
 			var prefs uiprefs.Prefs
 			var warnings []string
+			prefsPath := ""
 			if dir, err := os.UserConfigDir(); err != nil {
 				prefs = uiprefs.Default()
 				warnings = []string{fmt.Sprintf("no configuration directory, using the defaults: %v", err)}
 			} else {
-				prefs, warnings = uiprefs.Load(uiprefs.Path(filepath.Join(dir, configDirName)))
+				prefsPath = uiprefs.Path(filepath.Join(dir, configDirName))
+				prefs, warnings = uiprefs.Load(prefsPath)
 			}
 			backend := tui.NewBackend(socket)
 			defer backend.Close()
-			return tui.Run(tui.Options{Prefs: prefs, PrefsWarnings: warnings, Redactor: opts.Redactor, Backend: backend, In: in, Out: out})
+			return tui.Run(tui.Options{Prefs: prefs, PrefsWarnings: warnings, PrefsPath: prefsPath, Redactor: opts.Redactor,
+				Backend: backend, Version: version, Releases: releaseCheck(opts), In: in, Out: out})
 		},
 	}
 	cmd.Flags().StringVar(&socket, "socket", control.DefaultSocketPath, "control socket path")
@@ -67,4 +72,25 @@ func terminalFiles(c *cobra.Command) (in, out *os.File, ok bool) {
 func isTerminal(f *os.File) bool {
 	_, err := unix.IoctlGetTermios(int(f.Fd()), unix.TCGETS)
 	return err == nil
+}
+
+// releaseCheck looks up the newest stable release for the update page of the terminal interface, the way
+// update --list does. A development build has no release version to compare, which the page shows as such.
+func releaseCheck(opts *Options) tui.ReleaseCheck {
+	return func(ctx context.Context) (tui.ReleaseInfo, error) {
+		entries, err := opts.system().updater(version, "").List(ctx)
+		if errors.Is(err, selfupdate.ErrDevelopmentBuild) {
+			return tui.ReleaseInfo{Dev: true}, nil
+		}
+		if err != nil {
+			return tui.ReleaseInfo{}, err
+		}
+		// The entries come newest first, so the first stable one that is newer than this program is the newest.
+		for _, e := range entries {
+			if !e.Prerelease && !e.Current && !e.Older {
+				return tui.ReleaseInfo{Latest: e.Version}, nil
+			}
+		}
+		return tui.ReleaseInfo{}, nil
+	}
 }

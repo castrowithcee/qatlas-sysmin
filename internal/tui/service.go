@@ -71,11 +71,14 @@ func (m *Model) takeStatus(msg statusMsg) tea.Cmd {
 		m.svc.reachable, m.svc.fail = true, ""
 		m.svc.st, m.svc.at = msg.st, now
 	}
+	if m.vaultState() != control.VaultUnlocked {
+		m.ovr.clear()
+	}
 	if m.svc.again {
 		m.svc.again = false
-		return m.statusCmd()
+		return tea.Batch(m.statusCmd(), m.overviewCmd())
 	}
-	return nil
+	return m.overviewCmd()
 }
 
 // takeTick schedules the next tick and asks the service when the last question is old enough.

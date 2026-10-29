@@ -40,6 +40,8 @@ const (
 	// screenArea is the area screen of the service interface: the tab line with the current area. It is
 	// the base of the dialogs in place of screenList where the interface runs against a service.
 	screenArea
+	// screenPopup is the help, the info or the command line over the area screen.
+	screenPopup
 )
 
 // Model is the state of the editor frame: the list in the workspace and the dialog over it. Areas of the
@@ -72,6 +74,19 @@ type Model struct {
 	// them.
 	ov    *passEntry
 	ovSeq int
+
+	// The state of the areas: the rows of the overview, the pages of Settings, the popup over the screen, the
+	// question before unsaved input is dropped; see overview.go, settings.go, popup.go.
+	ovr overviewState
+	set settingsState
+	pop *popup
+	// leave is the question before unsaved input is dropped, nil while there is none.
+	leave *leaveAsk
+	// prefsPath is the preferences file Settings writes; empty means there is none to write.
+	prefsPath string
+	// version is the running program; releases looks up the releases. Nil means the lookup is not offered.
+	version  string
+	releases ReleaseCheck
 
 	status string
 	fail   string
@@ -160,6 +175,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.takeChange(msg)
 	case sessionEndedMsg:
 		return m, m.takeSessionEnded(msg)
+	case overviewMsg:
+		m.takeOverview(msg)
+		return m, nil
+	case settingsMsg:
+		m.takeSettings(msg)
+		return m, nil
+	case updateMsg:
+		m.takeUpdate(msg)
+		return m, nil
 	}
 	return m, nil
 }
@@ -167,6 +191,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // updateKey handles one key press: first the open dropdown and dialogs, then the list.
 func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	if keyIs(key, actForceQuit) {
+		if m.screen == screenArea && m.ov == nil && m.dd == nil {
+			return m.guarded(m.quit)
+		}
 		return m.quit()
 	}
 	if m.dd != nil {
@@ -174,6 +201,12 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.ov != nil {
 		return m.updateOverlay(key)
+	}
+	if m.screen == screenPopup {
+		return m.updatePopup(key)
+	}
+	if m.screen == screenConfirm && m.leave != nil {
+		return m.updateLeave(key)
 	}
 	if m.screen == screenArea {
 		if keyIs(key, actLock) {
@@ -237,7 +270,7 @@ func (m *Model) quit() tea.Cmd {
 
 // closeDialog closes the question or input dialog and returns to the list.
 func (m *Model) closeDialog() {
-	m.screen, m.ask, m.dialog = m.home, nil, nil
+	m.screen, m.ask, m.dialog, m.leave = m.home, nil, nil, nil
 }
 
 // clearMessages forgets the status and the error of the last action.
@@ -282,6 +315,9 @@ func (m *Model) renderFrame() string {
 	if m.terminalTooSmall() {
 		m.tooSmall = true
 		return m.resizeView()
+	}
+	if m.screen == screenPopup && m.pop != nil {
+		return m.popupFrame()
 	}
 	if view, ok := m.modalView(); ok {
 		return view

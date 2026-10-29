@@ -1,0 +1,40 @@
+sysmin  ● no vault                                                                                        ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+[Overview]  Projects   Activity   Access   Library   Settings 
+
+> ⚠ Vault      not set up
+    Press enter to set up the vault.
+  ● Version    0.0.0-test
+    Press enter to open Settings › Update.
+  ● Config     /etc/sysmin-test
+  ○ Approvals  no data
+  ○ Projects   no data
+  ○ Updates    no data
+    Press enter to open Projects.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1-6 area  enter set up  i info  ? help  : cmds  q quit                                                      up/down move

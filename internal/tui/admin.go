@@ -25,6 +25,9 @@ type entryKind int
 const (
 	entryAdmin entryKind = iota
 	entrySetup
+	// entryChange takes the current passphrase, the new one and its confirmation. The current one verifies
+	// and opens the admin session like the admin entry does, and the change follows.
+	entryChange
 )
 
 // passEntry is the masked passphrase entry over the screen: the admin passphrase, or the first passphrase of a
@@ -237,15 +240,28 @@ func (m *Model) submitOverlay() tea.Cmd {
 	}
 	m.clearMessages()
 	m.focusOverlay(0)
-	if typed[0] == "" {
+	if typed[0] == "" || (ov.kind == entryChange && typed[1] == "") {
 		m.fail = tr(tPassEmpty)
 		return nil
 	}
-	if ov.kind == entrySetup && typed[0] != typed[1] {
+	if (ov.kind == entrySetup && typed[0] != typed[1]) || (ov.kind == entryChange && typed[1] != typed[2]) {
 		m.fail = tr(tPassDiffer)
 		return nil
 	}
 	m.redactor.Add(typed[0])
+	if ov.kind == entryChange {
+		old, next := typed[0], typed[1]
+		m.redactor.Add(next)
+		ov.change = &change{
+			call: func(b Backend) error { return b.ChangePassphrase(old, next) },
+			done: func(m *Model, err error) tea.Cmd {
+				if err == nil {
+					m.status = tr(tPassChanged)
+				}
+				return nil
+			},
+		}
+	}
 	ov.busy, m.busy = true, tr(tBusyChecking)
 	b, id, locked := m.backend, ov.id, ov.locked
 	pass := typed[0]
@@ -329,6 +345,13 @@ func (m *Model) overlayDialog() promptDialog {
 		labels = []string{tr(tPassLabel), tr(tPassConfirmLabel)}
 		d.title, d.hint = tr(tSetupTitle), tr(tSetupHint)
 		d.keys = "enter ok · tab next · {back} cancel"
+	case entryChange:
+		labels = []string{tr(tPassCurrent), tr(tPassNew), tr(tPassConfirmLabel)}
+		d.title, d.hint = tr(tChangeTitle), tr(tChangeHint)
+		d.keys = "enter ok · tab next · {back} cancel"
+		if ov.locked {
+			d.keys = "enter unlock · tab next · {back} cancel"
+		}
 	case entryAdmin:
 		d.title, d.hint = tr(tAdminTitle), tr(tAdminHint)
 		d.keys = "enter ok · {back} cancel"

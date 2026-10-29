@@ -27,6 +27,12 @@ type fakeBackend struct {
 	down      error
 	calls     []string
 	changes   int
+	// unlockMode is what Status reports as the unlock mode; empty reads as manual.
+	unlockMode string
+	approvals  []control.ApprovalSummary
+	projects   []control.ProjectSummary
+	// invalidTimeout makes SetAdminTimeout refuse its input with a problem of the field.
+	invalidTimeout bool
 }
 
 func newFake(vault string) *fakeBackend {
@@ -42,7 +48,13 @@ func (f *fakeBackend) Status() (control.StatusResult, error) {
 	if f.down != nil {
 		return control.StatusResult{}, f.down
 	}
-	st := control.StatusResult{Version: "0.0.0-test", Vault: f.vault, AdminTimeout: f.timeout}
+	st := control.StatusResult{Version: "0.0.0-test", Vault: f.vault, AdminTimeout: f.timeout, ConfigDir: "/etc/sysmin-test"}
+	if f.vault != control.VaultAbsent {
+		st.Unlock = control.UnlockManual
+		if f.unlockMode != "" {
+			st.Unlock = f.unlockMode
+		}
+	}
 	if f.session {
 		st.Admin, st.AdminRemaining = true, f.remaining
 	}
@@ -91,6 +103,66 @@ func (f *fakeBackend) CreateVault(pass string) error {
 	}
 	f.vault, f.pass = control.VaultUnlocked, pass
 	return nil
+}
+
+func (f *fakeBackend) ChangePassphrase(old, next string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("passphrase")
+	switch {
+	case !f.session:
+		return &control.Error{Code: control.CodeAdminRequired}
+	case old != f.pass:
+		return &control.Error{Code: control.CodeWrongPassphrase}
+	}
+	f.pass = next
+	return nil
+}
+
+func (f *fakeBackend) SetAdminTimeout(text string) (control.SettingsResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("timeout " + text)
+	if !f.session {
+		return control.SettingsResult{}, &control.Error{Code: control.CodeAdminRequired}
+	}
+	if f.invalidTimeout {
+		return control.SettingsResult{}, &control.Error{Code: control.CodeInvalid, Problems: []control.Problem{
+			{Field: "vault.admin_timeout", Code: "range", Message: "must not be negative", Hint: "use 0 or a positive duration"}}}
+	}
+	d, err := time.ParseDuration(text)
+	if err != nil {
+		return control.SettingsResult{}, &control.Error{Code: control.CodeBadRequest}
+	}
+	f.timeout = d.String()
+	return control.SettingsResult{AdminTimeout: f.timeout, Explicit: true}, nil
+}
+
+func (f *fakeBackend) Settings() (control.SettingsResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("settings")
+	if f.down != nil {
+		return control.SettingsResult{}, f.down
+	}
+	return control.SettingsResult{AdminTimeout: f.timeout}, nil
+}
+
+func (f *fakeBackend) Approvals() ([]control.ApprovalSummary, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("approvals")
+	if f.vault != control.VaultUnlocked {
+		return nil, &control.Error{Code: control.CodeLocked}
+	}
+	return slices.Clone(f.approvals), nil
+}
+
+func (f *fakeBackend) Projects() ([]control.ProjectSummary, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("projects")
+	return slices.Clone(f.projects), nil
 }
 
 // expire ends the session on the service without the interface hearing of it.
