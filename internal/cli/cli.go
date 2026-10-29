@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/autounlock"
 	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
@@ -27,6 +28,9 @@ type Options struct {
 	Format output.Format
 	// Redactor removes secret values from anything the process prints.
 	Redactor *redact.Redactor
+
+	// binder builds the vault binder; nil means the real one. Tests set it.
+	binder func(dir string) *autounlock.Binder
 }
 
 // Run executes the root command against the given streams and returns the process exit code. It never
@@ -87,6 +91,7 @@ func newRootCommand(opts *Options) *cobra.Command {
 
 	cmd.AddCommand(newVersionCommand(opts))
 	cmd.AddCommand(newLogCommand(opts))
+	cmd.AddCommand(newVaultCommand(opts))
 	// A command without a run function is a help topic: 'sysmin help <topic>' prints its text, and the
 	// root help lists it under the additional help topics.
 	for _, topic := range helptopics.All() {

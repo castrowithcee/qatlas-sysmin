@@ -663,3 +663,36 @@ func TestReadPassphraseFrom(t *testing.T) {
 		t.Fatalf("ReadPassphraseFrom(empty) = %v", err)
 	}
 }
+
+func TestUnwrapIdentityHasNoSideEffects(t *testing.T) {
+	v := newVault(t)
+	locked := New(v.Dir())
+	if _, err := locked.Add("later", KindSecret, map[string]string{FieldValue: testSecret}); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := os.ReadFile(filepath.Join(v.Dir(), secretsFile))
+	pending, _ := os.ReadDir(filepath.Join(v.Dir(), pendingDir))
+	if len(pending) != 1 {
+		t.Fatalf("pending = %d", len(pending))
+	}
+	id, err := locked.UnwrapIdentity(testPass)
+	if err != nil || id == nil {
+		t.Fatalf("UnwrapIdentity() = %v, %v", id, err)
+	}
+	if st, _ := locked.State(); st != StateLocked {
+		t.Errorf("state = %s", st)
+	}
+	after, _ := os.ReadFile(filepath.Join(v.Dir(), secretsFile))
+	if !bytes.Equal(before, after) {
+		t.Error("secrets.age changed")
+	}
+	if p, _ := os.ReadDir(filepath.Join(v.Dir(), pendingDir)); len(p) != 1 {
+		t.Error("pending changed")
+	}
+	if _, err := locked.UnwrapIdentity("wrong"); !errors.Is(err, ErrWrongPassphrase) {
+		t.Errorf("wrong passphrase err = %v", err)
+	}
+	if _, err := New(t.TempDir()).UnwrapIdentity(testPass); !errors.Is(err, ErrAbsent) {
+		t.Errorf("absent err = %v", err)
+	}
+}
