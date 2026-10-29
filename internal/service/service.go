@@ -22,6 +22,8 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
+	"github.com/castrowithcee/qatlas-sysmin/internal/engine"
+	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
 	"github.com/castrowithcee/qatlas-sysmin/internal/notify"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/gitrepo"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/registry"
@@ -62,6 +64,11 @@ type Config struct {
 	SourceGit      gitrepo.Options
 	// OnLogError is told about audit log writes that failed; nil logs them with slog.
 	OnLogError func(error)
+	// DeployRunner runs the programs of a deploy; nil runs them for real. Tests install a fake one.
+	DeployRunner execute.Runner
+	// DeployWait is how long a request that starts a deploy waits for its end; zero means
+	// control.DeployWait.
+	DeployWait time.Duration
 }
 
 // connState is what a connection owns: its admin session. A connection serves one request at a time, so
@@ -82,6 +89,11 @@ type Service struct {
 	log       *auditlog.Logger
 	notifier  *notify.Notifier
 	server    *daemon.Server
+	engine    *engine.Engine
+
+	// base is the context of Serve; ops counts the deploys that requests started in the background.
+	base context.Context
+	ops  sync.WaitGroup
 
 	unlockMu sync.Mutex
 	// credMu serializes the changes of credentials, which read the vault, change it and then settle the
@@ -133,6 +145,11 @@ func Open(cfg Config) (*Service, error) {
 	s.store = config.NewStore(cfg.ConfigDir)
 	s.approvals = approval.New(s.store, s.vault, cfg.StateDir)
 	s.notifier = notify.New(s.approvals, s.vault, notifyAudit{s})
+	var err error
+	if s.engine, err = s.newEngine(); err != nil {
+		s.notifier.Close()
+		return nil, err
+	}
 
 	srv, err := daemon.New(daemon.Config{
 		Logger:     s.log,
@@ -179,13 +196,29 @@ func (s *Service) Listen() error {
 	return nil
 }
 
-// Serve serves the control socket until ctx ends. It then drops the vault's key and the log key.
+// Serve serves the control socket and runs the deploy planner until ctx ends. It then waits for the deploys
+// that are running, drops the vault's key and the log key.
 func (s *Service) Serve(ctx context.Context) error {
 	defer s.shutdown()
 	if s.listener == nil {
 		return errors.New("the service is not listening")
 	}
-	return s.server.Serve(ctx, s.listener)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	s.base = ctx
+	planner := make(chan struct{})
+	go func() {
+		defer close(planner)
+		if err := s.engine.Run(ctx); err != nil {
+			slog.Warn("the deploy planner stopped", "error", err.Error())
+		}
+	}()
+	err := s.server.Serve(ctx, s.listener)
+	// A deploy never stops half way; the planner and the requests that started one end when it has.
+	cancel()
+	<-planner
+	s.ops.Wait()
+	return err
 }
 
 func (s *Service) shutdown() {
@@ -320,7 +353,10 @@ func (s *Service) register() error {
 	if err := s.registerSources(); err != nil {
 		return err
 	}
-	return s.registerNotify()
+	if err := s.registerNotify(); err != nil {
+		return err
+	}
+	return s.registerDeploy()
 }
 
 func (s *Service) handleVaultStatus(context.Context, *daemon.Conn, json.RawMessage) (any, error) {

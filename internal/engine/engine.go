@@ -294,11 +294,13 @@ func (e *Engine) audit(action, project, code string, d time.Duration) {
 
 // eventSubscription maps an event to the project notification event that subscribes to it.
 var eventSubscription = map[notify.EventType]string{
-	notify.EventDeploySucceeded: config.EventUpdateSucceeded,
-	notify.EventDeployFailed:    config.EventUpdateFailed,
-	notify.EventDeployRolled:    config.EventUpdateFailed,
-	notify.EventRollbackFailed:  config.EventUpdateFailed,
-	notify.EventUpdateAvailable: config.EventUpdateAvailable,
+	notify.EventDeploySucceeded:  config.EventUpdateSucceeded,
+	notify.EventDeployFailed:     config.EventUpdateFailed,
+	notify.EventDeployRolled:     config.EventUpdateFailed,
+	notify.EventRollbackFailed:   config.EventUpdateFailed,
+	notify.EventUpdateAvailable:  config.EventUpdateAvailable,
+	notify.EventRestoreSucceeded: config.EventRestoreSucceed,
+	notify.EventRestoreFailed:    config.EventRestoreFailed,
 }
 
 // notify sends ev over the channels of the approved project, if it subscribes to the event. A project

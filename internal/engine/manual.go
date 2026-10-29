@@ -10,6 +10,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
+	"github.com/castrowithcee/qatlas-sysmin/internal/notify"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/version"
 )
 
@@ -183,6 +184,11 @@ func (e *Engine) Restore(ctx context.Context, project, backup string) (RunRecord
 	if _, err := e.store.update(project, func(s *State) { s.addRun(rec) }); err != nil {
 		rec.Error = joinText(rec.Error, err.Error())
 	}
+	ev := notify.Event{Type: notify.EventRestoreSucceeded, Project: project, Time: rec.Started}
+	if rec.Result != ResultSucceeded {
+		ev.Type, ev.Error = notify.EventRestoreFailed, rec.Error
+	}
+	e.notify(ap.Project, ev)
 	e.audit(auditlog.OperationDeployRestore, project, rec.ErrorCode, rec.Duration)
 	return rec, nil
 }

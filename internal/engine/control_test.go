@@ -13,6 +13,7 @@ import (
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
+	"github.com/castrowithcee/qatlas-sysmin/internal/notify"
 )
 
 // idle waits until no run of the project is active. A run signals its start through the fakes but its end
@@ -253,6 +254,34 @@ func TestRestore(t *testing.T) {
 	f.vault.locked = true
 	if _, err := f.eng.Restore(context.Background(), demoProject, out.Run.Backup); !errors.Is(err, ErrLocked) {
 		t.Errorf("restore while locked: %v", err)
+	}
+}
+
+func TestRestoreNotifies(t *testing.T) {
+	f := newFixture(t)
+	p := f.project(demoImage("app", "APP_TAG", auto))
+	p.Notify.Events = append(p.Notify.Events, config.EventRestoreSucceed, config.EventRestoreFailed)
+	f.approvals.set(p)
+	f.sources.setTags("app", "1.0.0", "1.1.0")
+	out := f.runNow()
+	if out.Run == nil {
+		t.Fatal("no run")
+	}
+	rec, err := f.eng.Restore(context.Background(), demoProject, out.Run.Backup)
+	if err != nil || rec.Result != ResultSucceeded {
+		t.Fatalf("restore: %+v %v", rec, err)
+	}
+	if ev := f.notifier.last(); ev.Type != notify.EventRestoreSucceeded || ev.Project != demoProject || ev.Error != "" {
+		t.Errorf("event = %+v", ev)
+	}
+
+	f.runner.fail = func(line string) bool { return line == "restore-backup" }
+	rec, err = f.eng.Restore(context.Background(), demoProject, out.Run.Backup)
+	if err != nil || rec.Result != ResultFailed {
+		t.Fatalf("failing restore: %+v %v", rec, err)
+	}
+	if ev := f.notifier.last(); ev.Type != notify.EventRestoreFailed || ev.Error == "" {
+		t.Errorf("event = %+v", ev)
 	}
 }
 

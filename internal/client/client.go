@@ -250,3 +250,55 @@ func (c *Client) SourceTest(project string) (control.SourceTestResult, error) {
 	err := c.Call(control.OpSourceTest, control.SourceTestParams{Project: project}, &out)
 	return out, err
 }
+
+// DeployStatus reads the deploy state of a project.
+func (c *Client) DeployStatus(project string) (control.DeployStatusResult, error) {
+	var out control.DeployStatusResult
+	err := c.Call(control.OpDeployStatus, control.DeployRef{Project: project}, &out)
+	return out, err
+}
+
+// DeployHistory lists the latest runs of a project, the oldest first.
+func (c *Client) DeployHistory(project string) (control.DeployHistoryResult, error) {
+	var out control.DeployHistoryResult
+	err := c.Call(control.OpDeployHistory, control.DeployRef{Project: project}, &out)
+	return out, err
+}
+
+// DeployRunNow checks the sources of a project at once and deploys what its version rules allow without a
+// human. The service waits for the run up to control.DeployWait; a longer run goes on and the result says
+// it is pending.
+func (c *Client) DeployRunNow(project string) (control.DeployRunNowResult, error) {
+	var out control.DeployRunNowResult
+	err := c.Call(control.OpDeployRunNow, control.DeployRef{Project: project}, &out)
+	return out, err
+}
+
+// DeployControl pauses, resumes, pins or unpins a project; op is one of control.OpDeployPause,
+// OpDeployResume, OpDeployPin and OpDeployUnpin.
+func (c *Client) DeployControl(op, project string) error {
+	return c.Call(op, control.DeployRef{Project: project}, nil)
+}
+
+// Backups lists the backups of a project, the oldest first.
+func (c *Client) Backups(project string) ([]string, error) {
+	var out control.BackupsListResult
+	err := c.Call(control.OpBackupsList, control.DeployRef{Project: project}, &out)
+	return out.Backups, err
+}
+
+// DeployUpdate updates projects to versions a person chose, one after the other. It needs the admin session
+// of this connection. A project that has not finished when control.DeployWait is over is pending.
+func (c *Client) DeployUpdate(updates []control.ProjectUpdate) (control.DeployUpdateResult, error) {
+	var out control.DeployUpdateResult
+	err := c.Call(control.OpDeployUpdate, control.DeployUpdateParams{Updates: updates}, &out)
+	return out, err
+}
+
+// DeployRestore restores the data of a project from one of its backups. It needs the admin session of this
+// connection.
+func (c *Client) DeployRestore(project, backup string) (control.DeployRestoreResult, error) {
+	var out control.DeployRestoreResult
+	err := c.Call(control.OpDeployRestore, control.DeployRestoreParams{Project: project, Backup: backup}, &out)
+	return out, err
+}

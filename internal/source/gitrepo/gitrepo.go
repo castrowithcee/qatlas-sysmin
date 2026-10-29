@@ -69,17 +69,8 @@ func (l *Lister) Tags(ctx context.Context, rawURL string, cred Credential) ([]st
 	if err != nil {
 		return nil, err
 	}
-	switch {
-	case cred.Kind == KindSSH && target.scheme != KindSSH:
-		return nil, fmt.Errorf("%w: an ssh key needs an ssh url", ErrAuth)
-	case cred.Kind == KindHTTPS && target.scheme != KindHTTPS:
-		return nil, fmt.Errorf("%w: a https login needs an https url", ErrAuth)
-	case cred.Kind == KindSSH && (strings.TrimSpace(cred.PrivateKey) == "" || strings.TrimSpace(cred.HostKey) == ""):
-		return nil, fmt.Errorf("%w: private key and host key are both required", ErrAuth)
-	case cred.Kind == KindHTTPS && cred.Token == "":
-		return nil, fmt.Errorf("%w: the token is empty", ErrAuth)
-	case cred.Kind != "" && cred.Kind != KindSSH && cred.Kind != KindHTTPS:
-		return nil, fmt.Errorf("%w: unknown credential kind %q", ErrAuth, cred.Kind)
+	if err := checkCredential(target, cred); err != nil {
+		return nil, err
 	}
 	gitPath, err := exec.LookPath("git")
 	if err != nil {
@@ -128,6 +119,23 @@ func (l *Lister) Tags(ctx context.Context, rawURL string, cred Credential) ([]st
 		return nil, errors.New("git printed more output than expected")
 	}
 	return parseTags(stdout.String()), nil
+}
+
+// checkCredential refuses a credential that cannot work with the remote.
+func checkCredential(target remote, cred Credential) error {
+	switch {
+	case cred.Kind == KindSSH && target.scheme != KindSSH:
+		return fmt.Errorf("%w: an ssh key needs an ssh url", ErrAuth)
+	case cred.Kind == KindHTTPS && target.scheme != KindHTTPS:
+		return fmt.Errorf("%w: a https login needs an https url", ErrAuth)
+	case cred.Kind == KindSSH && (strings.TrimSpace(cred.PrivateKey) == "" || strings.TrimSpace(cred.HostKey) == ""):
+		return fmt.Errorf("%w: private key and host key are both required", ErrAuth)
+	case cred.Kind == KindHTTPS && cred.Token == "":
+		return fmt.Errorf("%w: the token is empty", ErrAuth)
+	case cred.Kind != "" && cred.Kind != KindSSH && cred.Kind != KindHTTPS:
+		return fmt.Errorf("%w: unknown credential kind %q", ErrAuth, cred.Kind)
+	}
+	return nil
 }
 
 // CurrentTag returns the tag that the working copy in dir has checked out, or "" if HEAD is on no tag. git
@@ -185,6 +193,20 @@ func (l *Lister) CurrentTag(ctx context.Context, dir string) (string, error) {
 		return "", errors.New("git printed more output than expected")
 	}
 	return strings.TrimSpace(stdout.String()), nil
+}
+
+// AuthEnv returns the environment entries that let git authenticate at rawURL with cred, and nothing else
+// of the stripped environment of the listing. The files they point to are created in dir, which the caller
+// owns and removes once git has run; the entries are empty for no credential.
+func (l *Lister) AuthEnv(dir, rawURL string, cred Credential) ([]string, error) {
+	target, err := l.parseURL(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	if err := checkCredential(target, cred); err != nil {
+		return nil, err
+	}
+	return l.authEnv(dir, target, cred)
 }
 
 type remote struct {
@@ -248,6 +270,16 @@ func (l *Lister) environment(dir string, target remote, cred Credential) ([]stri
 		"GIT_ALLOW_PROTOCOL=" + strings.Join(protocols, ":"),
 		"SSH_AUTH_SOCK=",
 	}
+	auth, err := l.authEnv(dir, target, cred)
+	if err != nil {
+		return nil, err
+	}
+	env = append(env, auth...)
+	return env, nil
+}
+
+func (l *Lister) authEnv(dir string, target remote, cred Credential) ([]string, error) {
+	var env []string
 	switch cred.Kind {
 	case KindHTTPS:
 		// git executes the askpass program itself, not through a shell, so the script needs the exec bit.
