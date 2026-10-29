@@ -53,8 +53,11 @@ func (c *Client) Call(op string, params, result any) error {
 		defer clear(data) // the parameters may carry a passphrase
 	}
 	timeout := CallTimeout
-	if op == control.OpSourceTest {
+	switch op {
+	case control.OpSourceTest:
 		timeout = control.SourceTestTimeout + CallTimeout
+	case control.OpProjectsChangelog:
+		timeout = control.ChangelogTimeout + CallTimeout
 	}
 	_ = c.conn.SetDeadline(time.Now().Add(timeout))
 	if err := control.WriteLine(c.conn, req); err != nil {
@@ -248,5 +251,14 @@ func (c *Client) RemoveChannel(name string) (control.ChangeResult, error) {
 func (c *Client) SourceTest(project string) (control.SourceTestResult, error) {
 	var out control.SourceTestResult
 	err := c.Call(control.OpSourceTest, control.SourceTestParams{Project: project}, &out)
+	return out, err
+}
+
+// Changelog reads the releases between the current and the target version of the sources of a project's
+// approved state. image limits it to one image, to replaces the target version. A source that cannot be read
+// is a result with an error code, not a failed call.
+func (c *Client) Changelog(project, image, to string) (control.ChangelogResult, error) {
+	var out control.ChangelogResult
+	err := c.Call(control.OpProjectsChangelog, control.ChangelogParams{Project: project, Image: image, To: to}, &out)
 	return out, err
 }

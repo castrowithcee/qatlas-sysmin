@@ -521,6 +521,9 @@ func validateSource(sc scope, p Project, creds map[string]bool) {
 			checkCredential(sc, f+".credential", im.Credential, creds)
 		}
 		validateRule(sc, f+".version_rule", im.VersionRule)
+		if c := im.VersionRule.ChangelogCredential; c != "" {
+			checkCredential(sc, f+".version_rule.changelog_credential", c, creds)
+		}
 	}
 	if g := p.Git; g != nil {
 		validateGitURL(sc, g.URL)
@@ -528,6 +531,9 @@ func validateSource(sc scope, p Project, creds map[string]bool) {
 			checkCredential(sc, "git.credential", g.Credential, creds)
 		}
 		validateRule(sc, "git.version_rule", g.VersionRule)
+		if c := g.VersionRule.ChangelogCredential; c != "" {
+			checkCredential(sc, "git.version_rule.changelog_credential", c, creds)
+		}
 	}
 }
 
