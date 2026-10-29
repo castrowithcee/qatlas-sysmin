@@ -49,7 +49,7 @@ type env struct {
 }
 
 // newEnv creates a vault with testPass (when create is set) and starts a service on it.
-func newEnv(t *testing.T, create, bind bool) *env {
+func newEnv(t *testing.T, create, bind bool, mods ...func(*Config)) *env {
 	t.Helper()
 	vault.LowerWorkFactorForTests()
 	t.Setenv("CREDENTIALS_DIRECTORY", "")
@@ -80,6 +80,9 @@ func newEnv(t *testing.T, create, bind bool) *env {
 			}
 			e.cfg.CredentialsDir = cd
 		}
+	}
+	for _, mod := range mods {
+		mod(&e.cfg)
 	}
 	e.svc, err = Open(e.cfg)
 	if err != nil {

@@ -3,6 +3,7 @@ package execute
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -196,5 +197,38 @@ func TestFormatRoundTrip(t *testing.T) {
 		if err != nil || prev[0].Previous != v {
 			t.Errorf("%q read back as %q (%v)", v, prev[0].Previous, err)
 		}
+	}
+}
+
+func TestReadEnvValue(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+	if err := os.WriteFile(path, []byte("# note\nA=1\nexport B='two words'\nA=3 # last wins\nC=\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]string{"A": "3", "B": "two words", "C": ""} {
+		if v, found, err := ReadEnvValue(path, key); err != nil || !found || v != want {
+			t.Errorf("%s = %q, %v, %v; want %q", key, v, found, err, want)
+		}
+	}
+	if _, found, err := ReadEnvValue(path, "D"); err != nil || found {
+		t.Errorf("D: found = %v, err = %v", found, err)
+	}
+	if _, _, err := ReadEnvValue(filepath.Join(dir, "missing"), "A"); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("missing file: %v", err)
+	}
+	link := filepath.Join(dir, "link")
+	if err := os.Symlink(path, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ReadEnvValue(link, "A"); err == nil {
+		t.Error("a symbolic link was read")
+	}
+	big := filepath.Join(dir, "big")
+	if err := os.WriteFile(big, make([]byte, maxReadEnvBytes+1), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ReadEnvValue(big, "A"); err == nil {
+		t.Error("an oversized file was read")
 	}
 }

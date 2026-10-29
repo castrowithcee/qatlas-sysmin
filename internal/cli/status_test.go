@@ -43,6 +43,12 @@ func startServiceWith(t *testing.T, bound bool, setup func(configDir string)) st
 // startServiceDirs also returns the state and the configuration directory of the service.
 func startServiceDirs(t *testing.T, bound bool, setup func(configDir string)) (sock, state, configDir string) {
 	t.Helper()
+	return startServiceCfg(t, bound, setup, nil)
+}
+
+// startServiceCfg also lets mod change the service's configuration before it starts.
+func startServiceCfg(t *testing.T, bound bool, setup func(configDir string), mod func(*service.Config)) (sock, state, configDir string) {
+	t.Helper()
 	vault.LowerWorkFactorForTests()
 	t.Setenv("CREDENTIALS_DIRECTORY", "")
 	sockDir, err := os.MkdirTemp("", "sysmin-")
@@ -70,6 +76,9 @@ func startServiceDirs(t *testing.T, bound bool, setup func(configDir string)) (s
 	cfg := service.Config{
 		ConfigDir: configDir, StateDir: state, SocketPath: filepath.Join(sockDir, "s.sock"),
 		Version: "9.9.9", Resolver: testGroups{}, CredentialsDir: credentials,
+	}
+	if mod != nil {
+		mod(&cfg)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

@@ -52,7 +52,11 @@ func (c *Client) Call(op string, params, result any) error {
 		req.Params = data
 		defer clear(data) // the parameters may carry a passphrase
 	}
-	_ = c.conn.SetDeadline(time.Now().Add(CallTimeout))
+	timeout := CallTimeout
+	if op == control.OpSourceTest {
+		timeout = control.SourceTestTimeout + CallTimeout
+	}
+	_ = c.conn.SetDeadline(time.Now().Add(timeout))
 	if err := control.WriteLine(c.conn, req); err != nil {
 		return fmt.Errorf("cannot send the request: %w", err)
 	}
@@ -236,5 +240,13 @@ func (c *Client) TestChannel(name string) (control.NotifyTestResult, error) {
 func (c *Client) RemoveChannel(name string) (control.ChangeResult, error) {
 	var out control.ChangeResult
 	err := c.Call(control.OpChannelsRemove, control.ChannelRef{Name: name}, &out)
+	return out, err
+}
+
+// SourceTest reads the versions of the sources of a project's approved state. A source that cannot be read
+// is a result with an error code, not a failed call.
+func (c *Client) SourceTest(project string) (control.SourceTestResult, error) {
+	var out control.SourceTestResult
+	err := c.Call(control.OpSourceTest, control.SourceTestParams{Project: project}, &out)
 	return out, err
 }
