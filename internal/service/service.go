@@ -75,6 +75,9 @@ type Config struct {
 	// DeployWait is how long a request that starts a deploy waits for its end; zero means
 	// control.DeployWait.
 	DeployWait time.Duration
+	// WebhookRecheck is how often the service looks for an approved webhook that starts the listener;
+	// zero means ten seconds.
+	WebhookRecheck time.Duration
 }
 
 // connState is what a connection owns: its admin session. A connection serves one request at a time, so
@@ -108,6 +111,8 @@ type Service struct {
 	mu       sync.Mutex // guards logKey
 	logKey   *auditlog.Key
 	listener *net.UnixListener
+	// webhookWake asks the webhook supervisor to look again.
+	webhookWake chan struct{}
 }
 
 // Run opens the service, listens on the socket and serves until ctx ends.
@@ -137,7 +142,7 @@ func Open(cfg Config) (*Service, error) {
 	if cfg.Runner == nil {
 		cfg.Runner = &execute.ExecRunner{MaxOutput: adoptMaxOutput}
 	}
-	s := &Service{cfg: cfg, log: auditlog.New(filepath.Join(cfg.StateDir, "logs"), auditlog.DefaultRetentionDays)}
+	s := &Service{cfg: cfg, webhookWake: make(chan struct{}, 1), log: auditlog.New(filepath.Join(cfg.StateDir, "logs"), auditlog.DefaultRetentionDays)}
 
 	vaultDir := filepath.Join(cfg.StateDir, "vault")
 	var st autounlock.Status
@@ -222,9 +227,15 @@ func (s *Service) Serve(ctx context.Context) error {
 			slog.Warn("the deploy planner stopped", "error", err.Error())
 		}
 	}()
+	hooks := make(chan struct{})
+	go func() {
+		defer close(hooks)
+		s.superviseWebhook(ctx)
+	}()
 	err := s.server.Serve(ctx, s.listener)
 	// A deploy never stops half way; the planner and the requests that started one end when it has.
 	cancel()
+	<-hooks
 	<-planner
 	s.ops.Wait()
 	return err
@@ -431,6 +442,7 @@ func (s *Service) handleUnlock(_ context.Context, _ *daemon.Conn, params json.Ra
 		return nil, &control.Error{Code: control.CodeInternal}
 	}
 	s.refreshNotifier()
+	s.wakeWebhook()
 	return nil, nil
 }
 
