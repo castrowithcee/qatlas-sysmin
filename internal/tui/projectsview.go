@@ -18,6 +18,9 @@ import (
 func (m *Model) projectsBody() string {
 	p := m.prj
 	room := max(m.height-2-strings.Count(m.notes(), "\n"), 1)
+	if p.flow != nil {
+		return m.flowView(room)
+	}
 	if p.log != nil {
 		return m.projectLogView(room)
 	}

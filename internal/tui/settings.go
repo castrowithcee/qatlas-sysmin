@@ -519,7 +519,7 @@ type leaveAsk struct{ next func() tea.Cmd }
 
 // guarded runs next at once, or after the question when the page shown holds unsaved input.
 func (m *Model) guarded(next func() tea.Cmd) tea.Cmd {
-	if m.screen != screenArea || !m.settingsDirty() {
+	if m.screen != screenArea || !(m.settingsDirty() || m.flowDirty()) {
 		return next()
 	}
 	m.set.editing = false
@@ -535,10 +535,16 @@ func (m *Model) updateLeave(key tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case keyIs(key, actSave):
 		m.closeDialog()
+		if m.flowOpen() {
+			return m.flowSave()
+		}
 		return m.saveCurrent()
 	case keyIs(key, actDiscard):
 		next := m.leave.next
 		m.closeDialog()
+		if m.flowOpen() {
+			m.closeFlow()
+		}
 		m.set.loaded = false
 		m.loadForms()
 		return next()

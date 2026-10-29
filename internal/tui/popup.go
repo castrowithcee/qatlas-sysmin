@@ -96,6 +96,9 @@ func (m *Model) updatePopup(key tea.KeyPressMsg) tea.Cmd {
 // infoOf is the title and the text of the entry under the focus, like a tooltip.
 func (m *Model) infoOf() (string, string) {
 	pick := func(label string, id textID) (string, string) { return label, tr(id) }
+	if m.flowOpen() {
+		return m.flowInfo()
+	}
 	switch m.area {
 	case areaOverview:
 		row := m.overviewCurrent()

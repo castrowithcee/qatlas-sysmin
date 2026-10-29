@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                             [esc] back  ? help  : cmds
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Overview  [Projects]  Activity   Access   Library   Settings 
+
+New project › Source
+
+╭──────────────────╮ ╔═════════════════════════════════════════════════════════════════════════════════════════════════╗
+│   1 Start        │ ║ Image 1                                                                                         ║
+│ > 2 Source       │ ║    Name:         app                                                                            ║
+│   3 Target       │ ║ >  Reference:                                                                                   ║
+│   4 Version rule │ ║    Env variable: -                                                                              ║
+│   5 Checks       │ ║    Services:     -                                                                              ║
+│   6 Notify       │ ║    Credential:   -                                                                              ║
+│   7 Summary      │ ║    + Add image                                                                                  ║
+╰──────────────────╯ ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ║                                                                                                 ║
+                     ╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
+enter next  F2 next  esc back  ctrl+l admin                                                           up/down field  2/7

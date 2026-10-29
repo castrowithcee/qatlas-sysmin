@@ -25,6 +25,9 @@ type fakeProjects struct {
 	notesErr   error
 	updateRuns map[string]control.ProjectUpdateResult
 	restoreRun control.DeployRestoreResult
+	// saved records every add and edit request; saveErr refuses them.
+	saved   []control.ProjectParams
+	saveErr error
 }
 
 const fakeProjectFile = `schema: 1
@@ -213,4 +216,30 @@ func (f *fakeBackend) DeployRestore(project, backup string) (control.DeployResto
 		return f.proj.restoreRun, nil
 	}
 	return control.DeployRestoreResult{Project: project, Run: &control.DeployRun{Result: "succeeded", Action: "restore"}}, nil
+}
+
+func (f *fakeBackend) AddProject(p control.ProjectParams) (control.ChangeResult, error) {
+	return f.saveProject("add", p)
+}
+
+func (f *fakeBackend) EditProject(p control.ProjectParams) (control.ChangeResult, error) {
+	return f.saveProject("edit", p)
+}
+
+// saveProject records the request and, with the session, takes the project into the list as approved.
+func (f *fakeBackend) saveProject(op string, p control.ProjectParams) (control.ChangeResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record(op + " " + p.Name)
+	f.proj.saved = append(f.proj.saved, p)
+	if !f.session {
+		return control.ChangeResult{}, &control.Error{Code: control.CodeAdminRequired}
+	}
+	if f.proj.saveErr != nil {
+		return control.ChangeResult{}, f.proj.saveErr
+	}
+	if op == "add" {
+		f.projects = append(f.projects, control.ProjectSummary{Name: p.Name, Source: "images", State: control.StateApproved})
+	}
+	return control.ChangeResult{Project: p.Name, State: control.StateApproved, Revision: "rev-" + p.Name}, nil
 }

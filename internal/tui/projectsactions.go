@@ -45,7 +45,8 @@ func projectCommands() []commandEntry {
 	for _, kind := range []string{"run", "pause", "resume", "pin", "unpin"} {
 		list = append(list, commandEntry{kind, func(m *Model) tea.Cmd { return m.projectAction(kind) }})
 	}
-	return append(list, commandEntry{"restore", func(m *Model) tea.Cmd { return m.projectRestore() }})
+	return append(list, commandEntry{"restore", func(m *Model) tea.Cmd { return m.projectRestore() }},
+		commandEntry{"new project", func(m *Model) tea.Cmd { return m.projectFlowStart() }})
 }
 
 // openProject shows the dialog d with the question q over the area.
@@ -186,6 +187,8 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 		}
 	}
 	switch {
+	case keyIs(key, actNew), keyIs(key, actSetup):
+		return m.projectFlowStart(), true
 	case keyIs(key, actTest):
 		return m.projectSourceTest(), true
 	case keyIs(key, actDelete):
@@ -203,7 +206,7 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 // projectsBackShown reports whether esc leads one level back inside the area.
 func (m *Model) projectsBackShown() bool {
 	p := m.prj
-	return m.area == areaProjects && p != nil && (p.log != nil || p.upd != nil || p.focusDetail || p.list.query() != "")
+	return m.area == areaProjects && p != nil && (p.flow != nil || p.log != nil || p.upd != nil || p.focusDetail || p.list.query() != "")
 }
 
 // selectedProject is the project under the cursor; without one it says so.
@@ -488,7 +491,8 @@ func (m *Model) projectsKeys() []string {
 		return []string{"up/down scroll", "left/right tab", "t test", "u update", "d delete", "o log", "{back} list"}
 	}
 	// The controls have no letter of their own; they are commands.
-	keys := []string{"up/down move", "t test", "o log", "u update", "space mark", "enter detail", "run/pause/pin/restore via {command}", "/ filter", "d delete"}
+	keys := []string{"up/down move", "t test", "o log", "u update", "space mark", "enter detail",
+		"run/pause/pin/restore via {command}", "g/n new", "/ filter", "d delete"}
 	if m.usable(0) >= projectsDetailMinWidth {
 		keys = append(keys, "left/right tab")
 	}

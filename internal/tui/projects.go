@@ -65,6 +65,8 @@ type projectsState struct {
 	// upd is the update panel, shown in place of the list.
 	upd    *projectUpdate
 	dialog *projectDialog
+	// flow is the guided setup, shown in place of the list; see projectflow.go.
+	flow *projectFlow
 }
 
 func newProjectsState() *projectsState {

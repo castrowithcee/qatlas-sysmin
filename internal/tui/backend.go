@@ -42,6 +42,10 @@ type Backend interface {
 	// RemoveProject deletes the project file the revision names; it needs the admin session to take effect at
 	// once.
 	RemoveProject(name, revision string) (control.ChangeResult, error)
+	// AddProject stores a new project and EditProject changes a stored one, both from the fields or the whole
+	// file of p; they need the admin session to take effect at once.
+	AddProject(p control.ProjectParams) (control.ChangeResult, error)
+	EditProject(p control.ProjectParams) (control.ChangeResult, error)
 	// Backups and Changelog only read; Changelog may take minutes. DeployUpdate (versions a person chose, one
 	// run per project) and DeployRestore need the admin session.
 	Backups(project string) ([]string, error)
@@ -176,6 +180,16 @@ func (b *ClientBackend) DeployControl(op, project string) error {
 
 func (b *ClientBackend) RemoveProject(name, revision string) (res control.ChangeResult, err error) {
 	err = b.do(false, func(c *client.Client) (e error) { res, e = c.RemoveProject(name, revision); return e })
+	return res, err
+}
+
+func (b *ClientBackend) AddProject(p control.ProjectParams) (res control.ChangeResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.AddProject(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) EditProject(p control.ProjectParams) (res control.ChangeResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.EditProject(p); return e })
 	return res, err
 }
 

@@ -1,0 +1,12 @@
+schema: 1
+name: demo-site
+dir: /srv/demo/site
+template: git-tag
+checks:
+  - type: check-http
+    url: https://site.example.com/
+git:
+  url: https://git.example.com/demo/site.git
+  credential: demo-git
+  version_rule:
+    mode: auto
