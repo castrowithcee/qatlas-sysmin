@@ -454,3 +454,20 @@ func TestChangelogCredentialIsBoundToTheApproval(t *testing.T) {
 		t.Fatalf("Open() after recreating the credential = %+v", items)
 	}
 }
+
+func TestPartialChangesMarkChangesFingerprint(t *testing.T) {
+	m := &config.Model{}
+	p := config.Project{Name: "demo", Steps: []config.Step{{Type: config.StepCommand, Run: "true"}}}
+	a, err := Fingerprint(m, p, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Steps = []config.Step{{Type: config.StepCommand, Run: "true", PartialChanges: true}}
+	b, err := Fingerprint(m, p, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a == b {
+		t.Error("partial_changes does not change the fingerprint")
+	}
+}

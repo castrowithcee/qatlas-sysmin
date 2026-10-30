@@ -394,6 +394,7 @@ func (c *run) build(sc scope, s Step, field string, img *image) []ResolvedStep {
 		}
 	case StepCommand:
 		rs.Shell = shell("run", s.Run)
+		rs.PartialChanges = s.PartialChanges
 	}
 	if !ok {
 		return nil
