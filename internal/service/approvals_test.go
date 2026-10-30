@@ -73,6 +73,26 @@ func (e *env) admin(t *testing.T) *client.Client {
 	return c
 }
 
+// shownAll lists the open approvals as a client shows them before an all-at-once request.
+func shownAll(t *testing.T, c *client.Client) []control.ShownApproval {
+	t.Helper()
+	items, err := c.Approvals()
+	if err != nil {
+		t.Fatal(err)
+	}
+	shown := make([]control.ShownApproval, 0, len(items))
+	for _, it := range items {
+		shown = append(shown, it.Shown())
+	}
+	return shown
+}
+
+// approveAll approves what c lists now, as a client does after it showed the list.
+func approveAll(t *testing.T, c *client.Client) (control.ApprovalsAllResult, error) {
+	t.Helper()
+	return c.ApproveAll(shownAll(t, c))
+}
+
 func openOf(t *testing.T, c *client.Client, project string) control.ApprovalSummary {
 	t.Helper()
 	items, err := c.Approvals()
@@ -102,10 +122,10 @@ func TestApprovalsListShowApproveDiscard(t *testing.T) {
 	// Without an admin session nothing changes.
 	vaultBefore, _ := e.svc.vault.Approvals()
 	wantCode(t, reader.Approve("demo-app", sum.Fingerprint), control.CodeAdminRequired)
-	wantCode(t, reader.Discard("demo-app"), control.CodeAdminRequired)
-	_, err := reader.ApproveAll()
+	wantCode(t, reader.Discard("demo-app", sum.Fingerprint), control.CodeAdminRequired)
+	_, err := approveAll(t, reader)
 	wantCode(t, err, control.CodeAdminRequired)
-	_, err = reader.DiscardAll()
+	_, err = reader.DiscardAll(shownAll(t, reader))
 	wantCode(t, err, control.CodeAdminRequired)
 	if e.read(t, "projects/demo-app.yaml") != demoProject {
 		t.Fatal("the project file changed without a session")
@@ -122,7 +142,7 @@ func TestApprovalsListShowApproveDiscard(t *testing.T) {
 	wantCode(t, adm.Approve("demo-app", "0000"), control.CodeChanged)
 	wantCode(t, adm.Approve("other-app", ""), control.CodeNothingOpen)
 	wantCode(t, adm.Approve("../x", ""), control.CodeBadRequest)
-	wantCode(t, adm.Approve("demo-app", ""), control.CodeBadRequest) // a fingerprint is required unless deleted
+	wantCode(t, adm.Approve("demo-app", ""), control.CodeChanged) // an empty fingerprint stands for a deletion
 	if err := adm.Approve("demo-app", sum.Fingerprint); err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +181,7 @@ func TestApprovalsListShowApproveDiscard(t *testing.T) {
 	wantCode(t, mustFail(reader.Approval("other-app")), control.CodeNothingOpen)
 
 	// Discard restores the file; the approved state is untouched.
-	if err := adm.Discard("demo-app"); err != nil {
+	if err := adm.Discard("demo-app", sum.Fingerprint); err != nil {
 		t.Fatal(err)
 	}
 	if items, _ := reader.Approvals(); len(items) != 0 {
@@ -216,21 +236,21 @@ func TestApprovalsAllAndAuditLog(t *testing.T) {
 	e := approvalEnv(t)
 	e.write(t, "projects/demo-two.yaml", strings.ReplaceAll(demoProject, "demo-app", "demo-two"))
 	reader := e.dial(t)
-	wantCode(t, mustFail(reader.ApproveAll()), control.CodeAdminRequired)
+	wantCode(t, mustFail(approveAll(t, reader)), control.CodeAdminRequired)
 
 	adm := e.admin(t)
-	res, err := adm.ApproveAll()
+	res, err := approveAll(t, adm)
 	if err != nil || len(res.Done) != 2 || len(res.Failed) != 0 {
 		t.Fatalf("approve-all = %+v, %v", res, err)
 	}
-	if res, err = adm.ApproveAll(); err != nil || len(res.Done) != 0 {
+	if res, err = approveAll(t, adm); err != nil || len(res.Done) != 0 {
 		t.Fatalf("approve-all with nothing open = %+v, %v", res, err)
 	}
 	e.write(t, "projects/demo-app.yaml", demoProject+"# edited\nsteps:\n  - type: compose-up\n")
 	if err := os.Remove(filepath.Join(e.cfg.ConfigDir, "projects", "demo-two.yaml")); err != nil {
 		t.Fatal(err)
 	}
-	if res, err = adm.DiscardAll(); err != nil || len(res.Done) != 2 || len(res.Failed) != 0 {
+	if res, err = adm.DiscardAll(shownAll(t, adm)); err != nil || len(res.Done) != 2 || len(res.Failed) != 0 {
 		t.Fatalf("discard-all = %+v, %v", res, err)
 	}
 	if items, _ := reader.Approvals(); len(items) != 0 {
@@ -264,7 +284,7 @@ func TestApprovalsAllAndAuditLog(t *testing.T) {
 func TestDiscardRefusesCredentialOnlyItem(t *testing.T) {
 	e := approvalEnv(t)
 	adm := e.admin(t)
-	if _, err := adm.ApproveAll(); err != nil {
+	if _, err := approveAll(t, adm); err != nil {
 		t.Fatal(err)
 	}
 	// A credential created anew under the same name is another vault entry.
@@ -282,9 +302,108 @@ func TestDiscardRefusesCredentialOnlyItem(t *testing.T) {
 	if got := openOf(t, adm, "demo-app"); got.Kind != "credential" {
 		t.Fatalf("summary = %+v", got)
 	}
-	wantCode(t, adm.Discard("demo-app"), control.CodeCannotDiscard)
-	res, err := adm.DiscardAll()
+	wantCode(t, adm.Discard("demo-app", openOf(t, adm, "demo-app").Fingerprint), control.CodeCannotDiscard)
+	res, err := adm.DiscardAll(shownAll(t, adm))
 	if err != nil || len(res.Done) != 0 || len(res.Failed) != 0 {
 		t.Fatalf("discard-all = %+v, %v", res, err)
+	}
+}
+
+func TestAllAtOnceRefusesWhatWasNotShown(t *testing.T) {
+	e := approvalEnv(t)
+	adm := e.admin(t)
+	approved := func() string {
+		t.Helper()
+		a, err := e.svc.approvals.Approved("demo-app")
+		if err != nil && !errors.Is(err, approval.ErrNotApproved) {
+			t.Fatal(err)
+		}
+		return a.Fingerprint
+	}
+	refused := func(what string, res control.ApprovalsAllResult, err error) {
+		t.Helper()
+		wantCode(t, err, control.CodeChanged)
+		if len(res.Done) != 0 || len(res.Failed) != 0 {
+			t.Fatalf("%s: result = %+v", what, res)
+		}
+	}
+
+	// A stale fingerprint.
+	shown := shownAll(t, adm)
+	e.write(t, "projects/demo-app.yaml", demoProject+"values:\n  note: edited after the list\n")
+	res, err := adm.ApproveAll(shown)
+	refused("stale fingerprint", res, err)
+	if approved() != "" {
+		t.Fatal("a stale state was approved")
+	}
+
+	// A kind that differs although project and fingerprint match.
+	shown = shownAll(t, adm)
+	shown[0].Kind = "changed"
+	res, err = adm.ApproveAll(shown)
+	refused("other kind", res, err)
+
+	// An open approval that was not shown.
+	shown = shownAll(t, adm)
+	e.write(t, "projects/demo-two.yaml", strings.ReplaceAll(demoProject, "demo-app", "demo-two"))
+	res, err = adm.ApproveAll(shown)
+	refused("unshown entry", res, err)
+	if approved() != "" {
+		t.Fatal("approved although another approval was not shown")
+	}
+
+	// The shown set is approved as a whole.
+	res, err = approveAll(t, adm)
+	if err != nil || len(res.Done) != 2 || len(res.Failed) != 0 {
+		t.Fatalf("approve-all = %+v, %v", res, err)
+	}
+	before := approved()
+
+	// A deleted project written again after the list.
+	if err := os.Remove(filepath.Join(e.cfg.ConfigDir, "projects", "demo-app.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	shown = shownAll(t, adm)
+	if len(shown) != 1 || shown[0].Kind != "deleted" || shown[0].Fingerprint != "" {
+		t.Fatalf("shown = %+v", shown)
+	}
+	e.write(t, "projects/demo-app.yaml", demoProject+"values:\n  note: written again\n")
+	res, err = adm.ApproveAll(shown)
+	refused("re-created project", res, err)
+	wantCode(t, adm.Approve("demo-app", ""), control.CodeChanged)
+	if approved() != before {
+		t.Fatal("the re-created file was approved")
+	}
+
+	// discard-all refuses a difference and restores nothing.
+	shown = shownAll(t, adm)
+	e.write(t, "projects/demo-app.yaml", demoProject+"values:\n  note: edited after the last list\n")
+	res, err = adm.DiscardAll(shown)
+	refused("discard-all", res, err)
+	if !strings.Contains(e.read(t, "projects/demo-app.yaml"), "note: edited after the last list") {
+		t.Fatal("discard-all restored a file that was not shown")
+	}
+	res, err = adm.DiscardAll(shownAll(t, adm))
+	if err != nil || len(res.Done) != 1 || res.Done[0] != "demo-app" {
+		t.Fatalf("discard-all = %+v, %v", res, err)
+	}
+	if items, _ := adm.Approvals(); len(items) != 0 {
+		t.Fatalf("open after discard-all: %+v", items)
+	}
+}
+
+func TestAllAtOnceWithoutShownApprovalsIsABadRequest(t *testing.T) {
+	e := approvalEnv(t)
+	adm := e.admin(t)
+	for _, op := range []string{control.OpApprovalsApproveAll, control.OpApprovalsDiscardAll} {
+		for _, params := range []any{nil, struct{}{}, map[string]any{"shown": nil}, "demo-app"} {
+			wantCode(t, adm.Call(op, params, nil), control.CodeBadRequest)
+		}
+	}
+	if items, _ := adm.Approvals(); len(items) != 1 || e.read(t, "projects/demo-app.yaml") != demoProject {
+		t.Fatalf("a bad request changed something: %+v", items)
+	}
+	if _, err := e.svc.approvals.Approved("demo-app"); !errors.Is(err, approval.ErrNotApproved) {
+		t.Fatalf("approved by a bad request: %v", err)
 	}
 }

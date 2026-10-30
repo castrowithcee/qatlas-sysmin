@@ -50,7 +50,7 @@ func approveHook(t *testing.T, url string) func(*Config) {
 			t.Fatal(err)
 		}
 		m := approval.New(config.NewStore(cfg.ConfigDir), v, cfg.StateDir)
-		if err := m.Approve(approval.ChannelsName, ""); err != nil {
+		if _, err := m.ApproveAll(); err != nil {
 			t.Fatal(err)
 		}
 	}

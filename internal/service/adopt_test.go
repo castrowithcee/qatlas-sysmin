@@ -324,7 +324,7 @@ func TestAdoptedVersionsAreCurrentAfterApproval(t *testing.T) {
 	if res, err := c.AdoptProject(control.AdoptParams{Dir: dir}); err != nil || !res.Saved {
 		t.Fatalf("result = %+v, %v", res, err)
 	}
-	if _, err := e.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, e.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 	callsBefore := len(f.recorded())

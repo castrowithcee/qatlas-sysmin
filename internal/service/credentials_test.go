@@ -32,7 +32,7 @@ func registryParams(token string) control.CredentialSetParams {
 func approvedEnv(t *testing.T) *env {
 	t.Helper()
 	e := approvalEnv(t)
-	if _, err := e.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, e.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 	return e
@@ -140,7 +140,7 @@ func TestCredentialReplaceOpensWhatUsesItAndKeepsTheApprovedValue(t *testing.T) 
 		t.Fatalf("old entry = %v", err)
 	}
 	// Approving the credential change lets the old entry go.
-	if _, err := e.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, e.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.svc.vault.Get(oldID); !errors.Is(err, vault.ErrNotFound) {
@@ -186,7 +186,7 @@ func TestCredentialReplaceInAdminSessionApprovesOnlyWhatItAloneOpens(t *testing.
 func TestCredentialChangeUsesUpTheSingleChangeOfAPassphrase(t *testing.T) {
 	e := approvalEnv(t)
 	e.write(t, "sysmin.yaml", "schema: 1\nvault:\n  admin_timeout: 0\n")
-	if _, err := e.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, e.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 	c := e.dial(t)

@@ -660,7 +660,7 @@ func TestOnlyApprovedChannelsAreUsed(t *testing.T) {
 	unapprovedSrv, gotUnapproved := captureServer(t, 200)
 	e := newApprovalEnv(t)
 	e.writeSettings("channels:\n  - name: ops\n    type: webhook\n    url: " + approvedSrv.URL + "\n")
-	if err := e.mgr.Approve(approval.ChannelsName, ""); err != nil {
+	if _, err := e.mgr.ApproveAll(); err != nil {
 		t.Fatal(err)
 	}
 	// Added by hand, never approved.
@@ -689,7 +689,7 @@ func TestApprovedCredentialIDIsUsedNotTheName(t *testing.T) {
 	e := newApprovalEnv(t)
 	e.addSecret("hook-key", demoHookKey)
 	e.writeSettings("channels:\n  - name: ops\n    type: webhook\n    url: " + srv.URL + "\n    credential: hook-key\n")
-	if err := e.mgr.Approve(approval.ChannelsName, ""); err != nil {
+	if _, err := e.mgr.ApproveAll(); err != nil {
 		t.Fatal(err)
 	}
 	// Replace the credential under the same name: the approved entry stays in use.

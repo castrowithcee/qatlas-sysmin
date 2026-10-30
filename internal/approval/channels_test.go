@@ -45,7 +45,7 @@ func (e *env) channelItem() (Item, bool) {
 
 func (e *env) approveChannels() {
 	e.t.Helper()
-	if err := e.mgr.Approve(ChannelsName, ""); err != nil {
+	if err := e.mgr.Approve(ChannelsName, e.shown(ChannelsName)); err != nil {
 		e.t.Fatal(err)
 	}
 }
@@ -90,7 +90,7 @@ func TestChannelsOpenUntilApproved(t *testing.T) {
 	if err != nil || len(a.Channels) != 1 || a.Channels[0].URL != "https://hooks.example.com/demo" || a.Credentials["demo-hook"] == "" {
 		t.Fatalf("ApprovedChannels() = %+v, %v", a, err)
 	}
-	if err := e.mgr.Approve(ChannelsName, ""); !errors.Is(err, ErrNothingOpen) {
+	if err := e.mgr.Approve(ChannelsName, it.Fingerprint); !errors.Is(err, ErrNothingOpen) {
 		t.Fatalf("second Approve() = %v, want ErrNothingOpen", err)
 	}
 }
@@ -137,7 +137,7 @@ func TestChannelDiscardRestoresChannelsOnly(t *testing.T) {
 	e.write("sysmin.yaml", strings.Replace(demoSettings, "hooks.example.com/demo", "hooks.example.org/other", 1)+"  - name: extra\n    type: webhook\n    url: https://hooks.example.com/extra\n")
 	// A setting outside the channels changes too and must survive the discard.
 	e.write("sysmin.yaml", strings.Replace(e.read("sysmin.yaml"), "30m", "45m", 1))
-	if err := e.mgr.Discard(ChannelsName); err != nil {
+	if err := e.mgr.Discard(ChannelsName, e.shown(ChannelsName)); err != nil {
 		t.Fatal(err)
 	}
 	model, _, err := e.store.Load()
@@ -160,14 +160,14 @@ func TestChannelsNeverApprovedDiscardedAndDeletedRestored(t *testing.T) {
 	e := newEnv(t)
 	e.hookCredential()
 	e.write("sysmin.yaml", demoSettings)
-	if err := e.mgr.Discard(ChannelsName); err != nil {
+	if err := e.mgr.Discard(ChannelsName, e.shown(ChannelsName)); err != nil {
 		t.Fatal(err)
 	}
 	model, _, _ := e.store.Load()
 	if len(model.Settings.Channels) != 0 || model.Settings.PollInterval == 0 {
 		t.Fatalf("settings after discard = %+v", model.Settings)
 	}
-	if err := e.mgr.Discard(ChannelsName); !errors.Is(err, ErrNothingOpen) {
+	if err := e.mgr.Discard(ChannelsName, ""); !errors.Is(err, ErrNothingOpen) {
 		t.Fatalf("Discard() = %v, want ErrNothingOpen", err)
 	}
 
@@ -178,7 +178,7 @@ func TestChannelsNeverApprovedDiscardedAndDeletedRestored(t *testing.T) {
 	if !ok || it.Kind != KindDeleted || it.Fingerprint != "" {
 		t.Fatalf("channel item = %+v, %v, want deleted", it, ok)
 	}
-	if err := e.mgr.Discard(ChannelsName); err != nil {
+	if err := e.mgr.Discard(ChannelsName, e.shown(ChannelsName)); err != nil {
 		t.Fatal(err)
 	}
 	model, _, _ = e.store.Load()
@@ -251,7 +251,7 @@ func TestReplacedCredentialReopensProjectAndChannels(t *testing.T) {
 		t.Fatalf("Get(old registry) = %v", err)
 	}
 	// Discarding cannot undo a vault change.
-	if err := e.mgr.Discard(ChannelsName); err != nil {
+	if err := e.mgr.Discard(ChannelsName, e.shown(ChannelsName)); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := e.channelItem(); !ok {
@@ -320,7 +320,7 @@ func TestLockedVaultChangesNoChannel(t *testing.T) {
 	e.vault.Forget()
 	checks := map[string]error{
 		"Approve":        e.mgr.Approve(ChannelsName, ""),
-		"Discard":        e.mgr.Discard(ChannelsName),
+		"Discard":        e.mgr.Discard(ChannelsName, ""),
 		"ApproveCurrent": e.mgr.ApproveCurrentChannels(rev),
 	}
 	_, checks["ApproveAll"] = e.mgr.ApproveAll()

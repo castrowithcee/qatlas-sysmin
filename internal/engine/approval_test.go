@@ -61,7 +61,7 @@ func TestUnapprovedChangeIsNotRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	mgr := approval.New(config.NewStore(root), v, f.stateDir)
-	if err := mgr.Approve(demoProject, ""); err != nil {
+	if _, err := mgr.ApproveAll(); err != nil {
 		t.Fatal(err)
 	}
 	write("projects/demo-shop.yaml", project("verify changed by hand"))

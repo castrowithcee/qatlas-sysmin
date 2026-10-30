@@ -100,7 +100,7 @@ func newSourceFixture(t *testing.T, token string, mods ...func(*Config)) *source
 
 func (f *sourceFixture) approve(t *testing.T) {
 	t.Helper()
-	if _, err := f.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, f.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 }

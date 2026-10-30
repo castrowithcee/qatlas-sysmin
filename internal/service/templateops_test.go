@@ -82,7 +82,7 @@ func TestTemplatesDeriveNeedsAdminSession(t *testing.T) {
 func TestTemplatesDerive(t *testing.T) {
 	e := templateEnv(t)
 	admin := e.admin(t)
-	if _, err := admin.ApproveAll(); err != nil {
+	if _, err := approveAll(t, admin); err != nil {
 		t.Fatal(err)
 	}
 	before, err := e.svc.approvals.Approved("demo-app")

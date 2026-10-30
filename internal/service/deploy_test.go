@@ -136,7 +136,7 @@ func (f *deployFixture) envTag(t *testing.T, project string) string {
 func (f *deployFixture) approved(t *testing.T) (*client.Client, *client.Client) {
 	t.Helper()
 	admin := f.admin(t)
-	if _, err := admin.ApproveAll(); err != nil {
+	if _, err := approveAll(t, admin); err != nil {
 		t.Fatal(err)
 	}
 	return admin, f.dial(t)
@@ -465,7 +465,7 @@ func TestLockedVaultStartsNoRunAndUnlockEnablesIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.addCredential(t)
-	if _, err := f.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, f.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 	// Only auto mode deploys: the highest version is installed on the next check, without a restart.
@@ -553,7 +553,7 @@ func TestUnlockWakesThePlannerForTheFirstPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.addCredential(t)
-	if _, err := f.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, f.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 

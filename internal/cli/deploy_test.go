@@ -82,7 +82,7 @@ images:
 		Fields: map[string]string{"user": "demo-user", "token": demoToken}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.ApproveAll(); err != nil {
+	if _, err := approveAll(t, c); err != nil {
 		t.Fatal(err)
 	}
 	return sock
@@ -267,7 +267,7 @@ func TestDeployFailedRunExitsWithAnError(t *testing.T) {
 		Fields: map[string]string{"user": "demo-user", "token": demoToken}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.ApproveAll(); err != nil {
+	if _, err := approveAll(t, c); err != nil {
 		t.Fatal(err)
 	}
 	code, stdout, stderr := runCLIArgs("deploy", "run-now", "demo-app", "--socket", sock, "--format", "json")

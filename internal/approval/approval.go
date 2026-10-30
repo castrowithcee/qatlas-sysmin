@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"sort"
 	"sync"
 
@@ -239,10 +240,11 @@ func (m *Manager) open(model *config.Model) ([]Item, error) {
 	return items, nil
 }
 
-// Approve makes the current state of a project its approved state. expect is the Fingerprint of the Item
-// that was shown; when it is not empty and the project differs now, nothing happens and ErrChanged is
-// returned. A project whose file is gone is approved as deleted: its approval and snapshot are removed.
-// It returns ErrNothingOpen when there is nothing to approve.
+// Approve makes the state of a project that was shown its approved state. expect is the Fingerprint of the
+// Item that was shown; an empty expect stands for a project whose file was shown as gone, the only kind of
+// Item without one. When the project differs now from what expect names, nothing happens and ErrChanged is
+// returned. A project whose file is gone is approved as deleted: its approval and snapshot are removed. It
+// returns ErrNothingOpen when there is nothing to approve.
 func (m *Manager) Approve(name, expect string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -258,15 +260,18 @@ func (m *Manager) Approve(name, expect string) error {
 	if err != nil {
 		return err
 	}
-	return m.approve(model, approvals, ids, name, expect)
+	return m.approve(model, approvals, ids, name, expect, true)
 }
 
-func (m *Manager) approve(model *config.Model, approvals, ids map[string]string, name, expect string) error {
+// approve approves the current state of name. With bound, the state must be the one expect names, as for
+// Approve; without, whatever is current is approved, which only a caller that read it under the same lock
+// may ask for.
+func (m *Manager) approve(model *config.Model, approvals, ids map[string]string, name, expect string, bound bool) error {
 	var err error
 	if name == ChannelsName {
-		err = m.approveChannels(model, approvals, ids, expect)
+		err = m.approveChannels(model, approvals, ids, expect, bound)
 	} else {
-		err = m.approveProject(model, approvals, ids, name, expect)
+		err = m.approveProject(model, approvals, ids, name, expect, bound)
 	}
 	if err == nil {
 		m.purgeSuperseded()
@@ -274,13 +279,13 @@ func (m *Manager) approve(model *config.Model, approvals, ids map[string]string,
 	return err
 }
 
-func (m *Manager) approveProject(model *config.Model, approvals, ids map[string]string, name, expect string) error {
+func (m *Manager) approveProject(model *config.Model, approvals, ids map[string]string, name, expect string, bound bool) error {
 	p, exists := model.Project(name)
 	if !exists {
 		if _, known := approvals[name]; !known {
 			return fmt.Errorf("%w: %s", ErrNothingOpen, name)
 		}
-		if expect != "" {
+		if bound && expect != "" {
 			return ErrChanged
 		}
 		// The approval goes first: without it the project is not approved even if the snapshot stays.
@@ -294,7 +299,7 @@ func (m *Manager) approveProject(model *config.Model, approvals, ids map[string]
 	if err != nil {
 		return err
 	}
-	if expect != "" && expect != fp {
+	if bound && expect != fp {
 		return ErrChanged
 	}
 	if approvals[name] == fp {
@@ -332,7 +337,7 @@ func (m *Manager) ApproveAll() ([]string, error) {
 	var done []string
 	var errs []error
 	for _, it := range items {
-		if err := m.approve(model, approvals, ids, it.Project, it.Fingerprint); err != nil {
+		if err := m.approve(model, approvals, ids, it.Project, it.Fingerprint, true); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", it.Project, err))
 			continue
 		}
@@ -367,7 +372,7 @@ func (m *Manager) ApproveCurrent(name string, written config.Revision) error {
 	if err != nil {
 		return err
 	}
-	err = m.approve(model, approvals, ids, name, "")
+	err = m.approve(model, approvals, ids, name, "", false)
 	if errors.Is(err, ErrNothingOpen) {
 		return nil
 	}
@@ -376,12 +381,28 @@ func (m *Manager) ApproveCurrent(name string, written config.Revision) error {
 
 // Discard restores the project file from the approved state through the store, so revisions and atomic
 // replacement apply: a changed file is overwritten with the approved one, a deleted file is written again,
-// and a project that was never approved is removed; ErrNothingOpen reports a name that is neither approved
-// nor a file. A difference that lies only in a credential's vault id, or in a template, cannot be
-// undone by restoring the file; such an item stays open.
-func (m *Manager) Discard(name string) error {
+// and a project that was never approved is removed. expect names the Item that was shown, as for Approve;
+// when the open approval differs now, nothing happens and ErrChanged is returned, and ErrNothingOpen
+// reports a name without one. A difference that lies only in a credential's vault id, or in a template,
+// cannot be undone by restoring the file; such an item stays open.
+func (m *Manager) Discard(name, expect string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	model, _, err := m.store.Load()
+	if err != nil {
+		return err
+	}
+	items, err := m.open(model)
+	if err != nil {
+		return err
+	}
+	i := slices.IndexFunc(items, func(it Item) bool { return it.Project == name })
+	if i < 0 {
+		return fmt.Errorf("%w: %s", ErrNothingOpen, name)
+	}
+	if items[i].Fingerprint != expect {
+		return ErrChanged
+	}
 	return m.discard(name)
 }
 

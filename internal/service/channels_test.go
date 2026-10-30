@@ -49,7 +49,7 @@ func TestChannelChangeWithoutSessionStaysPending(t *testing.T) {
 	}
 
 	// Approving makes it part of the approved state; the next one is pending beside it.
-	if _, err := e.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, e.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 	if list, _ = c.Channels(); stateOfChannel(t, list, "ops-hook") != control.StateApproved {
