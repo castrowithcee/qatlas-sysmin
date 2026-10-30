@@ -109,12 +109,8 @@ func (m *Model) infoOf() (string, string) {
 	}
 	switch m.area {
 	case areaOverview:
-		row := m.overviewCurrent()
-		ids := map[string]textID{"service": tInfoOvService, "vault": tInfoOvVault, "version": tInfoOvVersion,
-			"config": tInfoOvConfig, "unlock": tInfoOvUnlock, "approvals": tInfoOvApprovals,
-			"projects": tInfoOvProjects, "updates": tInfoOvUpdates}
-		if id, ok := ids[row.id]; ok {
-			return pick(row.label, id)
+		if item := m.overviewCurrent(); item.info != "" {
+			return pick(item.label, item.info)
 		}
 	case areaSettings:
 		switch m.set.sub {

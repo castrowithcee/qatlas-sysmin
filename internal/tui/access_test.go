@@ -66,7 +66,7 @@ func TestAccessListMarksFreeCommands(t *testing.T) {
 
 func TestOverviewJumpLandsInTheAccessList(t *testing.T) {
 	m := appModel(t, accessFake(), 80, 24)
-	focusRow(t, m, "approvals")
+	focusCard(t, m, "Approvals")
 	send(m, "enter")
 	if m.area != areaAccess || len(m.acc.page.list.all) != 2 {
 		t.Errorf("area %v with %d rows, want the Access list with 2", m.area, len(m.acc.page.list.all))

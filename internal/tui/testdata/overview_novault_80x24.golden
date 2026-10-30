@@ -1,18 +1,18 @@
 sysmin  ● no vault                                             [?] help  [:] cmd
 > [1 Overview]  2 Projects   3 Activity   4 Access   5 Library   6 Settings 
 ────────────────────────────────────────────────────────────────────────────────
-> ⚠ Vault      not set up
-    Press enter to set up the vault.
-  ● Version    0.0.0-test
-    Press enter to open Settings › Update.
-  ● Config     /etc/sysmin-test
-  ○ Approvals  no data
-  ○ Projects   no data
-  ○ Updates    no data
-    Press enter to open Projects.
+Overview                                                        Wed, 28 Oct 2026
 
-
-
+╭─ Projects ───────╮ ╭─ Updates ───────╮ ╭─ Approvals ─────╮ ╭─ Failed ────────╮
+│ none             │ │ none            │ │ none            │ │ none            │
+╰──────────────────╯ ╰─────────────────╯ ╰─────────────────╯ ╰─────────────────╯
+sysmin 0.0.0-test  /etc/sysmin-test
+╭─ Next steps ─────────────────────────────────────────────────────────────────╮
+│   ⚠ Set up vault                                                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Recent runs ────────────────────────────────────────────────────────────────╮
+│   none                                                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
 
 
 

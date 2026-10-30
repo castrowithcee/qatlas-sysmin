@@ -297,16 +297,16 @@ func TestUpOnTheFirstRowLeadsToTheBarAndListsStopAtTheEnds(t *testing.T) {
 
 	m = appModel(t, overviewFake(), 80, 24)
 	send(m, "1")
-	rows := len(m.overviewRows())
-	for range rows + 2 {
+	steps := len(m.overviewSteps())
+	for range steps + 2 {
 		send(m, "down")
 	}
-	if m.ovr.cursor != rows-1 {
-		t.Errorf("down past the last line of the overview reaches %d, want %d", m.ovr.cursor, rows-1)
+	if got := m.ovr.cursor[ovSteps]; got != steps-1 {
+		t.Errorf("down past the last step of the overview reaches %d, want %d", got, steps-1)
 	}
 	send(m, "home", "up")
 	if m.zoneNow() != zoneTabs {
-		t.Errorf("up on the first line of the overview reaches %v", m.zoneNow())
+		t.Errorf("up on the first step of the overview reaches %v", m.zoneNow())
 	}
 
 	m, _ = settingsModel(t, newFake(control.VaultUnlocked), "general")

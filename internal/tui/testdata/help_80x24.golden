@@ -1,21 +1,21 @@
 sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
 > [1 Overview]  2 Projects   3 Activity   4 Access   5 Library   6 Settings     
 ────────╔══════════════════════════════════════════════════════════════╗────────
-> ● Vaul║ Help                                                         ║        
-  ● Vers║                                                              ║        
-    Pres║ [keys]  vault   admin-session   approvals   unlock   secret… ║        
-  ● Conf║                                                              ║        
-  ● Unlo║ This screen                                                  ║        
-  ⚠ Appr║   ←/→ area                                                   ║        
-    Pres║   ↓ open                                                     ║        
-  ● Proj║                                                              ║        
-  ○ Upda║ Everywhere                                                   ║        
-    Pres║   ? help                                                     ║        
-        ║   : cmds                                                     ║        
-        ║   i info                                                     ║        
-        ║   ctrl+l admin                                               ║        
-        ║   F2 save                                                    ║        
-        ║   esc back                                                   ║        
+Overview║ Help                                                         ║Oct 2026
+        ║                                                              ║        
+╭─ Proje║ [keys]  vault   admin-session   approvals   unlock   secret… ║───────╮
+│ 2     ║                                                              ║       │
+╰───────║ This screen                                                  ║───────╯
+sysmin 0║   ←/→ area                                                   ║        
+╭─ Next ║   ↓ open                                                     ║───────╮
+│   ⚠ Re║                                                              ║       │
+│   ⚠ Up║ Everywhere                                                   ║       │
+│   ✗ Ch║   ? help                                                     ║       │
+╰───────║   : cmds                                                     ║───────╯
+╭─ Recen║   i info                                                     ║───────╮
+│       ║   ctrl+l admin                                               ║       │
+│   10-2║   F2 save                                                    ║       │
+╰───────║   esc back                                                   ║───────╯
         ║   q quit                                                     ║        
         ║                                                              ║        
         ║ ↑/↓ scroll · ←/→ topic · esc close                           ║        

@@ -75,7 +75,7 @@ func (m *Model) showIn(a area, sub int, z zone) tea.Cmd {
 		m.area, m.zone = a, z
 		m.resetForms()
 		m.clearMessages()
-		m.ovr.cursor = 0
+		m.ovr.reset()
 		if a == areaSettings {
 			m.set.sub = sub
 		}
@@ -499,9 +499,9 @@ func (m *Model) areaKeys() string {
 	case zone == zoneSubs:
 		keys = []string{"←/→ page", "↓ open", "{back} back"}
 	case m.area == areaOverview:
-		keys = append(keys, "↑/↓ move")
-		if row := m.overviewCurrent(); row.key != "" {
-			keys = append(keys, row.key)
+		keys = append(keys, "↑/↓ move", "tab next")
+		if item := m.overviewCurrent(); item.key != "" {
+			keys = append(keys, item.key)
 		}
 	case m.area == areaSettings:
 		keys = append(keys, m.settingsKeys()...)
