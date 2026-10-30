@@ -30,8 +30,8 @@ type system struct {
 	// command runs an external program and returns its failure, which carries ExitCode() for a program
 	// that ended with a status.
 	command func(ctx context.Context, name string, args ...string) error
-	// updater builds the release client; releaseURL is the --release-url value, empty for GitHub.
-	updater    func(version, releaseURL string) *selfupdate.Client
+	// updater builds the release client; apiURL is the --api-url value, empty for GitHub.
+	updater    func(version, apiURL string) *selfupdate.Client
 	binaryPath string
 	unitPath   string
 	// dataDirs are the directories uninstall --purge removes.
@@ -51,7 +51,7 @@ func defaultSystem() system {
 			}
 			return err
 		},
-		updater:    func(version, releaseURL string) *selfupdate.Client { return selfupdate.New(version, releaseURL) },
+		updater:    func(version, apiURL string) *selfupdate.Client { return selfupdate.New(version, apiURL) },
 		binaryPath: selfupdate.DefaultTarget,
 		unitPath:   unitPath,
 		dataDirs:   []string{configDataDir, stateDataDir},

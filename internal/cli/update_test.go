@@ -61,14 +61,14 @@ func newFakeHost(t *testing.T, server *selfupdatetest.Server) *fakeHost {
 		unitPath:   filepath.Join(dir, "sysmin.service"),
 		dataDirs:   []string{filepath.Join(dir, "etc"), filepath.Join(dir, "var")},
 	}
-	h.system.updater = func(v, releaseURL string) *selfupdate.Client {
-		c := selfupdate.New(v, releaseURL)
+	h.system.updater = func(v, apiURL string) *selfupdate.Client {
+		c := selfupdate.New(v, apiURL)
 		c.HTTPClient = &http.Client{Transport: noNetwork{t}}
 		return c
 	}
 	if server != nil {
-		h.system.updater = func(v, releaseURL string) *selfupdate.Client {
-			c := selfupdate.New(v, releaseURL)
+		h.system.updater = func(v, apiURL string) *selfupdate.Client {
+			c := selfupdate.New(v, apiURL)
 			c.GOARCH = "amd64"
 			c.SigningKeys = []ssh.PublicKey{server.Signer.PublicKey()}
 			return c
@@ -114,7 +114,7 @@ func binary(t *testing.T, h *fakeHost) string {
 func TestUpdateInstallsThenRestarts(t *testing.T) {
 	withVersion(t, "v1.0.0")
 	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new program"}))
-	code, stdout, stderr := h.run(t, "", "update", "--yes", "--release-url", h.server.URL, "--format", "json")
+	code, stdout, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL, "--format", "json")
 	if code != exitOK {
 		t.Fatalf("code = %d, stderr = %q", code, stderr)
 	}
@@ -147,7 +147,7 @@ func TestUpdateRefusesBadReleaseWithoutChangeOrRestart(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			h := newFakeHost(t, selfupdatetest.New(t, "amd64", rel))
-			code, _, _ := h.run(t, "", "update", "--yes", "--release-url", h.server.URL)
+			code, _, _ := h.run(t, "", "update", "--yes", "--api-url", h.server.URL)
 			if code != exitRuntime {
 				t.Errorf("code = %d", code)
 			}
@@ -162,7 +162,7 @@ func TestUpdateRestartFailureIsReported(t *testing.T) {
 	withVersion(t, "v1.0.0")
 	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new"}))
 	h.fail["systemctl restart sysmin"] = exitStatus(1)
-	code, _, stderr := h.run(t, "", "update", "--yes", "--release-url", h.server.URL)
+	code, _, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL)
 	if code != exitRuntime || !strings.Contains(stderr, "restarting the service failed") {
 		t.Errorf("code = %d, stderr = %q", code, stderr)
 	}
@@ -172,7 +172,7 @@ func TestUpdateRejectsNonRootBeforeAnyRequest(t *testing.T) {
 	withVersion(t, "v1.0.0")
 	h := newFakeHost(t, nil)
 	h.root = false
-	code, _, stderr := h.run(t, "", "update", "--yes", "--release-url", "http://127.0.0.1:1")
+	code, _, stderr := h.run(t, "", "update", "--yes", "--api-url", "http://127.0.0.1:1")
 	if code != exitRuntime || !strings.Contains(stderr, "root") || len(h.calls) != 0 {
 		t.Errorf("code = %d, stderr = %q", code, stderr)
 	}
@@ -181,7 +181,7 @@ func TestUpdateRejectsNonRootBeforeAnyRequest(t *testing.T) {
 func TestUpdateNeedsConfirmationChannel(t *testing.T) {
 	withVersion(t, "v1.0.0")
 	h := newFakeHost(t, nil)
-	code, _, stderr := h.run(t, "", "update", "--release-url", "http://127.0.0.1:1")
+	code, _, stderr := h.run(t, "", "update", "--api-url", "http://127.0.0.1:1")
 	if code != exitUsage || !strings.Contains(stderr, "--yes") {
 		t.Errorf("code = %d, stderr = %q", code, stderr)
 	}
@@ -191,11 +191,11 @@ func TestUpdateAsksOnTerminal(t *testing.T) {
 	withVersion(t, "v1.0.0")
 	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new program"}))
 	h.terminal = true
-	code, _, stderr := h.run(t, "n\n", "update", "--release-url", h.server.URL)
+	code, _, stderr := h.run(t, "n\n", "update", "--api-url", h.server.URL)
 	if code != exitRuntime || !strings.Contains(stderr, "cancelled") || binary(t, h) != "old program" || len(h.calls) != 0 {
 		t.Errorf("declined: code = %d, stderr = %q", code, stderr)
 	}
-	if code, _, stderr := h.run(t, "y\n", "update", "--release-url", h.server.URL); code != exitOK || binary(t, h) != "new program" {
+	if code, _, stderr := h.run(t, "y\n", "update", "--api-url", h.server.URL); code != exitOK || binary(t, h) != "new program" {
 		t.Errorf("accepted: code = %d, stderr = %q", code, stderr)
 	}
 }
@@ -203,11 +203,11 @@ func TestUpdateAsksOnTerminal(t *testing.T) {
 func TestUpdateDevBuildAndUpToDate(t *testing.T) {
 	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.0.0", Program: "x"}))
 	withVersion(t, "dev")
-	if code, _, stderr := h.run(t, "", "update", "--yes", "--release-url", h.server.URL); code != exitRuntime || !strings.Contains(stderr, "dev build") {
+	if code, _, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL); code != exitRuntime || !strings.Contains(stderr, "dev build") {
 		t.Errorf("dev: code = %d, stderr = %q", code, stderr)
 	}
 	version = "v1.0.0"
-	code, stdout, _ := h.run(t, "", "update", "--yes", "--release-url", h.server.URL, "--format", "json")
+	code, stdout, _ := h.run(t, "", "update", "--yes", "--api-url", h.server.URL, "--format", "json")
 	if code != exitOK || !strings.Contains(stdout, `"updated":false`) || len(h.calls) != 0 || binary(t, h) != "old program" {
 		t.Errorf("up to date: code = %d, stdout = %q, calls = %v", code, stdout, h.calls)
 	}
@@ -218,11 +218,11 @@ func TestUpdateToChosenVersion(t *testing.T) {
 	h := newFakeHost(t, selfupdatetest.New(t, "amd64",
 		selfupdatetest.Release{Tag: "v1.0.0", Program: "program one"},
 		selfupdatetest.Release{Tag: "v1.2.0", Program: "program two"}))
-	code, _, stderr := h.run(t, "", "update", "--to", "v1.0.0", "--yes", "--release-url", h.server.URL)
+	code, _, stderr := h.run(t, "", "update", "--to", "v1.0.0", "--yes", "--api-url", h.server.URL)
 	if code != exitOK || binary(t, h) != "program one" || !strings.Contains(stderr, "Roll back") {
 		t.Errorf("code = %d, program = %q, stderr = %q", code, binary(t, h), stderr)
 	}
-	if code, _, _ := h.run(t, "", "update", "--to", "v7.7.7", "--yes", "--release-url", h.server.URL); code != exitUsage {
+	if code, _, _ := h.run(t, "", "update", "--to", "v7.7.7", "--yes", "--api-url", h.server.URL); code != exitUsage {
 		t.Errorf("unknown version: code = %d", code)
 	}
 }
@@ -235,7 +235,7 @@ func TestUpdateList(t *testing.T) {
 		selfupdatetest.Release{Tag: "v1.2.0-rc.1", Prerelease: true, Program: "x"},
 		selfupdatetest.Release{Tag: "v1.3.0", Program: "x", NoSignature: true}))
 	h.root = false // listing changes nothing
-	code, stdout, stderr := h.run(t, "", "update", "--list", "--release-url", h.server.URL, "--format", "json")
+	code, stdout, stderr := h.run(t, "", "update", "--list", "--api-url", h.server.URL, "--format", "json")
 	if code != exitOK {
 		t.Fatalf("code = %d, stderr = %q", code, stderr)
 	}
@@ -258,7 +258,7 @@ func TestUpdateWithUnchangedUnitSkipsDaemonReload(t *testing.T) {
 	if err := os.WriteFile(h.unitPath, []byte("same unit"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	code, stdout, stderr := h.run(t, "", "update", "--yes", "--release-url", h.server.URL, "--format", "json")
+	code, stdout, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL, "--format", "json")
 	if code != exitOK || !slices.Equal(h.calls, []string{"systemctl restart sysmin"}) || !strings.Contains(stdout, `"unit_updated":false`) {
 		t.Errorf("code = %d, calls = %v, stdout = %q, stderr = %q", code, h.calls, stdout, stderr)
 	}
@@ -268,7 +268,7 @@ func TestUpdateDaemonReloadFailureIsReported(t *testing.T) {
 	withVersion(t, "v1.0.0")
 	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new"}))
 	h.fail["systemctl daemon-reload"] = exitStatus(1)
-	code, _, stderr := h.run(t, "", "update", "--yes", "--release-url", h.server.URL)
+	code, _, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL)
 	if code != exitRuntime || !strings.Contains(stderr, "reloading the service manager failed") || slices.Contains(h.calls, "systemctl restart sysmin") {
 		t.Errorf("code = %d, calls = %v, stderr = %q", code, h.calls, stderr)
 	}
@@ -277,8 +277,16 @@ func TestUpdateDaemonReloadFailureIsReported(t *testing.T) {
 func TestUpdateWithoutUnitInArchiveChangesNothing(t *testing.T) {
 	withVersion(t, "v1.0.0")
 	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new", NoUnit: true}))
-	code, _, _ := h.run(t, "", "update", "--yes", "--release-url", h.server.URL)
+	code, _, _ := h.run(t, "", "update", "--yes", "--api-url", h.server.URL)
 	if code != exitRuntime || binary(t, h) != "old program" || len(h.calls) != 0 {
 		t.Errorf("code = %d, calls = %v", code, h.calls)
+	}
+}
+
+func TestUpdateRejectsReleaseURLFlag(t *testing.T) {
+	withVersion(t, "v1.0.0")
+	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new"}))
+	if code, _, _ := h.run(t, "", "update", "--yes", "--release-url", h.server.URL); code != exitUsage {
+		t.Errorf("code = %d, want %d", code, exitUsage)
 	}
 }

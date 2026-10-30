@@ -1094,19 +1094,18 @@ warning: $(kv "$out" warning)"
 s13_self_update() {
 	api=${E2E_RELEASES_URL%/releases}/repos/castrowithcee/qatlas-sysmin
 	projects=$(cliq project list --format compact 2>&1)
-	out=$(cli update --list --release-url "$api" --format compact 2>&1) || true
+	out=$(cli update --list --api-url "$api" --format compact 2>&1) || true
 	evidence "update --list:
 $out"
-	evidence "note: --release-url of sysmin update is the GitHub-API base of the repository, as its help says; the release URL of install.sh ($E2E_RELEASES_URL) is a download base and answers 404 there"
 	sc_note '# on the release server: v0.2.0/checksums.txt.sig replaced by the signature of v0.1.0'
 	docker exec "$prefix-releases" sh -c 'cd /srv/releases && cp v0.2.0/checksums.txt.sig /tmp/v0.2.0.sig && cp v0.1.0/checksums.txt.sig v0.2.0/checksums.txt.sig'
-	out=$(cli update --release-url "$api" --to v0.2.0 --yes --format compact 2>&1) && rc=0 || rc=$?
+	out=$(cli update --api-url "$api" --to v0.2.0 --yes --format compact 2>&1) && rc=0 || rc=$?
 	ver=$(docker exec "$host" sysmin version --format compact | sed 's/^version=//')
 	evidence "with the signature of another release: exit $rc: $out; installed: $ver"
 	[ "$rc" != 0 ] && [ "$ver" = v0.1.0 ] || failed 'a release with a wrong signature was installed'
 	sc_note '# on the release server: the signature of v0.2.0 restored'
 	docker exec "$prefix-releases" sh -c 'cp /tmp/v0.2.0.sig /srv/releases/v0.2.0/checksums.txt.sig'
-	out=$(cli update --release-url "$api" --yes --format compact 2>&1) && rc=0 || rc=$?
+	out=$(cli update --api-url "$api" --yes --format compact 2>&1) && rc=0 || rc=$?
 	evidence "update: previous=$(kv "$out" previous) version=$(kv "$out" version) updated=$(kv "$out" updated) restarted=$(kv "$out" restarted)"
 	if [ "$rc" != 0 ]; then
 		failed "update: $out"

@@ -15,7 +15,7 @@ import (
 const lockedNotice = "The service restarts and the vault is locked afterwards unless automatic unlock is set up."
 
 func newUpdateCommand(opts *Options) *cobra.Command {
-	var to, releaseURL string
+	var to, apiURL string
 	var list, yes bool
 	cmd := &cobra.Command{
 		Use:   "update",
@@ -30,21 +30,22 @@ func newUpdateCommand(opts *Options) *cobra.Command {
 			"automatic unlock is set up, so update asks for confirmation on a terminal; --yes confirms.",
 		Args: noVaultArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			return runUpdate(c, opts, updateRequest{to: to, list: list, yes: yes, releaseURL: releaseURL})
+			return runUpdate(c, opts, updateRequest{to: to, list: list, yes: yes, apiURL: apiURL})
 		},
 	}
 	cmd.Flags().StringVar(&to, "to", "", "install this release version, for example v1.2.3")
 	cmd.Flags().BoolVar(&list, "list", false, "list the releases that can be installed")
 	cmd.Flags().BoolVar(&yes, "yes", false, "confirm without asking")
-	cmd.Flags().StringVar(&releaseURL, "release-url", "",
-		"read releases from this GitHub-API-compatible base URL instead of GitHub; signatures are still\n"+
-			"checked against the built-in release keys")
+	cmd.Flags().StringVar(&apiURL, "api-url", "",
+		"read releases from this GitHub-API-compatible base URL instead of GitHub, in the form\n"+
+			"https://api.github.com/repos/<owner>/<repo>; signatures are still checked against the\n"+
+			"built-in release keys")
 	return cmd
 }
 
 type updateRequest struct {
-	to, releaseURL string
-	list, yes      bool
+	to, apiURL string
+	list, yes  bool
 }
 
 func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
@@ -52,7 +53,7 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 		return newSyntaxError(errors.New("--list cannot be combined with --to or --yes"))
 	}
 	s := opts.system()
-	updater := s.updater(version, req.releaseURL)
+	updater := s.updater(version, req.apiURL)
 	updater.Target = s.binaryPath
 	updater.UnitTarget = s.unitPath
 	ctx := c.Context()
