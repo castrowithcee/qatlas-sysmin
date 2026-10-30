@@ -1,7 +1,7 @@
-// Package uiprefs keeps the device-local preferences of the terminal editor in tui.yaml, beside the
-// configuration file but apart from it: the file is never part of an export or import and needs no admin
-// session. A missing or damaged file yields the defaults and a warning, never an error that stops the
-// editor. The last writer wins.
+// Package uiprefs keeps the device-local preferences of the terminal editor in tui.yaml in the per-user
+// folder ~/.qatlas/sysmin, apart from the service configuration: the file is never part of an export or
+// import and needs no admin session. A missing or damaged file yields the defaults and a warning, never an
+// error that stops the editor. The last writer wins.
 //
 // The format is a flat YAML mapping. Keys this version does not know are ignored on read, so later
 // versions can add fields without breaking an older reader; a write by this version writes only the keys
@@ -72,6 +72,85 @@ func Default() Prefs {
 
 // Path returns the preferences file that belongs to the configuration directory dir.
 func Path(dir string) string { return filepath.Join(dir, FileName) }
+
+// UserDir returns the per-user sysmin folder, ~/.qatlas/sysmin.
+func UserDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".qatlas", "sysmin"), nil
+}
+
+// Migrate moves the preferences file of an earlier version from oldPath to newPath. It does nothing when
+// newPath exists or oldPath does not; an existing new file is never overwritten. On a failure the old file
+// stays in place. The result says what happened, empty when nothing did.
+func Migrate(newPath, oldPath string) string {
+	if _, err := os.Lstat(newPath); err == nil {
+		return ""
+	}
+	info, err := os.Lstat(oldPath)
+	if err != nil {
+		return ""
+	}
+	if err := os.MkdirAll(filepath.Dir(newPath), 0o700); err != nil {
+		return fmt.Sprintf("cannot move %s to %s, leaving it in place: %v", oldPath, newPath, err)
+	}
+	// A symlinked file, say from a dotfiles repository, keeps its target: the new path links to it too.
+	if info.Mode()&os.ModeSymlink != 0 {
+		target, err := filepath.EvalSymlinks(oldPath)
+		if err == nil {
+			err = os.Symlink(target, newPath)
+		}
+		if err == nil {
+			err = os.Remove(oldPath)
+			if err != nil {
+				_ = os.Remove(newPath)
+			}
+		}
+		if err != nil {
+			return fmt.Sprintf("cannot move %s to %s, leaving it in place: %v", oldPath, newPath, err)
+		}
+		return fmt.Sprintf("moved %s to %s", oldPath, newPath)
+	}
+	if err := os.Rename(oldPath, newPath); err == nil {
+		_ = os.Chmod(newPath, 0o600)
+		return fmt.Sprintf("moved %s to %s", oldPath, newPath)
+	}
+	if err := copyNew(oldPath, newPath); err != nil {
+		return fmt.Sprintf("cannot move %s to %s, leaving it in place: %v", oldPath, newPath, err)
+	}
+	if err := os.Remove(oldPath); err != nil {
+		return fmt.Sprintf("copied %s to %s, the old file stays: %v", oldPath, newPath, err)
+	}
+	return fmt.Sprintf("moved %s to %s", oldPath, newPath)
+}
+
+// copyNew copies src to dst with mode 0600 and fails if dst exists. A partial copy is removed.
+func copyNew(src, dst string) (err error) {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = os.Remove(dst)
+		}
+	}()
+	if _, err = f.Write(data); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
+}
 
 // Load reads the preferences at path. It never fails: a missing file gives the defaults without a warning;
 // an unreadable or malformed file, or a value that is not valid, gives the default for that part and a

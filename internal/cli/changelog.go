@@ -32,7 +32,7 @@ func newProjectChangelogCommand(opts *Options) *cobra.Command {
 			"the cache is shown with a notice. Nothing is changed, and no admin session is needed, but the vault\n" +
 			"must be unlocked. The command exits with an error when a source cannot be read; each source is\n" +
 			"tried regardless of the others.",
-		Example: "  sysmin project changelog demo-app --image app --format json\n" +
+		Example: "  sysmin project changelog demo-app --image app --output json\n" +
 			"  sysmin project changelog demo-app --to 1.4.0",
 		Args: oneName("changelog"),
 		RunE: func(c *cobra.Command, args []string) error {

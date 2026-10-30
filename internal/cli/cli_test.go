@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -25,7 +27,7 @@ func TestVersionTable(t *testing.T) {
 }
 
 func TestVersionJSON(t *testing.T) {
-	code, stdout, stderr := runCLI(t, "version", "--format", "json")
+	code, stdout, stderr := runCLI(t, "version", "--output", "json")
 	if code != exitOK || stderr != "" {
 		t.Fatalf("code = %d, stderr = %q", code, stderr)
 	}
@@ -39,14 +41,14 @@ func TestVersionJSON(t *testing.T) {
 }
 
 func TestVersionCompact(t *testing.T) {
-	code, stdout, _ := runCLI(t, "version", "--format", "compact")
+	code, stdout, _ := runCLI(t, "version", "--output", "compact")
 	if code != exitOK || !strings.Contains(stdout, version) {
 		t.Errorf("code = %d, stdout = %q", code, stdout)
 	}
 }
 
 func TestUnknownFormatIsUsageError(t *testing.T) {
-	code, stdout, stderr := runCLI(t, "version", "--format", "bogus")
+	code, stdout, stderr := runCLI(t, "version", "--output", "bogus")
 	if code != exitUsage {
 		t.Errorf("code = %d, want %d", code, exitUsage)
 	}
@@ -103,5 +105,73 @@ func TestTUIAcceptsTheSocketFlag(t *testing.T) {
 	code, _, stderr := runCLI(t, "tui", "--socket", "/nonexistent/sysmin.sock")
 	if code != exitUsage || !strings.Contains(stderr, "the terminal interface needs a terminal") {
 		t.Errorf("code = %d, stderr = %q", code, stderr)
+	}
+}
+
+func TestVersionFlag(t *testing.T) {
+	code, stdout, stderr := runCLI(t, "--version")
+	if code != exitOK || stderr != "" || stdout != "sysmin "+version+"\n" {
+		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+}
+
+func TestFormatAliasWarnsAndMatchesOutput(t *testing.T) {
+	code, want, _ := runCLI(t, "version", "--output", "json")
+	if code != exitOK {
+		t.Fatalf("code = %d", code)
+	}
+	code, got, stderr := runCLI(t, "version", "--format", "json")
+	if code != exitOK || got != want {
+		t.Errorf("code = %d, stdout = %q, want %q", code, got, want)
+	}
+	if !strings.Contains(stderr, "--format is deprecated") {
+		t.Errorf("stderr = %q, want a notice", stderr)
+	}
+}
+
+func TestOutputAndFormatTogetherIsUsageError(t *testing.T) {
+	code, stdout, stderr := runCLI(t, "version", "--output", "json", "--format", "json")
+	if code != exitUsage || stdout != "" || !strings.Contains(stderr, "cannot be used together") {
+		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+}
+
+func TestOutputUnknownValueIsUsageError(t *testing.T) {
+	code, _, _ := runCLI(t, "version", "--output", "yaml")
+	if code != exitUsage {
+		t.Errorf("code = %d, want %d", code, exitUsage)
+	}
+}
+
+func TestLoadPrefsMigratesOldFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	oldPath := filepath.Join(home, ".config", "sysmin", "tui.yaml")
+	if err := os.MkdirAll(filepath.Dir(oldPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(oldPath, []byte("theme: terminal\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, path, warnings := loadPrefs()
+	if want := filepath.Join(home, ".qatlas", "sysmin", "tui.yaml"); path != want {
+		t.Errorf("path = %q, want %q", path, want)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "moved") {
+		t.Errorf("warnings = %q", warnings)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("new file missing: %v", err)
+	}
+	// With the new file present, a second old file stays untouched.
+	if err := os.WriteFile(oldPath, []byte("theme: other\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, w := loadPrefs(); len(w) != 0 {
+		t.Errorf("warnings = %q, want none", w)
+	}
+	if _, err := os.Stat(oldPath); err != nil {
+		t.Errorf("old file touched: %v", err)
 	}
 }

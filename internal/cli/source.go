@@ -52,7 +52,7 @@ func newSourceTestCommand(opts *Options) *cobra.Command {
 			"git source is the tag checked out in the project directory. Nothing is changed, and no admin\n" +
 			"session is needed, but the vault must be unlocked. The command exits with an error when a source\n" +
 			"cannot be reached or refuses access; each source is tried regardless of the others.",
-		Example: "  sysmin source test demo-app --format json",
+		Example: "  sysmin source test demo-app --output json",
 		Args:    oneName("test"),
 		RunE: func(c *cobra.Command, args []string) error {
 			var res control.SourceTestResult

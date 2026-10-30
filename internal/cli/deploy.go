@@ -97,7 +97,7 @@ func newDeployStatusCommand(opts *Options) *cobra.Command {
 		Long: "status shows whether a run is active, whether the project is paused or pinned, the error state after a\n" +
 			"failed rollback, the versions of every source with the newer ones that wait for a person, and the\n" +
 			"latest run. Nothing is changed, and the vault may be locked.",
-		Example: "  sysmin deploy status demo-app --format json",
+		Example: "  sysmin deploy status demo-app --output json",
 		Args:    oneName("status"),
 		RunE: func(c *cobra.Command, args []string) error {
 			var res control.DeployStatusResult
@@ -164,7 +164,7 @@ func newDeployHistoryCommand(opts *Options) *cobra.Command {
 		Long: "history lists the latest runs of a project, the oldest first: automatic deploys, updates a person\n" +
 			"started and restores, with their result and the version changes. Error texts have secret values\n" +
 			"removed. Nothing is changed, and the vault may be locked.",
-		Example: "  sysmin deploy history demo-app --format json",
+		Example: "  sysmin deploy history demo-app --output json",
 		Args:    oneName("history"),
 		RunE: func(c *cobra.Command, args []string) error {
 			var res control.DeployHistoryResult

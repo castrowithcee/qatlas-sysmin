@@ -24,7 +24,7 @@ func exists(path string) bool { _, err := os.Lstat(path); return err == nil }
 func TestUninstallKeepsDataWithoutPurge(t *testing.T) {
 	h := newFakeHost(t, nil)
 	installFiles(t, h)
-	code, stdout, stderr := h.run(t, "", "uninstall", "--yes", "--format", "json")
+	code, stdout, stderr := h.run(t, "", "uninstall", "--yes", "--output", "json")
 	if code != exitOK {
 		t.Fatalf("code = %d, stderr = %q", code, stderr)
 	}

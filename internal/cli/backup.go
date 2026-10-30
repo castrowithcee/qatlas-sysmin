@@ -28,7 +28,7 @@ func newBackupListCommand(opts *Options) *cobra.Command {
 		Short: "List the backups of a project",
 		Long: "list shows the names of the backups of a project, the oldest first. Nothing is changed, no admin\n" +
 			"session is needed, and the vault may be locked.",
-		Example: "  sysmin backup list demo-app --format json",
+		Example: "  sysmin backup list demo-app --output json",
 		Args:    oneName("list"),
 		RunE: func(c *cobra.Command, args []string) error {
 			var names []string

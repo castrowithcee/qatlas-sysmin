@@ -47,7 +47,7 @@ type verifyRow struct {
 
 func verifyJSON(t *testing.T, args ...string) (int, []verifyRow, string) {
 	t.Helper()
-	code, stdout, stderr := runCLI(t, append([]string{"log", "verify", "--format", "json"}, args...)...)
+	code, stdout, stderr := runCLI(t, append([]string{"log", "verify", "--output", "json"}, args...)...)
 	var rows []verifyRow
 	if stdout != "" {
 		if err := json.Unmarshal([]byte(stdout), &rows); err != nil {

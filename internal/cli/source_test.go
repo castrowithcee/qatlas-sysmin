@@ -88,7 +88,7 @@ func noSecretIn(t *testing.T, what, text string) {
 
 func TestSourceTestJSON(t *testing.T) {
 	e := startSourceEnv(t, demoToken, true)
-	code, stdout, stderr := runCLIArgs("source", "test", "demo-app", "--socket", e.sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("source", "test", "demo-app", "--socket", e.sock, "--output", "json")
 	rows := jsonRows(t, stdout)
 	if code != exitOK || len(rows) != 1 {
 		t.Fatalf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
@@ -136,7 +136,7 @@ func TestSourceTestNeedsAnApprovedProject(t *testing.T) {
 
 func TestSourceTestUnreadableSourceFailsTheCommand(t *testing.T) {
 	e := startSourceEnv(t, sourceWrongToken, true)
-	code, stdout, stderr := runCLIArgs("source", "test", "demo-app", "--socket", e.sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("source", "test", "demo-app", "--socket", e.sock, "--output", "json")
 	rows := jsonRows(t, stdout)
 	if code != exitRuntime || len(rows) != 1 || rows[0]["status"] != "denied" || !strings.Contains(rows[0]["message"].(string), "denied") ||
 		!strings.Contains(stderr, "1 of 1 sources could not be read") {

@@ -56,7 +56,7 @@ func TestVaultBindAndUnbind(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := &cliRunner{}
-	code, stdout, stderr := runVault(t, true, r, "vault", "bind", "--vault-dir", dir, "--format", "json")
+	code, stdout, stderr := runVault(t, true, r, "vault", "bind", "--vault-dir", dir, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, `"unlock":"host"`) || !strings.Contains(stdout, "warning") {
 		t.Fatalf("bind: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
@@ -66,7 +66,7 @@ func TestVaultBindAndUnbind(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "key.cred")); err != nil {
 		t.Error(err)
 	}
-	code, stdout, _ = runVault(t, true, r, "vault", "unbind", "--vault-dir", dir, "--format", "json")
+	code, stdout, _ = runVault(t, true, r, "vault", "unbind", "--vault-dir", dir, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, `"removed":true`) {
 		t.Errorf("unbind: code = %d, stdout = %q", code, stdout)
 	}

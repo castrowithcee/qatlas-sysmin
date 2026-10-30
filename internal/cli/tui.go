@@ -18,8 +18,25 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
-// configDirName is the folder of sysmin inside the user configuration directory.
-const configDirName = "sysmin"
+// oldConfigDirName is the folder of sysmin inside the user configuration directory, where earlier versions
+// kept tui.yaml.
+const oldConfigDirName = "sysmin"
+
+// loadPrefs resolves ~/.qatlas/sysmin/tui.yaml, moves the file of an earlier version into place and loads it.
+func loadPrefs() (prefs uiprefs.Prefs, path string, warnings []string) {
+	dir, err := uiprefs.UserDir()
+	if err != nil {
+		return uiprefs.Default(), "", []string{fmt.Sprintf("no home directory, using the defaults: %v", err)}
+	}
+	path = uiprefs.Path(dir)
+	if oldDir, err := os.UserConfigDir(); err == nil {
+		if msg := uiprefs.Migrate(path, uiprefs.Path(filepath.Join(oldDir, oldConfigDirName))); msg != "" {
+			warnings = append(warnings, msg)
+		}
+	}
+	prefs, loadWarnings := uiprefs.Load(path)
+	return prefs, path, append(warnings, loadWarnings...)
+}
 
 func newTUICommand(opts *Options) *cobra.Command {
 	var socket string
@@ -28,8 +45,8 @@ func newTUICommand(opts *Options) *cobra.Command {
 		Short: "Open the terminal interface",
 		Long: "Open the terminal interface. It needs a terminal on both standard input and standard output.\n" +
 			"It talks to the running service; without the service it still opens and says what to check.\n" +
-			"Device-local preferences are read from tui.yaml in the sysmin folder of the user configuration\n" +
-			"directory; a missing file means the defaults.",
+			"Device-local preferences are read from ~/.qatlas/sysmin/tui.yaml; a missing file means\n" +
+			"the defaults.",
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				return newSyntaxError(fmt.Errorf("unexpected argument %q", args[0]))
@@ -41,16 +58,7 @@ func newTUICommand(opts *Options) *cobra.Command {
 			if !ok {
 				return &UsageError{errors.New("the terminal interface needs a terminal on standard input and standard output")}
 			}
-			var prefs uiprefs.Prefs
-			var warnings []string
-			prefsPath := ""
-			if dir, err := os.UserConfigDir(); err != nil {
-				prefs = uiprefs.Default()
-				warnings = []string{fmt.Sprintf("no configuration directory, using the defaults: %v", err)}
-			} else {
-				prefsPath = uiprefs.Path(filepath.Join(dir, configDirName))
-				prefs, warnings = uiprefs.Load(prefsPath)
-			}
+			prefs, prefsPath, warnings := loadPrefs()
 			backend := tui.NewBackend(socket)
 			err := tui.Run(tui.Options{Prefs: prefs, PrefsWarnings: warnings, PrefsPath: prefsPath, Redactor: opts.Redactor,
 				Backend: backend, Version: version, Releases: releaseCheck(opts), In: in, Out: out})

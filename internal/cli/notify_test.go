@@ -48,7 +48,7 @@ func TestNotifyTestSendsAndHidesTheSecret(t *testing.T) {
 	if code != exitOK || !strings.Contains(stdout, "sent") || hits.Load() != 1 || event.Load() != "notify.test" {
 		t.Fatalf("code = %d, stdout = %q, stderr = %q, hits = %d", code, stdout, stderr, hits.Load())
 	}
-	code, stdout, stderr = runCLIArgs("notify", "test", "ops-hook", "--socket", sock, "--format", "json")
+	code, stdout, stderr = runCLIArgs("notify", "test", "ops-hook", "--socket", sock, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, `"result":"sent"`) || hits.Load() != 2 {
 		t.Fatalf("json: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
