@@ -104,16 +104,33 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	detailFocus := m.zoneNow() == zoneDetail
 	left := m.tableBlock(p, v, tableWidth, avail, top, position, !detailFocus)
 	if !wide {
+		m.addZone(0, top, width, top+len(left), zoneContent)
 		return strings.Join(left, "\n")
 	}
 	inner := detailWidth - 4
-	strip, _ := tabStripLine(p, inner, detailFocus)
+	strip, spans := tabStripLine(p, inner, detailFocus)
 	content := v.lines(name, p.tab, inner)
 	height := min(max(len(content)+2, len(left)-2), avail-2)
 	room := max(height-2, 1)
 	p.scroll = min(max(p.scroll, 0), max(len(content)-room, 0))
 	body := append([]string{strip, ""}, content[p.scroll:min(p.scroll+room, len(content))]...)
 	right := panel(truncateCells(name, inner-2), body, inner, height, panelOpts{focused: detailFocus})
+	left0 := tableWidth + 1
+	m.addZone(0, top, tableWidth, top+len(left), zoneContent)
+	m.addZone(left0, top, width, top+len(right), zoneDetail)
+	m.addWheel(left0, top, width, top+len(right), func(up bool) {
+		if up {
+			p.scroll = max(p.scroll-wheelText, 0)
+		} else {
+			p.scroll += wheelText
+		}
+	})
+	for i, span := range spans {
+		m.addHit(left0+2+span[0], top+1, left0+2+span[1], top+2, func() tea.Cmd {
+			p.tab, p.scroll = i, 0
+			return m.focusZone(zoneDetail)
+		})
+	}
 	var out []string
 	for i := range max(len(left), len(right)) {
 		l, r := "", ""
@@ -170,9 +187,13 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 		i := i
 		row := m.listRowIn(room, i == p.list.cursor, t.line(p.rows[p.list.matches[i]], layout))
 		m.addHit(0, top+len(lines), width, top+len(lines)+1, func() tea.Cmd {
+			fromDetail := m.focusRows()
 			if p.list.cursor != i {
-				p.list.cursor = i
+				p.list.cursor, p.scroll = i, 0
 				return m.dataWant()
+			}
+			if fromDetail {
+				return nil
 			}
 			return m.contentPress("enter")
 		})

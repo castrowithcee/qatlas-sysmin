@@ -492,16 +492,22 @@ func (m *Model) barLines() []string {
 	live := m.screen == screenArea
 	for i, span := range spans {
 		if live {
-			m.addHit(span.x0, row, span.x1, row+1, func() tea.Cmd { return m.setArea(area(i)) })
+			m.addHit(span.x0, row, span.x1, row+1, func() tea.Cmd { m.endInput(); return m.setArea(area(i)) })
 		}
+	}
+	if live {
+		m.addZone(0, row, m.termWidth, row+1, zoneTabs)
 	}
 	if m.barRows() == 2 {
 		line, spans = m.subLine()
 		lines = append(lines, line)
 		for i, span := range spans {
 			if live {
-				m.addHit(span.x0, row+1, span.x1, row+2, func() tea.Cmd { return m.setSubPage(i) })
+				m.addHit(span.x0, row+1, span.x1, row+2, func() tea.Cmd { m.endInput(); return m.setSubPage(i) })
 			}
+		}
+		if live {
+			m.addZone(0, row+1, m.termWidth, row+2, zoneSubs)
 		}
 	}
 	return lines
