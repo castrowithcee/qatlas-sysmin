@@ -42,7 +42,7 @@ func TestUnitHasRequiredLines(t *testing.T) {
 		"LoadCredentialEncrypted=vault-key:/var/lib/sysmin/vault/key.cred",
 		"SetCredential=vault-key:\\n",
 		"NoNewPrivileges=yes",
-		"ProtectSystem=strict",
+		"ProtectSystem=full",
 		"ReadWritePaths=/etc/sysmin",
 		"PrivateTmp=yes",
 		"Restart=on-failure",

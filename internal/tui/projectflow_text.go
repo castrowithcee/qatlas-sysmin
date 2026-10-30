@@ -76,6 +76,7 @@ const (
 	tFlowExists       textID = "FlowExists"
 	tFlowSaved        textID = "FlowSaved"
 	tFlowSavedPending textID = "FlowSavedPending"
+	tFlowNotWritable  textID = "FlowNotWritable"
 	tFlowProblems     textID = "FlowProblems"
 	tFlowProblemsIn   textID = "FlowProblemsIn"
 	tBusyFlowSave     textID = "BusyFlowSave"
@@ -199,6 +200,7 @@ func init() {
 		tFlowExists:       "A project with this name exists already.",
 		tFlowSaved:        "Project %s saved and approved.",
 		tFlowSavedPending: "Project %s saved; it waits for approval.",
+		tFlowNotWritable:  "Project %s saved, but the service may not write %s; it cannot be approved until then.",
 		tFlowProblems:     "Problems",
 		tFlowProblemsIn:   "Problems in: %s",
 		tBusyFlowSave:     "Saving %s",
@@ -335,6 +337,7 @@ func init() {
 		tFlowExists:       "Ein Projekt mit diesem Namen gibt es schon.",
 		tFlowSaved:        "Projekt %s gespeichert und freigegeben.",
 		tFlowSavedPending: "Projekt %s gespeichert; es wartet auf Freigabe.",
+		tFlowNotWritable:  "Projekt %s gespeichert, aber der Dienst darf %s nicht schreiben; es lässt sich erst danach freigeben.",
 		tFlowProblems:     "Probleme",
 		tFlowProblemsIn:   "Probleme in: %s",
 		tBusyFlowSave:     "%s wird gespeichert",

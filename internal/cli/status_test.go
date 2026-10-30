@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/service"
@@ -76,6 +77,7 @@ func startServiceCfg(t *testing.T, bound bool, setup func(configDir string), mod
 	cfg := service.Config{
 		ConfigDir: configDir, StateDir: state, SocketPath: filepath.Join(sockDir, "s.sock"),
 		Version: "9.9.9", Resolver: testGroups{}, CredentialsDir: credentials,
+		WriteCheck: func(config.Project) []string { return nil },
 	}
 	if mod != nil {
 		mod(&cfg)

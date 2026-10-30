@@ -77,6 +77,9 @@ type Config struct {
 	// WebhookRecheck is how often the service looks for an approved webhook that starts the listener;
 	// zero means ten seconds.
 	WebhookRecheck time.Duration
+	// WriteCheck returns the paths of a project that a deploy writes and the service may not; nil asks the
+	// kernel. Tests replace it, since their projects name paths that do not exist.
+	WriteCheck func(config.Project) []string
 }
 
 // connState is what a connection owns: its admin session. A connection serves one request at a time, so

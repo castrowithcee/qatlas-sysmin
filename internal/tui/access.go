@@ -493,7 +493,7 @@ func (m *Model) allDone(res control.ApprovalsAllResult, done textID) {
 	}
 	var parts []string
 	for _, f := range res.Failed {
-		parts = append(parts, m.diffText(f.Project)+" ("+errorText(&control.Error{Code: f.Code})+")")
+		parts = append(parts, m.diffText(f.Project)+" ("+errorText(&control.Error{Code: f.Code, Paths: f.Paths})+")")
 	}
 	m.fail = tr(tAccFailed, len(res.Failed), strings.Join(parts, "; "))
 }

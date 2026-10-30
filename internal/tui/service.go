@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -172,10 +173,22 @@ func errorText(err error) string {
 		return tr(tErrNotFound)
 	case control.CodeKindMismatch:
 		return tr(tErrKindMismatch)
+	case control.CodeNotWritable:
+		return tr(tErrNotWritable, pathsText(ce.Paths))
 	case control.CodeBadRequest, control.CodeInvalid:
 		return tr(tErrInvalid)
 	}
 	return tr(tErrService)
+}
+
+// pathsText joins paths for display with control characters replaced.
+func pathsText(paths []string) string {
+	return strings.Map(func(r rune) rune {
+		if r < ' ' || r == 0x7f {
+			return '�'
+		}
+		return r
+	}, strings.Join(paths, ", "))
 }
 
 // isCode reports whether err is a failure of the service with the given code.

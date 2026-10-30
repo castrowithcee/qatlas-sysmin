@@ -278,6 +278,7 @@ const (
 	tErrCannotDiscard           textID = "ErrCannotDiscard"
 	tErrNotFound                textID = "ErrNotFound"
 	tErrKindMismatch            textID = "ErrKindMismatch"
+	tErrNotWritable             textID = "ErrNotWritable"
 	tHelpCredentials            textID = "HelpCredentials"
 	tInfoLibCredentials         textID = "InfoLibCredentials"
 	tInfoLibChannels            textID = "InfoLibChannels"

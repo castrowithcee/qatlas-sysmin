@@ -416,6 +416,9 @@ func (m *Model) flowSave() tea.Cmd {
 				if res.State == control.StateApproved {
 					m.status = tr(tFlowSaved, p.Name)
 				}
+				if len(res.NotWritable) > 0 {
+					m.status = tr(tFlowNotWritable, p.Name, pathsText(res.NotWritable))
+				}
 				return m.projectListCmd()
 			case !current:
 				m.fail = projectErrorText(err)

@@ -7,6 +7,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
+	"github.com/castrowithcee/qatlas-sysmin/internal/writecheck"
 )
 
 // configChange is one change of the configuration for the shared write path. A handler that changes a
@@ -74,7 +75,13 @@ func (s *Service) applyChange(c *daemon.Conn, ch configChange) (res control.Chan
 		return res, approvalError(err)
 	}
 	res = control.ChangeResult{Project: ch.target, Revision: string(rev), State: control.StatePending}
-	if s.adminCovers(c) {
+	if after != nil {
+		if p, ok := after.Project(ch.target); ok {
+			res.NotWritable = s.notWritable(*p)
+		}
+	}
+	// A project that cannot be deployed stays open, like in approve.
+	if len(res.NotWritable) == 0 && s.adminCovers(c) {
 		// The file is stored either way; a failed approval leaves it open, which the state then says.
 		if err := ch.approve(rev); err != nil {
 			slog.Warn("a change made in an admin session could not be approved", "error", err.Error())
@@ -84,6 +91,14 @@ func (s *Service) applyChange(c *daemon.Conn, ch configChange) (res control.Chan
 	}
 	res.State = s.stateOf(ch.target)
 	return res, nil
+}
+
+// notWritable returns the paths of p that the service may not write.
+func (s *Service) notWritable(p config.Project) []string {
+	if s.cfg.WriteCheck != nil {
+		return s.cfg.WriteCheck(p)
+	}
+	return writecheck.Missing(p)
 }
 
 // stateOf reports whether the target has an open approval. What cannot be determined counts as open.

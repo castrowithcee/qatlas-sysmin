@@ -409,14 +409,6 @@ $out"
 	[ "$(kv "$out" state)" = approved ] || failed 'the project is not approved after the approval'
 }
 
-# workaround_rw lets the service write below /srv with a unit drop-in, restarts it and unlocks the vault
-# again in the interface.
-workaround_rw() {
-	hroot "mkdir -p /etc/systemd/system/sysmin.service.d && printf '[Service]\nReadWritePaths=/srv\n' >/etc/systemd/system/sysmin.service.d/e2e-project-dirs.conf && systemctl daemon-reload && systemctl restart sysmin" || return 1
-	poll 30 cliq status || return 1
-	tui_start && tui_unlock
-}
-
 workaround_login() {
 	hsecret sysmin E2E_REGISTRY_PASSWORD env HOME=/var/lib/sysmin docker login -u "$E2E_REGISTRY_USER" --password-stdin "$E2E_REGISTRY" >/dev/null 2>&1
 }
@@ -451,14 +443,6 @@ $(printf '%s\n' "$log" | grep -E 'result=|-> ' | sed 's/^[^ ]* //')"
 			return 0
 		fi
 		case $err in
-		*'read-only file system'*)
-			deviation "expected: an automatic deploy of $tag; actual: run $id ended with $result, step $step failed: $err. The unit sets ProtectSystem=strict and ReadWritePaths=/etc/sysmin only, so the service cannot write the env file of a project outside /etc/sysmin; a failed first step also left the project paused with rollback-failed"
-			if ! workaround_rw; then
-				failed 'the unit drop-in could not be applied'
-				return 1
-			fi
-			workaround "drop-in /etc/systemd/system/sysmin.service.d/e2e-project-dirs.conf with ReadWritePaths=/srv, service restarted, vault unlocked with ctrl+l in the interface, project resumed; $tag stays marked as rolled back, so the next attempt uses a new tag"
-			;;
 		*compose-pull*)
 			if ! printf '%s\n' "$log" | grep -q 'no basic auth credentials'; then
 				failed "compose-pull failed: $err"
@@ -915,7 +899,6 @@ $free"
 	evidence "run $id: result=$result; working copy on $tag, deployed.txt holds $built; log: logs/demo-site-$id.log"
 	evidence "run log:
 $(printf '%s\n' "$log" | grep -E ' (run|result=)|built |-> ' | sed 's/^[^ ]* //')"
-	evidence 'the service writes the working copy only because of the drop-in of s03 (ReadWritePaths=/srv)'
 	[ "$result" = succeeded ] && [ "$tag" = v2.0.0 ] && [ "$built" = v2.0.0 ] ||
 		failed 'the working copy is not on v2.0.0 after the run'
 	printf '%s\n' "$log" | grep -q 'type=git-checkout result=ok' && printf '%s\n' "$log" | grep -q 'type=command result=ok' ||
@@ -1200,8 +1183,8 @@ $kept"
 	[ "$before" = "$after" ] || failed "the stacks changed:
 $after"
 	out=$(hroot '/root/sysmin-kept uninstall --purge --yes --format compact; rm -f /root/sysmin-kept' 2>&1) || true
-	left=$(docker exec "$host" sh -c 'ls -d /etc/sysmin /var/lib/sysmin /etc/systemd/system/sysmin.service.d /srv/* 2>&1')
-	evidence "uninstall --purge with a copy of the program kept before: purged=$(kv "$out" purged); what is left (the drop-in is the workaround of s03, the project directories belong to the administrator):
+	left=$(docker exec "$host" sh -c 'ls -d /etc/sysmin /var/lib/sysmin /srv/* 2>&1')
+	evidence "uninstall --purge with a copy of the program kept before: purged=$(kv "$out" purged); what is left (the project directories belong to the administrator):
 $left"
 	printf '%s\n' "$left" | grep -qE '^/etc/sysmin$|^/var/lib/sysmin$' && failed '--purge left configuration or state'
 	after=$(containers)
