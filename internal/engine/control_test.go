@@ -167,19 +167,114 @@ func TestPlannerPollsAndStops(t *testing.T) {
 	}
 }
 
+// startPlanner runs the planner on a project with the given interval; the cleanup stops it.
+func (f *fixture) startPlanner(iv time.Duration) {
+	f.t.Helper()
+	p := f.project(demoImage("app", "APP_TAG", config.VersionRule{Mode: config.ModeManual}))
+	p.PollInterval = config.Duration(iv)
+	f.approvals.set(p)
+	f.sources.setTags("app", "1.0.0")
+	f.projects = []string{demoProject}
+	f.sources.started = make(chan string, 10)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error)
+	go func() { done <- f.eng.Run(ctx) }()
+	f.t.Cleanup(func() { cancel(); <-done })
+}
+
+func TestPlannerSecondPollUsesProjectInterval(t *testing.T) {
+	f := newFixture(t)
+	f.startPlanner(3 * time.Minute)
+	wait(t, f.sources.started)
+	wait(t, f.clock.waiting)
+	f.idle(demoProject)
+	for range 2 {
+		f.clock.Advance(time.Minute)
+		wait(t, f.clock.waiting)
+	}
+	if n := f.sources.count("app"); n != 1 {
+		t.Fatalf("polls before the interval: %d", n)
+	}
+	f.clock.Advance(time.Minute)
+	wait(t, f.sources.started)
+}
+
+func TestPlannerShortenedIntervalAppliesAtOnce(t *testing.T) {
+	f := newFixture(t)
+	f.startPlanner(30 * time.Minute)
+	wait(t, f.sources.started)
+	wait(t, f.clock.waiting)
+	f.idle(demoProject)
+	f.clock.Advance(time.Minute)
+	wait(t, f.clock.waiting)
+
+	p := f.project(demoImage("app", "APP_TAG", config.VersionRule{Mode: config.ModeManual}))
+	p.PollInterval = config.Duration(3 * time.Minute)
+	f.approvals.set(p)
+	f.clock.Advance(time.Minute)
+	wait(t, f.clock.waiting)
+	if n := f.sources.count("app"); n != 1 {
+		t.Fatalf("polls before the new interval: %d", n)
+	}
+	f.clock.Advance(time.Minute)
+	wait(t, f.sources.started)
+}
+
+func TestPlannerLockedPollsNothingUntilWake(t *testing.T) {
+	f := newFixture(t)
+	f.approvals.locked, f.vault.locked = true, true
+	f.startPlanner(3 * time.Minute)
+	f.approvals.mu.Lock()
+	f.approvals.locked = true
+	f.approvals.mu.Unlock()
+	wait(t, f.clock.waiting)
+	for range 5 {
+		f.clock.Advance(time.Minute)
+		wait(t, f.clock.waiting)
+	}
+	if n := f.sources.count("app"); n != 0 {
+		t.Fatalf("a locked planner queried the source %d times", n)
+	}
+
+	f.approvals.mu.Lock()
+	f.approvals.locked = false
+	f.approvals.mu.Unlock()
+	f.vault.mu.Lock()
+	f.vault.locked = false
+	f.vault.mu.Unlock()
+	f.eng.Wake()
+	wait(t, f.sources.started)
+	f.idle(demoProject)
+	// An early wake forces no poll before the interval.
+	wait(t, f.clock.waiting)
+	f.eng.Wake()
+	wait(t, f.clock.waiting)
+	if n := f.sources.count("app"); n != 1 {
+		t.Fatalf("polls after a wake within the interval: %d", n)
+	}
+}
+
+func TestWakeWithoutPlannerDoesNotBlock(t *testing.T) {
+	f := newFixture(t)
+	for range 3 {
+		f.eng.Wake()
+	}
+}
+
 func TestPlannerUsesProjectInterval(t *testing.T) {
 	f := newFixture(t)
 	p := f.project(demoImage("app", "APP_TAG", config.VersionRule{Mode: config.ModeManual}))
 	p.PollInterval = config.Duration(3 * time.Minute)
 	f.approvals.set(p)
 	f.sources.setTags("app", "1.0.0")
-	if got := f.eng.interval(demoProject); got != 10*time.Minute {
-		t.Errorf("default interval = %s", got)
+	if got, ok := f.eng.interval(demoProject); !ok || got != 3*time.Minute {
+		t.Errorf("project interval = %s %v", got, ok)
 	}
-	f.runNow()
-	if got := f.eng.interval(demoProject); got != 3*time.Minute {
-		t.Errorf("project interval = %s", got)
+	f.approvals.locked = true
+	if _, ok := f.eng.interval(demoProject); ok {
+		t.Error("interval while locked")
 	}
+	f.approvals.locked = false
 	var max time.Duration
 	f.eng.cfg.Jitter = func(m time.Duration) time.Duration { max = m; return 0 }
 	f.eng.spread(time.Hour)

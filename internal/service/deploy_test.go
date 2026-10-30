@@ -545,3 +545,42 @@ func (c capture) Run(ctx context.Context, cmd execute.Command) (execute.Result, 
 	c.fn(cmd)
 	return c.Runner.Run(ctx, cmd)
 }
+
+func TestUnlockWakesThePlannerForTheFirstPoll(t *testing.T) {
+	f := newDeployFixture(t, false)
+	f.write(t, "sysmin.yaml", "schema: 1\npoll_interval: 1m\n")
+	if err := f.dial(t).Unlock(testPass); err != nil {
+		t.Fatal(err)
+	}
+	f.addCredential(t)
+	if _, err := f.admin(t).ApproveAll(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Restart locked: the approval is on disk, and without the wake the first poll would wait for the
+	// refresh round of a minute at the earliest.
+	f.cancel()
+	<-f.done
+	f.done <- nil
+	svc, err := Open(f.cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.svc = svc
+	if err := svc.Listen(); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- svc.Serve(ctx) }()
+	t.Cleanup(func() { cancel(); <-done })
+	time.Sleep(100 * time.Millisecond)
+	if n := f.runner.count("deploy demo-app"); n != 0 {
+		t.Fatalf("deployed while locked: %v", f.runner.calls())
+	}
+
+	if err := f.dial(t).Unlock(testPass); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the first poll", func() bool { return f.runner.count("deploy demo-app '2.0.0'") == 1 })
+}

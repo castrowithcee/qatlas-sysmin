@@ -444,6 +444,7 @@ func (s *Service) handleUnlock(_ context.Context, _ *daemon.Conn, params json.Ra
 	}
 	s.refreshNotifier()
 	s.wakeWebhook()
+	s.engine.Wake()
 	return nil, nil
 }
 
