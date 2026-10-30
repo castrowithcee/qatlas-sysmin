@@ -36,6 +36,7 @@ const (
 	CodeMissingEnvVar      = "missing-env-var"
 	CodeInvalidTarget      = "invalid-target"
 	CodeQuotedPlaceholder  = "quoted-placeholder"
+	CodeRegistryCredential = "registry-credential-conflict"
 )
 
 var hints = map[string]string{
@@ -67,6 +68,7 @@ var hints = map[string]string{
 	CodeMissingEnvFile:     "Set env_file to an absolute path.",
 	CodeMissingEnvVar:      "Set env_var on every image, or stop using {var}.",
 	CodeQuotedPlaceholder:  "Placeholders are quoted automatically; remove the quotes around them.",
+	CodeRegistryCredential: "Use the same credential for all images of this project on that registry.",
 	CodeInvalidTarget:      "Pass exactly the images (or the git source) of the project, each with a version and a previous version.",
 }
 

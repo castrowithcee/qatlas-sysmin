@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/source/registry"
 )
 
 var (
@@ -491,6 +493,7 @@ func validateSource(sc scope, p Project, creds map[string]bool) {
 	}
 	names := map[string]bool{}
 	envs := map[string]bool{}
+	hostCred := map[string]string{}
 	for i, im := range p.Images {
 		f := fmt.Sprintf("images[%d]", i)
 		if checkName(sc, f+".name", im.Name) && names[im.Name] {
@@ -519,6 +522,14 @@ func validateSource(sc scope, p Project, creds map[string]bool) {
 		}
 		if im.Credential != "" {
 			checkCredential(sc, f+".credential", im.Credential, creds)
+			// One docker login per registry host applies to a run, so images cannot differ in it.
+			if repo, err := registry.ParseRepo(im.Ref); err == nil {
+				if prev, ok := hostCred[repo.Host]; ok && prev != im.Credential {
+					sc.add(f+".credential", CodeRegistryCredential, "image uses credential %q on %s, another image of the project uses %q", im.Credential, repo.Host, prev)
+				} else if !ok {
+					hostCred[repo.Host] = im.Credential
+				}
+			}
 		}
 		validateRule(sc, f+".version_rule", im.VersionRule)
 		if c := im.VersionRule.ChangelogCredential; c != "" {

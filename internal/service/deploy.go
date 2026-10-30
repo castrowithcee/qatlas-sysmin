@@ -137,7 +137,7 @@ func (d deploySources) ImageDigest(ctx context.Context, ap approval.Approved, im
 }
 
 // executor builds the executor of one run: the runner, a redactor that knows every secret of the approved
-// credentials, and the git login of the project's repository.
+// credentials (raw and as docker auth), and the git and registry logins of the project.
 func (s *Service) executor(ap approval.Approved) (*execute.Executor, error) {
 	red := &redact.Redactor{}
 	creds := &approvedCredentials{vault: s.vault, ids: ap.Credentials}
@@ -163,7 +163,14 @@ func (s *Service) executor(ap approval.Approved) (*execute.Executor, error) {
 		red.Add(cred.Token, cred.PrivateKey)
 		runner.url, runner.cred, runner.use = g.URL, cred, true
 	}
-	return &execute.Executor{Runner: runner, Redactor: red}, nil
+	auths, err := dockerAuths(ap.Project.Images, creds)
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range auths {
+		red.Add(a)
+	}
+	return &execute.Executor{Runner: &dockerAuthRunner{inner: runner, auths: auths}, Redactor: red}, nil
 }
 
 // gitAuthRunner gives every git call the login of the project's approved credential. The files git needs
