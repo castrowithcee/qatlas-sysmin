@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -353,10 +354,15 @@ func newProjectListCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return projectError("project list", err)
 			}
-			result := output.Collection{Columns: []string{"name", "template", "source", "dir", "state"}}
+			result := output.Collection{Columns: []string{"name", "template", "source", "dir", "state", "updates", "last_run", "fault"}}
 			for _, p := range list {
+				lastRun := ""
+				if p.LastRun != nil {
+					lastRun = p.LastRun.Started.UTC().Format(time.RFC3339) + " " + p.LastRun.Result
+				}
 				result.Rows = append(result.Rows, output.Row{
 					"name": p.Name, "template": p.Template, "source": p.Source, "dir": p.Dir, "state": p.State,
+					"updates": p.Updates, "last_run": lastRun, "fault": p.Fault,
 				})
 			}
 			return emit(c, opts, result)

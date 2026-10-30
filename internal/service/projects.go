@@ -112,7 +112,20 @@ func (s *Service) handleProjectsList(context.Context, *daemon.Conn, json.RawMess
 	open := s.pending()
 	out := control.ProjectsListResult{Projects: make([]control.ProjectSummary, 0, len(m.Projects))}
 	for _, p := range m.Projects {
-		out.Projects = append(out.Projects, summaryOfProject(p, open))
+		sum := summaryOfProject(p, open)
+		// Stored state only: no source is queried and no per-project audit entry is written.
+		if st, err := s.engine.Status(p.Name); err == nil {
+			for _, src := range st.Sources {
+				if len(src.Available) > 0 {
+					sum.Updates++
+				}
+			}
+			sum.Fault = st.Fault != nil
+			if n := len(st.History); n > 0 {
+				sum.LastRun = deployRun(st.History[n-1])
+			}
+		}
+		out.Projects = append(out.Projects, sum)
 	}
 	sort.Slice(out.Projects, func(i, j int) bool { return out.Projects[i].Name < out.Projects[j].Name })
 	return out, nil

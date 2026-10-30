@@ -83,6 +83,12 @@ type ProjectSummary struct {
 	Source string `json:"source"`
 	Dir    string `json:"dir"`
 	State  string `json:"state"`
+	// Updates counts the sources with a newer version available per the last check.
+	Updates int `json:"updates"`
+	// LastRun is the latest run, nil without one.
+	LastRun *DeployRun `json:"last_run,omitempty"`
+	// Fault is true while a failed rollback is stored.
+	Fault bool `json:"fault"`
 }
 
 // ProjectsListResult is the answer to OpProjectsList.
