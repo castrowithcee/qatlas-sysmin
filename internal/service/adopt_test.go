@@ -341,3 +341,111 @@ func TestAdoptedVersionsAreCurrentAfterApproval(t *testing.T) {
 		t.Errorf("calls = %+v", f.recorded())
 	}
 }
+
+// closeDir removes the search permission of dir until the test ends.
+func closeDir(t *testing.T, dir string) {
+	t.Helper()
+	if os.Geteuid() == 0 {
+		t.Skip("root passes any directory")
+	}
+	if err := os.Chmod(dir, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+}
+
+func wantNoAccess(t *testing.T, err error, path string) {
+	t.Helper()
+	var ce *control.Error
+	if !errors.As(err, &ce) || ce.Code != control.CodeNoAccess || !slices.Equal(ce.Paths, []string{path}) {
+		t.Fatalf("err = %v (%+v), want no-access %q", err, ce, path)
+	}
+}
+
+func TestAdoptClosedParentIsNoAccessMissingIsNotFound(t *testing.T) {
+	f, dir := adoptStack(t, "shop-prod", shopCompose, "APP_VERSION=1.4.2\n")
+	closed := filepath.Join(dir, "closed")
+	stack := filepath.Join(closed, "inner", "stack")
+	if err := os.MkdirAll(stack, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	e := adoptEnv(t, f)
+	c := e.dial(t)
+	closeDir(t, closed)
+
+	// The first denied element is named, whatever lies below it, existing or not.
+	for _, d := range []string{stack, filepath.Join(stack, "missing"), closed} {
+		_, err := c.AdoptProject(control.AdoptParams{Dir: d, DryRun: true})
+		wantNoAccess(t, err, closed)
+	}
+	_, err := c.AdoptProject(control.AdoptParams{Dir: filepath.Join(dir, "missing", "deeper")})
+	wantCode(t, err, control.CodeNotFound)
+	var ce *control.Error
+	if errors.As(err, &ce) && len(ce.Paths) != 0 {
+		t.Errorf("not-found carries paths %v", ce.Paths)
+	}
+}
+
+func TestAdoptDirectoryItselfNotPassable(t *testing.T) {
+	f, dir := adoptStack(t, "shop-prod", shopCompose, "APP_VERSION=1.4.2\n")
+	e := adoptEnv(t, f)
+	c := e.dial(t)
+	closeDir(t, dir)
+	_, err := c.AdoptProject(control.AdoptParams{Dir: dir, DryRun: true})
+	wantNoAccess(t, err, dir)
+	if len(f.recorded()) != 0 {
+		t.Errorf("Docker was asked: %+v", f.recorded())
+	}
+}
+
+func TestAdoptUnreadableComposeFileBlocks(t *testing.T) {
+	f, dir := adoptStack(t, "shop-prod", shopCompose, "APP_VERSION=1.4.2\n")
+	if os.Geteuid() == 0 {
+		t.Skip("root reads any file")
+	}
+	file := filepath.Join(dir, "docker-compose.yml")
+	if err := os.WriteFile(file, []byte("services: {}\n"), 0o000); err != nil {
+		t.Fatal(err)
+	}
+	res, err := adoptEnv(t, f).dial(t).AdoptProject(control.AdoptParams{Dir: dir})
+	if err != nil || res.Saved {
+		t.Fatalf("result = %+v, %v", res, err)
+	}
+	pr, ok := problemCodes(res)["not-readable"]
+	if !ok || !pr.Blocking || !strings.Contains(pr.Message, file) || !strings.Contains(pr.Hint, "setfacl") {
+		t.Fatalf("problems = %+v", res.Problems)
+	}
+	if _, wrong := problemCodes(res)["compose-config-failed"]; wrong {
+		t.Errorf("misleading compose-config-failed in %+v", res.Problems)
+	}
+}
+
+func TestAdoptNoAccessAuditNamesNoPath(t *testing.T) {
+	f, dir := adoptStack(t, "shop-prod", shopCompose, "APP_VERSION=1.4.2\n")
+	closed := filepath.Join(dir, "closed")
+	if err := os.MkdirAll(filepath.Join(closed, "stack"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	e := adoptEnv(t, f)
+	c := e.dial(t)
+	closeDir(t, closed)
+	_, err := c.AdoptProject(control.AdoptParams{Dir: filepath.Join(closed, "stack"), Name: "shop"})
+	wantNoAccess(t, err, closed)
+	_, err = c.AdoptProject(control.AdoptParams{Dir: filepath.Join(dir, "missing"), Name: "shop"})
+	wantCode(t, err, control.CodeNotFound)
+	e.cancel()
+	<-e.done
+	e.done <- nil
+
+	seen := map[string]bool{}
+	for _, en := range readEntries(t, filepath.Join(e.cfg.StateDir, "logs")) {
+		b, _ := json.Marshal(en)
+		if strings.Contains(string(b), dir) {
+			t.Errorf("audit entry names a path: %s", b)
+		}
+		seen[en.ErrorCode] = true
+	}
+	if !seen[control.CodeNoAccess] || !seen[control.CodeNotFound] {
+		t.Errorf("audited codes = %v", seen)
+	}
+}

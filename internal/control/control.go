@@ -157,7 +157,7 @@ type Response struct {
 	Error  string          `json:"error,omitempty"`
 	// Problems accompanies the error CodeInvalid.
 	Problems []Problem `json:"problems,omitempty"`
-	// Paths accompanies the error CodeNotWritable.
+	// Paths accompanies the errors CodeNotWritable and CodeNoAccess.
 	Paths []string `json:"paths,omitempty"`
 }
 
@@ -280,7 +280,7 @@ type ApprovalsAllResult struct {
 }
 
 // Error is a failed operation, carrying one of the fixed codes. Problems is set only with CodeInvalid and
-// Paths only with CodeNotWritable.
+// Paths only with CodeNotWritable and CodeNoAccess.
 type Error struct {
 	Code     string
 	Problems []Problem

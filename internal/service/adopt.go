@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -43,6 +42,7 @@ var blockingCodes = map[string]bool{
 	adopt.CodeInvalidLabel:      true,
 	adopt.CodeNoComposeFiles:    true,
 	adopt.CodeGitOrigin:         true,
+	adopt.CodeNotReadable:       true,
 }
 
 func (s *Service) registerAdopt() error {
@@ -62,6 +62,18 @@ func adoptDir(dir string) (string, bool) {
 	return filepath.Clean(dir), true
 }
 
+// failDir answers a directory the service cannot use: not-found when it is missing, no-access with the
+// first denied part of the requested path when the service user may not pass it. The audit names no path.
+func failDir(c *daemon.Conn, name string, err error) (any, error) {
+	var access *adopt.AccessError
+	if errors.As(err, &access) {
+		c.Audit(name, control.CodeNoAccess)
+		return nil, &control.Error{Code: control.CodeNoAccess, Paths: []string{access.Path}}
+	}
+	c.Audit(name, control.CodeNotFound)
+	return nil, &control.Error{Code: control.CodeNotFound}
+}
+
 func (s *Service) handleProjectsAdopt(ctx context.Context, c *daemon.Conn, params json.RawMessage) (any, error) {
 	var p control.AdoptParams
 	if err := json.Unmarshal(params, &p); err != nil || (p.Name != "" && !config.ValidName(p.Name)) {
@@ -79,14 +91,18 @@ func (s *Service) handleProjectsAdopt(ctx context.Context, c *daemon.Conn, param
 	if s.vaultState() != control.VaultUnlocked {
 		return fail(control.CodeLocked)
 	}
-	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
-		return fail(control.CodeNotFound)
+	if err := adopt.CheckDir(dir); err != nil {
+		return failDir(c, p.Name, err)
 	}
 
 	ictx, cancel := context.WithTimeout(ctx, control.AdoptTimeout)
 	defer cancel()
 	prop, err := adopt.Inspect(ictx, adopt.Options{Runner: s.cfg.Runner, Git: s.cfg.SourceGit}, dir, p.Name)
 	if err != nil {
+		var access *adopt.AccessError
+		if errors.As(err, &access) || errors.Is(err, adopt.ErrNotDirectory) {
+			return failDir(c, p.Name, err)
+		}
 		slog.Warn("cannot inspect a stack", "error", err.Error())
 		if errors.Is(ictx.Err(), context.DeadlineExceeded) {
 			return fail(control.CodeTimeout)
