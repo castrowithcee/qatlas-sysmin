@@ -74,7 +74,8 @@ func TestUnknownFlagIsUsageError(t *testing.T) {
 
 func TestHelpTopic(t *testing.T) {
 	code, stdout, _ := runCLI(t, "help", "sysmin")
-	if code != exitOK || !strings.Contains(stdout, "Linux host") {
+	if code != exitOK || !strings.Contains(stdout, "Linux host") || !strings.Contains(stdout, "sysmin --help") ||
+		strings.Contains(stdout, "exist so far") {
 		t.Errorf("code = %d, stdout = %q", code, stdout)
 	}
 }

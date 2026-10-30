@@ -78,4 +78,4 @@ func wrapLine(line string, width int) []string {
 
 const sysmin = `sysmin is a Go tool that runs as a service on a Linux host. It takes over the setup and operation of a server through guided, repeatable scenarios.
 
-The project is at an early stage of development. Only 'sysmin version' and this topic exist so far.`
+'sysmin --help' lists the commands; 'sysmin tui' opens the terminal interface.`
