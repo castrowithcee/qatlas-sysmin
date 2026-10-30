@@ -180,17 +180,16 @@ func (m *Model) updateMouse(msg tea.MouseMsg) tea.Cmd {
 		return nil
 	}
 	if wheel {
+		for i := len(m.wheelHits) - 1; i >= 0; i-- {
+			if h := m.wheelHits[i]; event.X >= h.x0 && event.X < h.x1 && event.Y >= h.y0 && event.Y < h.y1 {
+				cmd := h.scroll(event.Button == tea.MouseWheelUp)
+				m.wheelSeen = wheelSeen{button: event.Button, x: event.X, y: event.Y, at: m.timeNow(), ok: true}
+				return cmd
+			}
+		}
+		// An open list is what the wheel reaches; beside it nothing moves.
 		if m.dd != nil {
 			return nil
-		}
-		if m.screen == screenArea {
-			for i := len(m.wheelHits) - 1; i >= 0; i-- {
-				if h := m.wheelHits[i]; event.X >= h.x0 && event.X < h.x1 && event.Y >= h.y0 && event.Y < h.y1 {
-					cmd := h.scroll(event.Button == tea.MouseWheelUp)
-					m.wheelSeen = wheelSeen{button: event.Button, x: event.X, y: event.Y, at: m.timeNow(), ok: true}
-					return cmd
-				}
-			}
 		}
 		cmd := m.wheel(event)
 		m.wheelSeen = wheelSeen{button: event.Button, x: event.X, y: event.Y, at: m.timeNow(), ok: true}

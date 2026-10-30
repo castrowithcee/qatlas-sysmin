@@ -88,6 +88,28 @@ func (m *Model) refreshPicker() {
 	m.ask = &question{title: pk.title, consequence: pk.note, details: lines, keys: keys}
 }
 
+// wheelPicker is a notch of the wheel over the open picker: one step of the mark, stopping at both ends, also
+// while the filter is typed, as up and down move it then. The filter itself is never touched.
+func (m *Model) wheelPicker(up bool) tea.Cmd {
+	if m.projectsDialogOpen() && m.prj.dialog.picker != nil {
+		l := &m.prj.dialog.picker.list
+		by := 1
+		if up {
+			by = -1
+		}
+		l.move(by)
+		m.refreshPicker()
+	}
+	return nil
+}
+
+// hitPickerWheel makes the cells of an open picker take the wheel.
+func (m *Model) hitPickerWheel(x0, y0, x1, y1 int) {
+	if m.projectsDialogOpen() && m.prj.dialog.picker != nil {
+		m.addWheel(x0, y0, x1, y1, m.wheelPicker)
+	}
+}
+
 // pickerKey handles a key of the open picker.
 func (m *Model) pickerKey(key tea.KeyPressMsg) tea.Cmd {
 	pk := m.prj.dialog.picker
