@@ -81,7 +81,7 @@ func TestLoad(t *testing.T) {
 	if err == nil {
 		t.Fatal("want errors")
 	}
-	for _, want := range []string{"sysmin.yaml", "does not match project name", "projects/x.yml", "newer"} {
+	for _, want := range []string{"does not match project name", "projects/x.yml", "newer"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error lacks %q: %v", want, err)
 		}

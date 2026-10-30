@@ -326,3 +326,53 @@ func TestStoreLeavesNewerSchemaUntouched(t *testing.T) {
 		t.Fatal("a too new file was touched")
 	}
 }
+
+func TestStoreLoadWithoutSettingsFile(t *testing.T) {
+	dir := t.TempDir()
+	st := NewStore(dir)
+	m, revs, err := st.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Settings.Schema != CurrentSchema || len(m.Projects) != 0 || len(m.Templates) != 0 {
+		t.Fatalf("model = %+v", m)
+	}
+	if _, ok := revs[SettingsPath()]; ok {
+		t.Fatalf("a missing file has a revision: %v", revs)
+	}
+	rev, err := st.SaveSettings(m.Settings, revs[SettingsPath()])
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(dir, SettingsFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o640 {
+		t.Fatalf("mode = %v", info.Mode().Perm())
+	}
+	_, revs, err = st.Load()
+	if err != nil || revs[SettingsPath()] != rev {
+		t.Fatalf("second load: revs=%v rev=%q err=%v", revs, rev, err)
+	}
+}
+
+func TestReadSettings(t *testing.T) {
+	dir := t.TempDir()
+	got, err := ReadSettings(dir)
+	if err != nil || got.Schema != CurrentSchema {
+		t.Fatalf("missing file: %+v, %v", got, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, SettingsFile), []byte("schema: 1\npoll_interval: 10m\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if got, err = ReadSettings(dir); err != nil || got.EffectivePollInterval().Minutes() != 10 {
+		t.Fatalf("valid file: %+v, %v", got, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, SettingsFile), []byte("schema: [\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = ReadSettings(dir); err == nil {
+		t.Fatal("an invalid file gave no error")
+	}
+}

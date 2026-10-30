@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
@@ -81,18 +79,8 @@ func (s *Service) handleVaultPassphrase(_ context.Context, _ *daemon.Conn, param
 	return nil, nil
 }
 
-// loadSettingsModel loads the configuration like loadModel, except that a configuration directory without
-// sysmin.yaml, as on a fresh install, counts as empty settings with an absent file.
-func (s *Service) loadSettingsModel() (*config.Model, config.Revisions, error) {
-	_, err := os.Stat(filepath.Join(s.cfg.ConfigDir, config.SettingsFile))
-	if errors.Is(err, os.ErrNotExist) {
-		return &config.Model{}, config.Revisions{}, nil
-	}
-	return s.loadModel()
-}
-
 func (s *Service) handleSettingsShow(context.Context, *daemon.Conn, json.RawMessage) (any, error) {
-	m, _, err := s.loadSettingsModel()
+	m, _, err := s.loadModel()
 	if err != nil {
 		return nil, err
 	}
@@ -112,14 +100,11 @@ func (s *Service) handleAdminTimeout(_ context.Context, _ *daemon.Conn, params j
 	if err != nil {
 		return nil, &control.Error{Code: control.CodeBadRequest}
 	}
-	m, revs, err := s.loadSettingsModel()
+	m, revs, err := s.loadModel()
 	if err != nil {
 		return nil, err
 	}
 	st := m.Settings
-	if st.Schema == 0 {
-		st.Schema = config.CurrentSchema
-	}
 	v := config.Duration(d)
 	st.Vault.AdminTimeout = &v
 	after := *m
