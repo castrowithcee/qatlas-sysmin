@@ -272,7 +272,7 @@ func TestProjectsRestoreAsksThenRestores(t *testing.T) {
 	fb.session = true
 	m := projectsModel(t, fb, 120, 30)
 	drain(m, m.statusCmd())
-	command(m, "restore")
+	runCommand(m, "restore")
 	if fb.count("backups demo-app") != 1 || m.prj.dialog == nil || m.prj.dialog.picker == nil {
 		t.Fatalf("no picker: %v\n%s", fb.log(), plain(m))
 	}
@@ -292,17 +292,17 @@ func TestProjectsRestoreAsksThenRestores(t *testing.T) {
 	if fb.count("restore demo-app backup-20261028") != 0 || m.prj.dialog != nil {
 		t.Fatal("n did not cancel")
 	}
-	command(m, "restore")
+	runCommand(m, "restore")
 	send(m, "esc")
 	if m.prj.dialog != nil || fb.count("restore demo-app backup-20261029") != 0 {
 		t.Fatal("esc did not leave the picker")
 	}
-	command(m, "restore")
+	runCommand(m, "restore")
 	send(m, "enter", "esc")
 	if fb.count("restore demo-app backup-20261029") != 0 {
 		t.Fatal("esc did not cancel the question")
 	}
-	command(m, "restore")
+	runCommand(m, "restore")
 	send(m, "enter", "y")
 	if fb.count("restore demo-app backup-20261029") != 1 || !strings.Contains(plain(m), "demo-app: run succeeded.") {
 		t.Errorf("calls = %v\n%s", fb.log(), plain(m))
@@ -312,7 +312,7 @@ func TestProjectsRestoreAsksThenRestores(t *testing.T) {
 func TestProjectsRestoreNeedsTheAdminSession(t *testing.T) {
 	fb := projectsFake()
 	m := projectsModel(t, fb, 120, 30)
-	command(m, "restore")
+	runCommand(m, "restore")
 	send(m, "enter", "y")
 	if m.ov == nil || fb.count("restore demo-app backup-20261029") != 0 {
 		t.Fatalf("no passphrase asked: %v", fb.log())
@@ -328,7 +328,7 @@ func TestProjectsRestoreWithoutBackups(t *testing.T) {
 	fb := projectsFake()
 	fb.proj.backups["demo-app"] = nil
 	m := projectsModel(t, fb, 120, 30)
-	command(m, "restore")
+	runCommand(m, "restore")
 	if m.prj.dialog != nil || !strings.Contains(plain(m), "demo-app has no backups.") {
 		t.Errorf("view:\n%s", plain(m))
 	}
@@ -337,7 +337,7 @@ func TestProjectsRestoreWithoutBackups(t *testing.T) {
 func TestProjectsRestoreDangerButtonOnly(t *testing.T) {
 	fb := projectsFake()
 	m := projectsModel(t, fb, 120, 40)
-	command(m, "restore")
+	runCommand(m, "restore")
 	send(m, "enter")
 	q := m.ask
 	if q == nil || !q.danger || !q.warn || !strings.Contains(q.keys, "y restore") {

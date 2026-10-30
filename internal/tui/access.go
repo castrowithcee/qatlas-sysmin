@@ -21,8 +21,6 @@ type accessState struct {
 	// have says the list was read successfully.
 	have   bool
 	detail map[string]*accDetail
-	// discardAfter asks the discard-all question as soon as the list arrived; the command line sets it.
-	discardAfter bool
 }
 
 // accDetail is the detail of one approval as it was asked for.
@@ -113,10 +111,6 @@ func (m *Model) takeAccess(msg accessMsg) {
 	}
 	a.page.cols = accessColumns()
 	a.page.setRows(names, rows)
-	if a.discardAfter {
-		a.discardAfter = false
-		m.discardAll()
-	}
 }
 
 // accessWant asks for the detail of the marked approval where it is on the screen and not there yet.

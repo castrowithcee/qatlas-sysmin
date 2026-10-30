@@ -31,7 +31,7 @@ func projectsModel(t *testing.T, fb *fakeBackend, w, h int) *Model {
 	return m
 }
 
-func command(m *Model, name string) {
+func runCommand(m *Model, name string) {
 	send(m, ":")
 	typed(m, name)
 	send(m, "enter")
@@ -181,8 +181,8 @@ func TestProjectsSourceTestShowsAPanel(t *testing.T) {
 func TestProjectsControlsRunThroughTheCommandLine(t *testing.T) {
 	fb := projectsFake()
 	m := projectsModel(t, fb, 120, 30)
-	command(m, "pause")
-	command(m, "pin")
+	runCommand(m, "pause")
+	runCommand(m, "pin")
 	if got := fb.log(); !strings.Contains(strings.Join(got, "|"), control.OpDeployPause+" demo-app") ||
 		!strings.Contains(strings.Join(got, "|"), control.OpDeployPin+" demo-app") {
 		t.Fatalf("calls = %v", got)
@@ -190,8 +190,8 @@ func TestProjectsControlsRunThroughTheCommandLine(t *testing.T) {
 	if view := plain(m); !strings.Contains(view, "auto, paused, pinned") {
 		t.Errorf("the mode does not show the controls:\n%s", view)
 	}
-	command(m, "resume")
-	command(m, "unpin")
+	runCommand(m, "resume")
+	runCommand(m, "unpin")
 	if view := plain(m); !strings.Contains(view, "unpinned") || strings.Contains(view, "paused,") {
 		t.Errorf("the controls are not undone:\n%s", view)
 	}
@@ -204,7 +204,7 @@ func TestProjectsRunNowAsksFirst(t *testing.T) {
 	fb := projectsFake()
 	fb.proj.runNow = control.DeployRunNowResult{Run: &control.DeployRun{Result: "succeeded"}}
 	m := projectsModel(t, fb, 120, 30)
-	command(m, "run")
+	runCommand(m, "run")
 	if fb.count("run demo-app") != 0 || m.screen != screenConfirm {
 		t.Fatal("run-now started without the question")
 	}
@@ -212,13 +212,13 @@ func TestProjectsRunNowAsksFirst(t *testing.T) {
 	if fb.count("run demo-app") != 0 {
 		t.Fatal("run-now ran after no")
 	}
-	command(m, "run")
+	runCommand(m, "run")
 	send(m, "y")
 	if fb.count("run demo-app") != 1 || !strings.Contains(plain(m), "demo-app: run succeeded.") {
 		t.Errorf("calls = %v\n%s", fb.log(), plain(m))
 	}
 	fb.proj.runNow = control.DeployRunNowResult{Skipped: control.SkipPaused}
-	command(m, "run")
+	runCommand(m, "run")
 	send(m, "y")
 	if !strings.Contains(plain(m), "not run (paused)") {
 		t.Errorf("no skip note:\n%s", plain(m))
@@ -228,7 +228,7 @@ func TestProjectsRunNowAsksFirst(t *testing.T) {
 func TestProjectsCommandsNeedAProject(t *testing.T) {
 	fb := newFake(control.VaultUnlocked)
 	m := projectsModel(t, fb, 120, 30)
-	command(m, "pause")
+	runCommand(m, "pause")
 	if !strings.Contains(plain(m), "No project selected.") || fb.count(control.OpDeployPause+" ") != 0 {
 		t.Errorf("view:\n%s", plain(m))
 	}
@@ -373,13 +373,15 @@ func TestProjectsGerman(t *testing.T) {
 func TestProjectsFootersNameTheirKeys(t *testing.T) {
 	m := projectsModel(t, projectsFake(), 160, 30)
 	m.render()
-	for _, want := range []string{"space", "enter", "t test", "u update", "d delete", "o log", "run/pause/pin/restore"} {
+	for _, want := range []string{"space", "enter", "t test", "u update", "d delete", "o log"} {
 		if !strings.Contains(m.footerLine(), want) && !strings.Contains(plain(m), want) {
 			t.Errorf("footer lacks %q: %q", want, m.screenKeys)
 		}
 	}
-	if !strings.Contains(m.screenKeys, "run/pause/pin/restore via {command}") {
-		t.Errorf("screenKeys = %q", m.screenKeys)
+	for _, hint := range []string{"run/pause", "restore via", "via {command}"} {
+		if strings.Contains(m.screenKeys, hint) || strings.Contains(m.footerLine(), hint) {
+			t.Errorf("the footer still hints at the commands: %q", m.screenKeys)
+		}
 	}
 }
 

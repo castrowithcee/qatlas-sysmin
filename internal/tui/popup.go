@@ -7,8 +7,6 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // Help, info and the command line stand as a panel over the screen they were opened from. None of them is
@@ -27,10 +25,10 @@ type popup struct {
 	kind popKind
 	// topic and scroll are the help topic shown and its first line.
 	topic, scroll int
-	// in is the command line; err says why the last command failed; pick cycles through the completions.
-	in   textinput.Model
-	err  string
-	pick int
+	// in is the command line; msg says why the last command did not run; cursor is the match chosen.
+	in     textinput.Model
+	msg    string
+	cursor int
 }
 
 // helpTopics are the topics of the help by their stable identifiers, which name the technical terms and so are
@@ -52,11 +50,16 @@ var helpTopics = []struct {
 }
 
 // openPopup shows a panel over the area screen.
+// commandPrompt is the symbol that opens the input line of the command line; it is not the key that opens the
+// line, which may be rebound.
+const commandPrompt = ": "
+
 func (m *Model) openPopup(kind popKind) {
 	p := &popup{kind: kind}
 	if kind == popCommand {
 		p.in = newTextInput()
-		p.in.Prompt = ": "
+		p.in.Prompt = commandPrompt
+		p.in.Placeholder = tr(tCmdPlaceholder)
 		p.in.Focus()
 	}
 	m.pop, m.screen = p, screenPopup
@@ -166,10 +169,21 @@ func (m *Model) helpBody(width int) []string {
 	return strings.Split(render(lipgloss.NewStyle(), width, tr(topic.text)), "\n")
 }
 
-// popupContent is the title, the lines and the key line of the panel.
-func (m *Model) popupContent(inner int) (title string, body []string, keys string) {
-	p := m.pop
-	switch p.kind {
+// popupKeys is the key line of a panel.
+func popupKeys(kind popKind) string {
+	switch kind {
+	case popHelp:
+		return "↑/↓ scroll · ←/→ topic · {back} close"
+	case popInfo:
+		return "{back} close"
+	}
+	return paletteKeys
+}
+
+// popupContent is the title and the lines of a panel of the help or the info. The command line draws itself
+// through paletteBody.
+func (m *Model) popupContent(inner int) (title string, body []string) {
+	switch m.pop.kind {
 	case popHelp:
 		var ids []string
 		for _, t := range helpTopics {
@@ -177,28 +191,16 @@ func (m *Model) popupContent(inner int) (title string, body []string, keys strin
 		}
 		// Topics before the first one that fits are left out, so the strip always shows the topic open.
 		first, strip := 0, ""
-		for ; first <= p.topic; first++ {
-			strip, _ = tabStrip(ids[first:], p.topic-first, true)
+		for ; first <= m.pop.topic; first++ {
+			strip, _ = tabStrip(ids[first:], m.pop.topic-first, true)
 			if lipgloss.Width(strip) <= inner {
 				break
 			}
 		}
-		return tr(tHelpTitle), append([]string{truncateCells(strip, inner), ""}, m.helpBody(inner)...),
-			"↑/↓ scroll · ←/→ topic · {back} close"
-	case popInfo:
-		label, text := m.infoOf()
-		return tr(tInfoTitle), append([]string{styles.title.Render(label), ""}, strings.Split(render(lipgloss.NewStyle(), inner, text), "\n")...),
-			"{back} close"
+		return tr(tHelpTitle), append([]string{truncateCells(strip, inner), ""}, m.helpBody(inner)...)
 	}
-	body = []string{inputView(fitInput(p.in, inner-2)), ""}
-	if p.err != "" {
-		body = append(body, strings.Split(render(styles.fail, inner, tr(tNoteError, p.err)), "\n")...)
-	} else {
-		for _, name := range matchCommands(p.in.Value()) {
-			body = append(body, styles.hint.Render("  "+name))
-		}
-	}
-	return tr(tCmdTitle), body, "enter run · tab complete · {back} close"
+	label, text := m.infoOf()
+	return tr(tInfoTitle), append([]string{styles.title.Render(label), ""}, strings.Split(render(lipgloss.NewStyle(), inner, text), "\n")...)
 }
 
 // popupFrame draws the panel: centred over the dimmed screen where the terminal has the room for it, and in
@@ -209,15 +211,30 @@ func (m *Model) popupFrame() string {
 	if modal {
 		inner = min(modalMaxInner, m.termWidth-8)
 	}
-	title, body, keys := m.popupContent(inner)
+	keys := popupKeys(m.pop.kind)
 	keyLines := m.keyHintLinesWith(keys, keyHintGroupFoot)
 	room := m.height - 2
 	if modal {
 		room = m.termHeight - 4 - 2 - 1 - len(keyLines)
 	}
-	body = m.scrolled(body, room, inner)
+	var title string
+	var body []string
+	var index []int
+	if m.pop.kind == popCommand {
+		title = tr(tCmdTitle)
+		body, index = m.paletteBody(inner, room)
+	} else {
+		title, body = m.popupContent(inner)
+		body = m.scrolled(body, room, inner)
+	}
 	if !modal {
 		m.keyHint(keys)
+		top := m.workspaceTop() + 2
+		for i, idx := range index {
+			if idx >= 0 {
+				m.addHit(0, top+i, inner, top+i+1, func() tea.Cmd { return m.pickCommand(idx) })
+			}
+		}
 		return m.frame(m.boundView(styles.title.Render(title) + "\n\n" + strings.Join(body, "\n")))
 	}
 	lines := append([]string{styles.title.Render(title), ""}, body...)
@@ -230,6 +247,12 @@ func (m *Model) popupFrame() string {
 		defer func() { m.backdrop = false }()
 		background = m.frame(m.workspaceView())
 	})
+	top, left := dialogOrigin(dialog, m.termWidth, m.termHeight)
+	for i, idx := range index {
+		if idx >= 0 {
+			m.addHit(left+2, top+3+i, left+2+inner, top+4+i, func() tea.Cmd { return m.pickCommand(idx) })
+		}
+	}
 	return overlay(background, dialog, m.termWidth, m.termHeight)
 }
 
@@ -245,103 +268,4 @@ func (m *Model) scrolled(body []string, room, width int) []string {
 	p.scroll = min(max(p.scroll, 0), len(body)-room)
 	out := slices.Clone(body[p.scroll : p.scroll+room])
 	return append(out, styles.hint.Render(truncateCells(tr(tScrollPosition, p.scroll+1, p.scroll+room, len(body)), width)))
-}
-
-// commandEntry is one command: its name, which is not translated, and what it does.
-type commandEntry struct {
-	name string
-	run  func(m *Model) tea.Cmd
-}
-
-// commands are the commands of the command line: the same actions the keys reach.
-func commands() []commandEntry {
-	var list []commandEntry
-	for a := area(0); a < areaCount; a++ {
-		list = append(list, commandEntry{strings.ToLower(a.key()), func(m *Model) tea.Cmd { return m.setArea(a) }})
-		if a == areaSettings {
-			for sub := 0; sub < subCount; sub++ {
-				list = append(list, commandEntry{"settings " + subKey(sub), func(m *Model) tea.Cmd { return m.show(areaSettings, sub) }})
-			}
-		}
-		if a == areaActivity {
-			for sub := 0; sub < actPages; sub++ {
-				list = append(list, commandEntry{"activity " + actKey(sub), func(m *Model) tea.Cmd { return m.showActivity(sub) }})
-			}
-		}
-		if a == areaLibrary {
-			for sub := 0; sub < libCount; sub++ {
-				list = append(list, commandEntry{"library " + libKey(sub), func(m *Model) tea.Cmd { return m.show(areaLibrary, sub) }})
-			}
-		}
-		if a == areaAccess {
-			list = append(list, commandEntry{"access discard-all", func(m *Model) tea.Cmd {
-				m.acc.discardAfter = true
-				return m.show(areaAccess, 0)
-			}})
-		}
-	}
-	list = append(list, projectCommands()...)
-	return append(list,
-		commandEntry{"lock", func(m *Model) tea.Cmd { return m.lockKey() }},
-		commandEntry{"setup", func(m *Model) tea.Cmd {
-			if m.vaultState() != "" && m.vaultState() != control.VaultAbsent {
-				m.fail = tr(tErrExists)
-				return nil
-			}
-			return m.lockKey()
-		}},
-		commandEntry{"reload", func(m *Model) tea.Cmd { return m.statusCmd() }},
-		commandEntry{"regroup", func(m *Model) tea.Cmd { return m.regroup() }},
-		commandEntry{"update", func(m *Model) tea.Cmd { return m.selfUpdate() }},
-		commandEntry{"help", func(m *Model) tea.Cmd { m.openPopup(popHelp); return nil }},
-		commandEntry{"info", func(m *Model) tea.Cmd { m.openPopup(popInfo); return nil }},
-		commandEntry{"quit", func(m *Model) tea.Cmd { return m.guarded(m.quit) }},
-	)
-}
-
-// normalizeCommand is a typed command in the form the table names it.
-func normalizeCommand(text string) string {
-	return strings.ToLower(strings.Join(strings.Fields(text), " "))
-}
-
-// matchCommands are the commands the typed text begins, at most six.
-func matchCommands(text string) []string {
-	text = normalizeCommand(text)
-	var out []string
-	for _, c := range commands() {
-		if strings.HasPrefix(c.name, text) {
-			out = append(out, c.name)
-		}
-	}
-	return out[:min(len(out), 6)]
-}
-
-// commandKey handles a key of the command line: enter runs, tab completes, esc closes.
-func (m *Model) commandKey(key tea.KeyPressMsg) tea.Cmd {
-	p := m.pop
-	switch {
-	case keyIs(key, actBack):
-		m.closePopup()
-	case keyIs(key, actEnter):
-		name := normalizeCommand(p.in.Value())
-		for _, c := range commands() {
-			if c.name == name {
-				m.closePopup()
-				return c.run(m)
-			}
-		}
-		p.err = tr(tCmdUnknown)
-	case keyIs(key, actNext):
-		if all := matchCommands(p.in.Value()); len(all) > 0 {
-			p.in.SetValue(all[p.pick%len(all)])
-			p.in.CursorEnd()
-			p.pick++
-		}
-	default:
-		p.err, p.pick = "", 0
-		var cmd tea.Cmd
-		p.in, cmd = p.in.Update(inputMsg(key))
-		return cmd
-	}
-	return nil
 }

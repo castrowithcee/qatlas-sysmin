@@ -151,16 +151,18 @@ func TestAdoptRefusesWhatIsWrongBeforeAskingAndNamesTheFailure(t *testing.T) {
 	}
 }
 
-func TestAdoptAsksAboutAnOpenSetupAndNamesTheCommand(t *testing.T) {
+func TestAdoptIsRefusedWhileASetupIsOpen(t *testing.T) {
 	m := projectsModel(t, adoptFake(), 120, 40)
 	send(m, "n", "enter")
 	typed(m, "demo-app")
 	send(m, "down")
-	command(m, "adopt stack")
-	if m.screen != screenConfirm || m.prj.flow == nil || m.prj.flow.draft.name != "demo-app" {
-		t.Fatalf("the command drops the open setup: screen = %v", m.screen)
+	runCommand(m, "adopt stack")
+	if m.pop == nil || m.prj.flow == nil || m.prj.flow.draft.name != "demo-app" || !strings.Contains(plain(m), "adopt stack: Close the guided setup first") {
+		t.Fatalf("the command is not refused while a setup is open: screen = %v\n%s", m.screen, plain(m))
 	}
+	send(m, "esc", "esc")
 	send(m, "d")
+	runCommand(m, "adopt stack")
 	if !m.projectPromptOpen() {
 		t.Errorf("after discard:\n%s", plain(m))
 	}

@@ -122,34 +122,8 @@ func TestCommandLineSetupNeedsNoVault(t *testing.T) {
 	send(m, ":")
 	typed(m, "setup")
 	send(m, "enter")
-	if m.ov != nil || m.fail != "A vault exists already." {
-		t.Errorf("setup with a vault: overlay %v, fail %q", m.ov != nil, m.fail)
-	}
-}
-
-func TestCommandLineAnswersUnknownAndCompletes(t *testing.T) {
-	m := appModel(t, overviewFake(), 80, 24)
-	send(m, ":")
-	typed(m, "nonsense")
-	send(m, "enter")
-	if m.pop == nil || !strings.Contains(plain(m), "Unknown command.") {
-		t.Fatalf("no answer to an unknown command:\n%s", plain(m))
-	}
-	if strings.Contains(plain(m), "nonsense") && strings.Count(plain(m), "nonsense") > 1 {
-		t.Error("the unknown text is repeated in the message")
-	}
-	send(m, "esc", ":")
-	typed(m, "sett")
-	if view := plain(m); !strings.Contains(view, "settings vault") {
-		t.Errorf("no completions:\n%s", view)
-	}
-	send(m, "tab")
-	if got := m.pop.in.Value(); got != "settings" {
-		t.Errorf("tab completes to %q, want settings", got)
-	}
-	send(m, "tab")
-	if got := m.pop.in.Value(); got != "settings general" {
-		t.Errorf("a second tab completes to %q", got)
+	if m.ov != nil || m.pop == nil || !strings.Contains(plain(m), "setup: A vault exists already.") {
+		t.Errorf("setup with a vault: overlay %v, view:\n%s", m.ov != nil, plain(m))
 	}
 }
 

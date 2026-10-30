@@ -42,19 +42,42 @@ var projectControlOps = map[string]string{
 	"unpin":  control.OpDeployUnpin,
 }
 
-// projectCommands are the commands of the area. They act on the project under the cursor and are the way to
-// run-now, pause, resume, pin, unpin and restore: the letters of the key table are all taken by other meanings.
-func projectCommands() []commandEntry {
-	var list []commandEntry
-	for _, kind := range []string{"run", "pause", "resume", "pin", "unpin"} {
-		list = append(list, commandEntry{kind, func(m *Model) tea.Cmd { return m.projectAction(kind) }})
+// projectCommands are the commands of Projects. The controls have no key of their own: the letters of the key
+// table are all taken by other meanings, so these commands are the way to run now, pause, resume, pin, unpin and
+// restore. All of them act on the project under the cursor.
+func (m *Model) projectCommands() []command {
+	var list []command
+	idle := every(inArea(areaProjects), noFlow, projectsIdle)
+	onProject := every(idle, projectSelected)
+	controls := []struct {
+		name    string
+		aliases []string
+		kind    string
+		desc    textID
+	}{
+		{"run now", []string{"run"}, "run", tCmdRunNow}, {"pause", nil, "pause", tCmdPause},
+		{"resume", nil, "resume", tCmdResume}, {"pin", nil, "pin", tCmdPin}, {"unpin", nil, "unpin", tCmdUnpin},
 	}
-	return append(list, commandEntry{"restore", func(m *Model) tea.Cmd { return m.projectRestore() }},
-		commandEntry{"new project", func(m *Model) tea.Cmd { return m.projectFlowStart() }},
-		commandEntry{"adopt stack", func(m *Model) tea.Cmd { return m.projectAdoptStart() }},
-		commandEntry{"edit project", func(m *Model) tea.Cmd { return m.projectRead(false) }},
-		commandEntry{"duplicate project", func(m *Model) tea.Cmd { return m.projectRead(true) }},
-		commandEntry{"new from project", func(m *Model) tea.Cmd { return m.projectRead(true) }})
+	for _, c := range controls {
+		list = append(list, command{name: c.name, desc: tr(c.desc), aliases: c.aliases, unavailable: onProject,
+			run: func(m *Model) tea.Cmd { return m.projectAction(c.kind) }})
+	}
+	// n, e and p act in the content of the list only.
+	keyed := every(idle, inContent)
+	keyedOnProject := every(keyed, projectSelected)
+	key := func(a action) func() string { return func() string { return keyLabel(a) } }
+	return append(list,
+		command{name: "restore backup", desc: tr(tCmdRestore), aliases: []string{"restore"}, unavailable: onProject,
+			run: func(m *Model) tea.Cmd { return m.projectRestore() }},
+		command{name: "new project", desc: tr(tCmdNewProject), aliases: []string{"new"}, shortcut: key(actNew),
+			unavailable: keyed, run: func(m *Model) tea.Cmd { return m.projectFlowStart() }},
+		command{name: "adopt stack", desc: tr(tCmdAdopt), aliases: []string{"adopt"}, unavailable: idle,
+			run: func(m *Model) tea.Cmd { return m.projectAdoptStart() }},
+		command{name: "edit project", desc: tr(tCmdEdit), shortcut: key(actEdit), unavailable: keyedOnProject,
+			run: func(m *Model) tea.Cmd { return m.projectRead(false) }},
+		command{name: "duplicate project", desc: tr(tCmdDuplicate), aliases: []string{"new from project"},
+			shortcut: key(actDuplicate), unavailable: keyedOnProject,
+			run: func(m *Model) tea.Cmd { return m.projectRead(true) }})
 }
 
 // openProject shows the dialog d with the question q over the area.
@@ -514,9 +537,7 @@ func (m *Model) projectsKeys() []string {
 	case p.focusDetail:
 		return []string{"↑/↓ scroll", "←/→ tab", "t test", "u update", "e edit", "p duplicate", "d delete", "o log", "{back} list"}
 	}
-	// The controls have no letter of their own; they are commands.
-	keys := []string{"↑/↓ move", "t test", "o log", "u update", "space mark", "enter detail",
-		"run/pause/pin/restore via {command}", "n new", "e edit", "p duplicate", "/ filter", "d delete"}
+	keys := []string{"↑/↓ move", "t test", "o log", "u update", "space mark", "enter detail", "n new", "e edit", "p duplicate", "/ filter", "d delete"}
 	if m.usable(0) >= projectsDetailMinWidth {
 		keys = append(keys, "←/→ tab")
 	}
