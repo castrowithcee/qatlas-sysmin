@@ -1,16 +1,16 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
-────────────────────────────────────────────────────────────────────────────────
- Overview   Projects   Activity   Access  [Library]  Settings                   
-        ╔══════════════════════════════════════════════════════════════╗        
- Credent║ New channel                                                  ║        
-        ║                                                              ║        
-Channels║   Name:       team-mail                                      ║     1/3
-╔═══════║ > Type:        < smtp >                                      ║═══════╗
-║   Name║   Host:                                                      ║       ║
-║ > chat║   Port:                                                      ║proval ║
-║   ops-║   From:                                                      ║       ║
-║   ops-║   To:                                                        ║       ║
-╚═══════║   Security:    default                                       ║═══════╝
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access  [5 Library]  6 Settings     
+   Credentials  [Channels]  Templates                                           
+────────╔══════════════════════════════════════════════════════════════╗────────
+Channels║ New channel                                                  ║     1/3
+╔═══════║                                                              ║═══════╗
+║   Name║   Name:       team-mail                                      ║       ║
+║ > chat║ > Type:        < smtp >                                      ║proval ║
+║   ops-║   Host:                                                      ║       ║
+║   ops-║   Port:                                                      ║       ║
+╚═══════║   From:                                                      ║═══════╝
+        ║   To:                                                        ║        
+        ║   Security:    default                                       ║        
         ║   Credential:  none                                          ║        
         ║     A secret is a credential. Choose it here by name.        ║        
         ║                                                              ║        

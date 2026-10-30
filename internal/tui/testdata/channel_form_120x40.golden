@@ -1,17 +1,17 @@
-sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access  [5 Library]  6 Settings                                             
+   Credentials  [Channels]  Templates                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview   Projects   Activity   Access  [Library]  Settings                                                           
-                                                                                                                        
- Credentials  [Channels]  Templates                                                                                     
-                                                                                                                        
 Channels (3)                                                      1/3 ╭─ chat-ops ─────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name      Type      Target                   State              ║ │                                                │
 ║ > chat-ops  telegram  100200                   ⚠ pending approval ║ │ Name        chat-ops                           │
 ║   ops-hook  webhook   hooks.example.test/not…  approved           ║ │ Type        telegram                           │
-║   ops-mail  smtp      smtp╔══════════════════════════════════════════════════════════════╗g approval                 │
-╚═══════════════════════════║ New channel                                                  ║oken                       │
-                            ║                                                              ║───────────────────────────╯
+║   ops-mail  smtp      smtp.example.test:587    approved           ║ │ State       ⚠ pending approval                 │
+╚═══════════════════════════════════════════════════════════════════╝ │ Credential  unused-token                       │
+                            ╔══════════════════════════════════════════════════════════════╗───────────────────────────╯
+                            ║ New channel                                                  ║                            
+                            ║                                                              ║                            
                             ║   Name:       team-mail                                      ║                            
                             ║ > Type:        < smtp >                                      ║                            
                             ║   Host:                                                      ║                            

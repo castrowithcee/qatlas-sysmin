@@ -1,19 +1,19 @@
-sysmin  ● vault open  ● admin 15 min                                                                      ? help  : cmds
+sysmin  ● vault open  ● admin 15 min                                                                   [?] help  [:] cmd
+   1 Overview  [2 Projects]  3 Activity   4 Access   5 Library   6 Settings                                             
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview  [Projects]  Activity   Access   Library   Settings                                                           
-                                                                                                                        
 Projects (3)                                                        1/3 demo-app                                        
                                                                                                                         
 ╔══════════════════════════════════════════════════════════════════════╗╭──────────────────────────────────────────────╮
 ║   Name          Source  Current  Available  Mode  State              ║│ ● approved                                   │
 ║ >   demo-app    images  1.0.0    2.0.0      auto  ● approved         ║│ [Overview]  Details   Raw                    │
 ║     demo-db     images  1.0.0    2.0.0      auto  ⚠ pending          ║│                                              │
-║     sample-job  images  1.╔══════════════════════════════════════════════════════════════╗                           │
-║                           ║ ⚠ Adopt demo-stack                                           ║                           │
-║                           ║                                                              ║0-29 12:00                 │
-║                           ║     Taking over fills in the setup; nothing is saved before  ║0-29 12:00 succeeded       │
-║                           ║     the summary.                                             ║                           │
-║                           ║   Name: demo-stack                                           ║→ 2.0.0 (2 newer)          │
+║     sample-job  images  1.0.0    2.0.0      auto  ● approved         ║│ Source      images                           │
+║                           ╔══════════════════════════════════════════════════════════════╗                           │
+║                           ║ ⚠ Adopt demo-stack                                           ║0-29 12:00                 │
+║                           ║                                                              ║0-29 12:00 succeeded       │
+║                           ║     Taking over fills in the setup; nothing is saved before  ║                           │
+║                           ║     the summary.                                             ║→ 2.0.0 (2 newer)          │
+║                           ║   Name: demo-stack                                           ║                           │
 ║                           ║   Directory: /srv/demo-stack                                 ║                           │
 ║                           ║   Compose file: /srv/demo-stack/compose.yaml                 ║                           │
 ║                           ║   Compose file: /srv/demo-stack/compose.override.yaml        ║                           │

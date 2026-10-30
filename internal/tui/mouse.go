@@ -41,8 +41,9 @@ func (m *Model) addFrameHit(x0, y0, x1, y1 int, act func() tea.Cmd) {
 	m.frameHits = append(m.frameHits, hit{x0, y0, x1, y1, act})
 }
 
-// workspaceTop is the screen row of the first line of the workspace: below the header and the rule.
-func (m *Model) workspaceTop() int { return len(m.headerLines()) + 1 }
+// workspaceTop is the screen row of the first line of the workspace: below the header, the bars and the rule.
+// Every click target of the workspace counts its rows from here.
+func (m *Model) workspaceTop() int { return len(m.headerLines()) + m.barRows() + 1 }
 
 // hitTop is the screen row of the first line after header, a text the workspace starts with.
 func (m *Model) hitTop(header string) int { return m.workspaceTop() + strings.Count(header, "\n") }

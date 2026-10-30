@@ -166,7 +166,7 @@ func (m *Model) accessSpec() dataSpec {
 
 // accessBody is the Access page under the tab line.
 func (m *Model) accessBody() string {
-	return m.dataBody(&m.acc.page, m.accessSpec(), m.workspaceTop()+2)
+	return m.dataBody(&m.acc.page, m.accessSpec(), m.workspaceTop())
 }
 
 // accessLines are the lines of one tab of an approval.

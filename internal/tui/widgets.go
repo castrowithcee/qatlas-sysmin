@@ -159,6 +159,11 @@ func plainTabs() bool {
 // focus, so the colour is never the only mark. A word "|" is a separator, not a tab. Every tab takes the same
 // cells whether active or not.
 func tabStrip(words []string, active int, focused bool) (string, [][2]int) {
+	return tabStripGap(words, active, focused, " ")
+}
+
+// tabStripGap is tabStrip with gap between the tabs.
+func tabStripGap(words []string, active int, focused bool, gap string) (string, [][2]int) {
 	var b strings.Builder
 	spans := make([][2]int, 0, len(words))
 	x := 0
@@ -181,8 +186,8 @@ func tabStrip(words []string, active int, focused bool) (string, [][2]int) {
 			}
 		}
 		if i > 0 {
-			b.WriteString(" ")
-			x++
+			b.WriteString(gap)
+			x += len(gap)
 		}
 		b.WriteString(style.Render(text))
 		spans = append(spans, [2]int{x, x + lipgloss.Width(text)})

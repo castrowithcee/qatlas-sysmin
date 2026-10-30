@@ -1,24 +1,24 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview   2 Projects  [3 Activity]  4 Access   5 Library   6 Settings     
+  [Log]  Runs                                                                   
 ────────────────────────────────────────────────────────────────────────────────
- Overview   Projects  [Activity]  Access   Library   Settings                   
-                                                                                
-[Log]  Runs                                                                     
-                                                                                
-● Chain ╔══════════════════════════════════════════════════════════════╗        
-Log (12)║ Filter the log                                               ║    1/12
-╔═══════║                                                              ║═══════╗
-║   Time║   Period:   7 days                                           ║  UID  ║
-║ > 2026║ > Project:  < demo-app >                                     ║    0  ║
-║   2026║   Action:   all                                              ║ 1000  ║
+● Chain intact, 52 entries · signatures checked                                 
+Log (12)                                                                    1/12
+╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
+║   Time║ Filter the log                                               ║  UID  ║
+║ > 2026║                                                              ║    0  ║
+║   2026║   Period:   7 days                                           ║ 1000  ║
+║   2026║ > Project:  < demo-app >                                     ║ 1000  ║
+║   2026║   Action:   all                                              ║    0  ║
 ║   2026║   Result:   all                                              ║ 1000  ║
-║   2026║                                                              ║    0  ║
-║   2026║ [ Apply ]  [ Cancel ]                                        ║ 1000  ║
 ║   2026║                                                              ║ 1000  ║
-║   2026║ left/right choose · tab next · F2 apply · esc cancel         ║    0  ║
-║   2026╚══════════════════════════════════════════════════════════════╝ 1000  ║
-║   2026-10-28 11:52:00  deploy.run         demo-app  success     59 ms  1000  ║
-║   2026-10-28 11:51:00  session.open       -         failure     66 ms     0  ║
+║   2026║ [ Apply ]  [ Cancel ]                                        ║    0  ║
+║   2026║                                                              ║ 1000  ║
+║   2026║ left/right choose · tab next · F2 apply · esc cancel         ║ 1000  ║
+║   2026╚══════════════════════════════════════════════════════════════╝    0  ║
 ║   2026-10-28 11:50:00  config.read        demo-app  success     73 ms  1000  ║
 ║   2026-10-28 11:49:00  approval.grant     -         success     80 ms  1000  ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
+                                                                                
+                                                                                
 ? help                                                                          

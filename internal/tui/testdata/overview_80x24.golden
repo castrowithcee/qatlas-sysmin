@@ -1,7 +1,6 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+> [1 Overview]  2 Projects   3 Activity   4 Access   5 Library   6 Settings 
 ────────────────────────────────────────────────────────────────────────────────
-[Overview]  Projects   Activity   Access   Library   Settings 
-
 > ● Vault      open
   ● Version    0.0.0-test
     Press enter to open Settings › Update.
@@ -12,6 +11,7 @@ sysmin  ● vault open  ● admin off                                 ? help  : 
   ● Projects   1 total
   ○ Updates    no data
     Press enter to open Projects.
+
 
 
 

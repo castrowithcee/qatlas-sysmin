@@ -217,7 +217,7 @@ func (m *Model) overviewBody() string {
 		label = max(label, len([]rune(r.label)))
 	}
 	m.ovr.cursor = min(max(m.ovr.cursor, 0), len(rows)-1)
-	y := m.workspaceTop() + 2
+	y := m.workspaceTop()
 	var lines []string
 	for i, r := range rows {
 		text := statusRow(r.kind, padLine(r.label, label)+"  "+r.value)

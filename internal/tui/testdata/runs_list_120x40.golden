@@ -1,9 +1,7 @@
-sysmin  ● vault open  ● admin off                                                             [esc] back  ? help  : cmds
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects  [3 Activity]  4 Access   5 Library   6 Settings 
+   Log  [Runs]
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview   Projects  [Activity]  Access   Library   Settings 
-
- Log  [Runs]
-
 ‖ paused
 Runs · demo-app (2)                                               1/2 ╭─ 20261028T120000.000000000Z ───────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
@@ -14,6 +12,8 @@ Runs · demo-app (2)                                               1/2 ╭─ 20
                                                                       │ Duration  9.1 s                                │
                                                                       │ Changes   app 1.1.0 → 1.2.0                    │
                                                                       ╰────────────────────────────────────────────────╯
+
+
 
 
 

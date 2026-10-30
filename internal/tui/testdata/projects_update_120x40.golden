@@ -1,7 +1,6 @@
-sysmin  ● vault open  ● admin off                                                             [esc] back  ? help  : cmds
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview  [2 Projects]  3 Activity   4 Access   5 Library   6 Settings 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview  [Projects]  Activity   Access   Library   Settings 
-
 Update 2 project(s)
 
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
@@ -11,6 +10,7 @@ Update 2 project(s)
 ║ 2.0.0  Release 2.0.0                                                                                                 ║
 ║   Notes for 2.0.0                                                                                                    ║
 ║   Second line                                                                                                        ║
+║                                                                                                                      ║
 ║                                                                                                                      ║
 ║                                                                                                                      ║
 ║                                                                                                                      ║

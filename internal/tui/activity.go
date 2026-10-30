@@ -430,28 +430,14 @@ func problemCodeText(code string) string {
 	}, code)
 }
 
-// activityBody is Activity under the tab line. The pages of Activity get a strip of their names as soon as
-// there is more than one.
+// activityBody is the page of Activity under the bars of the frame.
 func (m *Model) activityBody() string {
-	top := m.workspaceTop() + 2
-	head := ""
-	if actPages > 1 {
-		words := make([]string, actPages)
-		for i := range words {
-			words[i] = actTitle(i)
-		}
-		strip, cells := tabStrip(words, m.act.sub, m.zoneNow() == zoneSubs)
-		for i, c := range cells {
-			m.addHit(c[0], top, c[1], top+1, func() tea.Cmd { return m.setActSub(i) })
-		}
-		head = strip + "\n\n"
-		top += 2
-	}
+	top := m.workspaceTop()
 	if m.act.sub == actRuns {
-		return head + m.runsBody(top)
+		return m.runsBody(top)
 	}
 	lines := m.chainLines(m.usable(0))
-	return head + strings.Join(lines, "\n") + "\n" + m.dataBody(&m.act.page, m.logSpec(), top+len(lines))
+	return strings.Join(lines, "\n") + "\n" + m.dataBody(&m.act.page, m.logSpec(), top+len(lines))
 }
 
 func (m *Model) activityKeys() []string {

@@ -94,7 +94,7 @@ var textDE = map[textID]string{
 	tAreaActivity:                   "Aktivität",
 	tAreaAccess:                     "Zugriff",
 	tAreaLibrary:                    "Bibliothek",
-	tHeaderCommands:                 "Befehle",
+	tHeaderCmd:                      "Befehl",
 	tHeaderChecking:                 "prüfe",
 	tVaultOpen:                      "Tresor offen",
 	tVaultLocked:                    "Tresor gesperrt",

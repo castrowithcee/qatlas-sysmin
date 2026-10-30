@@ -1,7 +1,6 @@
-sysmin  ● vault open  ● admin off                     [esc] back  ? help  : cmds
+sysmin  ● vault open  ● admin off                  [esc] back  [?] help  [:] cmd
+   1 Overview  [2 Projects]  3 Activity   4 Access   5 Library   6 Settings 
 ────────────────────────────────────────────────────────────────────────────────
- Overview  [Projects]  Activity   Access   Library   Settings 
-
 New project › Summary
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -13,6 +12,7 @@ New project › Summary
 ║ Compose files  -                                                             ║
 ║ Backup         none                                                          ║
 ║ Checks         -                                                             ║
+║                                                                              ║
 ║                                                                              ║
 ║                                                                              ║
 ║                                                                              ║

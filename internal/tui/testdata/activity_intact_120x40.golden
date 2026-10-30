@@ -1,9 +1,7 @@
-sysmin  ● vault open  ● admin off                                                             [esc] back  ? help  : cmds
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects  [3 Activity]  4 Access   5 Library   6 Settings 
+  [Log]  Runs 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview   Projects  [Activity]  Access   Library   Settings 
-
-[Log]  Runs 
-
 ● Chain intact, 52 entries · signatures checked
 Log (12)                                                         1/12 ╭─ 12 ───────────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
@@ -21,6 +19,8 @@ Log (12)                                                         1/12 ╭─ 12 
 ║   2026-10-28 11:50:00  config.read        demo-app  success       ║ │                                                │
 ║   2026-10-28 11:49:00  approval.grant     -         success       ║ │                                                │
 ╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
+
+
 
 
 

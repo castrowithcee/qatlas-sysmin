@@ -10,20 +10,10 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
-// settingsBody is Settings under the tab line: the strip of its pages and the page.
+// settingsBody is the page of Settings under the bars of the frame.
 func (m *Model) settingsBody() string {
 	m.loadForms()
-	words := make([]string, subCount)
-	for i := range words {
-		words[i] = subTitle(i)
-	}
-	strip, cells := tabStrip(words, m.set.sub, m.zoneNow() == zoneSubs)
-	top := m.workspaceTop() + 2
-	for i, c := range cells {
-		m.addHit(c[0], top, c[1], top+1, func() tea.Cmd { return m.setSub(i) })
-	}
-	// The page starts four rows below the top of the workspace: tab line, blank, page strip, blank.
-	pg := &pageDraw{m: m, y: top + 2}
+	pg := &pageDraw{m: m, y: m.workspaceTop()}
 	switch m.set.sub {
 	case subGeneral:
 		m.generalPage(pg)
@@ -32,7 +22,7 @@ func (m *Model) settingsBody() string {
 	default:
 		m.updatePage(pg)
 	}
-	return strip + "\n\n" + strings.Join(pg.lines, "\n")
+	return strings.Join(pg.lines, "\n")
 }
 
 // pageDraw collects the lines of a page and keeps the screen row of the next one, for click targets and for

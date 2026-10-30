@@ -1,17 +1,17 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
-────────────────────────────────────────────────────────────────────────────────
-[Overvie╔══════════════════════════════════════════════════════════════╗        
-        ║ Help                                                         ║        
-> ● Vaul║                                                              ║        
-  ● Vers║ [keys]  vault   admin-session   approvals   unlock   secret… ║        
-    Pres║                                                              ║        
-  ● Conf║ This screen                                                  ║        
-  ● Unlo║   left/right area                                            ║        
-  ⚠ Appr║   down open                                                  ║        
-    Pres║                                                              ║        
-  ● Proj║ Everywhere                                                   ║        
-  ○ Upda║   ? help                                                     ║        
-    Pres║   : cmds                                                     ║        
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+> [1 Overview]  2 Projects   3 Activity   4 Access   5 Library   6 Settings     
+────────╔══════════════════════════════════════════════════════════════╗────────
+> ● Vaul║ Help                                                         ║        
+  ● Vers║                                                              ║        
+    Pres║ [keys]  vault   admin-session   approvals   unlock   secret… ║        
+  ● Conf║                                                              ║        
+  ● Unlo║ This screen                                                  ║        
+  ⚠ Appr║   left/right area                                            ║        
+    Pres║   down open                                                  ║        
+  ● Proj║                                                              ║        
+  ○ Upda║ Everywhere                                                   ║        
+    Pres║   ? help                                                     ║        
+        ║   : cmds                                                     ║        
         ║   i info                                                     ║        
         ║   ctrl+l admin                                               ║        
         ║   F2 save                                                    ║        

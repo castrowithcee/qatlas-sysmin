@@ -1,7 +1,6 @@
-sysmin  ● vault open  ● admin off                     [esc] back  ? help  : cmds
+sysmin  ● vault open  ● admin off                  [esc] back  [?] help  [:] cmd
+   1 Overview  [2 Projects]  3 Activity   4 Access   5 Library   6 Settings 
 ────────────────────────────────────────────────────────────────────────────────
- Overview  [Projects]  Activity   Access   Library   Settings 
-
 Projects (3)                                                                 3/3
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -9,6 +8,7 @@ Projects (3)                                                                 3/3
 ║   ✓ demo-app    images  1.0.0    2.0.0      auto  ● approved  ✓ 10-29 12:00  ║
 ║     demo-db     images  1.0.0    2.0.0      auto  ⚠ pending   ✓ 10-29 12:00  ║
 ║ >   sample-job  images  1.0.0    2.0.0      auto  ● approved  ✓ 10-29 12:00  ║
+║                                                                              ║
 ║                                                                              ║
 ║                                                                              ║
 ║                                                                              ║

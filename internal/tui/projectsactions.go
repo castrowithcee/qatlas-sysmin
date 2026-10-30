@@ -181,7 +181,7 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 		p.list.move(1)
 		return nil, true
 	case keyIs(key, actPageUp), keyIs(key, actPageDown), keyIs(key, actHome), keyIs(key, actEnd):
-		p.list.page(key, 0, max(m.height-projectChrome(m, m.tableFramed())-4, 1))
+		p.list.page(key, 0, max(m.height-projectChrome(m, m.tableFramed())-2, 1))
 		return nil, true
 	case keyIs(key, actEnter):
 		if _, has := p.current(); has {

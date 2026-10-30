@@ -1,9 +1,7 @@
-sysmin  ● vault open  ● admin off                                                             [esc] back  ? help  : cmds
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access  [5 Library]  6 Settings 
+   Credentials  [Channels]  Templates 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview   Projects   Activity   Access  [Library]  Settings 
-
- Credentials  [Channels]  Templates 
-
 Channels (3)                                                      1/3 ╭─ chat-ops ─────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name      Type      Target                   State              ║ │                                                │
@@ -12,6 +10,8 @@ Channels (3)                                                      1/3 ╭─ cha
 ║   ops-mail  smtp      smtp.example.test:587    approved           ║ │ State       ⚠ pending approval                 │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Credential  unused-token                       │
                                                                       ╰────────────────────────────────────────────────╯
+
+
 
 
 

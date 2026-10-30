@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -351,39 +352,133 @@ func (m *Model) infoKey(key tea.KeyPressMsg) bool {
 	return keyIs(key, actInfo) || (infoExtra != "" && key.String() == infoExtra)
 }
 
-// areaView is the workspace of the area screen: the tab line and the area under it.
+// areaView is the workspace of the area screen: the area under the bars of the frame.
 func (m *Model) areaView() string {
-	line, spans := m.tabLine()
-	top := m.workspaceTop()
-	for i, span := range spans {
-		m.addHit(span.x0, top, span.x1, top+1, func() tea.Cmd { return m.setArea(area(i)) })
-	}
 	m.keyHint(m.areaKeys())
-	return line + "\n\n" + m.areaBody() + m.notes()
+	return m.areaBody() + m.notes()
 }
 
-// tabLine draws the tab line and the cells of each tab. Where the titles do not fit the width, the tabs that
-// are not active shrink to their digit.
-func (m *Model) tabLine() (string, []navSpan) {
-	words := make([]string, areaCount)
-	for a := range words {
-		words[a] = area(a).title()
+// barFocusMark stands in front of the bar that has the focus; the other bars get blanks of the same width, so
+// the tabs never move when the focus does.
+func barFocusMark(focused bool) string {
+	if focused {
+		return "> "
 	}
-	focused := m.zoneNow() == zoneTabs
-	line, cells := tabStrip(words, int(m.area), focused)
-	if width := m.usable(0); lipgloss.Width(line) > width {
-		for a := range words {
-			if a != int(m.area) {
-				words[a] = string(rune('1' + a))
+	return "  "
+}
+
+// barLine draws a bar of tabs behind the focus mark and returns the cells of each tab. Where the words do not
+// fit the width, the gaps between the tabs close first; then shrink maps the words of the inactive tabs to
+// something shorter, if it is given. The active tab always stays whole.
+func (m *Model) barLine(words []string, active int, focused bool, shrink func(i int) string) (string, []navSpan) {
+	mark := barFocusMark(focused)
+	width := m.termWidth
+	line, cells := tabStripGap(words, active, focused, " ")
+	if lipgloss.Width(mark)+lipgloss.Width(line) > width {
+		line, cells = tabStripGap(words, active, focused, "")
+	}
+	if shrink != nil && lipgloss.Width(mark)+lipgloss.Width(line) > width {
+		short := make([]string, len(words))
+		for i := range words {
+			short[i] = words[i]
+			if i != active {
+				short[i] = shrink(i)
 			}
 		}
-		line, cells = tabStrip(words, int(m.area), focused)
+		line, cells = tabStripGap(short, active, focused, "")
 	}
 	spans := make([]navSpan, len(cells))
 	for i, c := range cells {
-		spans[i] = navSpan{min(c[0], m.usable(0)), min(c[1], m.usable(0))}
+		spans[i] = navSpan{min(c[0]+len(mark), width), min(c[1]+len(mark), width)}
 	}
-	return clipCells(line, m.usable(0)), spans
+	return clipCells(styles.active.Render(mark)+line, width), spans
+}
+
+// tabLine draws the tab line, every area as "digit name", and the cells of each tab. Where the titles do not
+// fit the width, the tabs that are not active shrink to their digit.
+func (m *Model) tabLine() (string, []navSpan) {
+	words := make([]string, areaCount)
+	for a := range words {
+		words[a] = fmt.Sprintf("%d %s", a+1, area(a).title())
+	}
+	return m.barLine(words, int(m.area), m.zoneNow() == zoneTabs, func(i int) string { return string(rune('1' + i)) })
+}
+
+// subLine draws the page strip of the current area; it is empty in an area without pages.
+func (m *Model) subLine() (string, []navSpan) {
+	var words []string
+	active := 0
+	switch m.area {
+	case areaSettings:
+		active = m.set.sub
+		for i := 0; i < subCount; i++ {
+			words = append(words, subTitle(i))
+		}
+	case areaLibrary:
+		active = m.lib.sub
+		for i := 0; i < libCount; i++ {
+			words = append(words, libTitle(i))
+		}
+	case areaActivity:
+		active = m.act.sub
+		for i := 0; i < actPages; i++ {
+			words = append(words, actTitle(i))
+		}
+	}
+	if !m.hasSubs() {
+		return "", nil
+	}
+	return m.barLine(words, active, m.zoneNow() == zoneSubs, nil)
+}
+
+// barRows is the number of rows the tab line and the page strip take above the rule.
+func (m *Model) barRows() int {
+	switch {
+	case m.home != screenArea:
+		return 0
+	case m.hasSubs():
+		return 2
+	}
+	return 1
+}
+
+// barLines are the tab line and the page strip as the frame draws them, and they register their click targets.
+func (m *Model) barLines() []string {
+	if m.barRows() == 0 {
+		return nil
+	}
+	row := len(m.headerLines())
+	line, spans := m.tabLine()
+	lines := []string{line}
+	live := m.screen == screenArea
+	for i, span := range spans {
+		if live {
+			m.addHit(span.x0, row, span.x1, row+1, func() tea.Cmd { return m.setArea(area(i)) })
+		}
+	}
+	if m.barRows() == 2 {
+		line, spans = m.subLine()
+		lines = append(lines, line)
+		for i, span := range spans {
+			if live {
+				m.addHit(span.x0, row+1, span.x1, row+2, func() tea.Cmd { return m.setSubPage(i) })
+			}
+		}
+	}
+	return lines
+}
+
+// setSubPage shows page i of the current area.
+func (m *Model) setSubPage(i int) tea.Cmd {
+	switch m.area {
+	case areaSettings:
+		return m.setSub(i)
+	case areaLibrary:
+		return m.setLibSub(i)
+	case areaActivity:
+		return m.setActSub(i)
+	}
+	return nil
 }
 
 // areaKeys is the key line of the area screen.

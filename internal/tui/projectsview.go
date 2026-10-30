@@ -17,7 +17,7 @@ import (
 // workspace is wide enough. A narrow workspace shows one of them, the detail once the person opened it.
 func (m *Model) projectsBody() string {
 	p := m.prj
-	room := max(m.height-2-strings.Count(m.notes(), "\n"), 1)
+	room := max(m.height-strings.Count(m.notes(), "\n"), 1)
 	if p.flow != nil {
 		return m.flowView(room)
 	}
@@ -127,7 +127,7 @@ func (m *Model) projectListLines(x, width, rows int, focused, framed bool) []str
 		if framed {
 			before = m.titleRows() + 1
 		}
-		top := m.workspaceTop() + 2 + before + len(body)
+		top := m.workspaceTop() + before + len(body)
 		for i := start; i < end; i++ {
 			name := p.list.matches[i]
 			body = append(body, m.listRowIn(room, i == p.list.cursor, t.line(cells[name], layout)))
@@ -170,7 +170,7 @@ func (m *Model) projectDetailLines(x, width, rows int, focused, framed bool) []s
 	if framed {
 		inset = 2
 	}
-	y := m.workspaceTop() + 2 + before + 1
+	y := m.workspaceTop() + before + 1
 	for i, c := range cells {
 		m.addHit(x+inset+c[0], y, x+inset+min(c[1], room), y+1, func() tea.Cmd { p.tab = projectTab(i); return nil })
 	}

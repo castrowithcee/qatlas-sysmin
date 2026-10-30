@@ -377,7 +377,7 @@ func (m *Model) projectUpdateView(room int) string {
 		it := u.items[i]
 		label := padLine(truncateCells(safeText(it.label()), labelWidth), labelWidth)
 		text := truncateCells(fmt.Sprintf("%s  %s → %s ▾", label, safeText(orDash(it.src.Current)), safeText(it.target)), max(inner-2, 1))
-		top := m.workspaceTop() + 2 + before + len(body)
+		top := m.workspaceTop() + before + len(body)
 		body = append(body, m.listRowIn(inner, i == u.cursor, text))
 		m.addHit(0, top, width, top+1, func() tea.Cmd {
 			if m.prj.upd == u && i < len(u.items) && u.results == nil {

@@ -94,7 +94,7 @@ var textEN = map[textID]string{
 	tAreaActivity:                   "Activity",
 	tAreaAccess:                     "Access",
 	tAreaLibrary:                    "Library",
-	tHeaderCommands:                 "cmds",
+	tHeaderCmd:                      "cmd",
 	tHeaderChecking:                 "checking",
 	tVaultOpen:                      "vault open",
 	tVaultLocked:                    "vault locked",

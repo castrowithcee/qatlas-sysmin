@@ -90,10 +90,10 @@ func TestHeaderNamesEveryStateInWordsWithoutColour(t *testing.T) {
 	})
 }
 
-func TestHeaderShortensBeforeItDropsTheHelpKey(t *testing.T) {
+func TestHeaderShortensBeforeItDropsTheKeyHints(t *testing.T) {
 	m := appModel(t, newFake(control.VaultUnlocked), 80, 20)
 	m.svc.st.Admin, m.svc.st.AdminRemaining = true, 900
-	for w, wants := range map[int]string{80: "vault open", 50: "open", 40: "admin 15m"} {
+	for w, wants := range map[int]string{80: "vault open", 50: "open", 40: "open"} {
 		sizedModel(m, w, 20)
 		row := ansi.Strip(m.headerLines()[0])
 		if !strings.Contains(row, wants) || !strings.Contains(row, "?") {

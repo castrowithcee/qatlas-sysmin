@@ -1,14 +1,14 @@
-sysmin  ● vault open  ● admin 15 min                              ? help  : cmds
-────────────────────────────────────────────────────────────────────────────────
- Overvie╔══════════════════════════════════════════════════════════════╗        
-        ║ ⚠ Adopt demo-stack                                           ║        
-Projects║                                                              ║     1/3
-        ║     Taking over fills in the setup; nothing is saved before  ║        
-╔═══════║     the summary.                                             ║═══════╗
-║   Name║   Name: demo-stack                                           ║       ║
-║ >   de║   Directory: /srv/demo-stack                                 ║12:00  ║
-║     de║   Compose file: /srv/demo-stack/compose.yaml                 ║12:00  ║
-║     sa║   Compose file: /srv/demo-stack/compose.override.yaml        ║12:00  ║
+sysmin  ● vault open  ● admin 15 min                           [?] help  [:] cmd
+   1 Overview  [2 Projects]  3 Activity   4 Access   5 Library   6 Settings     
+────────╔══════════════════════════════════════════════════════════════╗────────
+Projects║ ⚠ Adopt demo-stack                                           ║     1/3
+        ║                                                              ║        
+╔═══════║     Taking over fills in the setup; nothing is saved before  ║═══════╗
+║   Name║     the summary.                                             ║       ║
+║ >   de║   Name: demo-stack                                           ║12:00  ║
+║     de║   Directory: /srv/demo-stack                                 ║12:00  ║
+║     sa║   Compose file: /srv/demo-stack/compose.yaml                 ║12:00  ║
+║       ║   Compose file: /srv/demo-stack/compose.override.yaml        ║       ║
 ║       ║   Compose project: demo-stack                                ║       ║
 ║       ║   Env file: /srv/demo-stack/.env                             ║       ║
 ║       ║   Image web: registry.example.com/demo/web (1.4.2)           ║       ║

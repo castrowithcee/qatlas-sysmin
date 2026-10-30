@@ -1,14 +1,14 @@
-sysmin  ● vault open  ● admin off                                                             [esc] back  ? help  : cmds
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects  [3 Activity]  4 Access   5 Library   6 Settings 
+   Log  [Runs]
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview   Projects  [Activity]  Access   Library   Settings 
-
- Log  [Runs]
-
 Run log › demo-app 20261028T120000.000000000Z
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║ 2026-10-28T12:00:00Z step 1/2 set-env result=ok                                                                      ║
 ║ 2026-10-28T12:00:01Z step 2/2 command output:                                                                        ║
 ║   | login failed with [redacted]                                                                                     ║
+║                                                                                                                      ║
+║                                                                                                                      ║
 ║                                                                                                                      ║
 ║                                                                                                                      ║
 ║                                                                                                                      ║
