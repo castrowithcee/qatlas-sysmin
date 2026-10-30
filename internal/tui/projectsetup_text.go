@@ -86,7 +86,7 @@ func init() {
 		footerID("p duplicate"):     "p duplicate",
 		footerID("enter take over"): "enter take over",
 		footerID("enter next"):      "enter next",
-		footerID("left/right kind"): "left/right kind",
+		footerID("←/→ kind"):        "←/→ kind",
 	})
 	maps.Copy(textDE, map[textID]string{
 		tPrjOriginTitle: "Projekt beginnen",
@@ -130,6 +130,6 @@ func init() {
 		footerID("p duplicate"):     "p duplizieren",
 		footerID("enter take over"): "enter übernehmen",
 		footerID("enter next"):      "enter weiter",
-		footerID("left/right kind"): "left/right Art",
+		footerID("←/→ kind"):        "←/→ Art",
 	})
 }

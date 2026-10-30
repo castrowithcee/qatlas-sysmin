@@ -25,7 +25,7 @@ func TestTheInterfaceStartsOnTheOverviewWithTheTabLineFocused(t *testing.T) {
 		t.Errorf("the tab line shows a back button: %q", headerOf(m))
 	}
 	foot := footerOf(m)
-	for _, want := range []string{"left/right area", "down open"} {
+	for _, want := range []string{"←/→ area", "↓ open"} {
 		if !strings.Contains(foot, want) {
 			t.Errorf("the footer of the tab line lacks %q: %q", want, foot)
 		}
@@ -74,7 +74,7 @@ func TestEscLeadsFromEveryAreaToTheTabLineAndBackIn(t *testing.T) {
 				if m.zoneNow() != zoneSubs || !strings.Contains(headerOf(m), "[esc] back") {
 					t.Errorf("%s: esc from the content reaches %v, want the page strip with a back button", name, m.zoneNow())
 				}
-				if foot := footerOf(m); !strings.Contains(foot, "left/right page") || !strings.Contains(foot, "esc back") {
+				if foot := footerOf(m); !strings.Contains(foot, "←/→ page") || !strings.Contains(foot, "esc back") {
 					t.Errorf("%s: the footer of the page strip is %q", name, foot)
 				}
 				send(m, "esc")

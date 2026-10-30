@@ -184,7 +184,7 @@ func (m *Model) popupContent(inner int) (title string, body []string, keys strin
 			}
 		}
 		return tr(tHelpTitle), append([]string{truncateCells(strip, inner), ""}, m.helpBody(inner)...),
-			"up/down scroll · left/right topic · {back} close"
+			"↑/↓ scroll · ←/→ topic · {back} close"
 	case popInfo:
 		label, text := m.infoOf()
 		return tr(tInfoTitle), append([]string{styles.title.Render(label), ""}, strings.Split(render(lipgloss.NewStyle(), inner, text), "\n")...),

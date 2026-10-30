@@ -176,9 +176,9 @@ func (m *Model) tmplLines(name string, tab, width int) []string {
 
 func (m *Model) tmplKeys() []string {
 	if m.lib.tmpls.page.open {
-		return []string{"left/right tab", "up/down scroll", "p derive", "{back} close"}
+		return []string{"←/→ tab", "↑/↓ scroll", "p derive", "{back} close"}
 	}
-	return []string{"up/down move", "enter details", "p derive", "/ filter"}
+	return []string{"↑/↓ move", "enter details", "p derive", "/ filter"}
 }
 
 // tmplKey handles the letters of the Templates page.

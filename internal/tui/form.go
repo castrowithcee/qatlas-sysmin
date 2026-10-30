@@ -215,7 +215,7 @@ func (m *Model) formDialog() promptDialog {
 	}
 	keys := "enter next · tab next · " + f.saveText + " · {back} cancel"
 	if f.rows[f.focus].choice {
-		keys = "left/right choose · tab next · " + f.saveText + " · {back} cancel"
+		keys = "←/→ choose · tab next · " + f.saveText + " · {back} cancel"
 	}
 	d := promptDialog{title: f.title, input: strings.Join(rows, "\n"), hint: f.hint, keys: keys}
 	if f.notice != "" {

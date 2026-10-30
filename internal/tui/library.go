@@ -191,9 +191,9 @@ func (m *Model) libraryKeys() []string {
 		return m.tmplKeys()
 	}
 	if m.lib.cred.page.open {
-		return []string{"left/right tab", "up/down scroll", "e edit", "d remove", "{back} close"}
+		return []string{"←/→ tab", "↑/↓ scroll", "e edit", "d remove", "{back} close"}
 	}
-	return []string{"up/down move", "enter details", "n new", "e edit", "d remove", "/ filter"}
+	return []string{"↑/↓ move", "enter details", "n new", "e edit", "d remove", "/ filter"}
 }
 
 // libraryKey handles the keys of Library that the page does not.
@@ -212,10 +212,6 @@ func (m *Model) libraryKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.openCredForm(true), true
 	case keyIs(key, actDelete):
 		return m.credRemove(), true
-	case keyIs(key, actReveal):
-		m.clearMessages()
-		m.status = tr(tCredNoReveal)
-		return nil, true
 	}
 	return nil, false
 }
@@ -505,7 +501,7 @@ func (m *Model) credDialog() promptDialog {
 	}
 	keys := "enter next · tab next · {save} save · {back} cancel"
 	if f.focus == 1 && !f.edit {
-		keys = "left/right kind · enter next · {save} save · {back} cancel"
+		keys = "←/→ kind · enter next · {save} save · {back} cancel"
 	}
 	d := promptDialog{title: title, input: strings.Join(rows, "\n"), hint: tr(tCredHint), keys: keys}
 	if f.problem != "" {

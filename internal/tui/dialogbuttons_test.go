@@ -32,7 +32,7 @@ func TestDialogButtonsAreReadFromTheKeyLine(t *testing.T) {
 		}
 	}
 	// Groups of the editor around the dialog are no answers.
-	for _, b := range m.dialogButtons("y yes · {help} help · {command} cmds · up/down move", false, nil) {
+	for _, b := range m.dialogButtons("y yes · {help} help · {command} cmds · ↑/↓ move", false, nil) {
 		if b.key != "y" {
 			t.Errorf("%q became a button", b.key)
 		}

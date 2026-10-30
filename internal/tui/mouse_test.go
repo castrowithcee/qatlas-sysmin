@@ -44,7 +44,7 @@ func wheel(m *Model, x, y int, button tea.MouseButton) {
 func TestFooterKeyNamesMapToKeysOnlyForKeysAButtonCanPress(t *testing.T) {
 	for group, want := range map[string]string{
 		"y delete": "y", "n/esc cancel": "n", "enter save": "enter", "esc back": "esc", "tab next": "tab",
-		"F2 save": "F2", "1-6 area": "", "type to filter": "", "up/down move": "", "": "",
+		"F2 save": "F2", "1-6 area": "", "type to filter": "", "↑/↓ move": "", "": "",
 	} {
 		if got := footerKey(group); got != want {
 			t.Errorf("footerKey(%q) = %q, want %q", group, got, want)

@@ -116,8 +116,8 @@ var (
 var interceptedF = map[int]bool{1: true, 5: true, 10: true, 11: true, 12: true}
 
 // freeCtrl are the control keys no text line, terminal, or screen needs: the others edit text (ctrl+a, e, k,
-// u, w), stand for enter, tab, or backspace (ctrl+m, i, h), control the terminal (ctrl+s, q, z), or belong to
-// a screen's own action (ctrl+d, n, p in text lines, ctrl+t and ctrl+r in the target picker).
+// u, w, d), stand for enter, tab, or backspace (ctrl+m, i, h), control the terminal (ctrl+s, q, z), or belong to
+// a screen's own action (ctrl+n, p in text lines, ctrl+r in the target picker).
 var freeCtrl = map[string]bool{"ctrl+g": true, "ctrl+l": true, "ctrl+o": true, "ctrl+x": true}
 
 // Normalize returns the spelling the terminal library reports for key: trimmed, and lower case for names

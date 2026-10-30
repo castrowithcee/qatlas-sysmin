@@ -93,9 +93,9 @@ func (m *Model) listFrame() (string, string) {
 		head.WriteString(note(styles.hint, tr(tFormNoEntryMatchesPressEsc, m.list.query())))
 	}
 
-	keys := "up/down move · / filter · q quit"
+	keys := "↑/↓ move · / filter · q quit"
 	if m.list.editing {
-		keys = "type to filter · up/down move · enter keep filter · {back} clear filter"
+		keys = "type to filter · ↑/↓ move · enter keep filter · {back} clear filter"
 	}
 	m.keyHint(keys)
 	foot := ""

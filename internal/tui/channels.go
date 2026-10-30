@@ -206,9 +206,9 @@ func rawKey(label string) string {
 
 func (m *Model) chanKeys() []string {
 	if m.lib.chans.page.open {
-		return []string{"left/right tab", "up/down scroll", "t test", "d remove", "{back} close"}
+		return []string{"←/→ tab", "↑/↓ scroll", "t test", "d remove", "{back} close"}
 	}
-	return []string{"up/down move", "enter details", "n new", "t test", "d remove", "/ filter"}
+	return []string{"↑/↓ move", "enter details", "n new", "t test", "d remove", "/ filter"}
 }
 
 // chanKey handles the letters of the Channels page.

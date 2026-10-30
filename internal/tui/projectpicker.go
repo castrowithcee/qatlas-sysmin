@@ -63,9 +63,9 @@ func (m *Model) refreshPicker() {
 	} else {
 		lines = append(lines, styles.hint.Render("    "+tr(tPickPosition, l.cursor+1, len(l.matches))))
 	}
-	keys := "up/down move · / search · enter pick · {back} cancel"
+	keys := "↑/↓ move · / search · enter pick · {back} cancel"
 	if l.editing {
-		keys = "type to filter · up/down move · enter keep · {back} clear"
+		keys = "type to filter · ↑/↓ move · enter keep · {back} clear"
 	}
 	m.ask = &question{title: pk.title, consequence: pk.note, details: lines, keys: keys}
 }

@@ -258,7 +258,7 @@ func (m *Model) takeUpdate(msg updateMsg) {
 func (m *Model) settingsKeys() []string {
 	switch m.set.sub {
 	case subGeneral, subVault:
-		return []string{"up/down move", "enter edit", "{save} save"}
+		return []string{"↑/↓ move", "enter edit", "{save} save"}
 	}
 	return []string{"t check"}
 }

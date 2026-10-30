@@ -59,10 +59,6 @@ func TestCredentialDetailShowsNoValue(t *testing.T) {
 		}
 		send(m, "right")
 	}
-	send(m, "esc", "v")
-	if !strings.Contains(m.status, "never shown") {
-		t.Errorf("status = %q", m.status)
-	}
 }
 
 func TestSetCredentialCallsOnceWithTheTypedFields(t *testing.T) {

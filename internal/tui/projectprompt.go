@@ -212,7 +212,7 @@ func (m *Model) projectPromptDialog() promptDialog {
 		d.title, d.hint = tr(tCredTitle), tr(tCredHint)
 		d.keys = "enter next · {save} save · {back} cancel"
 		if p.fields[p.focus].isChoice() {
-			d.keys = "left/right kind · {save} save · {back} cancel"
+			d.keys = "←/→ kind · {save} save · {back} cancel"
 		}
 	}
 	return d
