@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"cmp"
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
@@ -14,6 +15,13 @@ type projectPicker struct {
 	title, note string
 	list        filterList
 	pick        func(value string) tea.Cmd
+	// display, when set, turns a value into the line shown for it; the values then stand for the rows, such
+	// as their positions in a list the caller keeps.
+	display func(value string) string
+	// lead are finished lines above the rows, such as why the list is empty; width, when set, is the cells a
+	// row may take instead of the usual ones.
+	lead  []string
+	width int
 }
 
 // Rows of values a picker shows at once and the cells of its search field.
@@ -25,6 +33,11 @@ const (
 // openProjectPicker shows the picker over the area, the cursor on values[active].
 func (m *Model) openProjectPicker(title, note string, values []string, active int, pick func(string) tea.Cmd) {
 	pk := &projectPicker{title: title, note: note, pick: pick, list: newFilterList(func(v string) string { return v })}
+	m.showProjectPicker(pk, values, active)
+}
+
+// showProjectPicker fills the picker with values and shows it, the cursor on values[active].
+func (m *Model) showProjectPicker(pk *projectPicker, values []string, active int) {
 	pk.list.reset(values)
 	pk.list.cursor = min(max(active, 0), max(len(values)-1, 0))
 	m.prj.dialog, m.screen = &projectDialog{kind: projDlgPick, picker: pk}, screenConfirm
@@ -49,9 +62,14 @@ func (m *Model) refreshPicker() {
 	case l.query() != "":
 		lines = append(lines, "  / "+truncateCells(l.query(), pickerField))
 	}
+	lines = append(lines, pk.lead...)
 	start, end := l.window(pickerRows, func(int) int { return 1 })
 	for i := start; i < end; i++ {
-		text := truncateCells(safeText(l.matches[i]), pickerField+8)
+		value := l.matches[i]
+		if pk.display != nil {
+			value = pk.display(value)
+		}
+		text := truncateCells(safeText(value), cmp.Or(pk.width, pickerField+8))
 		if i == l.cursor {
 			lines = append(lines, styles.title.Render("  > "+text))
 		} else {

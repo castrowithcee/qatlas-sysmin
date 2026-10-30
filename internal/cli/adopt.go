@@ -91,11 +91,45 @@ func quote(v string) string {
 	return v
 }
 
+// stacksRows lists the running stacks, one per row.
+func stacksRows(res control.StacksResult) output.Collection {
+	result := output.Collection{Columns: []string{"project", "dir", "containers", "managed"}}
+	for _, s := range res.Stacks {
+		managed := s.ManagedBy
+		if managed == "" {
+			managed = "-"
+		}
+		result.Rows = append(result.Rows, output.Row{
+			"project": s.ComposeProject, "dir": s.Dir, "containers": int64(s.Containers), "managed": managed,
+		})
+	}
+	return result
+}
+
+// listStacks prints the running Compose stacks of the host.
+func listStacks(c *cobra.Command, opts *Options, socket string) error {
+	var res control.StacksResult
+	err := withService(socket, func(cl *client.Client) (err error) {
+		res, err = cl.Stacks()
+		return err
+	})
+	if err != nil {
+		return finishWith(c, opts, "project adopt", false, err, adoptError)
+	}
+	if err := emit(c, opts, stacksRows(res)); err != nil {
+		return err
+	}
+	if res.Truncated {
+		fmt.Fprintln(c.ErrOrStderr(), "sysmin: notice: more containers run than the list covers; some stacks may be missing or show too few containers")
+	}
+	return nil
+}
+
 func newProjectAdoptCommand(opts *Options) *cobra.Command {
 	var socket, name string
-	var dryRun bool
+	var dryRun, list bool
 	cmd := &cobra.Command{
-		Use:   "adopt DIR",
+		Use:   "adopt DIR | adopt --list",
 		Short: "Take over a running Docker Compose stack as a project",
 		Long: "adopt asks the service to read the Compose stack that runs from DIR and to propose a project for it:\n" +
 			"the Compose project name and files, the env file, and the images whose tag is an environment\n" +
@@ -104,16 +138,30 @@ func newProjectAdoptCommand(opts *Options) *cobra.Command {
 			"being stored, and the command then exits with an error. Without --dry-run the project is stored in\n" +
 			"manual mode and counts as open until a person approves it in the terminal interface; after the approval\n" +
 			"the versions found are the current ones. Nothing is deployed, and compose files, env files and tags\n" +
-			"are not changed. The vault must be unlocked, and the service must be able to use Docker.",
-		Example: "  sysmin project adopt /srv/shop --dry-run\n" +
+			"are not changed. The vault must be unlocked, and the service must be able to use Docker.\n\n" +
+			"With --list, adopt instead lists the running Compose stacks of the host, one per row with its Compose\n" +
+			"project, directory, number of containers and the project that manages it already (- for none); stacks\n" +
+			"that no project manages come first. It changes nothing and needs no unlocked vault. --list takes no\n" +
+			"directory and excludes --name and --dry-run.",
+		Example: "  sysmin project adopt --list\n" +
+			"  sysmin project adopt /srv/shop --dry-run\n" +
 			"  sysmin project adopt /srv/shop --name shop-prod",
-		Args: func(_ *cobra.Command, args []string) error {
+		Args: func(c *cobra.Command, args []string) error {
+			if list {
+				if len(args) != 0 || c.Flags().Changed("name") || c.Flags().Changed("dry-run") {
+					return newSyntaxError(errors.New("--list takes no directory and cannot be combined with --name or --dry-run"))
+				}
+				return nil
+			}
 			if len(args) != 1 {
 				return newSyntaxError(fmt.Errorf("adopt takes exactly one directory, got %d arguments", len(args)))
 			}
 			return nil
 		},
 		RunE: func(c *cobra.Command, args []string) error {
+			if list {
+				return listStacks(c, opts, socket)
+			}
 			dir, err := filepath.Abs(args[0])
 			if err != nil {
 				return fmt.Errorf("project adopt: cannot resolve the directory: %w", err)
@@ -137,6 +185,7 @@ func newProjectAdoptCommand(opts *Options) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&name, "name", "", "project name (default: the Compose project name)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "only show the proposal and its problems; store nothing")
+	cmd.Flags().BoolVar(&list, "list", false, "list the running Compose stacks instead of adopting one")
 	cmd.Flags().StringVar(&socket, "socket", control.DefaultSocketPath, "control socket path")
 	return cmd
 }

@@ -5,6 +5,9 @@ import "time"
 // AdoptTimeout bounds how long the service may take to inspect one stack.
 const AdoptTimeout = time.Minute
 
+// StacksTimeout bounds how long the service may take to list the running stacks.
+const StacksTimeout = 30 * time.Second
+
 // CodeDockerUnavailable answers an adoption while Docker cannot be asked for the running containers. The
 // output of Docker never leaves the service.
 const CodeDockerUnavailable = "docker-unavailable"
@@ -68,4 +71,21 @@ type AdoptResult struct {
 	Saved    bool           `json:"saved"`
 	State    string         `json:"state,omitempty"`
 	Revision string         `json:"revision,omitempty"`
+}
+
+// Stack is one running Compose stack. ManagedBy names the project that manages its directory, empty when
+// none does. Containers counts the running containers without one-off ones.
+type Stack struct {
+	ComposeProject string   `json:"compose_project"`
+	Dir            string   `json:"dir"`
+	ComposeFiles   []string `json:"compose_files,omitempty"`
+	Containers     int      `json:"containers"`
+	ManagedBy      string   `json:"managed_by,omitempty"`
+}
+
+// StacksResult is the answer to OpProjectsStacks: stacks no project manages first, then by Compose project
+// and directory. Truncated says that containers were left out, so the list may be incomplete.
+type StacksResult struct {
+	Stacks    []Stack `json:"stacks"`
+	Truncated bool    `json:"truncated,omitempty"`
 }

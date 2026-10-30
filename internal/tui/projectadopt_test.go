@@ -26,10 +26,10 @@ func adoptFake() *fakeBackend {
 	return fb
 }
 
-// adoptAsk walks from the list to the question for the stack in dir and sends it.
+// adoptAsk walks from the list through the stacks (none) to the question for the stack in dir and sends it.
 func adoptAsk(t *testing.T, m *Model, dir string) {
 	t.Helper()
-	send(m, "n", "down", "enter")
+	send(m, "n", "down", "enter", "enter")
 	if !m.projectPromptOpen() || m.prj.prompt.kind != promptAdopt {
 		t.Fatalf("the adoption asks no directory: screen = %v\n%s", m.screen, plain(m))
 	}
@@ -119,7 +119,7 @@ func TestAdoptBlockingProblemsPreventTakingOver(t *testing.T) {
 func TestAdoptRefusesWhatIsWrongBeforeAskingAndNamesTheFailure(t *testing.T) {
 	fb := adoptFake()
 	m := projectsModel(t, fb, 120, 40)
-	send(m, "n", "down", "enter")
+	send(m, "n", "down", "enter", "enter")
 	typed(m, "srv/demo")
 	send(m, "enter", "enter")
 	if len(fb.proj.adoptAsked) != 0 || m.fail != tr(tFlowAbsolute) || !m.projectPromptOpen() {
@@ -180,7 +180,7 @@ func TestAdoptIsRefusedWhileASetupIsOpen(t *testing.T) {
 	send(m, "esc", "esc")
 	send(m, "d")
 	runCommand(m, "adopt stack")
-	if !m.projectPromptOpen() {
+	if !m.projectsDialogOpen() || m.prj.dialog.picker == nil || !strings.Contains(plain(m), "Running stacks") {
 		t.Errorf("after discard:\n%s", plain(m))
 	}
 }
@@ -193,8 +193,143 @@ func TestAdoptGerman(t *testing.T) {
 		t.Errorf("German picker:\n%s", view)
 	}
 	send(m, "down", "enter")
+	for _, want := range []string{"Laufende Stacks", "Keine laufenden Compose-Stacks gefunden", "Anderes Verzeichnis…"} {
+		if view := plain(m); !strings.Contains(view, want) {
+			t.Errorf("German empty list lacks %q:\n%s", want, view)
+		}
+	}
+	send(m, "esc")
+	fb := adoptFake()
+	fb.proj.stacks = demoStacks()
+	m = projectsModel(t, fb, 120, 40)
+	useLanguage(t, "de")
+	send(m, "n", "down", "enter")
+	for _, want := range []string{"Container: 3", "verwaltet von shop-prod", "Anderes Verzeichnis…"} {
+		if view := plain(m); !strings.Contains(view, want) {
+			t.Errorf("German list lacks %q:\n%s", want, view)
+		}
+	}
+	send(m, "esc")
+	fb.proj.stacks, fb.proj.stacksErr = control.StacksResult{}, &control.Error{Code: control.CodeDockerUnavailable}
+	send(m, "n", "down", "enter")
+	if view := flatBoxText(plain(m)); !strings.Contains(view, "Docker kann nicht nach den laufenden Containern gefragt werden") ||
+		!strings.Contains(view, "später erneut versuchen") {
+		t.Errorf("German failure:\n%s", view)
+	}
+	send(m, "down", "enter")
 	if view := plain(m); !strings.Contains(view, "Verzeichnis") || !strings.Contains(view, "Name (optional)") {
 		t.Errorf("German panel:\n%s", view)
+	}
+}
+
+// demoStacks is two running stacks: one no project manages and one a project manages.
+func demoStacks() control.StacksResult {
+	return control.StacksResult{Stacks: []control.Stack{
+		{ComposeProject: "demo", Dir: "/srv/demo-stack", ComposeFiles: []string{"/srv/demo-stack/compose.yaml"}, Containers: 2},
+		{ComposeProject: "shop", Dir: "/srv/shop-prod/deploy/current/releases/2026", Containers: 3, ManagedBy: "shop-prod"},
+	}}
+}
+
+func stacksFake() *fakeBackend {
+	fb := adoptFake()
+	fb.proj.stacks = demoStacks()
+	return fb
+}
+
+func TestAdoptListsTheRunningStacksAndTakesTheChosenOne(t *testing.T) {
+	fb := stacksFake()
+	m := projectsModel(t, fb, 120, 40)
+	send(m, "n", "down", "enter")
+	view := plain(m)
+	for _, want := range []string{"Running stacks", "demo  /srv/demo-stack  containers: 2", "managed by shop-prod", "Other directory…", "1/3"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("the list lacks %q:\n%s", want, view)
+		}
+	}
+	if strings.Index(view, "demo  /srv") > strings.Index(view, "shop  ") {
+		t.Errorf("the order is not the one delivered:\n%s", view)
+	}
+	if m.projectPromptOpen() || len(fb.proj.adoptAsked) != 0 {
+		t.Fatal("the list opened the panel or asked for a proposal before a choice")
+	}
+	send(m, "/")
+	typed(m, "shop")
+	if view := plain(m); strings.Contains(view, "demo-stack") || !strings.Contains(view, "Other directory…") {
+		t.Errorf("filter shop:\n%s", view)
+	}
+	send(m, "enter", "enter")
+	if len(fb.proj.adoptAsked) != 1 || fb.proj.adoptAsked[0] != (control.AdoptParams{Dir: "/srv/shop-prod/deploy/current/releases/2026", Name: "shop", DryRun: true}) {
+		t.Fatalf("requests = %+v", fb.proj.adoptAsked)
+	}
+	if view := plain(m); !strings.Contains(view, "Adopt demo-stack") || !strings.Contains(view, "take over") {
+		t.Errorf("no proposal:\n%s", view)
+	}
+	send(m, "esc")
+	send(m, "n", "down", "enter", "enter")
+	if len(fb.proj.adoptAsked) != 2 || fb.proj.adoptAsked[1].Dir != "/srv/demo-stack" {
+		t.Fatalf("requests = %+v", fb.proj.adoptAsked)
+	}
+}
+
+func TestAdoptListLeadsToThePanelThroughOtherDirectory(t *testing.T) {
+	fb := stacksFake()
+	m := projectsModel(t, fb, 120, 40)
+	runCommand(m, "adopt stack")
+	if !strings.Contains(plain(m), "Running stacks") {
+		t.Fatalf("the command does not list the stacks:\n%s", plain(m))
+	}
+	send(m, "/")
+	typed(m, "zzz")
+	send(m, "enter", "enter")
+	if !m.projectPromptOpen() || m.prj.prompt.kind != promptAdopt || len(fb.proj.adoptAsked) != 0 {
+		t.Fatalf("other directory does not open the panel:\n%s", plain(m))
+	}
+}
+
+func TestAdoptListSaysWhyItIsEmptyIncompleteOrFailed(t *testing.T) {
+	cases := []struct {
+		name   string
+		stacks control.StacksResult
+		err    error
+		want   string
+	}{
+		{"empty", control.StacksResult{}, nil, "No running Compose stacks found"},
+		{"truncated", control.StacksResult{Stacks: demoStacks().Stacks, Truncated: true}, nil, "list may be incomplete"},
+		{"docker", control.StacksResult{}, &control.Error{Code: control.CodeDockerUnavailable}, "Docker cannot be asked"},
+		{"timeout", control.StacksResult{}, &control.Error{Code: control.CodeTimeout}, "took too long"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fb := adoptFake()
+			fb.proj.stacks, fb.proj.stacksErr = c.stacks, c.err
+			m := projectsModel(t, fb, 120, 40)
+			send(m, "n", "down", "enter")
+			view := plain(m)
+			flat := flatBoxText(view)
+			if !strings.Contains(flat, c.want) || !strings.Contains(flat, "Other directory…") {
+				t.Errorf("view lacks %q:\n%s", c.want, view)
+			}
+			if c.err != nil && !strings.Contains(flat, "try again later") {
+				t.Errorf("no next step:\n%s", view)
+			}
+			send(m, "enter")
+			if c.name != "truncated" {
+				if !m.projectPromptOpen() {
+					t.Errorf("other directory is not chosen first:\n%s", plain(m))
+				}
+			}
+		})
+	}
+}
+
+func TestAdoptListShowsHostTextSafely(t *testing.T) {
+	fb := adoptFake()
+	fb.proj.stacks = control.StacksResult{Stacks: []control.Stack{
+		{ComposeProject: "demo\x1b[31m", Dir: "/srv/demo\x1b]0;x\x07-stack", Containers: 1, ManagedBy: "shop\x1b[2Jprod"}}}
+	m := projectsModel(t, fb, 120, 40)
+	send(m, "n", "down", "enter")
+	if view := m.render(); strings.Contains(view, "\x1b[2J") || strings.Contains(view, "\x1b]0") || strings.Contains(view, "\a") {
+		t.Errorf("the list passes host text on:\n%q", view)
 	}
 }
 
@@ -219,10 +354,28 @@ func TestGoldenProjectsAdopt(t *testing.T) {
 		t.Run(fmt.Sprintf("panel_%dx%d", size[0], size[1]), func(t *testing.T) {
 			utcZone(t)
 			m := goldenApp(t, adoptFake(), size[0], size[1])
-			send(m, "2", "n", "down", "enter")
+			send(m, "2", "n", "down", "enter", "enter")
 			typed(m, "/srv/demo-stack")
 			assertViewFits(t, plain(m), size[0], size[1])
 			assertGolden(t, fmt.Sprintf("projects_adopt_panel_%dx%d", size[0], size[1]), m.render())
 		})
 	}
+}
+
+func TestGoldenProjectsAdoptStacks(t *testing.T) {
+	for _, size := range [][2]int{{80, 24}, {120, 40}} {
+		t.Run(fmt.Sprintf("%dx%d", size[0], size[1]), func(t *testing.T) {
+			utcZone(t)
+			m := goldenApp(t, stacksFake(), size[0], size[1])
+			send(m, "2", "n", "down", "enter")
+			assertViewFits(t, plain(m), size[0], size[1])
+			assertGolden(t, fmt.Sprintf("projects_adopt_stacks_%dx%d", size[0], size[1]), m.render())
+		})
+	}
+}
+
+// flatBoxText is the text of a view with the frame characters removed and the blanks joined, so a message the
+// dialog wrapped reads as one line.
+func flatBoxText(view string) string {
+	return strings.Join(strings.Fields(strings.NewReplacer("│", " ", "╭", " ", "╮", " ", "╰", " ", "╯", " ").Replace(view)), " ")
 }

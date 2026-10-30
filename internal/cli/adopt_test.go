@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,6 +23,8 @@ type adoptDocker struct {
 	calls []execute.Command
 	ps    string
 	lb    string
+	// stacks answers docker ps with the format of the stack list.
+	stacks string
 }
 
 func (d *adoptDocker) Run(_ context.Context, c execute.Command) (execute.Result, error) {
@@ -31,6 +34,8 @@ func (d *adoptDocker) Run(_ context.Context, c execute.Command) (execute.Result,
 	switch {
 	case d.fails:
 		return execute.Result{Output: []byte("Cannot connect to the Docker daemon")}, &execute.ExitError{Code: 1}
+	case c.Args[0] == "ps" && strings.Contains(strings.Join(c.Args, " "), "--format"):
+		return execute.Result{Output: []byte(d.stacks)}, nil
 	case c.Args[0] == "ps":
 		return execute.Result{Output: []byte(d.ps)}, nil
 	case c.Args[0] == "inspect":
@@ -188,5 +193,64 @@ func TestProjectAdoptNoAccessNamesPartAndNextStep(t *testing.T) {
 	code, _, stderr = runCLIArgs("project", "adopt", filepath.Join(dir, "missing"), "--socket", sock)
 	if code != exitRuntime || !strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "setfacl") {
 		t.Errorf("missing: code = %d, stderr = %q", code, stderr)
+	}
+}
+
+func TestProjectAdoptList(t *testing.T) {
+	line := func(id, project, dir string) string {
+		b, _ := json.Marshal(map[string]string{"id": id, "project": project, "dir": dir, "files": dir + "/compose.yml", "oneoff": "False"})
+		return string(b) + "\n"
+	}
+	d := &adoptDocker{stacks: line("0123456789ab", "demo", "/srv/demo-stack") + line("ba9876543210", "demo", "/srv/demo-stack") +
+		line("0123456789ac", "other", "/srv/other")}
+	sock := startAdoptService(t, true, d)
+
+	code, stdout, stderr := runCLIArgs("project", "adopt", "--list", "--socket", sock)
+	if code != exitOK || stderr != "" {
+		t.Fatalf("table: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+	lines := strings.Split(strings.TrimSpace(stdout), "\n")
+	if len(lines) != 3 || strings.Fields(lines[0])[0] != "PROJECT" || strings.Join(strings.Fields(lines[0]), " ") != "PROJECT DIR CONTAINERS MANAGED" ||
+		strings.Join(strings.Fields(lines[1]), " ") != "demo /srv/demo-stack 2 -" {
+		t.Errorf("table = %q", stdout)
+	}
+
+	code, stdout, stderr = runCLIArgs("project", "adopt", "--list", "--socket", sock, "--output", "json")
+	if code != exitOK {
+		t.Fatalf("json: code = %d, stderr = %q", code, stderr)
+	}
+	rows := jsonRows(t, stdout)
+	if len(rows) != 2 || rows[0]["project"] != "demo" || rows[0]["dir"] != "/srv/demo-stack" || rows[0]["containers"] != float64(2) || rows[0]["managed"] != "-" {
+		t.Errorf("rows = %v", rows)
+	}
+
+	code, stdout, _ = runCLIArgs("project", "adopt", "--list", "--socket", sock, "--output", "compact")
+	if code != exitOK || !strings.Contains(stdout, "demo|/srv/demo-stack|2|-") {
+		t.Errorf("compact: code = %d, stdout = %q", code, stdout)
+	}
+}
+
+func TestProjectAdoptListTruncatedNotice(t *testing.T) {
+	var b strings.Builder
+	for i := range 1025 {
+		fmt.Fprintf(&b, `{"id":"%012x","project":"demo","dir":"/srv/demo-stack","files":"","oneoff":"False"}`+"\n", i)
+	}
+	sock := startAdoptService(t, true, &adoptDocker{stacks: b.String()})
+	code, stdout, stderr := runCLIArgs("project", "adopt", "--list", "--socket", sock)
+	if code != exitOK || !strings.Contains(stdout, "1024") || !strings.Contains(stderr, "notice") {
+		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+}
+
+func TestProjectAdoptListExcludesTheRest(t *testing.T) {
+	for _, args := range [][]string{
+		{"project", "adopt", "--list", "/srv/demo-stack"},
+		{"project", "adopt", "--list", "--name", "demo"},
+		{"project", "adopt", "--list", "--dry-run"},
+	} {
+		code, _, stderr := runCLIArgs(args...)
+		if code != exitUsage || !strings.Contains(stderr, "--list") {
+			t.Errorf("%v: code = %d, stderr = %q", args, code, stderr)
+		}
 	}
 }

@@ -93,6 +93,10 @@ const (
 	// OpProjectsAdopt proposes a project for a running stack and, unless asked only to propose, stores it
 	// as an open approval, on the terms of the project operations. It deploys nothing.
 	OpProjectsAdopt = "projects.adopt"
+
+	// OpProjectsStacks lists the running Compose stacks of the host, whether a project manages them or not.
+	// It only reads and needs neither an open vault nor an admin session.
+	OpProjectsStacks = "projects.stacks"
 )
 
 // The codes an answer's error carries. They are fixed words, never text built from a request, so an answer
