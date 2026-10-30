@@ -309,24 +309,6 @@ s01_vault_setup() {
 	tui_has 'admin off' && evidence 'creating the vault opened no admin session (header: admin off)'
 }
 
-# settings_workaround saves the admin timeout in Settings › Vault, which is the one action that writes
-# sysmin.yaml on a fresh installation, and ends the admin session it opened.
-settings_workaround() {
-	tui_keys Escape 6
-	tui_wait 'Language:' || return 1
-	tui_keys Right
-	tui_wait 'Admin timeout:' || return 1
-	tui_keys Down Enter BSpace BSpace BSpace BSpace BSpace BSpace BSpace BSpace
-	tui_type 30m
-	tui_keys Enter F2
-	sleep 1
-	tui_admin
-	tui_wait 'Admin timeout saved.' || return 1
-	tui_save settings-saved
-	tui_keys C-l
-	tui_wait 'admin off'
-}
-
 s02_image_project() {
 	if ! build_prepare || ! push_image web 1.0.0 "$E2E_CHANGELOG_IMAGE_REPO"; then
 		failed 'the demo image could not be built and pushed on the host'
@@ -390,17 +372,6 @@ EOF
 	evidence "credential set (token on stdin): action=$(kv "$out" action) state=$(kv "$out" state)"
 
 	out=$(cli notify channel add e2e-hook --type webhook --url "$E2E_WEBHOOK_URL" --format compact 2>&1) && rc=0 || rc=$?
-	if [ "$rc" != 0 ] && printf '%s' "$out" | grep -q 'control: internal' &&
-		! docker exec "$host" test -f /etc/sysmin/sysmin.yaml; then
-		deviation "expected: a changing command works on a fresh installation; actual: 'sysmin notify channel add' (and likewise 'project add', 'approvals list', 'deploy status') fails with '$out' because /etc/sysmin/sysmin.yaml does not exist; the journal says: open sysmin.yaml: no such file or directory"
-		if ! settings_workaround; then
-			tui_save settings-failed
-			failed 'the admin timeout could not be saved in Settings'
-			return 1
-		fi
-		workaround 'Settings › Vault › Admin timeout set to 30m and saved with F2 in the interface; that writes sysmin.yaml (the admin session it opened was ended with ctrl+l)'
-		out=$(cli notify channel add e2e-hook --type webhook --url "$E2E_WEBHOOK_URL" --format compact 2>&1) && rc=0 || rc=$?
-	fi
 	if [ "$rc" != 0 ]; then
 		failed "notify channel add: $out"
 		return 1

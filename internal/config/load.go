@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -14,11 +15,28 @@ import (
 func LoadPath(dir string) (*Model, error) { return Load(os.DirFS(dir)) }
 
 // Load reads the configuration layout from fsys: sysmin.yaml, projects/*.yaml and templates/*.yaml. A file
-// must be named after its entry. Load decodes only; Validate checks the content. All file errors are
-// reported together.
+// must be named after its entry. A missing sysmin.yaml loads as default settings without a revision. Load
+// decodes only; Validate checks the content. All file errors are reported together.
 func Load(fsys fs.FS) (*Model, error) {
 	m, _, err := load(fsys)
 	return m, err
+}
+
+// defaultSettings are the settings of a fresh installation, which has no sysmin.yaml; the first save
+// creates it.
+func defaultSettings() Settings { return Settings{Schema: CurrentSchema} }
+
+// ReadSettings reads only sysmin.yaml from the configuration directory dir. A missing file gives the
+// default settings; any other read or decode error is returned.
+func ReadSettings(dir string) (Settings, error) {
+	data, err := os.ReadFile(filepath.Join(dir, SettingsFile))
+	if errors.Is(err, fs.ErrNotExist) {
+		return defaultSettings(), nil
+	}
+	if err != nil {
+		return Settings{}, fmt.Errorf("%s: %w", SettingsFile, err)
+	}
+	return DecodeSettings(data)
 }
 
 // load is Load plus the revision of every file it read, keyed by layout path.
@@ -35,7 +53,9 @@ func load(fsys fs.FS) (*Model, Revisions, error) {
 	}
 
 	data, err := readFile(SettingsFile)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
+		m.Settings = defaultSettings()
+	} else if err != nil {
 		errs = append(errs, fmt.Errorf("%s: %w", SettingsFile, err))
 	} else if m.Settings, err = DecodeSettings(data); err != nil {
 		errs = append(errs, fmt.Errorf("%s: %w", SettingsFile, err))

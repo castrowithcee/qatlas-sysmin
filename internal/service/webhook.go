@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
@@ -22,11 +21,7 @@ const defaultWebhookRecheck = 10 * time.Second
 
 // webhookListen reads the listen address from sysmin.yaml when the listener starts.
 func (s *Service) webhookListen() string {
-	data, err := os.ReadFile(filepath.Join(s.cfg.ConfigDir, config.SettingsFile))
-	if err != nil {
-		return config.DefaultListen
-	}
-	settings, err := config.DecodeSettings(data)
+	settings, err := config.ReadSettings(s.cfg.ConfigDir)
 	if err != nil {
 		return config.DefaultListen
 	}

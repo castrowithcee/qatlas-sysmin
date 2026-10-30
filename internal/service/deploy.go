@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"slices"
 	"sync"
 	"time"
@@ -49,10 +47,7 @@ func (s *Service) newEngine() (*engine.Engine, error) {
 func (s *Service) projectNames() []string {
 	m, _, err := s.store.Load()
 	if err != nil {
-		// A host without a configuration yet has nothing to poll.
-		if !errors.Is(err, fs.ErrNotExist) {
-			slog.Warn("cannot load the configuration for the planner", "error", err.Error())
-		}
+		slog.Warn("cannot load the configuration for the planner", "error", err.Error())
 		return nil
 	}
 	names := make([]string, 0, len(m.Projects))
@@ -64,11 +59,7 @@ func (s *Service) projectNames() []string {
 
 // pollInterval reads the default poll interval from sysmin.yaml when the planner needs it.
 func (s *Service) pollInterval() time.Duration {
-	data, err := os.ReadFile(filepath.Join(s.cfg.ConfigDir, config.SettingsFile))
-	if err != nil {
-		return config.DefaultPollInterval
-	}
-	settings, err := config.DecodeSettings(data)
+	settings, err := config.ReadSettings(s.cfg.ConfigDir)
 	if err != nil {
 		return config.DefaultPollInterval
 	}

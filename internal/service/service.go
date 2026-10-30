@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -288,16 +287,9 @@ func (s *Service) startSigning() error {
 // adminTimeout reads the admin timeout from sysmin.yaml at the moment it is needed, so a changed
 // configuration applies to the next session. A missing, unreadable or implausible file gives the default.
 func (s *Service) adminTimeout() time.Duration {
-	data, err := os.ReadFile(filepath.Join(s.cfg.ConfigDir, config.SettingsFile))
+	settings, err := config.ReadSettings(s.cfg.ConfigDir)
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			slog.Warn("cannot read the settings; using the default admin timeout")
-		}
-		return config.DefaultAdminTimeout
-	}
-	settings, err := config.DecodeSettings(data)
-	if err != nil {
-		slog.Warn("cannot decode the settings; using the default admin timeout")
+		slog.Warn("cannot read the settings; using the default admin timeout")
 		return config.DefaultAdminTimeout
 	}
 	d := settings.EffectiveAdminTimeout()
