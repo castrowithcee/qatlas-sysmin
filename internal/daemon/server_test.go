@@ -409,6 +409,42 @@ func TestShutdownRemovesSocket(t *testing.T) {
 	}
 }
 
+func TestShutdownDuringAcceptDoesNotHang(t *testing.T) {
+	dir, err := os.MkdirTemp("", "sysmin-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	path := filepath.Join(dir, "s.sock")
+	srv, err := New(Config{Logger: &memLog{}, Resolver: fakeResolver{gid: 990, groups: []uint32{990}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// End the server after a connection is accepted and once the shutdown pass has finished.
+	srv.afterAccept = func(stopped <-chan struct{}) { cancel(); <-stopped }
+	ln, err := Listen(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- srv.Serve(ctx, ln) }()
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return: a connection accepted during shutdown was left open")
+	}
+}
+
 func TestListenReplacesOnlyDeadSockets(t *testing.T) {
 	dir, _ := os.MkdirTemp("", "sysmin-")
 	defer os.RemoveAll(dir)

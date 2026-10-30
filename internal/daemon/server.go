@@ -95,6 +95,10 @@ type Server struct {
 	mu       sync.Mutex
 	logger   AuditLogger
 	handlers map[string]Handler
+
+	// afterAccept, if set, runs after Accept and before the connection is registered; tests use it to
+	// force a shutdown into that window. It gets the channel that closes once the shutdown pass is done.
+	afterAccept func(stopped <-chan struct{})
 }
 
 // New returns a server with the built-in status operation registered.
@@ -210,7 +214,15 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 			}
 			return fmt.Errorf("cannot accept connections: %w", err)
 		}
+		if s.afterAccept != nil {
+			s.afterAccept(stopped)
+		}
 		mu.Lock()
+		if ctx.Err() != nil { // the shutdown pass may be over: nobody else would close this connection
+			mu.Unlock()
+			_ = conn.Close()
+			return nil
+		}
 		conns[conn] = struct{}{}
 		mu.Unlock()
 		wg.Add(1)
