@@ -243,9 +243,8 @@ func TestDiscardAllFromTheCommandLine(t *testing.T) {
 	fb := accessFake()
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
-	send(m, ":")
-	typed(m, "access discard-all")
-	send(m, "enter")
+	send(m, "4")
+	runCommand(m, "access discard-all")
 	if m.screen != screenConfirm || !strings.Contains(plain(m), "Discard all open approvals?") {
 		t.Fatalf("no question:\n%s", plain(m))
 	}
@@ -305,8 +304,9 @@ func TestApproveAllAndDiscardAllPassTheShownApprovals(t *testing.T) {
 		want := append(slices.Clone(shownByAccessFake), control.ShownApproval{Project: "gone-app", Kind: "deleted"})
 		m := appModel(t, fb, 80, 24)
 		if discard {
-			m.acc.discardAfter = true
-			send(m, "4", "y")
+			send(m, "4")
+			runCommand(m, "discard all")
+			send(m, "y")
 		} else {
 			send(m, "4", "A", "y")
 		}
@@ -338,8 +338,8 @@ func TestDiscardAllRefusesWhatChangedSinceTheQuestion(t *testing.T) {
 	fb := accessFake()
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
-	m.acc.discardAfter = true
 	send(m, "4")
+	runCommand(m, "discard all")
 	changeBetween(t, fb, m)
 	send(m, "y")
 	if fb.count("discard-all") != 1 || len(fb.shownAll) != 1 || !slices.Equal(fb.shownAll[0], shownByAccessFake) {
@@ -354,8 +354,9 @@ func TestDiscardAllUnchangedCallsOnce(t *testing.T) {
 	fb := accessFake()
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
-	m.acc.discardAfter = true
-	send(m, "4", "y")
+	send(m, "4")
+	runCommand(m, "discard all")
+	send(m, "y")
 	if fb.count("discard-all") != 1 || len(m.acc.page.list.all) != 0 {
 		t.Errorf("calls = %v", fb.log())
 	}

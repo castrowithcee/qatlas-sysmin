@@ -168,12 +168,12 @@ func TestDuplicateNamesAvoidTakenOnes(t *testing.T) {
 
 func TestStartFromAStoredProjectIsACommand(t *testing.T) {
 	m := projectsModel(t, editFake(), 120, 40)
-	command(m, "new from project")
+	runCommand(m, "new from project")
 	if f := m.prj.flow; f == nil || f.revision != "" || f.draft.name != "demo-app-copy" {
 		t.Fatalf("flow = %+v", f)
 	}
 	m = projectsModel(t, editFake(), 120, 40)
-	command(m, "edit project")
+	runCommand(m, "edit project")
 	if f := m.prj.flow; f == nil || f.revision != "rev-demo-app" {
 		t.Fatalf("flow = %+v", m.prj.flow)
 	}

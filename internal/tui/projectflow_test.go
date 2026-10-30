@@ -290,13 +290,9 @@ func TestFlowAreaChangeAndQuitAsk(t *testing.T) {
 	m := flowModel(t, projectsFake(), 120, 40)
 	typed(m, "demo-app")
 	send(m, "down")
-	command(m, "overview")
-	if m.screen != screenConfirm || m.area != areaProjects {
-		t.Fatalf("an area change does not ask: screen = %v, area = %v", m.screen, m.area)
-	}
-	send(m, "d")
-	if m.area != areaOverview {
-		t.Fatalf("discard does not go on to the area: %v", m.area)
+	runCommand(m, "overview")
+	if m.pop == nil || m.area != areaProjects || m.prj.flow.draft.name != "demo-app" || !strings.Contains(plain(m), "go overview: Close the guided setup first") {
+		t.Fatalf("an area change in the setup is not refused: area = %v\n%s", m.area, plain(m))
 	}
 	m = flowModel(t, projectsFake(), 120, 40)
 	typed(m, "q")
@@ -478,8 +474,8 @@ func TestFlowPathCompletes(t *testing.T) {
 }
 
 func TestFlowFromTheCommandLineAndInfo(t *testing.T) {
-	m := appModel(t, projectsFake(), 120, 40)
-	command(m, "new project")
+	m := projectsModel(t, projectsFake(), 120, 40)
+	runCommand(m, "new project")
 	send(m, "enter")
 	if !m.flowOpen() {
 		t.Fatalf("the command does not open the setup: area = %v", m.area)
@@ -584,16 +580,12 @@ func TestFlowClickFocusesThenActs(t *testing.T) {
 	}
 }
 
-func TestFlowNewSetupAsksAboutTheOpenOne(t *testing.T) {
+func TestFlowNewSetupIsRefusedWhileOneIsOpen(t *testing.T) {
 	m := flowModel(t, projectsFake(), 120, 40)
 	typed(m, "demo-app")
 	send(m, "down")
-	command(m, "new project")
-	if m.screen != screenConfirm || m.prj.flow.draft.name != "demo-app" {
-		t.Fatalf("a new setup drops the open one: screen = %v", m.screen)
-	}
-	send(m, "d", "enter")
-	if m.prj.flow == nil || m.prj.flow.draft.name != "" {
-		t.Errorf("discard does not open a new setup: %+v", m.prj.flow)
+	runCommand(m, "new project")
+	if m.pop == nil || m.prj.flow.draft.name != "demo-app" || !strings.Contains(plain(m), "new project: Close the guided setup first") {
+		t.Fatalf("a new setup is not refused while one is open: screen = %v\n%s", m.screen, plain(m))
 	}
 }
