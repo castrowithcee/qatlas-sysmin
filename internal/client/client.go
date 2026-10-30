@@ -24,10 +24,22 @@ const (
 	CallTimeout = 30 * time.Second
 )
 
+// ServiceUser is the system user the service runs as.
+const ServiceUser = "sysmin"
+
+// firstAnswerTimeout bounds the wait for the answer to the first request of a connection, so a peer that
+// accepts but never answers is named in a few seconds instead of after CallTimeout. It is a variable only so
+// a test can shorten it.
+var firstAnswerTimeout = 5 * time.Second
+
 // Client is one connection to the service. It is not safe for concurrent calls.
 type Client struct {
 	conn net.Conn
 	br   *bufio.Reader
+	peer peerCred
+	// answered is set once the peer has sent a well-formed answer; until then the first-answer deadline
+	// applies.
+	answered bool
 }
 
 // Dial connects to the control socket at path; an empty path means control.DefaultSocketPath.
@@ -42,7 +54,83 @@ func Dial(path string) (*Client, error) {
 		}
 		return nil, fmt.Errorf("cannot reach the service: %w", err)
 	}
-	return &Client{conn: conn, br: bufio.NewReader(conn)}, nil
+	// Nothing is written before the peer is known: a request may carry a passphrase or a secret.
+	cred, err := peerOf(conn)
+	if err == nil && !peerAllowed(cred) {
+		err = &PeerError{PID: cred.PID, UID: cred.UID}
+	} else if err != nil {
+		err = fmt.Errorf("cannot verify who answers at the socket: %w", err)
+	}
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	return &Client{conn: conn, br: bufio.NewReader(conn), peer: cred}, nil
+}
+
+// PeerError is a process at the socket that is neither the service user nor the caller, or one that does not
+// answer. It carries only what the kernel reported, nothing the peer sent.
+type PeerError struct {
+	PID int32
+	UID uint32
+	// Silent says the peer has the right user but did not answer the first request in time.
+	Silent bool
+}
+
+func (e *PeerError) Error() string {
+	next := fmt.Sprintf("stop it with \"sudo kill %d\", then run \"sudo systemctl restart %s\"", e.PID, ServiceUser)
+	if e.Silent {
+		return fmt.Sprintf("timeout: the process at the socket (pid %d, uid %d) does not answer; %s", e.PID, e.UID, next)
+	}
+	return fmt.Sprintf("the process at the socket (pid %d, uid %d) is not the %s service; %s", e.PID, e.UID, ServiceUser, next)
+}
+
+// peerAllowed reports whether the peer is the service user or the caller itself (a self-started service). A
+// missing service user leaves the caller alone.
+func peerAllowed(p peerCred) bool {
+	if p.UID == uint32(os.Geteuid()) {
+		return true
+	}
+	uid, ok := serviceUID()
+	return ok && p.UID == uid
+}
+
+// serviceUID resolves the service user by name. It is a variable so a test can stand in for the system.
+var serviceUID = func() (uint32, bool) {
+	u, err := user.Lookup(ServiceUser)
+	if err != nil {
+		return 0, false
+	}
+	id, err := strconv.ParseUint(u.Uid, 10, 32)
+	return uint32(id), err == nil
+}
+
+type peerCred struct {
+	PID int32
+	UID uint32
+}
+
+// peerOf asks the kernel who is at the other end of conn. It is a variable so a test can name a stranger.
+var peerOf = func(conn net.Conn) (peerCred, error) {
+	unix, ok := conn.(*net.UnixConn)
+	if !ok {
+		return peerCred{}, errors.New("not a Unix socket connection")
+	}
+	raw, err := unix.SyscallConn()
+	if err != nil {
+		return peerCred{}, err
+	}
+	var cred *syscall.Ucred
+	var credErr error
+	if err := raw.Control(func(fd uintptr) {
+		cred, credErr = syscall.GetsockoptUcred(int(fd), syscall.SOL_SOCKET, syscall.SO_PEERCRED)
+	}); err != nil {
+		return peerCred{}, err
+	}
+	if credErr != nil {
+		return peerCred{}, credErr
+	}
+	return peerCred{PID: cred.Pid, UID: cred.Uid}, nil
 }
 
 // ErrSessionGroup is a refused connection of a user who is in the group sysmin, from a login session that
@@ -95,14 +183,25 @@ func (c *Client) Call(op string, params, result any) error {
 	case control.OpProjectsAdopt:
 		timeout = control.AdoptTimeout + CallTimeout
 	}
-	_ = c.conn.SetDeadline(time.Now().Add(timeout))
+	now := time.Now()
+	_ = c.conn.SetDeadline(now.Add(timeout))
+	// Operations that legitimately take long before they answer keep their full deadline.
+	first := !c.answered && timeout == CallTimeout && !slices.Contains(slowOps, op)
+	if first {
+		_ = c.conn.SetReadDeadline(now.Add(min(firstAnswerTimeout, timeout)))
+	}
 	if err := control.WriteLine(c.conn, req); err != nil {
 		return fmt.Errorf("cannot send the request: %w", err)
 	}
 	line, err := control.ReadLine(c.br, control.MaxResponseBytes)
 	if err != nil {
+		var ne net.Error
+		if first && errors.As(err, &ne) && ne.Timeout() {
+			return &PeerError{PID: c.peer.PID, UID: c.peer.UID, Silent: true}
+		}
 		return fmt.Errorf("cannot read the answer: %w", err)
 	}
+	c.answered = true
 	var resp control.Response
 	if err := json.Unmarshal(line, &resp); err != nil || resp.V != control.Version {
 		return errors.New("the service answered in a form this program does not understand")
@@ -117,6 +216,9 @@ func (c *Client) Call(op string, params, result any) error {
 	}
 	return nil
 }
+
+// slowOps are the operations that wait for a deploy or a notification before they answer.
+var slowOps = []string{control.OpDeployRunNow, control.OpDeployUpdate, control.OpDeployRestore, control.OpNotifyTest}
 
 // Status asks for the service's versions, vault state and socket.
 func (c *Client) Status() (control.StatusResult, error) {

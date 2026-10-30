@@ -81,6 +81,14 @@ func maskedInput() textinput.Model {
 
 // openOverlay shows an overlay over the current screen with its first field focused.
 func (m *Model) openOverlay(kind entryKind, fields int, locked bool, c *change, retried bool) {
+	// A passphrase is typed only for a service the last connection confirmed.
+	if !m.serviceUp() {
+		m.fail = tr(tErrUnreachable)
+		if m.svc.known && m.svc.fail != "" {
+			m.fail = m.svc.fail
+		}
+		return
+	}
 	m.ovSeq++
 	ov := &passEntry{kind: kind, id: m.ovSeq, locked: locked, change: c, retried: retried}
 	for range fields {
@@ -125,6 +133,9 @@ func (m *Model) serviceReady() (tea.Cmd, bool) {
 	switch {
 	case !m.svc.known || !m.svc.reachable:
 		m.fail = tr(tErrUnreachable)
+		if m.svc.known && m.svc.fail != "" {
+			m.fail = m.svc.fail
+		}
 		return m.statusCmd(), false
 	case m.svc.st.Vault == control.VaultAbsent:
 		m.fail = tr(tErrVaultAbsent)
