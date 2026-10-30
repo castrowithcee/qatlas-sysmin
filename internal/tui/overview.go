@@ -469,11 +469,21 @@ func (m *Model) overviewBody() string {
 		})
 	}
 
+	// wheel lets the wheel step the mark of zone z over the lines [row, row+rows) of the body, among the n
+	// entries shown, without giving the zone the focus.
+	wheel := func(row, rows, n int, z ovZone) {
+		m.addWheel(0, top+row, width, top+row+rows, func(up bool) tea.Cmd {
+			wheelCursor(&o.cursor[z], n, up)
+			return nil
+		})
+	}
+
 	lines = append(lines, titleLine(m.area.title(), ovDate(m.timeNow()), width))
 	if p.blank {
 		lines = append(lines, "")
 	}
 
+	cardsRow := len(lines)
 	if p.line {
 		var parts []string
 		x := 0
@@ -518,6 +528,8 @@ func (m *Model) overviewBody() string {
 		}
 	}
 
+	wheel(cardsRow, len(lines)-cardsRow, len(cards), ovCards)
+
 	if p.version {
 		lines = append(lines, m.overviewVersionLine(width))
 	}
@@ -539,12 +551,14 @@ func (m *Model) overviewBody() string {
 		}
 		hit(first+len(body)-len(piece), len(piece), 0, width, ovSteps, i, steps[i].act)
 	}
+	stepsRow := len(lines)
 	if p.framed {
 		lines = append(lines, panel(tr(tOvSteps), body, inner, len(body), panelOpts{focused: focus && zone == ovSteps})...)
 	} else {
 		lines = append(lines, styles.title.Render(tr(tOvSteps)))
 		lines = append(lines, body...)
 	}
+	wheel(stepsRow, len(lines)-stepsRow, min(len(steps), p.steps), ovSteps)
 
 	if p.runs > 0 {
 		inner := width - 4
@@ -558,7 +572,9 @@ func (m *Model) overviewBody() string {
 			project := shown[i].project
 			hit(len(lines)+1+i, 1, 0, width, ovRuns, i, func() tea.Cmd { return m.showRuns(project) })
 		}
+		runsRow := len(lines)
 		lines = append(lines, panel(tr(tOvRecent), body, inner, len(body), panelOpts{focused: focus && zone == ovRuns})...)
+		wheel(runsRow, len(lines)-runsRow, len(shown), ovRuns)
 	}
 	return strings.Join(lines, "\n")
 }

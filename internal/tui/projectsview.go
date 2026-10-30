@@ -39,19 +39,26 @@ func (m *Model) projectsBody() string {
 		top := m.workspaceTop()
 		m.addZone(0, top, listW, top+len(left), zoneContent)
 		m.addZone(listW, top, width, top+len(right), zoneDetail)
-		m.addWheel(listW, top, width, top+len(right), func(up bool) { p.pane.wheel(up) })
+		m.addWheel(0, top, listW, top+len(left), m.wheelProjects)
+		m.addWheel(listW, top, width, top+len(right), p.pane.wheel)
 		out := make([]string, len(left))
 		for i := range left {
 			out[i] = padLine(left[i], listW) + right[i]
 		}
 		return strings.Join(out, "\n")
 	case p.focusDetail:
-		return strings.Join(m.projectDetailLines(0, width, rows, true, framed), "\n")
+		lines := m.projectDetailLines(0, width, rows, true, framed)
+		m.addWheel(0, m.workspaceTop(), width, m.workspaceTop()+len(lines), p.pane.wheel)
+		return strings.Join(lines, "\n")
 	}
 	left := m.projectListLines(0, width, rows, true, framed)
 	m.addZone(0, m.workspaceTop(), width, m.workspaceTop()+len(left), zoneContent)
+	m.addWheel(0, m.workspaceTop(), width, m.workspaceTop()+len(left), m.wheelProjects)
 	return strings.Join(left, "\n")
 }
+
+// wheelProjects is a notch of the wheel over the project list: a step of the mark, as up and down take it.
+func (m *Model) wheelProjects(up bool) tea.Cmd { return wheelList(&m.prj.list, up, nil) }
 
 // projectChrome is the number of lines a panel adds around its body rows: the title and the frame.
 func projectChrome(m *Model, framed bool) int {

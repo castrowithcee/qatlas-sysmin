@@ -162,11 +162,7 @@ func (m *Model) projectUpdateKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		return nil, false
 	}
-	move := func(by int) (tea.Cmd, bool) {
-		u.cursor = max(min(u.cursor+by, len(u.items)-1), 0)
-		u.scroll.reset()
-		return m.updateNotesCmd(), true
-	}
+	move := func(by int) (tea.Cmd, bool) { return m.updateMove(by), true }
 	switch {
 	case keyIs(key, actBack), keyIs(key, actNo):
 		m.prj.upd = nil
@@ -185,6 +181,14 @@ func (m *Model) projectUpdateKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.projectUpdateStart(), true
 	}
 	return nil, false
+}
+
+// updateMove moves the mark of the update list by one and asks for the notes of the item it lands on.
+func (m *Model) updateMove(by int) tea.Cmd {
+	u := m.prj.upd
+	u.cursor = max(min(u.cursor+by, len(u.items)-1), 0)
+	u.scroll.reset()
+	return m.updateNotesCmd()
 }
 
 // pickUpdateVersion lets the person choose the target of the item under the cursor from its newer versions.
@@ -358,8 +362,10 @@ func (m *Model) projectUpdateView(room int) string {
 			lines[i] = truncateCells(updateResultLine(r), inner)
 		}
 		u.page = rows
-		return strings.Join(m.projectFrame(tr(tProjUpdResults), u.scroll.position(len(lines), u.page),
-			u.scroll.window(lines, u.page, false), width, rows, true, framed), "\n")
+		frame := m.projectFrame(tr(tProjUpdResults), u.scroll.position(len(lines), u.page),
+			u.scroll.window(lines, u.page, false), width, rows, true, framed)
+		m.addWheel(0, m.workspaceTop(), width, m.workspaceTop()+len(frame), u.scroll.wheel)
+		return strings.Join(frame, "\n")
 	}
 	var body []string
 	itemRows := min(len(u.items), max((rows-3)/2, 1))
@@ -391,10 +397,23 @@ func (m *Model) projectUpdateView(room int) string {
 	if len(u.skipped) > 0 {
 		body = append(body, styles.hint.Render(truncateCells(tr(tProjUpdSkipped, strings.Join(u.skipped, ", ")), inner)))
 	}
+	rowsEnd := m.workspaceTop() + before + itemRows
+	m.addWheel(0, m.workspaceTop()+before, width, rowsEnd, func(up bool) tea.Cmd {
+		by := 1
+		if up {
+			by = -1
+		}
+		if m.prj.upd != u || u.results != nil || u.cursor+by < 0 || u.cursor+by >= len(u.items) {
+			return nil
+		}
+		return m.updateMove(by)
+	})
 	it := u.items[u.cursor]
 	body = append(body, styles.title.Render(truncateCells(tr(tProjUpdNotes, it.label(), orDash(it.src.Current), it.target), inner)))
 	lines := m.notesLines(u.notes[it.key()], inner)
 	u.page = max(rows-len(body), 1)
 	body = append(body, u.scroll.window(lines, u.page, false)...)
-	return strings.Join(m.projectFrame(title, u.scroll.position(len(lines), u.page), body, width, rows, true, framed), "\n")
+	frame := m.projectFrame(title, u.scroll.position(len(lines), u.page), body, width, rows, true, framed)
+	m.addWheel(0, rowsEnd, width, m.workspaceTop()+len(frame), u.scroll.wheel)
+	return strings.Join(frame, "\n")
 }

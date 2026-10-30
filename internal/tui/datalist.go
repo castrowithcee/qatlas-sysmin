@@ -52,6 +52,23 @@ func (p *dataPage) setRows(names []string, rows map[string][]string) {
 	p.list.setItems(names)
 }
 
+// wheelDetail scrolls the detail by the notches of the wheel.
+func (p *dataPage) wheelDetail(up bool) {
+	if up {
+		p.scroll = max(p.scroll-wheelText, 0)
+	} else {
+		p.scroll += wheelText
+	}
+}
+
+// wheelRows is a notch of the wheel over the table: the mark takes a step, with the consequences the key has.
+func (m *Model) wheelRows(p *dataPage, up bool) tea.Cmd {
+	return wheelList(&p.list, up, func() tea.Cmd {
+		p.scroll = 0
+		return m.dataWant()
+	})
+}
+
 // current is the name of the marked row.
 func (p *dataPage) current() (string, bool) { return p.list.selected() }
 
@@ -103,8 +120,10 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	}
 	detailFocus := m.zoneNow() == zoneDetail
 	left := m.tableBlock(p, v, tableWidth, avail, top, position, !detailFocus)
+	rowsWheel := func(up bool) tea.Cmd { return m.wheelRows(p, up) }
 	if !wide {
 		m.addZone(0, top, width, top+len(left), zoneContent)
+		m.addWheel(0, top, width, top+len(left), rowsWheel)
 		return strings.Join(left, "\n")
 	}
 	inner := detailWidth - 4
@@ -117,14 +136,9 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	right := panel(truncateCells(name, inner-2), body, inner, height, panelOpts{focused: detailFocus})
 	left0 := tableWidth + 1
 	m.addZone(0, top, tableWidth, top+len(left), zoneContent)
+	m.addWheel(0, top, tableWidth, top+len(left), rowsWheel)
 	m.addZone(left0, top, width, top+len(right), zoneDetail)
-	m.addWheel(left0, top, width, top+len(right), func(up bool) {
-		if up {
-			p.scroll = max(p.scroll-wheelText, 0)
-		} else {
-			p.scroll += wheelText
-		}
-	})
+	m.addWheel(left0, top, width, top+len(right), func(up bool) tea.Cmd { p.wheelDetail(up); return nil })
 	for i, span := range spans {
 		m.addHit(left0+2+span[0], top+1, left0+2+span[1], top+2, func() tea.Cmd {
 			p.tab, p.scroll = i, 0
@@ -221,6 +235,7 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 	for i, span := range spans {
 		m.addHit(2+span[0], top+2, 2+span[1], top+3, func() tea.Cmd { p.tab, p.scroll = i, 0; return nil })
 	}
+	m.addWheel(0, top, width, top+1+room+2, func(up bool) tea.Cmd { p.wheelDetail(up); return nil })
 	return head + "\n" + strings.Join(panel("", body, inner, room+2, panelOpts{focused: true}), "\n")
 }
 

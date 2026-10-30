@@ -10,9 +10,9 @@ import (
 )
 
 // textScroll is the scroll position of a plain text area. The viewport keeps the position and its limits; the
-// keys come from the key table and the wheel arrives as those keys (see wheel in mouse.go), so the viewport's
-// own key map and wheel are never used: its zero value has none, and Update is never called. The text is
-// never scrolled sideways: the screens wrap or cut their lines before they get here.
+// keys come from the key table and the wheel through wheel below, so the viewport's own key map and wheel are
+// never used: its zero value has none, and Update is never called. The text is never scrolled sideways: the
+// screens wrap or cut their lines before they get here.
 type textScroll struct {
 	vp viewport.Model
 }
@@ -43,6 +43,18 @@ func (t *textScroll) scroll(key tea.KeyPressMsg, page int) bool {
 		return false
 	}
 	return true
+}
+
+// wheel moves the area by the notches of the wheel.
+func (t *textScroll) wheel(up bool) tea.Cmd {
+	code := tea.KeyDown
+	if up {
+		code = tea.KeyUp
+	}
+	for range wheelText {
+		t.scroll(tea.KeyPressMsg{Code: code}, 1)
+	}
+	return nil
 }
 
 // halfPage is the page of the screens that scroll by half their height.
@@ -124,15 +136,7 @@ func (p *paneScroll) at(x, y int) bool {
 }
 
 // wheel moves the pane by the notches of the wheel.
-func (p *paneScroll) wheel(up bool) {
-	code := tea.KeyDown
-	if up {
-		code = tea.KeyUp
-	}
-	for range wheelText {
-		p.view.scroll(tea.KeyPressMsg{Code: code}, p.page)
-	}
-}
+func (p *paneScroll) wheel(up bool) tea.Cmd { return p.view.wheel(up) }
 
 // pageKey reports whether key is one of the keys that jump within a text: the page keys, home and end.
 func pageKey(key tea.KeyPressMsg) bool {

@@ -405,5 +405,6 @@ func (m *Model) runLogBody(top int) string {
 	rows := l.scroll.window(content, room-2, false)
 	note := l.scroll.position(len(content), room-2)
 	title := tr(tRunsLogTitle) + " › " + truncateCells(m.diffText(l.project+" "+l.id), max(width-lipgloss.Width(tr(tRunsLogTitle))-4, 4))
+	m.addWheel(0, top, width, top+1+room, l.scroll.wheel)
 	return titleLine(title, note, width) + "\n" + strings.Join(panel("", rows, inner, room, panelOpts{focused: true}), "\n")
 }

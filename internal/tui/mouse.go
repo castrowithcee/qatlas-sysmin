@@ -33,10 +33,11 @@ func (m *Model) addHit(x0, y0, x1, y1 int, act func() tea.Cmd) {
 	m.hits = append(m.hits, hit{x0, y0, x1, y1, act})
 }
 
-// wheelHit is an area of the screen the wheel scrolls under the pointer, without moving the focus.
+// wheelHit is an area of the screen the wheel moves under the pointer, without moving the focus. scroll
+// returns what the move asks for, as the key it stands for would.
 type wheelHit struct {
 	x0, y0, x1, y1 int
-	scroll         func(up bool)
+	scroll         func(up bool) tea.Cmd
 }
 
 // addZone registers the click target of a zone. It ranks beneath every other target, so a click lands on an
@@ -49,7 +50,7 @@ func (m *Model) addZone(x0, y0, x1, y1 int, z zone) {
 }
 
 // addWheel registers an area that the wheel scrolls.
-func (m *Model) addWheel(x0, y0, x1, y1 int, scroll func(up bool)) {
+func (m *Model) addWheel(x0, y0, x1, y1 int, scroll func(up bool) tea.Cmd) {
 	if m.backdrop || m.tooSmall || x1 <= x0 || y1 <= y0 {
 		return
 	}
@@ -185,9 +186,9 @@ func (m *Model) updateMouse(msg tea.MouseMsg) tea.Cmd {
 		if m.screen == screenArea {
 			for i := len(m.wheelHits) - 1; i >= 0; i-- {
 				if h := m.wheelHits[i]; event.X >= h.x0 && event.X < h.x1 && event.Y >= h.y0 && event.Y < h.y1 {
-					h.scroll(event.Button == tea.MouseWheelUp)
+					cmd := h.scroll(event.Button == tea.MouseWheelUp)
 					m.wheelSeen = wheelSeen{button: event.Button, x: event.X, y: event.Y, at: m.timeNow(), ok: true}
-					return nil
+					return cmd
 				}
 			}
 		}
@@ -226,6 +227,36 @@ func (m *Model) wheel(event tea.Mouse) tea.Cmd {
 		key = tea.KeyUp
 	}
 	return m.press(tea.KeyPressMsg{Code: key})
+}
+
+// wheelList is a notch of the wheel over the rows of a list: one step of the mark, as up and down take it, but
+// it stops at both ends (up on the first row never leaves for the bar) and rests while a filter is typed.
+// moved says what the key does after a step.
+func wheelList(l *filterList, up bool, moved func() tea.Cmd) tea.Cmd {
+	by := 1
+	if up {
+		by = -1
+	}
+	before := l.cursor
+	if !l.editing {
+		l.move(by)
+	}
+	if l.cursor == before {
+		return nil
+	}
+	if moved == nil {
+		return nil
+	}
+	return moved()
+}
+
+// wheelCursor is a notch of the wheel over a list of n entries kept as a bare cursor.
+func wheelCursor(cursor *int, n int, up bool) {
+	by := 1
+	if up {
+		by = -1
+	}
+	*cursor = max(min(*cursor+by, n-1), 0)
 }
 
 // press hands a key to the editor as if it had been typed. A mouse event never makes a character: a letter
