@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -120,10 +121,13 @@ func TestUpdateInstallsThenRestarts(t *testing.T) {
 	if binary(t, h) != "new program" {
 		t.Error("program not replaced")
 	}
-	if len(h.calls) != 1 || h.calls[0] != "systemctl restart sysmin" {
-		t.Errorf("calls = %v", h.calls)
+	if want := []string{"systemctl daemon-reload", "systemctl restart sysmin"}; !slices.Equal(h.calls, want) {
+		t.Errorf("calls = %v, want %v", h.calls, want)
 	}
-	for _, want := range []string{`"previous":"v1.0.0"`, `"version":"v1.1.0"`, `"updated":true`, `"restarted":true`} {
+	if b, _ := os.ReadFile(h.unitPath); !strings.Contains(string(b), "v1.1.0") {
+		t.Errorf("unit = %q", b)
+	}
+	for _, want := range []string{`"unit_updated":true`, `"previous":"v1.0.0"`, `"version":"v1.1.0"`, `"updated":true`, `"restarted":true`} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout %q lacks %s", stdout, want)
 		}
@@ -245,5 +249,36 @@ func TestUpdateList(t *testing.T) {
 	}
 	if code, _, _ := h.run(t, "", "update", "--list", "--to", "v1.1.0"); code != exitUsage {
 		t.Errorf("--list with --to: code = %d", code)
+	}
+}
+
+func TestUpdateWithUnchangedUnitSkipsDaemonReload(t *testing.T) {
+	withVersion(t, "v1.0.0")
+	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new", Unit: "same unit"}))
+	if err := os.WriteFile(h.unitPath, []byte("same unit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := h.run(t, "", "update", "--yes", "--release-url", h.server.URL, "--format", "json")
+	if code != exitOK || !slices.Equal(h.calls, []string{"systemctl restart sysmin"}) || !strings.Contains(stdout, `"unit_updated":false`) {
+		t.Errorf("code = %d, calls = %v, stdout = %q, stderr = %q", code, h.calls, stdout, stderr)
+	}
+}
+
+func TestUpdateDaemonReloadFailureIsReported(t *testing.T) {
+	withVersion(t, "v1.0.0")
+	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new"}))
+	h.fail["systemctl daemon-reload"] = exitStatus(1)
+	code, _, stderr := h.run(t, "", "update", "--yes", "--release-url", h.server.URL)
+	if code != exitRuntime || !strings.Contains(stderr, "reloading the service manager failed") || slices.Contains(h.calls, "systemctl restart sysmin") {
+		t.Errorf("code = %d, calls = %v, stderr = %q", code, h.calls, stderr)
+	}
+}
+
+func TestUpdateWithoutUnitInArchiveChangesNothing(t *testing.T) {
+	withVersion(t, "v1.0.0")
+	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new", NoUnit: true}))
+	code, _, _ := h.run(t, "", "update", "--yes", "--release-url", h.server.URL)
+	if code != exitRuntime || binary(t, h) != "old program" || len(h.calls) != 0 {
+		t.Errorf("code = %d, calls = %v", code, h.calls)
 	}
 }

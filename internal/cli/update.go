@@ -20,9 +20,10 @@ func newUpdateCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update sysmin to the latest stable release or to a chosen one",
-		Long: "update replaces the installed program with a signed release and restarts the service. Without\n" +
-			"arguments it installs the newest stable release; --to installs exactly the given version, an older\n" +
-			"one included; --list shows the signed releases that can be chosen, prereleases included.\n" +
+		Long: "update replaces the installed program and its systemd unit with those of a signed release and\n" +
+			"restarts the service; drop-ins of the unit stay as they are. Without arguments it installs the\n" +
+			"newest stable release; --to installs exactly the given version, an older one included; --list\n" +
+			"shows the signed releases that can be chosen, prereleases included.\n" +
 			"The signature over the release's checksums.txt is verified against the release keys built into\n" +
 			"sysmin, then the archive's SHA-256 checksum; any failure leaves the installation unchanged.\n" +
 			"Installing needs root. The service restarts afterwards and the vault is locked again unless\n" +
@@ -53,6 +54,7 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 	s := opts.system()
 	updater := s.updater(version, req.releaseURL)
 	updater.Target = s.binaryPath
+	updater.UnitTarget = s.unitPath
 	ctx := c.Context()
 
 	if req.list {
@@ -86,7 +88,7 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 	}
 	// Without --to the newest stable release never replaces a newer running build.
 	if target.Current || (req.to == "" && target.Older) {
-		return emitUpdate(c, opts, version, version, false, false)
+		return emitUpdate(c, opts, version, version, false, false, false)
 	}
 
 	action := "Update"
@@ -106,21 +108,32 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 	}
 	result, err := updater.Install(ctx, target)
 	if err != nil {
+		if result.UnitUpdated {
+			// The unit is already new; let the service manager know even though the program is not.
+			_ = s.command(ctx, "systemctl", "daemon-reload")
+			return fmt.Errorf("update: the unit was replaced, but installing the program failed: %w", err)
+		}
 		return fmt.Errorf("update: %w", err)
 	}
-	// The service is only restarted once the new program is in place.
+	// The service manager reads a replaced unit before the restart, which happens once the program is in place.
+	if result.UnitUpdated {
+		if err := s.command(ctx, "systemctl", "daemon-reload"); err != nil {
+			return fmt.Errorf("update: sysmin %s is installed, but reloading the service manager failed: %w", result.Version, err)
+		}
+	}
 	if err := s.command(ctx, "systemctl", "restart", serviceName); err != nil {
 		return fmt.Errorf("update: sysmin %s is installed, but restarting the service failed: %w", result.Version, err)
 	}
-	return emitUpdate(c, opts, result.Previous, result.Version, true, true)
+	return emitUpdate(c, opts, result.Previous, result.Version, true, true, result.UnitUpdated)
 }
 
-func emitUpdate(c *cobra.Command, opts *Options, previous, current string, updated, restarted bool) error {
+func emitUpdate(c *cobra.Command, opts *Options, previous, current string, updated, restarted, unitUpdated bool) error {
 	return emit(c, opts, output.Object{Fields: []output.Field{
 		{Name: "previous", Value: previous},
 		{Name: "version", Value: current},
 		{Name: "updated", Value: updated},
 		{Name: "restarted", Value: restarted},
+		{Name: "unit_updated", Value: unitUpdated},
 	}})
 }
 

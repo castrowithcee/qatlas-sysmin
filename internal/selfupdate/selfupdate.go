@@ -1,6 +1,6 @@
 // Package selfupdate lists and installs signed sysmin releases. A release is installed only after the
-// signature over its checksums.txt and the archive checksum have been verified; the installed program is then
-// replaced atomically.
+// signature over its checksums.txt and the archive checksum have been verified; the installed program and its
+// systemd unit are then replaced atomically.
 package selfupdate
 
 import (
@@ -33,10 +33,13 @@ const (
 	RepositoryAPI = "https://api.github.com/repos/castrowithcee/qatlas-sysmin"
 	// DefaultTarget is the installed program the update replaces.
 	DefaultTarget = "/usr/local/bin/sysmin"
+	// DefaultUnitTarget is the installed systemd unit the update keeps in step with the program.
+	DefaultUnitTarget = "/etc/systemd/system/sysmin.service"
 
 	maxMetadataBytes  = 1 << 20
 	maxArchiveBytes   = 128 << 20
 	maxExecutableSize = 64 << 20
+	maxUnitSize       = 1 << 20
 	// requestTimeout only bounds a request that keeps trickling; a slow download that moves goes on.
 	requestTimeout = 30 * time.Minute
 	// stallTimeout ends a request that receives no byte for this long, waiting for the answer included.
@@ -45,6 +48,7 @@ const (
 	checksumsAsset  = "checksums.txt"
 	signatureAsset  = "checksums.txt.sig"
 	executableEntry = "bin/sysmin"
+	unitEntry       = "lib/systemd/system/sysmin.service"
 )
 
 // statusError reports a non-2xx answer of the release source.
@@ -79,6 +83,9 @@ type Result struct {
 	Previous string
 	Version  string
 	Updated  bool
+	// UnitUpdated reports that the installed unit differed from the release's and was replaced, so the
+	// service manager has to reload it. It is also set when the program replacement failed afterwards.
+	UnitUpdated bool
 }
 
 // Client reads GitHub Releases and replaces one installed program. Zero values of the exported fields
@@ -94,6 +101,8 @@ type Client struct {
 	GOARCH string
 	// Target is the program to replace; empty means DefaultTarget.
 	Target string
+	// UnitTarget is the systemd unit to keep in step; empty means DefaultUnitTarget.
+	UnitTarget string
 	// SigningKeys replaces the compiled-in release keys; tests only.
 	SigningKeys []ssh.PublicKey
 	// Progress, when set, is called while the archive downloads with the bytes received and the archive's
@@ -140,6 +149,13 @@ func (c *Client) target() string {
 		return c.Target
 	}
 	return DefaultTarget
+}
+
+func (c *Client) unitTarget() string {
+	if c.UnitTarget != "" {
+		return c.UnitTarget
+	}
+	return DefaultUnitTarget
 }
 
 func (c *Client) arch() (string, error) {
@@ -298,84 +314,110 @@ func releaseURLs(r githubRelease, archiveName string) (archiveURL, checksumURL, 
 	return archiveURL, checksumURL, signatureURL, nil
 }
 
-// verifiedExecutable downloads the release assets of t and returns the program inside the archive. The
-// signature over the checksums is verified before the archive checksum is used, and both before the archive
-// is unpacked.
-func (c *Client) verifiedExecutable(ctx context.Context, t Target) ([]byte, error) {
+// verifiedContent downloads the release assets of t and returns the program and the systemd unit inside the
+// archive. The signature over the checksums is verified before the archive checksum is used, and both before
+// the archive is unpacked.
+func (c *Client) verifiedContent(ctx context.Context, t Target) (executable, unit []byte, err error) {
 	arch, err := c.arch()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	archiveName := assetName(t.Version, arch)
 	archiveURL, checksumURL, signatureURL, err := releaseURLs(t.rel, archiveName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	checksums, err := c.download(ctx, checksumURL, maxMetadataBytes, nil)
 	if err != nil {
-		return nil, fmt.Errorf("download checksums: %w", err)
+		return nil, nil, fmt.Errorf("download checksums: %w", err)
 	}
 	signature, err := c.download(ctx, signatureURL, maxMetadataBytes, nil)
 	if err != nil {
-		return nil, fmt.Errorf("download checksums signature: %w", err)
+		return nil, nil, fmt.Errorf("download checksums signature: %w", err)
 	}
 	keys := c.SigningKeys
 	if keys == nil {
 		keys = release.TrustedKeys()
 	}
 	if err := release.VerifyChecksums(checksums, signature, keys); err != nil {
-		return nil, fmt.Errorf("release signature is invalid, nothing was changed: %w", err)
+		return nil, nil, fmt.Errorf("release signature is invalid, nothing was changed: %w", err)
 	}
 	want, err := release.ChecksumFor(checksums, archiveName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	archive, err := c.download(ctx, archiveURL, maxArchiveBytes, c.Progress)
 	if err != nil {
-		return nil, fmt.Errorf("download %s: %w", archiveName, err)
+		return nil, nil, fmt.Errorf("download %s: %w", archiveName, err)
 	}
 	got := sha256.Sum256(archive)
 	if !strings.EqualFold(hex.EncodeToString(got[:]), want) {
-		return nil, fmt.Errorf("checksum mismatch for %s, nothing was changed", archiveName)
+		return nil, nil, fmt.Errorf("checksum mismatch for %s, nothing was changed", archiveName)
 	}
-	return extractExecutable(archive)
+	return extractRelease(archive)
 }
 
-func extractExecutable(archive []byte) ([]byte, error) {
+// extractRelease returns the program and the unit of the archive; an archive lacking either is rejected.
+func extractRelease(archive []byte) (executable, unit []byte, err error) {
 	gz, err := gzip.NewReader(bytes.NewReader(archive))
 	if err != nil {
-		return nil, fmt.Errorf("open release archive: %w", err)
+		return nil, nil, fmt.Errorf("open release archive: %w", err)
 	}
 	defer gz.Close()
 	reader := tar.NewReader(gz)
-	for {
+	for executable == nil || unit == nil {
 		header, err := reader.Next()
 		if errors.Is(err, io.EOF) {
-			return nil, errors.New("release archive does not contain " + executableEntry)
+			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("read release archive: %w", err)
+			return nil, nil, fmt.Errorf("read release archive: %w", err)
 		}
-		if header.Typeflag != tar.TypeReg || strings.TrimPrefix(header.Name, "./") != executableEntry {
+		if header.Typeflag != tar.TypeReg {
 			continue
 		}
-		body, err := io.ReadAll(io.LimitReader(reader, maxExecutableSize+1))
-		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", executableEntry, err)
+		switch strings.TrimPrefix(header.Name, "./") {
+		case executableEntry:
+			if executable == nil {
+				if executable, err = readEntry(reader, executableEntry, maxExecutableSize); err != nil {
+					return nil, nil, err
+				}
+			}
+		case unitEntry:
+			if unit == nil {
+				if unit, err = readEntry(reader, unitEntry, maxUnitSize); err != nil {
+					return nil, nil, err
+				}
+			}
 		}
-		if len(body) > maxExecutableSize {
-			return nil, fmt.Errorf("%s exceeds %d bytes", executableEntry, maxExecutableSize)
-		}
-		if len(body) == 0 {
-			return nil, errors.New(executableEntry + " in the release archive is empty")
-		}
-		return body, nil
 	}
+	if executable == nil {
+		return nil, nil, errors.New("release archive does not contain " + executableEntry)
+	}
+	if unit == nil {
+		return nil, nil, errors.New("release archive does not contain " + unitEntry)
+	}
+	return executable, unit, nil
 }
 
-// Install downloads and verifies the release t names and replaces the target program with the program in
-// it. Any failure before the final rename leaves the target untouched. Installing the running version
-// changes nothing.
+func readEntry(r io.Reader, name string, limit int64) ([]byte, error) {
+	body, err := io.ReadAll(io.LimitReader(r, limit+1))
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", name, err)
+	}
+	if int64(len(body)) > limit {
+		return nil, fmt.Errorf("%s exceeds %d bytes", name, limit)
+	}
+	if len(body) == 0 {
+		return nil, errors.New(name + " in the release archive is empty")
+	}
+	return body, nil
+}
+
+// Install downloads and verifies the release t names, then replaces the unit, if it differs, and the target
+// program with the contents of the archive. Everything is verified, extracted, and staged before the first
+// replacement; the unit is replaced before the program. Any failure before the first rename leaves the
+// installation untouched. Installing the running version changes nothing.
 func (c *Client) Install(ctx context.Context, t Target) (Result, error) {
 	result := Result{Previous: c.Version, Version: t.Version}
 	if t.Current {
@@ -392,17 +434,52 @@ func (c *Client) Install(ctx context.Context, t Target) (Result, error) {
 	if !info.Mode().IsRegular() {
 		return Result{}, &UnsupportedInstallationError{Reason: target + " must be a regular file, not a symlink"}
 	}
-	executable, err := c.verifiedExecutable(ctx, t)
+	unitTarget, err := filepath.Abs(c.unitTarget())
+	if err != nil {
+		return Result{}, fmt.Errorf("resolve unit path: %w", err)
+	}
+	var installedUnit []byte
+	switch info, err := os.Lstat(unitTarget); {
+	case errors.Is(err, os.ErrNotExist):
+	case err != nil:
+		return Result{}, fmt.Errorf("inspect installed unit: %w", err)
+	case !info.Mode().IsRegular():
+		return Result{}, &UnsupportedInstallationError{Reason: unitTarget + " must be a regular file, not a symlink"}
+	default:
+		if installedUnit, err = os.ReadFile(unitTarget); err != nil {
+			return Result{}, fmt.Errorf("read installed unit: %w", err)
+		}
+	}
+	executable, unit, err := c.verifiedContent(ctx, t)
 	if err != nil {
 		return Result{}, err
+	}
+	replaceUnit := installedUnit == nil || !bytes.Equal(installedUnit, unit)
+	var stagedUnit string
+	if replaceUnit {
+		stagedUnit, err = stageFile(filepath.Dir(unitTarget), ".sysmin-unit-update-*", unit, 0o644)
+		if err != nil {
+			return Result{}, fmt.Errorf("stage new unit: %w", err)
+		}
+		defer os.Remove(stagedUnit)
 	}
 	staged, err := stageFile(filepath.Dir(target), ".sysmin-update-*", executable, 0o755)
 	if err != nil {
 		return Result{}, fmt.Errorf("stage new program: %w", err)
 	}
 	defer os.Remove(staged)
+	if replaceUnit {
+		if err := os.Rename(stagedUnit, unitTarget); err != nil {
+			return Result{}, fmt.Errorf("replace unit: %w", err)
+		}
+		syncDir(filepath.Dir(unitTarget))
+		result.UnitUpdated = true
+	}
 	if err := os.Rename(staged, target); err != nil {
-		return Result{}, fmt.Errorf("replace program: %w", err)
+		if result.UnitUpdated {
+			return result, fmt.Errorf("replace program (the unit %s was already replaced): %w", unitTarget, err)
+		}
+		return result, fmt.Errorf("replace program: %w", err)
 	}
 	syncDir(filepath.Dir(target))
 	result.Updated = true

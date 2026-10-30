@@ -28,6 +28,10 @@ type Release struct {
 	Draft      bool
 	// Program is the content of bin/sysmin in the archive.
 	Program string
+	// Unit is the content of lib/systemd/system/sysmin.service; empty means a unit naming the tag.
+	Unit string
+	// NoUnit leaves the unit out of the archive.
+	NoUnit bool
 	// Signer signs checksums.txt; nil means the server's signer.
 	Signer ssh.Signer
 	// Namespace is the signature namespace; empty means the release namespace.
@@ -65,7 +69,15 @@ func (s *Server) build(t testing.TB, r Release) map[string][]byte {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gz)
-	for _, f := range []struct{ name, body string }{{"bin/sysmin", r.Program}, {"share/doc/sysmin/LICENSE", "license"}} {
+	unit := r.Unit
+	if unit == "" {
+		unit = "[Unit]\nDescription=" + r.Tag + "\n"
+	}
+	files := []struct{ name, body string }{{"bin/sysmin", r.Program}, {"share/doc/sysmin/LICENSE", "license"}}
+	if !r.NoUnit {
+		files = append(files, struct{ name, body string }{"lib/systemd/system/sysmin.service", unit})
+	}
+	for _, f := range files {
 		if err := tw.WriteHeader(&tar.Header{Name: f.name, Mode: 0o755, Size: int64(len(f.body)), Typeflag: tar.TypeReg}); err != nil {
 			t.Fatal(err)
 		}
