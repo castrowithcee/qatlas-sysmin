@@ -205,8 +205,8 @@ func rawKey(label string) string {
 }
 
 func (m *Model) chanKeys() []string {
-	if m.lib.chans.page.open {
-		return []string{"←/→ tab", "↑/↓ scroll", "t test", "d remove", "{back} close"}
+	if m.detailFocus(&m.lib.chans.page) {
+		return []string{"←/→ tab", "↑/↓ scroll", "t test", "d remove", "{back} back"}
 	}
 	return []string{"↑/↓ move", "enter details", "n new", "t test", "d remove", "/ filter"}
 }

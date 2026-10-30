@@ -89,7 +89,7 @@ func projectSelected(m *Model) string {
 // inContent is the check for a command whose key acts in the content only, not on the tab line or the page
 // strip.
 func inContent(m *Model) string {
-	if m.zoneNow() != zoneContent {
+	if z := m.zoneNow(); z != zoneContent && z != zoneDetail {
 		return tr(tCmdFocusContent)
 	}
 	return ""

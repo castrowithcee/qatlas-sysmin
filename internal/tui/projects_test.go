@@ -122,7 +122,7 @@ func TestProjectsDetailBesideTheListAndRawHidesSecrets(t *testing.T) {
 			t.Errorf("overview lacks %q:\n%s", want, view)
 		}
 	}
-	send(m, "right")
+	send(m, "tab", "right")
 	if view := plain(m); !strings.Contains(view, "registry.example.com/demo/app") || !strings.Contains(view, "demo-registry") || !strings.Contains(view, "rev-demo-app") {
 		t.Errorf("details lack the image:\n%s", view)
 	}
