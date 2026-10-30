@@ -124,6 +124,7 @@ type Engine struct {
 	// The planner: base is its context while Run is active; wg counts the runs it and Trigger started.
 	plannerMu sync.Mutex
 	base      context.Context
+	wake      chan struct{}
 	wg        sync.WaitGroup
 }
 
@@ -153,7 +154,7 @@ func New(cfg Config) (*Engine, error) {
 		cfg.PollInterval = func() time.Duration { return config.DefaultPollInterval }
 	}
 	return &Engine{cfg: cfg, store: &store{dir: cfg.StateDir}, running: map[string]bool{},
-		approved: map[string]approval.Approved{}}, nil
+		approved: map[string]approval.Approved{}, wake: make(chan struct{}, 1)}, nil
 }
 
 func checkName(project string) error {
