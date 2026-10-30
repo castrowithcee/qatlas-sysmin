@@ -214,3 +214,53 @@ func TestSignedLogHoldsNoKeyMaterial(t *testing.T) {
 		t.Fatal("the log file names the vault key")
 	}
 }
+
+// TestUnsignedCutAppendedByHandIsNotValid pins that a retention cut written without the key, as someone
+// without the log key could forge after deleting the oldest day files, never leaves a day valid.
+func TestUnsignedCutAppendedByHandIsNotValid(t *testing.T) {
+	key := testKey(t, fakeVaultKey)
+	logger, moveTo := signedTestLogger(t, key, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	for d := 1; d <= 3; d++ {
+		moveTo(time.Date(2026, 1, d, 0, 0, 0, 0, time.UTC))
+		mustAppend(t, logger, OperationConfigApply)
+	}
+	if err := os.Remove(filepath.Join(logger.dir, "2026-01-01.jsonl")); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(logger.dir, "2026-01-03.jsonl")
+	lines := readLines(t, path)
+	forged, err := json.Marshal(Entry{Seq: 4, Time: time.Date(2026, 1, 3, 1, 0, 0, 0, time.UTC), Kind: KindCut,
+		Cut: &Cut{ThroughSeq: 1}, PrevHash: hashHex(lines[len(lines)-1])})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeLines(t, path, append(lines, forged))
+
+	report := verify(t, logger.dir, key)
+	last := report.Days[len(report.Days)-1]
+	if report.Broken || last.Unverified != 1 || last.SignatureState(true) != SignatureNotChecked {
+		t.Fatalf("report = %+v, want an intact chain whose last day is not valid", report)
+	}
+}
+
+func TestCutMarkersCountAsUnverifiedAndUnchecked(t *testing.T) {
+	unsigned, moveTo := newTestLogger(t, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), 5)
+	mustAppend(t, unsigned, OperationConfigApply)
+	moveTo(time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC))
+	mustAppend(t, unsigned, OperationConfigApply)
+	report := verify(t, unsigned.dir, nil)
+	if report.Broken || report.Days[0].Entries != 1 || report.Days[0].Unverified != 2 {
+		t.Fatalf("unsigned report = %+v, want the cut counted as unverified beside its entry", report)
+	}
+
+	key := testKey(t, fakeVaultKey)
+	signed, moveTo := signedTestLogger(t, key, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	signed.retentionDays = 5
+	mustAppend(t, signed, OperationConfigApply)
+	moveTo(time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC))
+	mustAppend(t, signed, OperationConfigApply)
+	report = verify(t, signed.dir, nil)
+	if report.Broken || report.Days[0].Entries != 1 || report.Days[0].Unchecked != 2 {
+		t.Fatalf("signed report = %+v, want the cut counted as unchecked beside its entry", report)
+	}
+}
