@@ -93,6 +93,16 @@ func (p *projectPrompt) move(by int) {
 	p.focusOn((p.focus + by + len(p.fields)) % len(p.fields))
 }
 
+// wheelRow moves the typing to the next field and stops at the first and the last.
+func (p *projectPrompt) wheelRow(up bool) {
+	if p.busy {
+		return
+	}
+	if next := wheelStep(p.focus, 0, len(p.fields), up); next != p.focus {
+		p.focusOn(next)
+	}
+}
+
 // openProjectPrompt shows p over the area, with the typing in its first field.
 func (m *Model) openProjectPrompt(p *projectPrompt) {
 	m.prj.promptSeq++

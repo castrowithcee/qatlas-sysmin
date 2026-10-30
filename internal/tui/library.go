@@ -364,6 +364,15 @@ func (f *credForm) step(by int) {
 	f.focusRow(first + ((f.focus-first+by)%n+n)%n)
 }
 
+// wheelRow moves the focus by one row over the rows that can be edited, and stops at the ends.
+func (f *credForm) wheelRow(up bool) {
+	first := 0
+	if f.edit {
+		first = 2
+	}
+	f.focusRow(wheelStep(f.focus, first, f.rows(), up))
+}
+
 // wipe empties every field.
 func (f *credForm) wipe() {
 	for i := range f.inputs {

@@ -22,7 +22,25 @@ func (m *Model) settingsBody() string {
 	default:
 		m.updatePage(pg)
 	}
+	if m.set.sub == subGeneral || m.set.sub == subVault {
+		m.addWheel(0, m.workspaceTop(), m.usable(0), pg.y, m.wheelSettings)
+	}
 	return strings.Join(pg.lines, "\n")
+}
+
+// wheelSettings is a notch of the wheel over a form of Settings: the focus of the field moves by one and stops
+// at both ends, never leaving for the page strip, and rests while a field takes the text. The zone stays.
+func (m *Model) wheelSettings(up bool) tea.Cmd {
+	if m.set.editing {
+		return nil
+	}
+	switch m.set.sub {
+	case subGeneral:
+		m.set.gen.focus = wheelStep(m.set.gen.focus, 0, genRows, up)
+	case subVault:
+		m.set.vault.focus = wheelStep(m.set.vault.focus, 0, vaultRows, up)
+	}
+	return nil
 }
 
 // pageDraw collects the lines of a page and keeps the screen row of the next one, for click targets and for

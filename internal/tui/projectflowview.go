@@ -88,6 +88,7 @@ const flowAlertMark = " [!]"
 // stands under it are in view. top and left are the screen cell of its first line, for the list of a choice.
 func (m *Model) flowBody(inner, rows, top, left int) []string {
 	f := m.prj.flow
+	m.addWheel(left, top, left+inner, top+rows, m.wheelFlow)
 	var lines []string
 	from, to := 0, 0
 	if f.step == flowSummary {

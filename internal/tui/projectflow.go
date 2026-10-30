@@ -176,6 +176,29 @@ func (f *projectFlow) moveFocus(by int) {
 	f.focusOn(rows[next].id)
 }
 
+// wheelFlow is a notch of the wheel over the setup: one row on, as up and down move it, and the lines of the
+// summary scroll by one. Neither goes past an end.
+func (m *Model) wheelFlow(up bool) tea.Cmd {
+	f := m.prj.flow
+	if f.step == flowSummary {
+		if up {
+			f.scroll = max(f.scroll-1, 0)
+		} else {
+			f.scroll++
+		}
+		return nil
+	}
+	rows := f.shownRows(f.step)
+	at := slices.IndexFunc(rows, func(r flowRow) bool { return r.id == f.focus })
+	if at < 0 || len(rows) == 0 {
+		return nil
+	}
+	if next := wheelStep(at, 0, len(rows), up); next != at {
+		f.focusOn(rows[next].id)
+	}
+	return nil
+}
+
 // stepIndex is the position of the step shown among the steps.
 func (f *projectFlow) stepIndex() int {
 	return max(slices.Index(f.stepOrder(), f.step), 0)
