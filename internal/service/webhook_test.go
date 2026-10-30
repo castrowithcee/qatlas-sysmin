@@ -13,7 +13,9 @@ import (
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
+	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
+	"github.com/castrowithcee/qatlas-sysmin/internal/webhook"
 )
 
 const webhookSecret = "example-webhook-secret"
@@ -138,7 +140,9 @@ func TestWebhookListenerFollowsTheApprovedWebhooksAndEndsWithServe(t *testing.T)
 	}
 }
 
-func TestWebhookWithLockedVaultAnswers401AndStartsAfterUnlock(t *testing.T) {
+// Only a verified approved state starts the listener: a service that starts locked opens no port until the
+// unlock, and a vault locked while the listener runs makes it refuse calls as secret-unavailable.
+func TestWebhookListenerWaitsForUnlockAndRefusesCallsWhileLocked(t *testing.T) {
 	f := newDeployFixture(t, false, func(cfg *Config) { cfg.WebhookRecheck = time.Hour })
 	addr := freeAddr(t)
 	f.write(t, "sysmin.yaml", fmt.Sprintf("schema: 1\nwebhook:\n  listen: %s\n", addr))
@@ -166,6 +170,10 @@ func TestWebhookWithLockedVaultAnswers401AndStartsAfterUnlock(t *testing.T) {
 	f.svc.vault.Forget()
 	if got := postHook(t, addr, "demo-app", "{}", "sha256=00"); got != http.StatusUnauthorized {
 		t.Errorf("locked vault = %d", got)
+	}
+	rejected, err := f.dial(t).LogEntries(control.LogListParams{Action: auditlog.OperationWebhookReject})
+	if err != nil || len(rejected.Entries) == 0 || rejected.Entries[0].ErrorCode != webhook.CodeUnavailable {
+		t.Errorf("rejected calls = %+v, %v", rejected.Entries, err)
 	}
 	if n := f.runner.count("deploy"); n != 0 {
 		t.Errorf("deployed: %v", f.runner.calls())
