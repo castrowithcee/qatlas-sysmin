@@ -66,7 +66,7 @@ func (e *credEnv) run(stdin string, ask func(string) ([]byte, error), args ...st
 
 func (e *credEnv) json(stdin string, args ...string) (int, string, string) {
 	e.t.Helper()
-	return e.run(stdin, nil, append(args, "--format", "json")...)
+	return e.run(stdin, nil, append(args, "--output", "json")...)
 }
 
 // noSecretAnywhere fails if a value appears in anything printed so far or in a file of the audit log.
@@ -148,7 +148,7 @@ func TestCredentialSetFromStandardInputListAndRemove(t *testing.T) {
 	}
 
 	for _, format := range []string{"json", "table", "compact"} {
-		code, stdout, stderr = e.run("", nil, "credential", "list", "--format", format)
+		code, stdout, stderr = e.run("", nil, "credential", "list", "--output", format)
 		if code != exitOK || !strings.Contains(stdout, "demo-registry") || !strings.Contains(stdout, obj["id"].(string)) {
 			t.Fatalf("list %s: code = %d, stdout = %q, stderr = %q", format, code, stdout, stderr)
 		}
@@ -260,7 +260,7 @@ func TestCredentialSetAsksForTheSecretTwiceAtAHiddenPrompt(t *testing.T) {
 		answers = answers[1:]
 		return a, nil
 	}
-	code, stdout, stderr := e.run("must not be read", ask, "credential", "set", "demo-hook", "--kind", "secret", "--format", "json")
+	code, stdout, stderr := e.run("must not be read", ask, "credential", "set", "demo-hook", "--kind", "secret", "--output", "json")
 	if code != exitOK || len(prompts) != 2 || strings.Contains(strings.ToLower(strings.Join(prompts, " ")), "passphrase") {
 		t.Fatalf("code = %d, stdout = %q, stderr = %q, prompts = %q", code, stdout, stderr, prompts)
 	}
@@ -404,7 +404,7 @@ func TestNotifyChannelInASessionIsApprovedAndListsNoSecret(t *testing.T) {
 		t.Fatalf("add in a session = %+v, %v", res, err)
 	}
 	for _, format := range []string{"json", "table", "compact"} {
-		code, stdout, stderr := e.run("", nil, "notify", "channel", "list", "--format", format)
+		code, stdout, stderr := e.run("", nil, "notify", "channel", "list", "--output", format)
 		if code != exitOK || !strings.Contains(stdout, "ops-mail") || !strings.Contains(stdout, "demo-smtp") || !strings.Contains(stdout, "approved") || strings.Contains(stdout, "pending") {
 			t.Fatalf("list %s: code = %d, stdout = %q, stderr = %q", format, code, stdout, stderr)
 		}
@@ -474,7 +474,7 @@ func TestCredentialCommandsDoNotPromptForAPassphraseOnATerminal(t *testing.T) {
 		root.SetIn(stdin)
 		root.SetOut(slave)
 		root.SetErr(io.Discard)
-		root.SetArgs(append(args, "--socket", e.sock, "--format", "json"))
+		root.SetArgs(append(args, "--socket", e.sock, "--output", "json"))
 		done := make(chan int, 1)
 		go func() {
 			if _, err := root.ExecuteC(); err != nil {

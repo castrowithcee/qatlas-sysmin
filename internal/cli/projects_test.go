@@ -63,7 +63,7 @@ func jsonRows(t *testing.T, s string) []map[string]any {
 func TestProjectLifecycleThroughTheService(t *testing.T) {
 	sock := startServiceWith(t, true, projectSetup(t))
 	cli := func(args ...string) (int, string, string) {
-		return runCLIArgs(append(args, "--socket", sock, "--format", "json")...)
+		return runCLIArgs(append(args, "--socket", sock, "--output", "json")...)
 	}
 
 	code, stdout, stderr := cli(demoAddArgs...)
@@ -146,7 +146,7 @@ func TestProjectAddFromFileAndStandardInput(t *testing.T) {
 	if err := os.WriteFile(file, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	code, stdout, stderr := runCLIArgs("project", "add", "demo-app", "--file", file, "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("project", "add", "demo-app", "--file", file, "--socket", sock, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, "pending approval") {
 		t.Fatalf("add --file: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
@@ -154,7 +154,7 @@ func TestProjectAddFromFileAndStandardInput(t *testing.T) {
 	if code != exitRuntime || !strings.Contains(stderr, "does not exist") {
 		t.Fatalf("edit of a missing project: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
-	code, stdout, stderr = runCLIIn(strings.NewReader(strings.ReplaceAll(body, "demo-app", "demo-two")), "project", "add", "demo-two", "--file", "-", "--socket", sock, "--format", "json")
+	code, stdout, stderr = runCLIIn(strings.NewReader(strings.ReplaceAll(body, "demo-app", "demo-two")), "project", "add", "demo-two", "--file", "-", "--socket", sock, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, `"project":"demo-two"`) {
 		t.Fatalf("add --file -: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
@@ -172,7 +172,7 @@ func TestProjectInvalidInputListsProblems(t *testing.T) {
 	sock := startServiceWith(t, true, projectSetup(t))
 	args := []string{
 		"project", "add", "demo-app", "--dir", "relative/dir", "--image", "app=registry.example.com/demo/app:1.0",
-		"--socket", sock, "--format", "json",
+		"--socket", sock, "--output", "json",
 	}
 	code, stdout, stderr := runCLIArgs(args...)
 	rows := jsonRows(t, stdout)
@@ -189,12 +189,12 @@ func TestProjectInvalidInputListsProblems(t *testing.T) {
 	if byField["dir"]["code"] != "relative-path" || byField["images[0].ref"]["code"] != "invalid-value" {
 		t.Fatalf("problems = %v", rows)
 	}
-	code, stdout, _ = runCLIArgs("project", "list", "--socket", sock, "--format", "json")
+	code, stdout, _ = runCLIArgs("project", "list", "--socket", sock, "--output", "json")
 	if code != exitOK || strings.Contains(stdout, "demo-app") {
 		t.Fatalf("an invalid project was stored: %q", stdout)
 	}
 	// The table shows the same list.
-	code, stdout, _ = runCLIArgs(append(args[:len(args)-2:len(args)-2], "--format", "table")...)
+	code, stdout, _ = runCLIArgs(append(args[:len(args)-2:len(args)-2], "--output", "table")...)
 	if code != exitUsage || !strings.Contains(stdout, "FIELD") || !strings.Contains(stdout, "relative-path") {
 		t.Fatalf("table: code = %d, stdout = %q", code, stdout)
 	}
@@ -232,7 +232,7 @@ func TestProjectChangeIgnoresSessionOfAnotherConnection(t *testing.T) {
 	if err := adm.OpenSession("example-passphrase-1"); err != nil {
 		t.Fatal(err)
 	}
-	code, stdout, stderr := runCLIArgs(append(demoAddArgs, "--socket", sock, "--format", "json")...)
+	code, stdout, stderr := runCLIArgs(append(demoAddArgs, "--socket", sock, "--output", "json")...)
 	if code != exitOK || !strings.Contains(stdout, "pending approval") {
 		t.Fatalf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
@@ -277,7 +277,7 @@ func TestProjectCommandsDoNotPromptOnATerminal(t *testing.T) {
 		// stdout is the terminal as well, so a prompt could be shown and answered there.
 		root.SetOut(slave)
 		root.SetErr(&errOut)
-		root.SetArgs(append(demoAddArgs, "--socket", sock, "--format", "json"))
+		root.SetArgs(append(demoAddArgs, "--socket", sock, "--output", "json"))
 		if _, err := root.ExecuteC(); err != nil {
 			done <- exitCode(err)
 			return
@@ -306,10 +306,10 @@ func TestProjectCommandsDoNotPromptOnATerminal(t *testing.T) {
 
 func TestProjectListShowsUpdatesAndLastRun(t *testing.T) {
 	sock := startServiceWith(t, true, projectSetup(t))
-	if code, _, stderr := runCLIArgs(append(demoAddArgs, "--socket", sock, "--format", "json")...); code != exitOK {
+	if code, _, stderr := runCLIArgs(append(demoAddArgs, "--socket", sock, "--output", "json")...); code != exitOK {
 		t.Fatalf("add: %d %q", code, stderr)
 	}
-	code, stdout, _ := runCLIArgs("project", "list", "--socket", sock, "--format", "json")
+	code, stdout, _ := runCLIArgs("project", "list", "--socket", sock, "--output", "json")
 	rows := jsonRows(t, stdout)
 	if code != exitOK || len(rows) != 1 || rows[0]["updates"] != float64(0) || rows[0]["fault"] != false {
 		t.Fatalf("json: %q", stdout)
@@ -323,7 +323,7 @@ func TestProjectListShowsUpdatesAndLastRun(t *testing.T) {
 		}
 		last = i
 	}
-	code, stdout, _ = runCLIArgs("project", "list", "--socket", sock, "--format", "table")
+	code, stdout, _ = runCLIArgs("project", "list", "--socket", sock, "--output", "table")
 	if code != exitOK || !strings.Contains(stdout, "UPDATES") || !strings.Contains(stdout, "LAST_RUN") {
 		t.Fatalf("table: %q", stdout)
 	}

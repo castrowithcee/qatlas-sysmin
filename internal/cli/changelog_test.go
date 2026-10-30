@@ -89,7 +89,7 @@ images:
 
 func TestProjectChangelogJSON(t *testing.T) {
 	sock := startChangelogEnv(t, true, 0)
-	code, stdout, stderr := runCLIArgs("project", "changelog", "demo-app", "--image", "app", "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("project", "changelog", "demo-app", "--image", "app", "--socket", sock, "--output", "json")
 	rows := jsonRows(t, stdout)
 	if code != exitOK || len(rows) != 2 {
 		t.Fatalf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
@@ -118,7 +118,7 @@ func TestProjectChangelogTableAndTarget(t *testing.T) {
 
 func TestProjectChangelogUnreadableSourceFailsTheCommand(t *testing.T) {
 	sock := startChangelogEnv(t, true, http.StatusTooManyRequests)
-	code, stdout, stderr := runCLIArgs("project", "changelog", "demo-app", "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("project", "changelog", "demo-app", "--socket", sock, "--output", "json")
 	rows := jsonRows(t, stdout)
 	if code != exitRuntime || len(rows) != 1 || rows[0]["status"] != control.ChangelogRateLimited ||
 		!strings.Contains(stderr, "1 of 1 sources could not be read") {

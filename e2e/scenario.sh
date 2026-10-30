@@ -253,7 +253,7 @@ start_stack() {
 
 # last_run PROJECT TAG prints the last history line of the project whose change goes to TAG.
 last_run() {
-	cliq deploy history "$1" --format compact 2>/dev/null | grep -F -- "-> $2" | tail -n 1
+	cliq deploy history "$1" --output compact 2>/dev/null | grep -F -- "-> $2" | tail -n 1
 }
 
 has_run() {
@@ -303,7 +303,7 @@ s01_vault_setup() {
 		return 1
 	fi
 	tui_save created
-	out=$(cli status --format compact 2>&1) || true
+	out=$(cli status --output compact 2>&1) || true
 	evidence "sysmin status: vault=$(kv "$out" vault) unlock=$(kv "$out" unlock)"
 	[ "$(kv "$out" vault)" = unlocked ] || failed "the service does not report an unlocked vault: $out"
 	tui_has 'admin off' && evidence 'creating the vault opened no admin session (header: admin off)'
@@ -364,21 +364,21 @@ EOF
 	evidence "demo-web runs $(running_tag demo-web web) before sysmin knows it"
 
 	out=$(hsecret "$admin" E2E_REGISTRY_PASSWORD sudo sysmin credential set e2e-registry --kind registry \
-		--user "$E2E_REGISTRY_USER" --from-stdin --format compact 2>&1) && rc=0 || rc=$?
+		--user "$E2E_REGISTRY_USER" --from-stdin --output compact 2>&1) && rc=0 || rc=$?
 	if [ "$rc" != 0 ]; then
 		failed "credential set: $out"
 		return 1
 	fi
 	evidence "credential set (token on stdin): action=$(kv "$out" action) state=$(kv "$out" state)"
 
-	out=$(cli notify channel add e2e-hook --type webhook --url "$E2E_WEBHOOK_URL" --format compact 2>&1) && rc=0 || rc=$?
+	out=$(cli notify channel add e2e-hook --type webhook --url "$E2E_WEBHOOK_URL" --output compact 2>&1) && rc=0 || rc=$?
 	if [ "$rc" != 0 ]; then
 		failed "notify channel add: $out"
 		return 1
 	fi
 	evidence "notify channel add e2e-hook: state=$(kv "$out" state)"
 
-	out=$(hfile "$sc_dir/files/demo-web.yaml" sudo sysmin project add demo-web --file - --format compact 2>&1) && rc=0 || rc=$?
+	out=$(hfile "$sc_dir/files/demo-web.yaml" sudo sysmin project add demo-web --file - --output compact 2>&1) && rc=0 || rc=$?
 	if [ "$rc" != 0 ]; then
 		failed "project add: $out"
 		return 1
@@ -386,12 +386,12 @@ EOF
 	evidence "project add demo-web: state=$(kv "$out" state)"
 	[ "$(kv "$out" state)" = 'pending approval' ] || failed 'the change made without an admin session is not pending'
 
-	out=$(cli approvals list --format compact 2>&1) || true
+	out=$(cli approvals list --output compact 2>&1) || true
 	evidence "approvals list:
 $out"
 	printf '%s\n' "$out" | grep -q '^demo-web|new|' || failed 'demo-web is not listed as an open approval'
 	sleep 3
-	out=$(cli deploy history demo-web --format compact 2>&1) || true
+	out=$(cli deploy history demo-web --output compact 2>&1) || true
 	[ "$(printf '%s\n' "$out" | grep -c .)" -le 1 ] || failed "the pending project ran: $out"
 	tag=$(running_tag demo-web web)
 	env=$(docker exec "$host" cat /srv/demo-web/.env)
@@ -404,8 +404,8 @@ $out"
 		return 1
 	fi
 	tui_save approved
-	out=$(cli project show demo-web --format compact 2>&1) || true
-	evidence "after the approval in the interface: project state=$(kv "$out" state); open approvals: $(cliq approvals list --format compact | sed 1d | wc -l)"
+	out=$(cli project show demo-web --output compact 2>&1) || true
+	evidence "after the approval in the interface: project state=$(kv "$out" state); open approvals: $(cliq approvals list --output compact | sed 1d | wc -l)"
 	[ "$(kv "$out" state)" = approved ] || failed 'the project is not approved after the approval'
 }
 
@@ -415,7 +415,7 @@ s03_new_tag_deploy() {
 		failed "web:$tag could not be pushed"
 		return 1
 	fi
-	out=$(cli deploy run-now demo-web --format compact 2>&1) || true
+	out=$(cli deploy run-now demo-web --output compact 2>&1) || true
 	evidence "pushed web:$tag; run-now: status=$(kv "$out" status) result=$(kv "$out" result) changes=$(kv "$out" changes)"
 	if ! line=$(wait_run demo-web "$tag"); then
 		failed "no run to $tag was listed"
@@ -427,7 +427,7 @@ s03_new_tag_deploy() {
 	now=$(running_tag demo-web web)
 	page=$(docker exec "$host" curl -fsS http://127.0.0.1:18081/ 2>&1) || true
 	env=$(docker exec "$host" cat /srv/demo-web/.env)
-	out=$(cli deploy status demo-web --format compact 2>&1) || true
+	out=$(cli deploy status demo-web --output compact 2>&1) || true
 	evidence "container runs $now, it answers '$page', .env holds $env, deploy status: sources=$(kv "$out" sources) last_run=$(kv "$out" last_run)"
 	evidence "run log:
 $(printf '%s\n' "$log" | grep -E 'result=|-> |compose-pull' | sed 's/^[^ ]* //')"
@@ -445,7 +445,7 @@ s04_broken_tag_rollback() {
 		return 1
 	fi
 	evidence "pushed web:1.2.0 whose /health answers 500; demo-web runs $before"
-	out=$(cli deploy run-now demo-web --format compact 2>&1) || true
+	out=$(cli deploy run-now demo-web --output compact 2>&1) || true
 	evidence "run-now: status=$(kv "$out" status) result=$(kv "$out" result) failed_step=$(kv "$out" failed_step)"
 	if ! line=$(wait_run demo-web 1.2.0); then
 		failed 'no run to 1.2.0 was listed'
@@ -460,7 +460,7 @@ $(printf '%s\n' "$log" | grep -E 'rollback|result=|-> ' | sed 's/^[^ ]* //')"
 	case $step in *check-http*) ;; *) failed "the failed step is $step, not the check-http step" ;; esac
 	now=$(running_tag demo-web web)
 	page=$(docker exec "$host" curl -fsS http://127.0.0.1:18081/ 2>&1) || true
-	out=$(cli deploy status demo-web --format compact 2>&1) || true
+	out=$(cli deploy status demo-web --output compact 2>&1) || true
 	evidence "after the run: container runs $now, it answers '$page', deploy status: paused=$(kv "$out" paused) sources=$(kv "$out" sources)"
 	[ "$now" = "$before" ] && [ "$page" = "web $before" ] || failed "the stack does not run $before again"
 	if poll 20 hook_has deploy.rolled_back 1.2.0; then
@@ -502,10 +502,10 @@ EOF
 	evidence "running before the adoption (name, id, started):
 $before"
 
-	out=$(cli project adopt /srv/demo-shop --dry-run --format compact 2>&1) || true
+	out=$(cli project adopt /srv/demo-shop --dry-run --output compact 2>&1) || true
 	evidence "adopt --dry-run:
 $out"
-	out=$(cli project adopt /srv/demo-shop --format compact 2>&1) && rc=0 || rc=$?
+	out=$(cli project adopt /srv/demo-shop --output compact 2>&1) && rc=0 || rc=$?
 	evidence "adopt:
 $out"
 	if [ "$rc" != 0 ]; then
@@ -517,12 +517,12 @@ $out"
 		failed 'the proposal does not read both versions from the env file'
 	printf '%s\n' "$out" | grep -q 'compose_files=/srv/demo-shop/compose.yaml,/srv/demo-shop/compose.override.yaml' ||
 		failed 'the proposal does not keep the override file'
-	file=$(kv "$(cli project show demo-shop --format compact 2>&1)" file)
+	file=$(kv "$(cli project show demo-shop --output compact 2>&1)" file)
 	modes=$(printf '%s' "$file" | grep -o 'mode: [a-z]*' | sort | uniq -c | tr -s ' ' | tr '\n' ';')
 	evidence "stored project: version rule modes:$modes"
 	[ "$modes" = ' 2 mode: manual;' ] || failed 'the adopted images are not both in manual mode'
 
-	out=$(cli project edit demo-shop --image-credential api=e2e-registry --image-credential worker=e2e-registry --format compact 2>&1) && rc=0 || rc=$?
+	out=$(cli project edit demo-shop --image-credential api=e2e-registry --image-credential worker=e2e-registry --output compact 2>&1) && rc=0 || rc=$?
 	evidence "the registry needs a login, so the adopted images get the credential before the approval: state=$(kv "$out" state)"
 	[ "$rc" = 0 ] || failed "project edit: $out"
 	if ! tui_approve_all; then
@@ -531,14 +531,14 @@ $out"
 		return 1
 	fi
 	tui_save approved
-	out=$(cli deploy run-now demo-shop --format compact 2>&1) || true
+	out=$(cli deploy run-now demo-shop --output compact 2>&1) || true
 	evidence "run-now after the approval: status=$(kv "$out" status)"
 	sleep 3
 	after=$(stack_state demo-shop)
-	out=$(cli deploy status demo-shop --format compact 2>&1) || true
+	out=$(cli deploy status demo-shop --output compact 2>&1) || true
 	evidence "deploy status: sources=$(kv "$out" sources) last_run=$(kv "$out" last_run)"
 	[ "$(kv "$out" sources)" = 'api 1.0.0; worker 1.0.0' ] || failed 'the service does not report the versions from the env file'
-	hist=$(cli deploy history demo-shop --format compact 2>&1 | sed 1d)
+	hist=$(cli deploy history demo-shop --output compact 2>&1 | sed 1d)
 	evidence "running after the approval and a check:
 $after
 deploy history: ${hist:-empty}"
@@ -551,8 +551,8 @@ s06_manual_update() {
 		failed 'the newer api images could not be pushed'
 		return 1
 	fi
-	out=$(cli deploy run-now demo-shop --format compact 2>&1) || true
-	st=$(cli deploy status demo-shop --format compact 2>&1) || true
+	out=$(cli deploy run-now demo-shop --output compact 2>&1) || true
+	st=$(cli deploy status demo-shop --output compact 2>&1) || true
 	evidence "pushed api:1.1.0 and api:1.2.0; run-now: status=$(kv "$out" status); deploy status: sources=$(kv "$st" sources)"
 	tui_keys Escape 2
 	if ! tui_wait 'Projects ('; then
@@ -646,7 +646,7 @@ EOF
 		failed 'the demo-major stack did not start'
 		return 1
 	fi
-	out=$(hfile "$sc_dir/files/demo-major.yaml" sudo sysmin project add demo-major --file - --format compact 2>&1) && rc=0 || rc=$?
+	out=$(hfile "$sc_dir/files/demo-major.yaml" sudo sysmin project add demo-major --file - --output compact 2>&1) && rc=0 || rc=$?
 	if [ "$rc" != 0 ]; then
 		failed "project add: $out"
 		return 1
@@ -658,7 +658,7 @@ EOF
 	fi
 	# The source test reads the approved state, so it follows the approval; a check of the service may have
 	# deployed the first step meanwhile, which the history below shows as well.
-	out=$(cli source test demo-major --format compact 2>&1) || true
+	out=$(cli source test demo-major --output compact 2>&1) || true
 	line=$(printf '%s\n' "$out" | grep '^app|')
 	evidence "pushed major 1.0.0 1.1.0 2.0.0 2.1.0 3.0.0; source test: current=$(field "$line" 5) available=$(field "$line" 6) target=$(field "$line" 7)"
 	if [ "$(field "$line" 5)" = 1.0.0 ] && [ "$(field "$line" 7)" != 1.1.0 ]; then
@@ -668,10 +668,10 @@ EOF
 	until stepwise_done; do
 		n=$((n + 1))
 		[ "$n" -le 6 ] || break
-		out=$(cli deploy run-now demo-major --format compact 2>&1) || true
+		out=$(cli deploy run-now demo-major --output compact 2>&1) || true
 		evidence "run-now: status=$(kv "$out" status) result=$(kv "$out" result) changes=$(kv "$out" changes)"
 	done
-	runs=$(cli deploy history demo-major --format compact 2>&1 | sed 1d | awk -F '|' '$5 == "succeeded" { print $6 }' | tr '\n' ';')
+	runs=$(cli deploy history demo-major --output compact 2>&1 | sed 1d | awk -F '|' '$5 == "succeeded" { print $6 }' | tr '\n' ';')
 	evidence "successful runs in order: $runs; app runs $(running_tag demo-major app)"
 	[ "$runs" = 'app 1.0.0 -> 1.1.0;app 1.1.0 -> 2.1.0;app 2.1.0 -> 3.0.0;' ] ||
 		failed 'the runs do not go 1.0.0 -> 1.1.0 -> 2.1.0 -> 3.0.0'
@@ -818,20 +818,20 @@ s08_git_project() {
 	fi
 	evidence "working copy $site_dir (owner sysmin) on $(site_tag), origin $(docker exec -u sysmin "$host" git -C "$site_dir" remote get-url origin)"
 	out=$(hsecret "$admin" E2E_GIT_PASSWORD sudo sysmin credential set e2e-git --kind git-https \
-		--user "$E2E_GIT_USER" --from-stdin --format compact 2>&1) && rc=0 || rc=$?
+		--user "$E2E_GIT_USER" --from-stdin --output compact 2>&1) && rc=0 || rc=$?
 	if [ "$rc" != 0 ]; then
 		failed "credential set: $out"
 		return 1
 	fi
 	evidence "credential set e2e-git (token on stdin): state=$(kv "$out" state)"
 	site_file >"$sc_dir/files/demo-site.yaml"
-	out=$(hfile "$sc_dir/files/demo-site.yaml" sudo sysmin project add demo-site --file - --format compact 2>&1) && rc=0 || rc=$?
+	out=$(hfile "$sc_dir/files/demo-site.yaml" sudo sysmin project add demo-site --file - --output compact 2>&1) && rc=0 || rc=$?
 	if [ "$rc" != 0 ]; then
 		failed "project add: $out"
 		return 1
 	fi
 	evidence "project add demo-site (git source, steps git-checkout and command): state=$(kv "$out" state)"
-	out=$(cli approvals show demo-site --format compact 2>&1) || true
+	out=$(cli approvals show demo-site --output compact 2>&1) || true
 	free=$(printf '%s\n' "$out" | grep '|true$')
 	evidence "approvals show demo-site, the change marked as a free command:
 $free"
@@ -848,7 +848,7 @@ $free"
 		failed 'approving in Access did not succeed'
 		return 1
 	fi
-	out=$(cli source test demo-site --format compact 2>&1) || true
+	out=$(cli source test demo-site --output compact 2>&1) || true
 	line=$(printf '%s\n' "$out" | grep '^git|')
 	evidence "after the approval: source test: status=$(field "$line" 4) current=$(field "$line" 5)"
 	[ "$(field "$line" 5)" = v1.0.0 ] || failed 'the service does not read v1.0.0 from the working copy'
@@ -857,7 +857,7 @@ $free"
 		failed 'v2.0.0 could not be pushed'
 		return 1
 	fi
-	out=$(cli deploy run-now demo-site --format compact 2>&1) || true
+	out=$(cli deploy run-now demo-site --output compact 2>&1) || true
 	evidence "pushed tag v2.0.0; run-now: status=$(kv "$out" status) result=$(kv "$out" result) changes=$(kv "$out" changes)"
 	if ! line=$(wait_run demo-site v2.0.0); then
 		failed 'no run to v2.0.0 was listed'
@@ -878,14 +878,14 @@ $(printf '%s\n' "$log" | grep -E ' (run|result=)|built |-> ' | sed 's/^[^ ]* //'
 
 s09_webhook() {
 	out=$(hsecret "$admin" E2E_WEBHOOK_SECRET sudo sysmin credential set demo-site-hook --kind secret \
-		--from-stdin --format compact 2>&1) && rc=0 || rc=$?
+		--from-stdin --output compact 2>&1) && rc=0 || rc=$?
 	if [ "$rc" != 0 ]; then
 		failed "credential set: $out"
 		return 1
 	fi
 	evidence "credential set demo-site-hook (secret on stdin): state=$(kv "$out" state)"
 	site_file webhook >"$sc_dir/files/demo-site-webhook.yaml"
-	out=$(hfile "$sc_dir/files/demo-site-webhook.yaml" sudo sysmin project edit demo-site --file - --format compact 2>&1) && rc=0 || rc=$?
+	out=$(hfile "$sc_dir/files/demo-site-webhook.yaml" sudo sysmin project edit demo-site --file - --output compact 2>&1) && rc=0 || rc=$?
 	if [ "$rc" != 0 ]; then
 		failed "project edit: $out"
 		return 1
@@ -906,7 +906,7 @@ s09_webhook() {
 		failed 'v2.1.0 could not be pushed'
 		return 1
 	fi
-	st=$(cliq deploy status demo-site --format compact 2>&1) || true
+	st=$(cliq deploy status demo-site --output compact 2>&1) || true
 	evidence "pushed tag v2.1.0; poll interval 1h, last check $(kv "$st" last_check)"
 	printf '{"ref":"refs/tags/v2.1.0","repository":{"name":"stacks"}}' >"$sc_dir/files/hook-v2.1.0.json"
 	E2E_WRONG_SECRET=not-the-webhook-secret
@@ -935,12 +935,12 @@ $(audit_lines '"action":"webhook.' | tail -n 3)"
 }
 
 s10_notifications() {
-	file=$(kv "$(cliq project show demo-shop --format compact 2>&1)" file)
+	file=$(kv "$(cliq project show demo-shop --output compact 2>&1)" file)
 	{
 		printf '%b' "$file"
 		printf 'notify:\n  channels:\n    - e2e-hook\n  events:\n    - update-available\n'
 	} >"$sc_dir/files/demo-shop-notify.yaml"
-	out=$(hfile "$sc_dir/files/demo-shop-notify.yaml" sudo sysmin project edit demo-shop --file - --format compact 2>&1) && rc=0 || rc=$?
+	out=$(hfile "$sc_dir/files/demo-shop-notify.yaml" sudo sysmin project edit demo-shop --file - --output compact 2>&1) && rc=0 || rc=$?
 	evidence "demo-shop (manual) subscribes to update-available on e2e-hook: state=$(kv "$out" state)"
 	if [ "$rc" != 0 ] || ! tui_approve_all; then
 		tui_save approve-failed
@@ -951,7 +951,7 @@ s10_notifications() {
 		failed 'worker:1.1.0 could not be pushed'
 		return 1
 	fi
-	out=$(cli deploy run-now demo-shop --format compact 2>&1) || true
+	out=$(cli deploy run-now demo-shop --output compact 2>&1) || true
 	evidence "pushed worker:1.1.0; run-now demo-shop: status=$(kv "$out" status) (manual mode, nothing deployed)"
 	sc_note 'poll: e2e/run.sh requests until update.available for demo-shop arrived'
 	poll 20 hook_has update.available demo-shop || true
@@ -973,7 +973,7 @@ $bodies"
 }
 
 s11_restart_locked() {
-	out=$(cli project edit demo-site --poll-interval 1m --format compact 2>&1) || true
+	out=$(cli project edit demo-site --poll-interval 1m --output compact 2>&1) || true
 	if ! tui_approve_all; then
 		tui_save approve-failed
 		failed "the poll interval of demo-site could not be approved: $out"
@@ -988,7 +988,7 @@ $(stacks)"
 		return 1
 	fi
 	t0=$(date +%s)
-	out=$(cli status --format compact 2>&1) || true
+	out=$(cli status --output compact 2>&1) || true
 	evidence "after the restart: sysmin.service $(docker exec "$host" systemctl is-active sysmin), docker.service $(docker exec "$host" systemctl is-active docker); status: vault=$(kv "$out" vault) unlock=$(kv "$out" unlock)"
 	[ "$(kv "$out" vault)" = locked ] || failed 'the vault is not locked after the restart'
 	poll 30 all_running || true
@@ -1005,7 +1005,7 @@ $(stacks)"
 		failed 'v2.2.0 could not be pushed'
 		return 1
 	fi
-	out=$(cli deploy run-now demo-site --format compact 2>&1) || true
+	out=$(cli deploy run-now demo-site --output compact 2>&1) || true
 	evidence "pushed tag v2.2.0; run-now while locked: status=$(kv "$out" status) skipped=$(kv "$out" skipped)"
 	[ "$(kv "$out" skipped)" = locked ] || failed 'run-now did not report the locked vault'
 	printf '{"ref":"refs/tags/v2.2.0","repository":{"name":"stacks"}}' >"$sc_dir/files/hook-v2.2.0.json"
@@ -1017,8 +1017,8 @@ $(stacks)"
 	while [ $(($(date +%s) - t0)) -lt 320 ]; do
 		sleep 5
 	done
-	out=$(cli deploy run-now demo-site --format compact 2>&1) || true
-	st=$(cli deploy status demo-site --format compact 2>&1) || true
+	out=$(cli deploy run-now demo-site --output compact 2>&1) || true
+	st=$(cli deploy status demo-site --output compact 2>&1) || true
 	evidence "$(($(date +%s) - t0))s after the restart: run-now: status=$(kv "$out" status) skipped=$(kv "$out" skipped); deploy status: locked=$(kv "$st" locked) sources=$(kv "$st" sources) last_run=$(kv "$st" last_run); runs to v2.2.0: $(last_run demo-site v2.2.0 | grep -c .)"
 	! has_run demo-site v2.2.0 || failed 'demo-site deployed while the vault was locked'
 	[ "$(site_tag)" = v2.1.0 ] || failed 'the working copy changed while the vault was locked'
@@ -1039,9 +1039,9 @@ $(stacks)"
 	if line=$(wait_run demo-site v2.2.0 100); then
 		evidence 'demo-site deployed v2.2.0 on its own after the unlock'
 	else
-		st=$(cliq deploy status demo-site --format compact 2>&1) || true
+		st=$(cliq deploy status demo-site --output compact 2>&1) || true
 		deviation "expected: after the unlock demo-site deploys v2.2.0 within its poll interval of one minute; actual: no check within 100s after the unlock (last_check=$(kv "$st" last_check), from before the restart). The planner schedules a poll with the interval of the approved project only once a check has read the approved state (internal/engine/planner.go, interval and Run); after a start with a locked vault the first poll is skipped (internal/engine/run.go, check returns SkipLocked) and the next one is due after the default interval of one hour (config.DefaultPollInterval)"
-		out=$(cli deploy run-now demo-site --format compact 2>&1) || true
+		out=$(cli deploy run-now demo-site --output compact 2>&1) || true
 		workaround "run-now after the unlock: status=$(kv "$out" status) result=$(kv "$out" result) changes=$(kv "$out" changes)"
 		line=$(wait_run demo-site v2.2.0 30) || true
 	fi
@@ -1050,7 +1050,7 @@ $(stacks)"
 }
 
 s12_restart_auto_unlock() {
-	out=$(hsecret "$admin" E2E_VAULT_PASSPHRASE sudo sysmin vault bind --format compact 2>&1) && rc=0 || rc=$?
+	out=$(hsecret "$admin" E2E_VAULT_PASSPHRASE sudo sysmin vault bind --output compact 2>&1) && rc=0 || rc=$?
 	evidence "vault bind (passphrase on stdin): unlock=$(kv "$out" unlock) credential=$(kv "$out" credential)
 warning: $(kv "$out" warning)"
 	if [ "$rc" != 0 ]; then
@@ -1069,7 +1069,7 @@ warning: $(kv "$out" warning)"
 		return 1
 	fi
 	t0=$(date +%s)
-	out=$(cli status --format compact 2>&1) || true
+	out=$(cli status --output compact 2>&1) || true
 	evidence "pushed tag v2.3.0 before the restart; after it, without any input: vault=$(kv "$out" vault) unlock=$(kv "$out" unlock)"
 	[ "$(kv "$out" vault)" = unlocked ] && [ "$(kv "$out" unlock)" = host ] ||
 		failed 'the vault is not unlocked with the host key after the restart'
@@ -1093,28 +1093,28 @@ warning: $(kv "$out" warning)"
 
 s13_self_update() {
 	api=${E2E_RELEASES_URL%/releases}/repos/castrowithcee/qatlas-sysmin
-	projects=$(cliq project list --format compact 2>&1)
-	out=$(cli update --list --api-url "$api" --format compact 2>&1) || true
+	projects=$(cliq project list --output compact 2>&1)
+	out=$(cli update --list --api-url "$api" --output compact 2>&1) || true
 	evidence "update --list:
 $out"
 	sc_note '# on the release server: v0.2.0/checksums.txt.sig replaced by the signature of v0.1.0'
 	docker exec "$prefix-releases" sh -c 'cd /srv/releases && cp v0.2.0/checksums.txt.sig /tmp/v0.2.0.sig && cp v0.1.0/checksums.txt.sig v0.2.0/checksums.txt.sig'
-	out=$(cli update --api-url "$api" --to v0.2.0 --yes --format compact 2>&1) && rc=0 || rc=$?
-	ver=$(docker exec "$host" sysmin version --format compact | sed 's/^version=//')
+	out=$(cli update --api-url "$api" --to v0.2.0 --yes --output compact 2>&1) && rc=0 || rc=$?
+	ver=$(docker exec "$host" sysmin version --output compact | sed 's/^version=//')
 	evidence "with the signature of another release: exit $rc: $out; installed: $ver"
 	[ "$rc" != 0 ] && [ "$ver" = v0.1.0 ] || failed 'a release with a wrong signature was installed'
 	sc_note '# on the release server: the signature of v0.2.0 restored'
 	docker exec "$prefix-releases" sh -c 'cp /tmp/v0.2.0.sig /srv/releases/v0.2.0/checksums.txt.sig'
-	out=$(cli update --api-url "$api" --yes --format compact 2>&1) && rc=0 || rc=$?
+	out=$(cli update --api-url "$api" --yes --output compact 2>&1) && rc=0 || rc=$?
 	evidence "update: previous=$(kv "$out" previous) version=$(kv "$out" version) updated=$(kv "$out" updated) restarted=$(kv "$out" restarted)"
 	if [ "$rc" != 0 ]; then
 		failed "update: $out"
 		return 1
 	fi
 	poll 60 cliq status || true
-	ver=$(hrun sysmin version --format compact 2>&1 | sed 's/^version=//')
-	st=$(cli vault status --format compact 2>&1) || true
-	after=$(cliq project list --format compact 2>&1)
+	ver=$(hrun sysmin version --output compact 2>&1 | sed 's/^version=//')
+	st=$(cli vault status --output compact 2>&1) || true
+	after=$(cliq project list --output compact 2>&1)
 	evidence "sysmin version: $ver; sysmin.service $(docker exec "$host" systemctl is-active sysmin); vault status: vault=$(kv "$st" vault) unlock=$(kv "$st" unlock)"
 	evidence "projects after the update (unchanged: $([ "$after" = "$projects" ] && echo yes || echo no)):
 $after"
@@ -1125,11 +1125,11 @@ $after"
 
 s14_uninstall() {
 	before=$(containers)
-	out=$(cli uninstall --format compact 2>&1) && rc=0 || rc=$?
+	out=$(cli uninstall --output compact 2>&1) && rc=0 || rc=$?
 	evidence "uninstall without --yes and without a terminal: exit $rc: $out"
 	[ "$rc" != 0 ] || failed 'uninstall ran without a confirmation'
 	hroot 'cp /usr/local/bin/sysmin /root/sysmin-kept'
-	out=$(cli uninstall --yes --format compact 2>&1) && rc=0 || rc=$?
+	out=$(cli uninstall --yes --output compact 2>&1) && rc=0 || rc=$?
 	evidence "uninstall --yes: exit $rc: uninstalled=$(kv "$out" uninstalled) purged=$(kv "$out" purged)"
 	[ "$rc" = 0 ] || failed "uninstall: $out"
 	gone=$(docker exec "$host" sh -c '
@@ -1152,7 +1152,7 @@ $kept"
 	evidence "running containers unchanged (name, id, start): $([ "$before" = "$after" ] && echo yes || echo no); demo-web answers '$page'"
 	[ "$before" = "$after" ] || failed "the stacks changed:
 $after"
-	out=$(hroot '/root/sysmin-kept uninstall --purge --yes --format compact; rm -f /root/sysmin-kept' 2>&1) || true
+	out=$(hroot '/root/sysmin-kept uninstall --purge --yes --output compact; rm -f /root/sysmin-kept' 2>&1) || true
 	left=$(docker exec "$host" sh -c 'ls -d /etc/sysmin /var/lib/sysmin /srv/* 2>&1')
 	evidence "uninstall --purge with a copy of the program kept before: purged=$(kv "$out" purged); what is left (the project directories belong to the administrator):
 $left"
@@ -1214,7 +1214,7 @@ run_scenario() {
 	{
 		printf '# sysmin end-to-end scenario\n\n'
 		printf 'Started: %s\nsysmin: %s\nHost: %s (Debian 12, systemd, Docker %s)\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-			"$(docker exec "$host" sysmin version --format compact | sed 's/^version=//')" "$hostname_" \
+			"$(docker exec "$host" sysmin version --output compact | sed 's/^version=//')" "$hostname_" \
 			"$(docker exec "$host" docker version --format '{{.Server.Version}}')"
 		printf 'Commands starting with $ run on the host as %s, # as root to prepare the scenario, tui: in the terminal interface.\n' "$admin"
 	} >"$results"

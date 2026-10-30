@@ -51,7 +51,7 @@ func TestApprovalsListAndShow(t *testing.T) {
 			}
 		}
 	})
-	code, stdout, stderr := runCLIArgs("approvals", "list", "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("approvals", "list", "--socket", sock, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, `"project":"demo-app"`) || !strings.Contains(stdout, `"kind":"new"`) ||
 		!strings.Contains(stdout, `"free_commands":true`) {
 		t.Fatalf("list: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
@@ -60,7 +60,7 @@ func TestApprovalsListAndShow(t *testing.T) {
 	if code != exitOK || !strings.Contains(stdout, "demo-app") {
 		t.Fatalf("list table: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
-	code, stdout, stderr = runCLIArgs("approvals", "show", "demo-app", "--socket", sock, "--format", "json")
+	code, stdout, stderr = runCLIArgs("approvals", "show", "demo-app", "--socket", sock, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, `"new":"echo hello"`) || !strings.Contains(stdout, `"free":true`) {
 		t.Fatalf("show: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}

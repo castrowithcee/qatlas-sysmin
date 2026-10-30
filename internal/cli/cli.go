@@ -22,10 +22,11 @@ var version = "dev"
 
 // Options carries the global flags to the commands.
 type Options struct {
-	// FormatName is the raw value of --format.
+	// OutputName and FormatName are the raw values of --output and its deprecated alias --format.
+	OutputName string
 	FormatName string
 
-	// Format is resolved from FormatName before a command runs.
+	// Format is resolved from OutputName before a command runs.
 	Format output.Format
 	// Redactor removes secret values from anything the process prints.
 	Redactor *redact.Redactor
@@ -80,8 +81,19 @@ func newRootCommand(opts *Options) *cobra.Command {
 			}
 			return nil
 		},
-		PersistentPreRunE: func(*cobra.Command, []string) error {
-			format, err := output.ParseFormat(opts.FormatName)
+		PersistentPreRunE: func(c *cobra.Command, _ []string) error {
+			name := opts.OutputName
+			if c.Flags().Changed("format") {
+				if c.Flags().Changed("output") {
+					return newSyntaxError(errors.New("--output and --format cannot be used together"))
+				}
+				fmt.Fprintln(c.ErrOrStderr(), "sysmin: notice: --format is deprecated, use --output")
+				name = opts.FormatName
+			}
+			if name == "" {
+				name = string(output.FormatTable)
+			}
+			format, err := output.ParseFormat(name)
 			if err != nil {
 				return newSyntaxError(err)
 			}
@@ -94,8 +106,11 @@ func newRootCommand(opts *Options) *cobra.Command {
 
 	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return newSyntaxError(err) })
 
-	cmd.PersistentFlags().StringVar(&opts.FormatName, "format", string(output.FormatTable),
-		"output format: table, json, or compact")
+	cmd.Version = version
+	cmd.SetVersionTemplate("sysmin {{.Version}}\n")
+	cmd.PersistentFlags().StringVar(&opts.OutputName, "output", "", "output format: table, json, or compact (default table)")
+	cmd.PersistentFlags().StringVar(&opts.FormatName, "format", "", "")
+	_ = cmd.PersistentFlags().MarkHidden("format")
 
 	cmd.AddCommand(newVersionCommand(opts))
 	cmd.AddCommand(newLogCommand(opts))

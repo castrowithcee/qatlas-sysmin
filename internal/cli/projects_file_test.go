@@ -73,7 +73,7 @@ func TestProjectAddFileSendsTheFileUnchanged(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		code, stdout, stderr := runCLIArgs("project", "add", c.name, "--file", path, "--socket", sock, "--format", "json")
+		code, stdout, stderr := runCLIArgs("project", "add", c.name, "--file", path, "--socket", sock, "--output", "json")
 		if code != exitOK {
 			t.Fatalf("%s: code = %d, stdout = %q, stderr = %q", c.file, code, stdout, stderr)
 		}

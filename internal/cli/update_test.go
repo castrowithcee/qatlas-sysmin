@@ -114,7 +114,7 @@ func binary(t *testing.T, h *fakeHost) string {
 func TestUpdateInstallsThenRestarts(t *testing.T) {
 	withVersion(t, "v1.0.0")
 	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new program"}))
-	code, stdout, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL, "--format", "json")
+	code, stdout, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL, "--output", "json")
 	if code != exitOK {
 		t.Fatalf("code = %d, stderr = %q", code, stderr)
 	}
@@ -207,7 +207,7 @@ func TestUpdateDevBuildAndUpToDate(t *testing.T) {
 		t.Errorf("dev: code = %d, stderr = %q", code, stderr)
 	}
 	version = "v1.0.0"
-	code, stdout, _ := h.run(t, "", "update", "--yes", "--api-url", h.server.URL, "--format", "json")
+	code, stdout, _ := h.run(t, "", "update", "--yes", "--api-url", h.server.URL, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, `"updated":false`) || len(h.calls) != 0 || binary(t, h) != "old program" {
 		t.Errorf("up to date: code = %d, stdout = %q, calls = %v", code, stdout, h.calls)
 	}
@@ -235,7 +235,7 @@ func TestUpdateList(t *testing.T) {
 		selfupdatetest.Release{Tag: "v1.2.0-rc.1", Prerelease: true, Program: "x"},
 		selfupdatetest.Release{Tag: "v1.3.0", Program: "x", NoSignature: true}))
 	h.root = false // listing changes nothing
-	code, stdout, stderr := h.run(t, "", "update", "--list", "--api-url", h.server.URL, "--format", "json")
+	code, stdout, stderr := h.run(t, "", "update", "--list", "--api-url", h.server.URL, "--output", "json")
 	if code != exitOK {
 		t.Fatalf("code = %d, stderr = %q", code, stderr)
 	}
@@ -258,7 +258,7 @@ func TestUpdateWithUnchangedUnitSkipsDaemonReload(t *testing.T) {
 	if err := os.WriteFile(h.unitPath, []byte("same unit"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	code, stdout, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL, "--format", "json")
+	code, stdout, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL, "--output", "json")
 	if code != exitOK || !slices.Equal(h.calls, []string{"systemctl restart sysmin"}) || !strings.Contains(stdout, `"unit_updated":false`) {
 		t.Errorf("code = %d, calls = %v, stdout = %q, stderr = %q", code, h.calls, stdout, stderr)
 	}

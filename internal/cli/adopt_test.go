@@ -83,7 +83,7 @@ func TestProjectAdoptDryRunThenStore(t *testing.T) {
 	// A relative directory reaches the service as an absolute one.
 	t.Chdir(filepath.Dir(dir))
 	rel := filepath.Base(dir)
-	code, stdout, stderr := runCLIArgs("project", "adopt", rel, "--dry-run", "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("project", "adopt", rel, "--dry-run", "--socket", sock, "--output", "json")
 	if code != exitOK {
 		t.Fatalf("dry run: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
@@ -107,16 +107,16 @@ func TestProjectAdoptDryRunThenStore(t *testing.T) {
 	if st := byType["status"]; len(st) != 1 || st[0]["name"] != "dry-run" {
 		t.Errorf("status rows = %v", st)
 	}
-	code, stdout, _ = runCLIArgs("project", "list", "--socket", sock, "--format", "json")
+	code, stdout, _ = runCLIArgs("project", "list", "--socket", sock, "--output", "json")
 	if code != exitOK || strings.Contains(stdout, "shop-prod") {
 		t.Fatalf("dry run stored something: %q", stdout)
 	}
 
-	code, stdout, stderr = runCLIArgs("project", "adopt", dir, "--socket", sock, "--format", "json")
+	code, stdout, stderr = runCLIArgs("project", "adopt", dir, "--socket", sock, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, `"name":"pending approval"`) {
 		t.Fatalf("adopt: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
-	code, stdout, _ = runCLIArgs("project", "show", "shop-prod", "--socket", sock, "--format", "json")
+	code, stdout, _ = runCLIArgs("project", "show", "shop-prod", "--socket", sock, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, "mode: manual") {
 		t.Fatalf("show: code = %d, stdout = %q", code, stdout)
 	}
@@ -135,7 +135,7 @@ func TestProjectAdoptDryRunThenStore(t *testing.T) {
 func TestProjectAdoptErrors(t *testing.T) {
 	d, dir := adoptStackDir(t, "")
 	sock := startAdoptService(t, true, d)
-	code, stdout, stderr := runCLIArgs("project", "adopt", dir, "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("project", "adopt", dir, "--socket", sock, "--output", "json")
 	if code != exitRuntime || !strings.Contains(stdout, "compose-config-failed") || strings.Contains(stdout+stderr, "invalid compose file") {
 		t.Errorf("blocked: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}

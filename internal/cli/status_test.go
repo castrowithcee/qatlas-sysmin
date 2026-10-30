@@ -98,7 +98,7 @@ func startServiceCfg(t *testing.T, bound bool, setup func(configDir string), mod
 
 func TestStatusAgainstLockedService(t *testing.T) {
 	sock := startService(t, false)
-	code, stdout, stderr := runCLIArgs("status", "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("status", "--socket", sock, "--output", "json")
 	if code != exitOK {
 		t.Fatalf("code = %d, stderr = %q", code, stderr)
 	}
@@ -107,7 +107,7 @@ func TestStatusAgainstLockedService(t *testing.T) {
 			t.Errorf("stdout %q lacks %s", stdout, want)
 		}
 	}
-	code, stdout, _ = runCLIArgs("vault", "status", "--socket", sock, "--format", "compact")
+	code, stdout, _ = runCLIArgs("vault", "status", "--socket", sock, "--output", "compact")
 	if code != exitOK || !strings.Contains(stdout, "locked") {
 		t.Errorf("vault status: code = %d, stdout = %q", code, stdout)
 	}
@@ -115,7 +115,7 @@ func TestStatusAgainstLockedService(t *testing.T) {
 
 func TestStatusAgainstUnlockedService(t *testing.T) {
 	sock := startService(t, true)
-	code, stdout, stderr := runCLIArgs("status", "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("status", "--socket", sock, "--output", "json")
 	if code != exitOK || !strings.Contains(stdout, `"vault":"unlocked"`) || !strings.Contains(stdout, `"warning":"`) {
 		t.Fatalf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}

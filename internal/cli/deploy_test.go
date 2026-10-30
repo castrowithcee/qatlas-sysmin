@@ -90,39 +90,39 @@ images:
 
 func TestDeployStatusAndRunNowJSON(t *testing.T) {
 	sock := startDeployEnv(t, "auto")
-	code, stdout, stderr := runCLIArgs("deploy", "status", "demo-app", "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("deploy", "status", "demo-app", "--socket", sock, "--output", "json")
 	obj := jsonObject(t, stdout)
 	if code != exitOK || obj["project"] != "demo-app" || obj["running"] != false || obj["paused"] != false ||
 		obj["pinned"] != false || obj["locked"] != false || obj["last_run"] != "" {
 		t.Fatalf("status: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 
-	code, stdout, stderr = runCLIArgs("deploy", "run-now", "demo-app", "--socket", sock, "--format", "json")
+	code, stdout, stderr = runCLIArgs("deploy", "run-now", "demo-app", "--socket", sock, "--output", "json")
 	obj = jsonObject(t, stdout)
 	if code != exitOK || obj["status"] != "deployed" || obj["result"] != "succeeded" ||
 		obj["changes"] != "app 1.0.0 -> 2.0.0" || obj["backup"] == "" {
 		t.Fatalf("run-now: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 
-	code, stdout, _ = runCLIArgs("deploy", "status", "demo-app", "--socket", sock, "--format", "json")
+	code, stdout, _ = runCLIArgs("deploy", "status", "demo-app", "--socket", sock, "--output", "json")
 	obj = jsonObject(t, stdout)
 	if code != exitOK || obj["sources"] != "app 2.0.0" || !strings.Contains(obj["last_run"].(string), "auto succeeded") {
 		t.Errorf("status after the run: %q", stdout)
 	}
 
-	code, stdout, stderr = runCLIArgs("deploy", "run-now", "demo-app", "--socket", sock, "--format", "json")
+	code, stdout, stderr = runCLIArgs("deploy", "run-now", "demo-app", "--socket", sock, "--output", "json")
 	if obj = jsonObject(t, stdout); code != exitOK || obj["status"] != "nothing-to-deploy" {
 		t.Errorf("second run-now: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 
-	code, stdout, _ = runCLIArgs("deploy", "history", "demo-app", "--socket", sock, "--format", "json")
+	code, stdout, _ = runCLIArgs("deploy", "history", "demo-app", "--socket", sock, "--output", "json")
 	rows := jsonRows(t, stdout)
 	if code != exitOK || len(rows) != 1 || rows[0]["action"] != "auto" || rows[0]["result"] != "succeeded" ||
 		rows[0]["changes"] != "app 1.0.0 -> 2.0.0" || rows[0]["duration_ms"] == nil {
 		t.Errorf("history: code = %d, stdout = %q", code, stdout)
 	}
 
-	code, stdout, _ = runCLIArgs("backup", "list", "demo-app", "--socket", sock, "--format", "json")
+	code, stdout, _ = runCLIArgs("backup", "list", "demo-app", "--socket", sock, "--output", "json")
 	rows = jsonRows(t, stdout)
 	if code != exitOK || len(rows) != 1 || rows[0]["backup"] == "" {
 		t.Errorf("backup list: code = %d, stdout = %q", code, stdout)
@@ -155,7 +155,7 @@ func TestDeployTables(t *testing.T) {
 func TestDeployPauseResumePinUnpin(t *testing.T) {
 	sock := startDeployEnv(t, "auto")
 	cli := func(args ...string) (int, string, string) {
-		return runCLIArgs(append(args, "--socket", sock, "--format", "json")...)
+		return runCLIArgs(append(args, "--socket", sock, "--output", "json")...)
 	}
 	for _, step := range []struct{ verb, state, flag string }{
 		{"pause", "paused", "paused"}, {"resume", "resumed", ""}, {"pin", "pinned", "pinned"}, {"unpin", "unpinned", ""},
@@ -195,11 +195,11 @@ func TestDeployPauseResumePinUnpin(t *testing.T) {
 
 func TestDeployManualModeOnlyReports(t *testing.T) {
 	sock := startDeployEnv(t, "manual")
-	code, stdout, stderr := runCLIArgs("deploy", "run-now", "demo-app", "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("deploy", "run-now", "demo-app", "--socket", sock, "--output", "json")
 	if obj := jsonObject(t, stdout); code != exitOK || obj["status"] != "nothing-to-deploy" {
 		t.Fatalf("run-now: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
-	_, stdout, _ = runCLIArgs("deploy", "status", "demo-app", "--socket", sock, "--format", "json")
+	_, stdout, _ = runCLIArgs("deploy", "status", "demo-app", "--socket", sock, "--output", "json")
 	if src := jsonObject(t, stdout)["sources"]; src != "app 1.0.0 (newer: 1.1.0,2.0.0)" {
 		t.Errorf("sources = %v", src)
 	}
@@ -270,7 +270,7 @@ func TestDeployFailedRunExitsWithAnError(t *testing.T) {
 	if _, err := approveAll(t, c); err != nil {
 		t.Fatal(err)
 	}
-	code, stdout, stderr := runCLIArgs("deploy", "run-now", "demo-app", "--socket", sock, "--format", "json")
+	code, stdout, stderr := runCLIArgs("deploy", "run-now", "demo-app", "--socket", sock, "--output", "json")
 	obj := jsonObject(t, stdout)
 	if code != exitRuntime || obj["status"] != "deployed" || obj["result"] == "succeeded" || !strings.Contains(stderr, "the run ended with") {
 		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
