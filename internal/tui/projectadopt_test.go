@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+	"github.com/castrowithcee/qatlas-sysmin/internal/i18n"
 )
 
 // adoptFake is the fake service with a stack to adopt.
@@ -145,9 +146,25 @@ func TestAdoptRefusesWhatIsWrongBeforeAskingAndNamesTheFailure(t *testing.T) {
 	if m.fail != tr(tPrjNoDir) {
 		t.Errorf("fail = %q", m.fail)
 	}
+	fb.proj.adoptErr = &control.Error{Code: control.CodeNoAccess, Paths: []string{"/srv/demo"}}
+	send(m, "enter")
+	if want := tr(tPrjNoAccess, "/srv/demo"); m.fail != want || strings.Contains(m.fail, "does not exist") ||
+		!strings.Contains(m.fail, "may not pass /srv/demo") || !strings.Contains(m.fail, "sudo setfacl -m u:sysmin:x /srv/demo") {
+		t.Errorf("no access: fail = %q", m.fail)
+	}
 	send(m, "esc")
 	if m.projectPromptOpen() || m.prj.prompt != nil {
 		t.Error("esc keeps the panel")
+	}
+}
+
+func TestAdoptNoAccessTextInGerman(t *testing.T) {
+	useLanguage(t, i18n.German)
+	err := &control.Error{Code: control.CodeNoAccess, Paths: []string{"/srv/demo"}}
+	got := projectAdoptError(err)
+	if !strings.Contains(got, "/srv/demo nicht durchqueren") || !strings.Contains(got, "sudo setfacl -m u:sysmin:x /srv/demo") ||
+		strings.Contains(got, "gibt es nicht") {
+		t.Errorf("German no-access text = %q", got)
 	}
 }
 

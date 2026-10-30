@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -91,6 +92,12 @@ func projectAdoptError(err error) string {
 	switch {
 	case isCode(err, control.CodeNotFound):
 		return tr(tPrjNoDir)
+	case isCode(err, control.CodeNoAccess):
+		var ce *control.Error
+		if errors.As(err, &ce) && len(ce.Paths) > 0 {
+			return tr(tPrjNoAccess, pathsText(ce.Paths[:1]))
+		}
+		return errorText(err)
 	case isCode(err, control.CodeDockerUnavailable):
 		return tr(tPrjNoDocker)
 	}

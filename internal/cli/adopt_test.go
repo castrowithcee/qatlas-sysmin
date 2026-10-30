@@ -163,3 +163,30 @@ func TestProjectAdoptErrors(t *testing.T) {
 		t.Errorf("locked: code = %d, stderr = %q", code, stderr)
 	}
 }
+
+func TestProjectAdoptNoAccessNamesPartAndNextStep(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root passes any directory")
+	}
+	d, dir := adoptStackDir(t, adoptCompose)
+	closed := filepath.Join(dir, "closed")
+	stack := filepath.Join(closed, "demo-stack")
+	if err := os.MkdirAll(stack, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(closed, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(closed, 0o700) })
+	sock := startAdoptService(t, true, d)
+
+	code, _, stderr := runCLIArgs("project", "adopt", stack, "--socket", sock)
+	if code != exitRuntime || strings.Contains(stderr, "does not exist") ||
+		!strings.Contains(stderr, "may not pass "+closed) || !strings.Contains(stderr, "sudo setfacl -m u:sysmin:x "+closed) {
+		t.Errorf("no access: code = %d, stderr = %q", code, stderr)
+	}
+	code, _, stderr = runCLIArgs("project", "adopt", filepath.Join(dir, "missing"), "--socket", sock)
+	if code != exitRuntime || !strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "setfacl") {
+		t.Errorf("missing: code = %d, stderr = %q", code, stderr)
+	}
+}

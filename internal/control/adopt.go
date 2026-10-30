@@ -9,6 +9,11 @@ const AdoptTimeout = time.Minute
 // output of Docker never leaves the service.
 const CodeDockerUnavailable = "docker-unavailable"
 
+// CodeNoAccess answers an adoption of a directory that exists but that the service cannot reach: the one entry
+// of Paths is the first part of the requested path that the service user may not pass. Nothing is opened to
+// find it, and the entry is always a prefix of the requested path.
+const CodeNoAccess = "no-access"
+
 // AdoptParams are the parameters of OpProjectsAdopt. Dir is the absolute directory of the running stack;
 // an empty Name proposes the Compose project name. With DryRun nothing is stored.
 type AdoptParams struct {

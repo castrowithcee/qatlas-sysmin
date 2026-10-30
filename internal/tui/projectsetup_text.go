@@ -17,6 +17,7 @@ const (
 	tPrjBadName     textID = "PrjBadName"
 	tBusyAdopt      textID = "BusyAdopt"
 	tPrjNoDir       textID = "PrjNoDir"
+	tPrjNoAccess    textID = "PrjNoAccess"
 	tPrjNoDocker    textID = "PrjNoDocker"
 	tPrjAdoptTitle  textID = "PrjAdoptTitle"
 	tPrjAdoptOK     textID = "PrjAdoptOK"
@@ -57,6 +58,7 @@ func init() {
 		tPrjBadName:     "Use lower-case letters, digits and hyphens.",
 		tBusyAdopt:      "Reading the stack",
 		tPrjNoDir:       "That directory does not exist.",
+		tPrjNoAccess:    "The service user sysmin may not pass %[1]s. Next: sudo setfacl -m u:sysmin:x %[1]s",
 		tPrjNoDocker:    "Docker cannot be asked for the running containers.",
 		tPrjAdoptTitle:  "Adopt %s",
 		tPrjAdoptOK:     "Taking over fills in the setup; nothing is saved before the summary.",
@@ -101,6 +103,7 @@ func init() {
 		tPrjBadName:     "Kleinbuchstaben, Ziffern und Bindestriche verwenden.",
 		tBusyAdopt:      "Der Stack wird gelesen",
 		tPrjNoDir:       "Dieses Verzeichnis gibt es nicht.",
+		tPrjNoAccess:    "Der Dienstbenutzer sysmin darf %[1]s nicht durchqueren. Nächster Schritt: sudo setfacl -m u:sysmin:x %[1]s",
 		tPrjNoDocker:    "Docker kann nicht nach den laufenden Containern gefragt werden.",
 		tPrjAdoptTitle:  "%s übernehmen",
 		tPrjAdoptOK:     "Das Übernehmen füllt den Ablauf vor; gespeichert wird erst in der Zusammenfassung.",

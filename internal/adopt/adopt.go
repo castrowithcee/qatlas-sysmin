@@ -48,6 +48,7 @@ const (
 	CodeGitOrigin         = "git-origin"
 	CodeNoTag             = "no-tag-checked-out"
 	CodeTagUnreadable     = "git-tag-unreadable"
+	CodeNotReadable       = "not-readable"
 )
 
 // Compose labels set on every container of a stack.
@@ -131,8 +132,8 @@ func Inspect(ctx context.Context, opts Options, dir, name string) (Proposal, err
 		return Proposal{}, fmt.Errorf("directory %q must be an absolute path", dir)
 	}
 	dir = filepath.Clean(dir)
-	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
-		return Proposal{}, fmt.Errorf("%q is not a directory", dir)
+	if err := CheckDir(dir); err != nil {
+		return Proposal{}, fmt.Errorf("directory %q: %w", dir, err)
 	}
 	in := &inspector{opts: opts, dir: dir}
 	in.prop.Project = config.Project{Schema: config.CurrentSchema, Dir: dir}
@@ -163,7 +164,7 @@ func Inspect(ctx context.Context, opts Options, dir, name string) (Proposal, err
 	images := in.images(services)
 
 	gitMode := false
-	if hasGit(dir) {
+	if in.hasGit() {
 		usesVar := false
 		for _, im := range images {
 			usesVar = usesVar || im.EnvVar != ""
@@ -298,6 +299,17 @@ type service struct {
 // cannot produce it.
 func (in *inspector) composeServices(ctx context.Context) map[string]service {
 	p := &in.prop.Project
+	// Compose would fail on these with a message that hides the cause.
+	unreadable := false
+	for _, f := range p.ComposeFiles {
+		if !readable(f) {
+			unreadable = true
+			in.problem(CodeNotReadable, fmt.Sprintf("sysmin may not read the Compose file %s", f), grantHint(f, "r"))
+		}
+	}
+	if unreadable {
+		return nil
+	}
 	args := []string{"compose"}
 	if p.ComposeProject != "" {
 		args = append(args, "-p", p.ComposeProject)
@@ -484,7 +496,11 @@ func (in *inspector) currentVersion(im config.Image, g *imageGroup) {
 	case errors.Is(err, fs.ErrNotExist):
 		err, found = nil, false
 	case err != nil:
-		in.imageProblem(CodeEnvFileUnreadable, "the env file cannot be read", "Make the env file a regular file that sysmin may read.")
+		if errors.Is(err, fs.ErrPermission) {
+			in.imageProblem(CodeEnvFileUnreadable, "sysmin may not read the env file "+in.prop.Project.EnvFile, grantHint(in.prop.Project.EnvFile, "r"))
+		} else {
+			in.imageProblem(CodeEnvFileUnreadable, "the env file cannot be read", "Make the env file a regular file that sysmin may read.")
+		}
 		return
 	}
 	if !found || val == "" {
@@ -521,9 +537,22 @@ func (in *inspector) versionProblem(what, val string, image bool) {
 	}
 }
 
-func hasGit(dir string) bool {
-	_, err := os.Lstat(filepath.Join(dir, ".git"))
-	return err == nil
+// hasGit reports whether the directory is a git working copy. A .git that the account may not use is a
+// blocking finding of its own and counts as no git, since the tag cannot be read through it.
+func (in *inspector) hasGit() bool {
+	git := filepath.Join(in.dir, ".git")
+	info, err := os.Lstat(git)
+	if err != nil {
+		if errors.Is(err, fs.ErrPermission) {
+			in.problem(CodeNotReadable, "sysmin may not look at "+git, grantHint(in.dir, "x"))
+		}
+		return false
+	}
+	if info.IsDir() && !passable(git) {
+		in.problem(CodeNotReadable, "sysmin may not read the git directory "+git, grantHint(git, "rx"))
+		return false
+	}
+	return true
 }
 
 // imageSource finishes a project that tracks images through env variables.
@@ -540,7 +569,7 @@ func (in *inspector) imageSource(images []config.Image, haveServices bool) {
 			"Use image: repository:${APP_VERSION} in the compose file, or adopt a git working copy.")
 	}
 	if err := writecheck.File(p.EnvFile); err != nil {
-		in.problem(CodeNotWritable, "sysmin may not write the env file", "Give the account that runs sysmin write access to "+p.EnvFile+".")
+		in.problem(CodeNotWritable, "sysmin may not write the env file", "Give "+serviceUser()+" write access to "+p.EnvFile+".")
 	}
 }
 
@@ -550,7 +579,7 @@ func (in *inspector) gitSource(ctx context.Context) {
 	p.Template = "git-tag"
 	p.EnvFile = ""
 	if err := writecheck.Dir(in.dir); err != nil {
-		in.problem(CodeNotWritable, "sysmin may not write the working copy", "Give the account that runs sysmin write access to "+in.dir+".")
+		in.problem(CodeNotWritable, "sysmin may not write the working copy", "Give "+serviceUser()+" write access to "+in.dir+".")
 	}
 
 	g := &config.GitSource{VersionRule: config.VersionRule{Mode: config.ModeManual}}
