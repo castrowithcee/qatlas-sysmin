@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -12,10 +13,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
 )
@@ -513,5 +516,31 @@ func controlChannel() control.ChannelParams {
 	return control.ChannelParams{
 		Name: "ops-mail", Type: "smtp", Host: "smtp.example.com", From: "sysmin@example.com",
 		To: []string{"ops@example.com"}, Security: "starttls", Credential: "demo-smtp",
+	}
+}
+
+func TestCredentialResultPendingWithoutUses(t *testing.T) {
+	for _, tt := range []struct {
+		pending []string
+		want    string
+	}{
+		{nil, "see sysmin approvals list"},
+		{[]string{"demo-app"}, "not approved yet: demo-app use it"},
+	} {
+		var out bytes.Buffer
+		c := &cobra.Command{}
+		c.SetOut(&out)
+		res := control.CredentialResult{Name: "demo-token", Action: "created", State: control.StatePending, Pending: tt.pending}
+		if err := credentialResult(c, &Options{Format: output.FormatJSON}, res); err != nil {
+			t.Fatal(err)
+		}
+		var obj map[string]any
+		if err := json.Unmarshal(out.Bytes(), &obj); err != nil {
+			t.Fatalf("output %q: %v", out.String(), err)
+		}
+		message, _ := obj["message"].(string)
+		if !strings.Contains(message, tt.want) || strings.Contains(message, "  ") || strings.Contains(message, ": use") {
+			t.Errorf("pending %v: message = %q, want %q in it", tt.pending, message, tt.want)
+		}
 	}
 }

@@ -225,6 +225,8 @@ func credentialResult(c *cobra.Command, opts *Options, res control.CredentialRes
 	switch {
 	case res.State == control.StatePending && res.Action == "removed":
 		message = "removed; the removal leaves " + joined(res.Pending) + " open: a person must approve it in the terminal interface (sysmin tui)"
+	case res.State == control.StatePending && len(res.Pending) == 0:
+		message = "stored; whether something now waits for an approval because of it could not be determined: see sysmin approvals list"
 	case res.State == control.StatePending:
 		message = "stored; not approved yet: " + joined(res.Pending) + " use it and a person must approve the change in the terminal interface (sysmin tui) before it takes effect; until then they keep the previous value"
 	case res.Action == "removed":
