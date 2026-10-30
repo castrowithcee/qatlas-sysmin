@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 
@@ -27,8 +28,15 @@ func installed(t *testing.T) string {
 	return path
 }
 
+const oldUnit = "[Unit]\nDescription=old\n"
+
 func clientFor(s *selfupdatetest.Server, version, target string) *Client {
-	return &Client{BaseURL: s.URL, Version: version, GOARCH: "amd64", Target: target,
+	unit := filepath.Join(filepath.Dir(target), "units", "sysmin.service")
+	if _, err := os.Stat(unit); err != nil && target != "" {
+		_ = os.MkdirAll(filepath.Dir(unit), 0o755)
+		_ = os.WriteFile(unit, []byte(oldUnit), 0o600)
+	}
+	return &Client{BaseURL: s.URL, Version: version, GOARCH: "amd64", Target: target, UnitTarget: unit,
 		SigningKeys: []ssh.PublicKey{s.Signer.PublicKey()}}
 }
 
@@ -44,8 +52,12 @@ func readFile(t *testing.T, path string) string {
 func assertOnlyTarget(t *testing.T, target string) {
 	t.Helper()
 	entries, err := os.ReadDir(filepath.Dir(target))
-	if err != nil || len(entries) != 1 {
+	if err != nil || len(entries) != 2 { // the program and the units directory
 		t.Errorf("target directory = %v (%v), want only the program", entries, err)
+	}
+	units, err := os.ReadDir(filepath.Join(filepath.Dir(target), "units"))
+	if err != nil || len(units) != 1 || units[0].Name() != "sysmin.service" {
+		t.Errorf("unit directory = %v (%v), want only the unit", units, err)
 	}
 }
 
@@ -99,6 +111,9 @@ func TestInstallRejectsBadReleasesWithoutChange(t *testing.T) {
 			}
 			if got := readFile(t, target); got != oldProgram {
 				t.Errorf("target changed to %q", got)
+			}
+			if got := readFile(t, unitOf(c)); got != oldUnit {
+				t.Errorf("unit changed to %q", got)
 			}
 			assertOnlyTarget(t, target)
 		})
@@ -278,4 +293,95 @@ func TestSemverOrder(t *testing.T) {
 			t.Errorf("%q accepted", bad)
 		}
 	}
+}
+
+func unitOf(c *Client) string { return c.UnitTarget }
+
+func TestInstallReplacesDifferingUnitBeforeProgram(t *testing.T) {
+	s := selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new program", Unit: "[Unit]\nDescription=new\n"})
+	target := installed(t)
+	c := clientFor(s, "v1.0.0", target)
+	tg, err := c.Resolve(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := c.Install(context.Background(), tg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.UnitUpdated || !res.Updated {
+		t.Errorf("result = %+v", res)
+	}
+	if got := readFile(t, unitOf(c)); got != "[Unit]\nDescription=new\n" {
+		t.Errorf("unit = %q", got)
+	}
+	if info, _ := os.Stat(unitOf(c)); info.Mode().Perm() != 0o644 {
+		t.Errorf("unit mode = %v, want 0644", info.Mode().Perm())
+	}
+	assertOnlyTarget(t, target)
+}
+
+func TestInstallLeavesIdenticalUnitUntouched(t *testing.T) {
+	s := selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new program", Unit: oldUnit})
+	target := installed(t)
+	c := clientFor(s, "v1.0.0", target)
+	before, err := os.Stat(unitOf(c))
+	if err != nil {
+		t.Fatal(err)
+	}
+	past := before.ModTime().Add(-time.Hour)
+	if err := os.Chtimes(unitOf(c), past, past); err != nil {
+		t.Fatal(err)
+	}
+	tg, err := c.Resolve(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := c.Install(context.Background(), tg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.Stat(unitOf(c))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.UnitUpdated || !res.Updated || !os.SameFile(before, after) || !after.ModTime().Equal(past) || after.Mode().Perm() != 0o600 {
+		t.Errorf("result = %+v, unit rewritten", res)
+	}
+	if readFile(t, target) != "new program" {
+		t.Error("program not replaced")
+	}
+	assertOnlyTarget(t, target)
+}
+
+func TestInstallWithoutUnitInArchiveChangesNothing(t *testing.T) {
+	s := selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new program", NoUnit: true})
+	target := installed(t)
+	c := clientFor(s, "v1.0.0", target)
+	tg, err := c.Resolve(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Install(context.Background(), tg); err == nil || !strings.Contains(err.Error(), "lib/systemd/system/sysmin.service") {
+		t.Fatalf("err = %v", err)
+	}
+	if readFile(t, target) != oldProgram || readFile(t, unitOf(c)) != oldUnit {
+		t.Error("installation changed")
+	}
+	assertOnlyTarget(t, target)
+}
+
+func TestInstallInstallsMissingUnit(t *testing.T) {
+	s := selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new program", Unit: "fresh"})
+	target := installed(t)
+	c := clientFor(s, "v1.0.0", target)
+	if err := os.Remove(unitOf(c)); err != nil {
+		t.Fatal(err)
+	}
+	tg, _ := c.Resolve(context.Background(), "")
+	res, err := c.Install(context.Background(), tg)
+	if err != nil || !res.UnitUpdated || readFile(t, unitOf(c)) != "fresh" {
+		t.Errorf("res = %+v, err = %v", res, err)
+	}
+	assertOnlyTarget(t, target)
 }
