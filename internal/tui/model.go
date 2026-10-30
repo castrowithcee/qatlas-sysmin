@@ -66,8 +66,10 @@ type Model struct {
 
 	// home is the base screen: screenList for the bare frame, screenArea once enableAreas ran.
 	home screen
-	// area is the current area of screenArea; backend serves it; svc is what the service last reported.
+	// area is the current area of screenArea and zone the part of it that takes the keys; backend serves it;
+	// svc is what the service last reported.
 	area    area
+	zone    zone
 	backend Backend
 	svc     svcState
 	// ov is the passphrase overlay drawn as the prompt of screenPrompt, nil while there is none; ovSeq numbers
@@ -471,13 +473,10 @@ func (m *Model) searchLineIn(room int, l *filterList, label string) string {
 	return prefix + inputView(fitInput(l.input, width))
 }
 
-// wrap is i taken into 0..n-1: past either end it comes round, or, while the wheel presses the key, stops.
+// wrap is i taken into 0..n-1: past either end it comes round.
 func wrap(i, n int) int {
 	if n <= 0 {
 		return 0
-	}
-	if wheelClamp {
-		return min(max(i, 0), n-1)
 	}
 	return ((i % n) + n) % n
 }

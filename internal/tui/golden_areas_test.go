@@ -40,7 +40,7 @@ func TestGoldenAreas(t *testing.T) {
 		}},
 		{"settings_vault", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "6", "right")
+			send(m, "6", "esc", "right", "enter")
 			return m
 		}},
 		{"help", func(t *testing.T, w, h int) *Model {
@@ -73,19 +73,19 @@ func TestGoldenAreas(t *testing.T) {
 		}},
 		{"channels_list", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, libFake(), w, h)
-			send(m, "5", "right")
+			send(m, "5", "esc", "right", "enter")
 			return m
 		}},
 		{"channel_form", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, libFake(), w, h)
-			send(m, "5", "right", "n")
+			send(m, "5", "esc", "right", "enter", "n")
 			typed(m, "team-mail")
 			send(m, "tab", "right")
 			return m
 		}},
 		{"templates_detail", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, libFake(), w, h)
-			send(m, "5", "right", "right", "enter", "right")
+			send(m, "5", "esc", "right", "right", "enter", "enter", "right")
 			if w >= wideDetailMin {
 				send(m, "esc")
 			}
@@ -114,18 +114,18 @@ func TestGoldenAreas(t *testing.T) {
 		{"runs_list", func(t *testing.T, w, h int) *Model {
 			utcClock(t)
 			m := goldenApp(t, runsFake(), w, h)
-			send(m, "3", "right")
+			send(m, "3", "esc", "right", "enter")
 			return m
 		}},
 		{"runs_log", func(t *testing.T, w, h int) *Model {
 			utcClock(t)
 			m := goldenApp(t, runsFake(), w, h)
-			send(m, "3", "right", "o")
+			send(m, "3", "esc", "right", "enter", "o")
 			return m
 		}},
 		{"passphrase_change", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "6", "right", "enter")
+			send(m, "6", "esc", "right", "enter", "enter")
 			typed(m, "old pass")
 			send(m, "tab")
 			typed(m, "new pass")

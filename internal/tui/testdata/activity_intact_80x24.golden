@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                     [esc] back  ? help  : cmds
 ────────────────────────────────────────────────────────────────────────────────
  Overview   Projects  [Activity]  Access   Library   Settings 
 
@@ -21,4 +21,4 @@ Log (12)                                                                    1/12
 ║   2026-10-28 11:50:00  config.read        demo-app  success     73 ms  1000  ║
 ║   2026-10-28 11:49:00  approval.grant     -         success     80 ms  1000  ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-1-6 area  left/right page  enter details  f filter  ctrl+l admin  ? help  : cmds
+enter details  f filter  esc back  ctrl+l admin  ? help  : cmds  q quit

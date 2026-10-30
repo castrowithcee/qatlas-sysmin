@@ -440,7 +440,7 @@ func (m *Model) activityBody() string {
 		for i := range words {
 			words[i] = actTitle(i)
 		}
-		strip, cells := tabStrip(words, m.act.sub, false)
+		strip, cells := tabStrip(words, m.act.sub, m.zoneNow() == zoneSubs)
 		for i, c := range cells {
 			m.addHit(c[0], top, c[1], top+1, func() tea.Cmd { return m.setActSub(i) })
 		}
@@ -461,7 +461,7 @@ func (m *Model) activityKeys() []string {
 	if m.act.page.open {
 		return []string{"left/right tab", "up/down scroll", "{back} close"}
 	}
-	return []string{"left/right page", "up/down move", "enter details", "f filter", "t verify", "ctrl+r reload", "/ search"}
+	return []string{"up/down move", "enter details", "f filter", "t verify", "ctrl+r reload", "/ search"}
 }
 
 // activityKey handles the keys of Activity that the table does not.

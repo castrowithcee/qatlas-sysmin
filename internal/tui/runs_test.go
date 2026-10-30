@@ -42,7 +42,7 @@ func TestRunsLoadsStatusAndHistoryNewestFirst(t *testing.T) {
 	for _, size := range [][2]int{{80, 24}, {120, 40}} {
 		fb := runsFake()
 		m := appModel(t, fb, size[0], size[1])
-		send(m, "3", "right")
+		send(m, "3", "esc", "right", "enter")
 		view := plain(m)
 		for _, want := range []string{"Log", "Runs", "Runs · demo-app (2)", "‖ paused", "↩ rolled-back", "✓ succeeded", "app 1.1.0→1.2.0"} {
 			if !strings.Contains(view, want) {
@@ -63,7 +63,7 @@ func TestRunsProjectChangeLoadsAgain(t *testing.T) {
 	utcClock(t)
 	fb := runsFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "3", "right", "f")
+	send(m, "3", "esc", "right", "enter", "f")
 	if m.form == nil {
 		t.Fatal("no project form")
 	}
@@ -85,7 +85,7 @@ func TestRunLogOpensScrollsAndClosesAndNothingPolls(t *testing.T) {
 	utcClock(t)
 	fb := runsFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "3", "right", "o")
+	send(m, "3", "esc", "right", "enter", "o")
 	if fb.count("deploy-log demo-app "+runBack) != 1 {
 		t.Fatalf("calls = %v", fb.log())
 	}
@@ -122,7 +122,7 @@ func TestRunLogOpensScrollsAndClosesAndNothingPolls(t *testing.T) {
 func TestRunLogErrorsAreShownWithoutPath(t *testing.T) {
 	fb := runsFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "3", "right", "down", "o")
+	send(m, "3", "esc", "right", "enter", "down", "o")
 	if view := plain(m); !strings.Contains(view, "Not found.") {
 		t.Errorf("no error shown:\n%s", view)
 	}
@@ -140,7 +140,7 @@ func TestRunsDrawNoSecretNoControlSequence(t *testing.T) {
 	h[1].FailedStep = "step\x1b[31m"
 	m := appModel(t, fb, 120, 40)
 	m.redactor.Add(secretValue)
-	send(m, "3", "right")
+	send(m, "3", "esc", "right", "enter")
 	check := func() {
 		t.Helper()
 		raw := m.render()
@@ -163,7 +163,7 @@ func TestRunsDrawNoSecretNoControlSequence(t *testing.T) {
 func TestRunsCopyHandsOverOnlyTheRunID(t *testing.T) {
 	fb := runsFake()
 	m := appModel(t, fb, 120, 40)
-	send(m, "3", "right")
+	send(m, "3", "esc", "right", "enter")
 	if src := m.copySource(); src == nil || src() != runBack {
 		t.Error("copy does not give the ID of the marked run")
 	}

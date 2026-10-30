@@ -26,7 +26,7 @@ func TestHelpTogglesWithItsOwnKeyAndNamesTheKeysOfTheScreen(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
 	send(m, "?")
 	view := plain(m)
-	for _, want := range []string{"[keys]", "vault", "admin-session", "approvals", "unlock", "1-6 area", "Everywhere", "F2 save"} {
+	for _, want := range []string{"[keys]", "vault", "admin-session", "approvals", "unlock", "left/right area", "Everywhere", "F2 save"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the help lacks %q:\n%s", want, view)
 		}
@@ -184,7 +184,7 @@ func TestFooterNamesTheKeysOfTheScreenAndKeepsHelpVisible(t *testing.T) {
 	}
 	m := appModel(t, overviewFake(), 120, 40)
 	rows := strings.Split(plain(m), "\n")
-	for _, want := range []string{"1-6 area", "i info", ": cmds", "q quit"} {
+	for _, want := range []string{"left/right area", "down open", "i info", ": cmds", "q quit"} {
 		if !strings.Contains(rows[len(rows)-1], want) {
 			t.Errorf("the footer of the overview lacks %q: %q", want, rows[len(rows)-1])
 		}

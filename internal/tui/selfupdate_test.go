@@ -36,7 +36,7 @@ func TestSelfUpdateAsksThenQuitsToInstall(t *testing.T) {
 	shiftU := tea.KeyPressMsg{Code: 'u', ShiftedCode: 'U', Text: "U", Mod: tea.ModShift}
 	for name, start := range map[string]func(m *Model){
 		"U":       func(m *Model) { _, cmd := m.Update(shiftU); drain(m, cmd) },
-		"enter":   func(m *Model) { send(m, "home", "down", "enter") },
+		"enter":   func(m *Model) { send(m, "1", "down", "enter") },
 		"command": func(m *Model) { send(m, ":"); typed(m, "update"); send(m, "enter") },
 	} {
 		t.Run(name, func(t *testing.T) {

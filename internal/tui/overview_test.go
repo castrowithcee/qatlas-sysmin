@@ -20,6 +20,7 @@ func overviewFake() *fakeBackend {
 // focusRow moves the cursor of the overview to the row with the given id.
 func focusRow(t *testing.T, m *Model, id string) {
 	t.Helper()
+	send(m, "1")
 	for i, r := range m.overviewRows() {
 		if r.id == id {
 			m.ovr.cursor = i
@@ -100,7 +101,7 @@ func TestOverviewWithoutVaultLeadsToTheSetup(t *testing.T) {
 	if strings.Contains(view, "Unlock") {
 		t.Errorf("an unlock mode is shown without a vault:\n%s", view)
 	}
-	send(m, "enter")
+	send(m, "down", "enter")
 	if m.ov == nil || m.ov.kind != entrySetup {
 		t.Error("enter does not open the setup")
 	}
@@ -113,7 +114,7 @@ func TestOverviewWithALockedVaultHasNoDataAndUnlocks(t *testing.T) {
 	if !strings.Contains(view, "Press ctrl+l to unlock it.") || fb.count("approvals") != 0 {
 		t.Fatalf("locked overview:\n%s\ncalls %v", view, fb.log())
 	}
-	send(m, "enter")
+	send(m, "down", "enter")
 	if m.ov == nil || !m.ov.locked {
 		t.Error("enter does not ask for the passphrase")
 	}
@@ -128,7 +129,7 @@ func TestOverviewStaysVisibleWithoutTheService(t *testing.T) {
 		t.Errorf("the overview hides the missing service:\n%s", view)
 	}
 	fb.down = nil
-	send(m, "enter")
+	send(m, "down", "enter")
 	if !m.serviceUp() {
 		t.Error("enter on the service row does not ask again")
 	}
@@ -145,7 +146,7 @@ func TestOverviewOffersARestartToASessionWithoutTheGroup(t *testing.T) {
 	if got := errorText(fb.down); got != "This login session lacks the group sysmin; run regroup or log in again." {
 		t.Errorf("error text %q", got)
 	}
-	send(m, "enter")
+	send(m, "down", "enter")
 	if !m.regroupAsked || !m.quitting {
 		t.Errorf("enter does not quit to restart: regroup %v, quitting %v", m.regroupAsked, m.quitting)
 	}

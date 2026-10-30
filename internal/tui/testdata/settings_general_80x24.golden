@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                     [esc] back  ? help  : cmds
 ────────────────────────────────────────────────────────────────────────────────
  Overview   Projects   Activity   Access   Library  [Settings]
 
@@ -21,4 +21,4 @@ sysmin  ● vault open  ● admin off                                 ? help  : 
 
 
 
-1-6 area  left/right page  enter edit  F2 save  ctrl+l admin  ? help  : cmds
+enter edit  F2 save  esc back  ctrl+l admin  i info  ? help  : cmds  q quit

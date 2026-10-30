@@ -14,8 +14,8 @@ sysmin  ● vault open  ● admin off                                           
     Press enter to open Proj║ [keys]  vault   admin-session   approvals   unlock   secret… ║                            
                             ║                                                              ║                            
                             ║ This screen                                                  ║                            
-                            ║   1-6 area                                                   ║                            
-                            ║   up/down move                                               ║                            
+                            ║   left/right area                                            ║                            
+                            ║   down open                                                  ║                            
                             ║                                                              ║                            
                             ║ Everywhere                                                   ║                            
                             ║   ? help                                                     ║                            

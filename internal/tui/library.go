@@ -65,7 +65,7 @@ func (m *Model) libraryBody() string {
 	for i := range words {
 		words[i] = libTitle(i)
 	}
-	strip, cells := tabStrip(words, m.lib.sub, false)
+	strip, cells := tabStrip(words, m.lib.sub, m.zoneNow() == zoneSubs)
 	top := m.workspaceTop() + 2
 	for i, c := range cells {
 		m.addHit(c[0], top, c[1], top+1, func() tea.Cmd { return m.setLibSub(i) })
@@ -201,7 +201,7 @@ func (m *Model) libraryKeys() []string {
 	if m.lib.cred.page.open {
 		return []string{"left/right tab", "up/down scroll", "e edit", "d remove", "{back} close"}
 	}
-	return []string{"left/right page", "up/down move", "enter details", "n new", "e edit", "d remove", "/ filter"}
+	return []string{"up/down move", "enter details", "n new", "e edit", "d remove", "/ filter"}
 }
 
 // libraryKey handles the keys of Library that the page does not.

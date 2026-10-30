@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                     [esc] back  ? help  : cmds
 ────────────────────────────────────────────────────────────────────────────────
  Overview   Projects   Activity   Access  [Library]  Settings 
 
@@ -21,4 +21,4 @@ Templates › compose-update
 ║                                                                              ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-1-6 area  p derive  esc close  ctrl+l admin  i info  ? help  : cmds  q quit
+p derive  esc close  ctrl+l admin  i info  c copy  ? help  : cmds  q quit    1/3

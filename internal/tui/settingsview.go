@@ -17,7 +17,7 @@ func (m *Model) settingsBody() string {
 	for i := range words {
 		words[i] = subTitle(i)
 	}
-	strip, cells := tabStrip(words, m.set.sub, false)
+	strip, cells := tabStrip(words, m.set.sub, m.zoneNow() == zoneSubs)
 	top := m.workspaceTop() + 2
 	for i, c := range cells {
 		m.addHit(c[0], top, c[1], top+1, func() tea.Cmd { return m.setSub(i) })
@@ -57,7 +57,7 @@ func (p *pageDraw) row(line string, i int, focus *int) {
 			*focus = i
 			return nil
 		}
-		return m.pressName("enter")
+		return m.contentPress("enter")
 	})
 	p.add(line)
 }

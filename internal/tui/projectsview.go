@@ -143,7 +143,7 @@ func (m *Model) clickProject(i int) tea.Cmd {
 	if m.screen != screenArea || p.log != nil || i >= len(p.list.matches) || p.list.editing {
 		return nil
 	}
-	return markOrAct(&p.list.cursor, i, !p.focusDetail, func() tea.Cmd { return m.press(tea.KeyPressMsg{Code: tea.KeyEnter}) })
+	return markOrAct(&p.list.cursor, i, !p.focusDetail, func() tea.Cmd { return m.contentPress("enter") })
 }
 
 // projectDetailLines is the detail panel of width cells starting at column x: the state of the project under

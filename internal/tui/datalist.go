@@ -169,7 +169,7 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 				p.list.cursor = i
 				return m.dataWant()
 			}
-			return m.pressName("enter")
+			return m.contentPress("enter")
 		})
 		lines = append(lines, inside(row))
 	}
@@ -198,8 +198,8 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 	return head + "\n" + strings.Join(panel("", body, inner, room+2, panelOpts{focused: true}), "\n")
 }
 
-// pageKey handles the keys that move through the table, and the keys of the open detail. It reports false for
-// every other key.
+// pageKey handles the keys that move through the table, and the keys of the open detail; up on the first row
+// goes to the bar above. It reports false for every other key.
 func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 	if p.open {
 		switch {
@@ -225,6 +225,9 @@ func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, true
 	}
 	switch {
+	case keyIs(key, actUp) && p.list.cursor <= 0:
+		m.toBar()
+		return nil, true
 	case keyIs(key, actUp):
 		p.list.move(-1)
 	case keyIs(key, actDown):

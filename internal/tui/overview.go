@@ -181,27 +181,29 @@ func (m *Model) overviewCurrent() ovRow {
 	return rows[min(max(m.ovr.cursor, 0), len(rows)-1)]
 }
 
-// overviewKey handles a key of the overview: up and down move over the lines, enter takes the step.
-func (m *Model) overviewKey(key tea.KeyPressMsg) tea.Cmd {
+// overviewKey handles a key of the overview: up and down move over the lines and stop at the ends, up on the
+// first line goes to the tab line, enter takes the step. It reports false for a key it leaves to the area.
+func (m *Model) overviewKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	rows := m.overviewRows()
-	if len(rows) == 0 {
-		return nil
-	}
 	switch {
+	case keyIs(key, actUp) && m.ovr.cursor <= 0:
+		m.toBar()
 	case keyIs(key, actUp):
-		m.ovr.cursor = wrap(m.ovr.cursor-1, len(rows))
+		m.ovr.cursor--
 	case keyIs(key, actDown):
-		m.ovr.cursor = wrap(m.ovr.cursor+1, len(rows))
+		m.ovr.cursor = max(min(m.ovr.cursor+1, len(rows)-1), 0)
 	case keyIs(key, actHome):
 		m.ovr.cursor = 0
 	case keyIs(key, actEnd):
-		m.ovr.cursor = len(rows) - 1
+		m.ovr.cursor = max(len(rows)-1, 0)
 	case keyIs(key, actEnter):
 		if act := m.overviewCurrent().act; act != nil {
-			return act()
+			return act(), true
 		}
+	default:
+		return nil, false
 	}
-	return nil
+	return nil, true
 }
 
 // overviewBody is the state of the service and the vault, line by line, each with its next step.
@@ -230,7 +232,7 @@ func (m *Model) overviewBody() string {
 				m.ovr.cursor = i
 				return nil
 			}
-			return m.pressName("enter")
+			return m.contentPress("enter")
 		})
 		y += height
 		lines = append(lines, block)

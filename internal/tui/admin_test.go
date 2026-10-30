@@ -228,7 +228,7 @@ func TestNoVaultLeadsToTheSetup(t *testing.T) {
 	if cmd := m.requireAdmin(gated(fb, &done)); cmd != nil || m.ov != nil || m.fail != "There is no vault yet." {
 		t.Errorf("a change without a vault: overlay %v, fail %q", m.ov != nil, m.fail)
 	}
-	send(m, "enter")
+	send(m, "down", "enter")
 	if m.ov == nil || !strings.Contains(plain(m), "Set up vault") {
 		t.Fatalf("no setup overlay:\n%s", plain(m))
 	}
@@ -375,14 +375,30 @@ func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 			t.Errorf("%s selects %v, want %v", key, m.area, want)
 		}
 	}
-	send(m, "1", "right", "tab")
-	if m.area != areaActivity {
-		t.Errorf("right and tab reach %v", m.area)
+	send(m, "1")
+	if m.zone != zoneContent {
+		t.Errorf("a digit leaves the focus on %v, want the content", m.zone)
 	}
-	// Left and right turn the pages of Activity; the area moves with tab.
-	send(m, "shift+tab", "shift+tab", "left")
+	// In the content neither the arrows nor tab change the area.
+	send(m, "right", "left", "tab")
+	if m.area != areaOverview || m.zone != zoneTabs {
+		t.Errorf("right, left and tab reach area %v on %v, want the Overview with the tab line focused", m.area, m.zone)
+	}
+	send(m, "left")
+	if m.area != areaSettings || m.zone != zoneTabs {
+		t.Errorf("left on the tab line wraps to %v on %v", m.area, m.zone)
+	}
+	send(m, "right", "right")
+	if m.area != areaProjects {
+		t.Errorf("right on the tab line wraps to %v", m.area)
+	}
+	send(m, "end")
 	if m.area != areaSettings {
-		t.Errorf("movement back wraps to %v", m.area)
+		t.Errorf("end on the tab line reaches %v", m.area)
+	}
+	send(m, "home")
+	if m.area != areaOverview || m.zone != zoneTabs {
+		t.Errorf("home on the tab line reaches %v on %v", m.area, m.zone)
 	}
 	for a := area(0); a < areaCount; a++ {
 		if b, ok := areaByName(strings.ToLower(a.key())); !ok || b != a {

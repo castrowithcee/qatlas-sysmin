@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                     [esc] back  ? help  : cmds
 ────────────────────────────────────────────────────────────────────────────────
  Overview   Projects  [Activity]  Access   Library   Settings 
 
@@ -21,4 +21,4 @@ Run log › demo-app 20261028T120000.000000000Z
 ║                                                                              ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-1-6 area  ctrl+r reload  esc close  ctrl+l admin  i info  ? help  : cmds  q quit
+ctrl+r reload  esc close  ctrl+l admin  i info  c copy  ? help  : cmds  q quit

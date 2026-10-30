@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                     [esc] back  ? help  : cmds
 ────────────────────────────────────────────────────────────────────────────────
  Overview   Projects   Activity  [Access]  Library   Settings 
 
@@ -21,4 +21,4 @@ Approvals (2)                                                                1/2
 
 
 
-1-6 area  enter details  F2 approve  d discard  ctrl+l admin  ? help  : cmds
+enter details  F2 approve  d discard  esc back  ctrl+l admin  ? help  : cmds

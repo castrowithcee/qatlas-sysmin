@@ -163,7 +163,7 @@ func (m *Model) projectUpdateKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, false
 	}
 	move := func(by int) (tea.Cmd, bool) {
-		u.cursor = wrap(u.cursor+by, len(u.items))
+		u.cursor = max(min(u.cursor+by, len(u.items)-1), 0)
 		u.scroll.reset()
 		return m.updateNotesCmd(), true
 	}

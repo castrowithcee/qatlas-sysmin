@@ -293,7 +293,7 @@ func (m *Model) runsKeys() []string {
 	case m.act.runs.page.open:
 		return []string{"left/right tab", "up/down scroll", "o log", "{back} close"}
 	}
-	return []string{"left/right page", "up/down move", "enter details", "o log", "f project", "ctrl+r reload", "/ search"}
+	return []string{"up/down move", "enter details", "o log", "f project", "ctrl+r reload", "/ search"}
 }
 
 // runsKey handles the keys of Runs that the table does not.

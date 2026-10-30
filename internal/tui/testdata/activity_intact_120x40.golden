@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+sysmin  ● vault open  ● admin off                                                             [esc] back  ? help  : cmds
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
  Overview   Projects  [Activity]  Access   Library   Settings 
 
@@ -37,4 +37,4 @@ Log (12)                                                         1/12 ╭─ 12 
 
 
 
-1-6 area  left/right page  enter details  f filter  t verify  ctrl+r reload  ctrl+l admin  ? help  : cmds  q quit
+enter details  f filter  t verify  ctrl+r reload  / search  esc back  ctrl+l admin  i info  ? help  : cmds  q quit

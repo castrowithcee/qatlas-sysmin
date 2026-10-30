@@ -6,8 +6,8 @@ sysmin  ● vault open  ● admin off                                 ? help  : 
   ● Vers║ [keys]  vault   admin-session   approvals   unlock   secret… ║        
     Pres║                                                              ║        
   ● Conf║ This screen                                                  ║        
-  ● Unlo║   1-6 area                                                   ║        
-  ⚠ Appr║   up/down move                                               ║        
+  ● Unlo║   left/right area                                            ║        
+  ⚠ Appr║   down open                                                  ║        
     Pres║                                                              ║        
   ● Proj║ Everywhere                                                   ║        
   ○ Upda║   ? help                                                     ║        
