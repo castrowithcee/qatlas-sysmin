@@ -51,6 +51,8 @@ type fakeBackend struct {
 	// ones discarded.
 	approved, discarded []string
 	failApproveAll      []control.ApprovalFailure
+	// shownAll holds what each ApproveAll and DiscardAll received.
+	shownAll [][]control.ShownApproval
 	// pending is what SetCredential reports as open approvals.
 	pending []string
 	// lib is the state of channels, templates and log.
@@ -338,12 +340,29 @@ func (f *fakeBackend) Approve(project, fingerprint string) error {
 	return nil
 }
 
-func (f *fakeBackend) ApproveAll() (control.ApprovalsAllResult, error) {
+// sameShown is the service's check of an all-at-once call: exactly the shown approvals must be open.
+func (f *fakeBackend) sameShown(shown []control.ShownApproval) bool {
+	f.shownAll = append(f.shownAll, slices.Clone(shown))
+	if len(shown) != len(f.approvals) {
+		return false
+	}
+	for _, a := range f.approvals {
+		if !slices.Contains(shown, a.Shown()) {
+			return false
+		}
+	}
+	return true
+}
+
+func (f *fakeBackend) ApproveAll(shown []control.ShownApproval) (control.ApprovalsAllResult, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.record("approve-all")
 	if err := f.spend(); err != nil {
 		return control.ApprovalsAllResult{}, err
+	}
+	if !f.sameShown(shown) {
+		return control.ApprovalsAllResult{}, &control.Error{Code: control.CodeChanged}
 	}
 	var res control.ApprovalsAllResult
 	for _, a := range slices.Clone(f.approvals) {
@@ -359,24 +378,30 @@ func (f *fakeBackend) ApproveAll() (control.ApprovalsAllResult, error) {
 	return res, nil
 }
 
-func (f *fakeBackend) Discard(project string) error {
+func (f *fakeBackend) Discard(project, fingerprint string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.record("discard " + project)
+	f.record("discard " + project + " " + fingerprint)
 	if err := f.spend(); err != nil {
 		return err
+	}
+	if i := slices.IndexFunc(f.approvals, func(a control.ApprovalSummary) bool { return a.Project == project }); i < 0 || f.approvals[i].Fingerprint != fingerprint {
+		return &control.Error{Code: control.CodeChanged}
 	}
 	f.discarded = append(f.discarded, project)
 	f.drop(project)
 	return nil
 }
 
-func (f *fakeBackend) DiscardAll() (control.ApprovalsAllResult, error) {
+func (f *fakeBackend) DiscardAll(shown []control.ShownApproval) (control.ApprovalsAllResult, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.record("discard-all")
 	if err := f.spend(); err != nil {
 		return control.ApprovalsAllResult{}, err
+	}
+	if !f.sameShown(shown) {
+		return control.ApprovalsAllResult{}, &control.Error{Code: control.CodeChanged}
 	}
 	var res control.ApprovalsAllResult
 	for _, a := range f.approvals {

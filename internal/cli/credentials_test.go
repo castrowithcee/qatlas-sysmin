@@ -112,6 +112,26 @@ func (e *credEnv) admin() *client.Client {
 	return c
 }
 
+// shownAll lists the open approvals as a client shows them before an all-at-once request.
+func shownAll(t *testing.T, c *client.Client) []control.ShownApproval {
+	t.Helper()
+	items, err := c.Approvals()
+	if err != nil {
+		t.Fatal(err)
+	}
+	shown := make([]control.ShownApproval, 0, len(items))
+	for _, it := range items {
+		shown = append(shown, it.Shown())
+	}
+	return shown
+}
+
+// approveAll approves what c lists now, as a client does after it showed the list.
+func approveAll(t *testing.T, c *client.Client) (control.ApprovalsAllResult, error) {
+	t.Helper()
+	return c.ApproveAll(shownAll(t, c))
+}
+
 func TestCredentialSetFromStandardInputListAndRemove(t *testing.T) {
 	e := newCredEnv(t, true)
 	code, stdout, stderr := e.json(demoToken+"\n", "credential", "set", "demo-registry", "--kind", "registry", "--user", "demo-user", "--from-stdin")
@@ -277,7 +297,7 @@ func TestCredentialReplaceOpensTheProjectThatUsesIt(t *testing.T) {
 		t.Fatalf("project add: %q", stderr)
 	}
 	adm := e.admin()
-	if _, err := adm.ApproveAll(); err != nil {
+	if _, err := approveAll(t, adm); err != nil {
 		t.Fatal(err)
 	}
 

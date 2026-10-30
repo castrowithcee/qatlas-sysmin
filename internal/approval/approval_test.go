@@ -91,9 +91,21 @@ func (e *env) open() []Item {
 	return items
 }
 
+// shown is the fingerprint Open reports for the open approval of name, as a client would pass it on.
+func (e *env) shown(name string) string {
+	e.t.Helper()
+	for _, it := range e.open() {
+		if it.Project == name {
+			return it.Fingerprint
+		}
+	}
+	e.t.Fatalf("%s has no open approval", name)
+	return ""
+}
+
 func (e *env) approveDemo() {
 	e.t.Helper()
-	if err := e.mgr.Approve("demo-app", ""); err != nil {
+	if err := e.mgr.Approve("demo-app", e.shown("demo-app")); err != nil {
 		e.t.Fatal(err)
 	}
 }
@@ -181,7 +193,7 @@ func TestDiscardRestoresFile(t *testing.T) {
 	e := newEnv(t)
 	e.approveDemo()
 	e.write("projects/demo-app.yaml", strings.Replace(demoProject, "/srv/demo/app\ntemplate", "/srv/demo/other\ntemplate", 1))
-	if err := e.mgr.Discard("demo-app"); err != nil {
+	if err := e.mgr.Discard("demo-app", e.shown("demo-app")); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(e.read("projects/demo-app.yaml"), "dir: /srv/demo/app\n") {
@@ -199,7 +211,7 @@ func TestNewProjectDiscardedAndDeletedProjectRestored(t *testing.T) {
 	if items := e.open(); len(items) != 1 || items[0].Project != "fresh-app" || items[0].Kind != KindNew {
 		t.Fatalf("Open() = %+v", items)
 	}
-	if err := e.mgr.Discard("fresh-app"); err != nil {
+	if err := e.mgr.Discard("fresh-app", e.shown("fresh-app")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(e.root, "projects", "fresh-app.yaml")); !errors.Is(err, fs.ErrNotExist) {
@@ -213,7 +225,7 @@ func TestNewProjectDiscardedAndDeletedProjectRestored(t *testing.T) {
 	if len(items) != 1 || items[0].Kind != KindDeleted || items[0].Project != "demo-app" || len(items[0].Changes) == 0 {
 		t.Fatalf("Open() = %+v, want deleted demo-app", items)
 	}
-	if err := e.mgr.Discard("demo-app"); err != nil {
+	if err := e.mgr.Discard("demo-app", e.shown("demo-app")); err != nil {
 		t.Fatal(err)
 	}
 	if items := e.open(); len(items) != 0 {
@@ -235,6 +247,56 @@ func TestDeletedProjectApprovedRemovesApproval(t *testing.T) {
 	}
 	if _, err := os.Stat(e.mgr.snapshotPath("demo-app")); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("snapshot remains: %v", err)
+	}
+}
+
+func TestApprovalOfADeletionFailsOnceTheFileIsBack(t *testing.T) {
+	e := newEnv(t)
+	e.approveDemo()
+	approved := e.read("projects/demo-app.yaml")
+	if err := os.Remove(filepath.Join(e.root, "projects", "demo-app.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	if e.shown("demo-app") != "" {
+		t.Fatal("a deleted project carries a fingerprint")
+	}
+	e.write("projects/demo-app.yaml", demoProject+"values:\n  note: unseen\n")
+	if err := e.mgr.Approve("demo-app", ""); !errors.Is(err, ErrChanged) {
+		t.Fatalf("Approve(deleted) = %v, want ErrChanged", err)
+	}
+	if a, err := e.mgr.Approved("demo-app"); err != nil || a.Project.Values["note"] != "" {
+		t.Fatalf("Approved() = %+v, %v; the unseen file was approved", a, err)
+	}
+	// The file as approved: nothing is open, yet the expected deletion still does not hold.
+	e.write("projects/demo-app.yaml", approved)
+	if err := e.mgr.Approve("demo-app", ""); !errors.Is(err, ErrChanged) {
+		t.Fatalf("Approve(deleted) on the approved file = %v, want ErrChanged", err)
+	}
+}
+
+func TestDiscardBindsToTheShownState(t *testing.T) {
+	e := newEnv(t)
+	e.approveDemo()
+	e.write("projects/demo-app.yaml", demoProject+"values:\n  note: seen\n")
+	shown := e.shown("demo-app")
+	e.write("projects/demo-app.yaml", demoProject+"values:\n  note: later\n")
+	for _, expect := range []string{shown, ""} {
+		if err := e.mgr.Discard("demo-app", expect); !errors.Is(err, ErrChanged) {
+			t.Fatalf("Discard(%q) = %v, want ErrChanged", expect, err)
+		}
+	}
+	if !strings.Contains(e.read("projects/demo-app.yaml"), "note: later") {
+		t.Fatal("a refused discard changed the file")
+	}
+
+	if err := os.Remove(filepath.Join(e.root, "projects", "demo-app.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.mgr.Discard("demo-app", shown); !errors.Is(err, ErrChanged) {
+		t.Fatalf("Discard(fingerprint) of a deleted project = %v, want ErrChanged", err)
+	}
+	if _, err := os.Stat(filepath.Join(e.root, "projects", "demo-app.yaml")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("a refused discard restored the file: %v", err)
 	}
 }
 
@@ -340,7 +402,7 @@ func TestLockedVaultChangesNothing(t *testing.T) {
 	before := e.read("projects/demo-app.yaml")
 	checks := map[string]error{
 		"Approve":        e.mgr.Approve("demo-app", ""),
-		"Discard":        e.mgr.Discard("demo-app"),
+		"Discard":        e.mgr.Discard("demo-app", ""),
 		"ApproveCurrent": e.mgr.ApproveCurrent("demo-app", config.RevisionAbsent),
 	}
 	_, checks["ApproveAll"] = e.mgr.ApproveAll()

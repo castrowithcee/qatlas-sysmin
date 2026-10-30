@@ -64,7 +64,7 @@ func TestUnwritableProjectIsStoredReportedAndNotApproved(t *testing.T) {
 
 	fp := openOf(t, adm, "demo-web").Fingerprint
 	wantPaths(t, adm.Approve("demo-web", fp), envFile)
-	all, err := adm.ApproveAll()
+	all, err := approveAll(t, adm)
 	if err != nil || len(all.Done) != 0 || len(all.Failed) != 1 ||
 		all.Failed[0].Code != control.CodeNotWritable || !slices.Equal(all.Failed[0].Paths, []string{envFile}) {
 		t.Fatalf("approve-all = %+v, %v", all, err)
@@ -92,7 +92,7 @@ func TestBatchApprovalRefusesOnlyTheUnwritableProject(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	res, err := adm.ApproveAll()
+	res, err := approveAll(t, adm)
 	if err != nil || !slices.Equal(res.Done, []string{"demo-ok"}) || len(res.Failed) != 1 || res.Failed[0].Project != "demo-web" {
 		t.Fatalf("approve-all = %+v, %v", res, err)
 	}

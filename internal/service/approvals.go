@@ -139,20 +139,13 @@ func (s *Service) handleApprove(_ context.Context, c *daemon.Conn, params json.R
 	return nil, audited(c, p.Project, err)
 }
 
+// approve approves the state p names. The manager binds it under its lock: to the fingerprint, or, when
+// that is empty, to a project whose file is gone, so a file written meanwhile is refused as changed.
 func (s *Service) approve(p control.ApprovalParams) error {
-	if p.Fingerprint == "" {
-		// Only a deleted project has no fingerprint; for any other the approval would skip the check that
-		// ties it to what the client saw.
-		it, err := s.openItem(p.Project)
-		if err != nil {
-			return err
+	if p.Fingerprint != "" {
+		if paths := s.unwritablePaths(p.Project); len(paths) > 0 {
+			return &control.Error{Code: control.CodeNotWritable, Paths: paths}
 		}
-		if it.Kind != approval.KindDeleted {
-			return &control.Error{Code: control.CodeBadRequest}
-		}
-	}
-	if paths := s.unwritablePaths(p.Project); len(paths) > 0 {
-		return &control.Error{Code: control.CodeNotWritable, Paths: paths}
 	}
 	if err := s.approvals.Approve(p.Project, p.Fingerprint); err != nil {
 		return approvalError(err)
@@ -187,44 +180,86 @@ func (s *Service) discard(p control.ApprovalParams) error {
 	if err != nil {
 		return err
 	}
+	if it.Fingerprint != p.Fingerprint {
+		return &control.Error{Code: control.CodeChanged}
+	}
 	if it.Kind == approval.KindCredential {
 		return &control.Error{Code: control.CodeCannotDiscard}
 	}
-	if p.Fingerprint != "" && p.Fingerprint != it.Fingerprint {
-		return &control.Error{Code: control.CodeChanged}
-	}
-	if err := s.approvals.Discard(p.Project); err != nil {
+	return s.discardShown(p)
+}
+
+// discardShown discards the state p names; the manager binds it under its lock as approve does.
+func (s *Service) discardShown(p control.ApprovalParams) error {
+	if err := s.approvals.Discard(p.Project, p.Fingerprint); err != nil {
 		return approvalError(err)
 	}
 	return nil
 }
 
-func (s *Service) handleApproveAll(_ context.Context, c *daemon.Conn, _ json.RawMessage) (any, error) {
-	return s.each(c, false)
+func (s *Service) handleApproveAll(_ context.Context, c *daemon.Conn, params json.RawMessage) (any, error) {
+	return s.each(c, params, false)
 }
 
-func (s *Service) handleDiscardAll(_ context.Context, c *daemon.Conn, _ json.RawMessage) (any, error) {
-	return s.each(c, true)
+func (s *Service) handleDiscardAll(_ context.Context, c *daemon.Conn, params json.RawMessage) (any, error) {
+	return s.each(c, params, true)
 }
 
-// each handles every open approval one by one, so each project leaves its own audit entry and a failure
-// for one does not stop the others. Approving ties each to the fingerprint just listed; discarding leaves
-// out an item that restoring the file cannot undo.
-func (s *Service) each(c *daemon.Conn, discard bool) (any, error) {
+// shownParams decodes the approvals a client showed for an all-at-once request. Without them the request
+// is refused, never served on what is open now.
+func shownParams(params json.RawMessage) ([]control.ShownApproval, error) {
+	var p control.ApprovalsAllParams
+	if err := json.Unmarshal(params, &p); err != nil || p.Shown == nil {
+		return nil, &control.Error{Code: control.CodeBadRequest}
+	}
+	return p.Shown, nil
+}
+
+// sameApprovals reports whether items are exactly the shown approvals, by project, kind and fingerprint.
+// Projects are unique in items, so equal lengths leave no room for a duplicate in shown.
+func sameApprovals(shown []control.ShownApproval, items []approval.Item) bool {
+	if len(shown) != len(items) {
+		return false
+	}
+	have := make(map[control.ShownApproval]bool, len(shown))
+	for _, a := range shown {
+		have[a] = true
+	}
+	for _, it := range items {
+		if !have[control.ShownApproval{Project: it.Project, Kind: string(it.Kind), Fingerprint: it.Fingerprint}] {
+			return false
+		}
+	}
+	return true
+}
+
+// each handles the shown approvals one by one, so each project leaves its own audit entry and a failure
+// for one does not stop the others. Unless exactly the shown approvals are open, nothing is handled. The
+// comparison alone does not bind: each approval or discard is checked again against its shown state under
+// the manager's lock. Discarding leaves out an item that restoring the file cannot undo.
+func (s *Service) each(c *daemon.Conn, params json.RawMessage, discard bool) (any, error) {
+	shown, err := shownParams(params)
+	if err != nil {
+		return nil, err
+	}
 	items, err := s.openItems()
 	if err != nil {
 		return nil, err
 	}
+	if !sameApprovals(shown, items) {
+		return nil, &control.Error{Code: control.CodeChanged}
+	}
 	out := control.ApprovalsAllResult{Done: []string{}}
 	for _, it := range items {
+		p := control.ApprovalParams{Project: it.Project, Fingerprint: it.Fingerprint}
 		var err error
 		if discard {
 			if it.Kind == approval.KindCredential {
 				continue
 			}
-			err = s.discard(control.ApprovalParams{Project: it.Project, Fingerprint: it.Fingerprint})
+			err = s.discardShown(p)
 		} else {
-			err = s.approve(control.ApprovalParams{Project: it.Project, Fingerprint: it.Fingerprint})
+			err = s.approve(p)
 		}
 		c.Audit(it.Project, codeOfErr(err))
 		if err != nil {

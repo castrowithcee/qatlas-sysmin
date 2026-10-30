@@ -72,7 +72,7 @@ func TestWebhookListenerFollowsTheApprovedWebhooksAndEndsWithServe(t *testing.T)
 	admin := f.admin(t)
 
 	// No project has a webhook: nothing listens, even though everything is approved.
-	if _, err := admin.ApproveAll(); err != nil {
+	if _, err := approveAll(t, admin); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -90,7 +90,7 @@ func TestWebhookListenerFollowsTheApprovedWebhooksAndEndsWithServe(t *testing.T)
 		t.Fatal("the listener runs for an unapproved webhook")
 	}
 
-	if _, err := admin.ApproveAll(); err != nil {
+	if _, err := approveAll(t, admin); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, "the listener", func() bool { return listening(addr) })
@@ -155,7 +155,7 @@ func TestWebhookWithLockedVaultAnswers401AndStartsAfterUnlock(t *testing.T) {
 	if _, err := f.svc.vault.Add("demo-hook", vault.KindSecret, map[string]string{vault.FieldValue: webhookSecret}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, f.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 	// The unlock woke the supervisor before the approval; the long recheck interval would leave the

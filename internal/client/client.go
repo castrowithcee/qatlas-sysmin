@@ -192,23 +192,26 @@ func (c *Client) Approve(project, fingerprint string) error {
 	return c.Call(control.OpApprovalsApprove, control.ApprovalParams{Project: project, Fingerprint: fingerprint}, nil)
 }
 
-// ApproveAll approves every open approval as it is now. It needs the admin session of this connection.
-func (c *Client) ApproveAll() (control.ApprovalsAllResult, error) {
+// ApproveAll approves the open approvals a list reported, shown being all of them. Unless exactly these are
+// open now, it fails with control.CodeChanged and approves nothing. It needs the admin session of this
+// connection.
+func (c *Client) ApproveAll(shown []control.ShownApproval) (control.ApprovalsAllResult, error) {
 	var out control.ApprovalsAllResult
-	err := c.Call(control.OpApprovalsApproveAll, nil, &out)
+	err := c.Call(control.OpApprovalsApproveAll, control.ApprovalsAllParams{Shown: shown}, &out)
 	return out, err
 }
 
-// Discard restores a project from its approved state. It needs the admin session of this connection.
-func (c *Client) Discard(project string) error {
-	return c.Call(control.OpApprovalsDiscard, control.ApprovalParams{Project: project}, nil)
+// Discard restores a project from its approved state, the open approval being the one a list or show
+// reported with fingerprint. It needs the admin session of this connection.
+func (c *Client) Discard(project, fingerprint string) error {
+	return c.Call(control.OpApprovalsDiscard, control.ApprovalParams{Project: project, Fingerprint: fingerprint}, nil)
 }
 
-// DiscardAll restores every project that has an open approval a restore can undo. It needs the admin
-// session of this connection.
-func (c *Client) DiscardAll() (control.ApprovalsAllResult, error) {
+// DiscardAll restores every project of the shown approvals that a restore can undo, on the terms of
+// ApproveAll. It needs the admin session of this connection.
+func (c *Client) DiscardAll(shown []control.ShownApproval) (control.ApprovalsAllResult, error) {
 	var out control.ApprovalsAllResult
-	err := c.Call(control.OpApprovalsDiscardAll, nil, &out)
+	err := c.Call(control.OpApprovalsDiscardAll, control.ApprovalsAllParams{Shown: shown}, &out)
 	return out, err
 }
 

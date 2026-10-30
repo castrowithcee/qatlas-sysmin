@@ -205,8 +205,8 @@ type PassphraseParams struct {
 }
 
 // ApprovalParams are the parameters of OpApprovalsShow, OpApprovalsApprove and OpApprovalsDiscard.
-// Fingerprint is the one an earlier list or show reported; approving it approves exactly that state. It may
-// be empty only for a project whose file is gone.
+// Fingerprint is the one an earlier list or show reported; approving or discarding it handles exactly that
+// state. An empty one stands for a project whose file was shown as gone, or channels shown as removed.
 type ApprovalParams struct {
 	Project     string `json:"project"`
 	Fingerprint string `json:"fingerprint,omitempty"`
@@ -223,6 +223,26 @@ type ApprovalSummary struct {
 	FreeCommands bool `json:"free_commands,omitempty"`
 	// Unverified means the approved state could not be checked, so the changes list the whole project.
 	Unverified bool `json:"unverified,omitempty"`
+}
+
+// Shown is the ShownApproval that names this approval as it was shown.
+func (a ApprovalSummary) Shown() ShownApproval {
+	return ShownApproval{Project: a.Project, Kind: a.Kind, Fingerprint: a.Fingerprint}
+}
+
+// ShownApproval names one open approval as a list reported it. Fingerprint is empty exactly for the kind
+// deleted.
+type ShownApproval struct {
+	Project     string `json:"project"`
+	Kind        string `json:"kind"`
+	Fingerprint string `json:"fingerprint,omitempty"`
+}
+
+// ApprovalsAllParams are the parameters of OpApprovalsApproveAll and OpApprovalsDiscardAll: every open
+// approval that was shown. Unless the service lists exactly these now, the answer is CodeChanged and
+// nothing changes; each approval or discard is then bound to its shown state.
+type ApprovalsAllParams struct {
+	Shown []ShownApproval `json:"shown"`
 }
 
 // ApprovalsListResult is the answer to OpApprovalsList.

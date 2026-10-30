@@ -34,7 +34,7 @@ func (e *env) exists(rel string) bool {
 func TestProjectChangeWithoutSessionStaysPending(t *testing.T) {
 	e := approvalEnv(t)
 	c := e.dial(t)
-	if _, err := e.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, e.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -71,7 +71,7 @@ func TestProjectChangeWithoutSessionStaysPending(t *testing.T) {
 	if res, err := c.RemoveProject("demo-two", ""); err != nil || res.State != control.StateApproved || e.exists("projects/demo-two.yaml") {
 		t.Fatalf("remove of a never approved project = %+v, %v", res, err)
 	}
-	if _, err := e.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, e.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 	res, err = c.EditProject(control.ProjectParams{Name: "demo-app", Dir: "/srv/demo/moved"})
@@ -237,7 +237,7 @@ func TestProjectChangeNeedsUnlockedVault(t *testing.T) {
 func TestProjectListShowCheck(t *testing.T) {
 	e := approvalEnv(t)
 	c := e.dial(t)
-	if _, err := e.admin(t).ApproveAll(); err != nil {
+	if _, err := approveAll(t, e.admin(t)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := c.AddProject(newWeb()); err != nil {

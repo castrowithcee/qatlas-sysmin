@@ -251,13 +251,13 @@ func (m *Manager) openChannels(model *config.Model, approvals, ids map[string]st
 	return item, nil
 }
 
-func (m *Manager) approveChannels(model *config.Model, approvals, ids map[string]string, expect string) error {
+func (m *Manager) approveChannels(model *config.Model, approvals, ids map[string]string, expect string, bound bool) error {
 	chans := model.Settings.Channels
 	if len(chans) == 0 {
 		if _, known := approvals[ChannelsName]; !known {
 			return fmt.Errorf("%w: channels", ErrNothingOpen)
 		}
-		if expect != "" {
+		if bound && expect != "" {
 			return ErrChanged
 		}
 		if err := m.vault.DeleteApproval(ChannelsName); err != nil {
@@ -270,7 +270,7 @@ func (m *Manager) approveChannels(model *config.Model, approvals, ids map[string
 	if err != nil {
 		return err
 	}
-	if expect != "" && expect != fp {
+	if bound && expect != fp {
 		return ErrChanged
 	}
 	if approvals[ChannelsName] == fp {
@@ -309,7 +309,7 @@ func (m *Manager) ApproveCurrentChannels(written config.Revision) error {
 	if err != nil {
 		return err
 	}
-	err = m.approve(model, approvals, ids, ChannelsName, "")
+	err = m.approve(model, approvals, ids, ChannelsName, "", false)
 	if errors.Is(err, ErrNothingOpen) {
 		return nil
 	}

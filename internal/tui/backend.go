@@ -55,12 +55,13 @@ type Backend interface {
 	// Approval and Credentials only read; Credentials never carries a value.
 	Approval(project string) (control.ApprovalDetail, error)
 	Credentials() ([]control.CredentialSummary, error)
-	// The calls below change the service and need the admin session. Approve approves exactly the state the
-	// fingerprint names; SetCredential is the one call that carries secret values.
+	// The calls below change the service and need the admin session. Approve and Discard handle exactly the
+	// state the fingerprint names; ApproveAll and DiscardAll handle the shown approvals and are refused as
+	// changed unless exactly these are open. SetCredential is the one call that carries secret values.
 	Approve(project, fingerprint string) error
-	ApproveAll() (control.ApprovalsAllResult, error)
-	Discard(project string) error
-	DiscardAll() (control.ApprovalsAllResult, error)
+	ApproveAll(shown []control.ShownApproval) (control.ApprovalsAllResult, error)
+	Discard(project, fingerprint string) error
+	DiscardAll(shown []control.ShownApproval) (control.ApprovalsAllResult, error)
 	SetCredential(p control.CredentialSetParams) (control.CredentialResult, error)
 	RemoveCredential(name string) (control.CredentialResult, error)
 	// Channels, Templates, Template, LogEntries and VerifyLog only read. LogEntries and VerifyLog never need the
@@ -192,17 +193,17 @@ func (b *ClientBackend) Approve(project, fingerprint string) error {
 	return b.do(false, func(c *client.Client) error { return c.Approve(project, fingerprint) })
 }
 
-func (b *ClientBackend) ApproveAll() (res control.ApprovalsAllResult, err error) {
-	err = b.do(false, func(c *client.Client) (e error) { res, e = c.ApproveAll(); return e })
+func (b *ClientBackend) ApproveAll(shown []control.ShownApproval) (res control.ApprovalsAllResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.ApproveAll(shown); return e })
 	return res, err
 }
 
-func (b *ClientBackend) Discard(project string) error {
-	return b.do(false, func(c *client.Client) error { return c.Discard(project) })
+func (b *ClientBackend) Discard(project, fingerprint string) error {
+	return b.do(false, func(c *client.Client) error { return c.Discard(project, fingerprint) })
 }
 
-func (b *ClientBackend) DiscardAll() (res control.ApprovalsAllResult, err error) {
-	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DiscardAll(); return e })
+func (b *ClientBackend) DiscardAll(shown []control.ShownApproval) (res control.ApprovalsAllResult, err error) {
+	err = b.do(false, func(c *client.Client) (e error) { res, e = c.DiscardAll(shown); return e })
 	return res, err
 }
 

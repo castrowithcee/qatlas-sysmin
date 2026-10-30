@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -170,16 +171,17 @@ func TestDiscardAsksThenDiscardsAndReloads(t *testing.T) {
 	fb := accessFake()
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
+	const call = "discard sample-app fp-sample-0000000002"
 	send(m, "4", "down", "d")
-	if m.screen != screenConfirm || fb.count("discard sample-app") != 0 {
+	if m.screen != screenConfirm || fb.count(call) != 0 {
 		t.Fatal("no question before the discard")
 	}
 	send(m, "n")
-	if fb.count("discard sample-app") != 0 || m.screen != screenArea {
+	if fb.count(call) != 0 || m.screen != screenArea {
 		t.Fatal("n discarded")
 	}
 	send(m, "d", "y")
-	if fb.count("discard sample-app") != 1 || len(m.acc.page.list.all) != 1 {
+	if fb.count(call) != 1 || len(m.acc.page.list.all) != 1 {
 		t.Errorf("calls = %v, rows %v", fb.log(), m.acc.page.list.all)
 	}
 }
@@ -289,6 +291,31 @@ func changeBetween(t *testing.T, fb *fakeBackend, m *Model, keys ...string) {
 	fb.mu.Unlock()
 }
 
+// shownByAccessFake is what the list of accessFake shows, as an all-at-once call passes it on.
+var shownByAccessFake = []control.ShownApproval{
+	{Project: "demo-app", Kind: "new", Fingerprint: "fp-demo-000000000001"},
+	{Project: "sample-app", Kind: "changed", Fingerprint: "fp-sample-0000000002"},
+}
+
+func TestApproveAllAndDiscardAllPassTheShownApprovals(t *testing.T) {
+	for _, discard := range []bool{false, true} {
+		fb := accessFake()
+		fb.session = true
+		fb.approvals = append(fb.approvals, control.ApprovalSummary{Project: "gone-app", Kind: "deleted", Changes: 1})
+		want := append(slices.Clone(shownByAccessFake), control.ShownApproval{Project: "gone-app", Kind: "deleted"})
+		m := appModel(t, fb, 80, 24)
+		if discard {
+			m.acc.discardAfter = true
+			send(m, "4", "y")
+		} else {
+			send(m, "4", "a", "y")
+		}
+		if len(fb.shownAll) != 1 || !slices.Equal(fb.shownAll[0], want) || len(m.acc.page.list.all) != 0 {
+			t.Errorf("discard=%v: shown = %v, want %v; calls %v", discard, fb.shownAll, want, fb.log())
+		}
+	}
+}
+
 func TestApproveAllRefusesWhatChangedSinceTheQuestion(t *testing.T) {
 	fb := accessFake()
 	m := appModel(t, fb, 80, 24)
@@ -296,8 +323,11 @@ func TestApproveAllRefusesWhatChangedSinceTheQuestion(t *testing.T) {
 	send(m, "y")
 	typed(m, testPass)
 	send(m, "enter")
-	if fb.count("approve-all") != 0 || fb.count("session") != 1 {
-		t.Errorf("calls = %v, want one passphrase and no approve-all", fb.log())
+	if fb.count("approve-all") != 1 || fb.count("session") != 1 || len(fb.approved) != 0 {
+		t.Errorf("calls = %v, approved %v, want one passphrase and one refused approve-all", fb.log(), fb.approved)
+	}
+	if len(fb.shownAll) != 1 || !slices.Equal(fb.shownAll[0], shownByAccessFake) {
+		t.Errorf("shown = %v, want what the question showed", fb.shownAll)
 	}
 	if !strings.Contains(m.fail, "Changed meanwhile") || len(m.acc.page.list.all) != 2 || m.acc.items["sample-app"].Fingerprint != "fp-sample-changed-0003" {
 		t.Errorf("no reload or note: fail %q", m.fail)
@@ -312,8 +342,11 @@ func TestDiscardAllRefusesWhatChangedSinceTheQuestion(t *testing.T) {
 	send(m, "4")
 	changeBetween(t, fb, m)
 	send(m, "y")
-	if fb.count("discard-all") != 0 || !strings.Contains(m.fail, "Changed meanwhile") {
-		t.Errorf("calls = %v, fail %q", fb.log(), m.fail)
+	if fb.count("discard-all") != 1 || len(fb.shownAll) != 1 || !slices.Equal(fb.shownAll[0], shownByAccessFake) {
+		t.Errorf("calls = %v, shown %v", fb.log(), fb.shownAll)
+	}
+	if !strings.Contains(m.fail, "Changed meanwhile") || len(m.acc.page.list.all) != 2 || m.acc.items["sample-app"].Fingerprint != "fp-sample-changed-0003" {
+		t.Errorf("no reload or note: fail %q", m.fail)
 	}
 }
 

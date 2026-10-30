@@ -327,19 +327,19 @@ func (m *Model) accessApprove() tea.Cmd {
 	})
 }
 
-// accessDiscard asks, then discards the marked approval.
+// accessDiscard asks, then discards the marked approval as the list showed it.
 func (m *Model) accessDiscard() tea.Cmd {
 	name, ok := m.acc.page.current()
 	if !ok {
 		return nil
 	}
-	project := name
+	project, fingerprint := name, m.acc.items[name].Fingerprint
 	m.askConfirm(question{
 		title: tr(tAccDiscardTitle, m.diffText(project)), consequence: tr(tAccDiscardConsequence), warn: true, danger: true,
 		keys: "y discard · n/{back} cancel",
 	}, func() tea.Cmd {
 		return m.requireAdmin(change{
-			call: func(b Backend) error { return b.Discard(project) },
+			call: func(b Backend) error { return b.Discard(project, fingerprint) },
 			done: func(m *Model, err error) tea.Cmd {
 				if err == nil {
 					m.status = tr(tAccDiscarded, m.diffText(project))
@@ -355,48 +355,14 @@ func (m *Model) accessDiscard() tea.Cmd {
 // approved or discarded in one call is exactly what the person saw, and a longer list does not fit the dialog.
 const allListMax = 6
 
-// approvalKey names an approval by what the question shows and the service binds: project, kind, fingerprint.
-func approvalKey(a control.ApprovalSummary) string {
-	return a.Project + "\x00" + a.Kind + "\x00" + a.Fingerprint
-}
-
-// shownApprovals are the approvals the list holds now, as the question will show them.
-func (m *Model) shownApprovals() []string {
-	var keys []string
+// shownApprovals are the approvals the list holds now, as the question will show them. The service handles
+// them only while exactly these are open.
+func (m *Model) shownApprovals() []control.ShownApproval {
+	shown := make([]control.ShownApproval, 0, len(m.acc.page.list.all))
 	for _, name := range m.acc.page.list.all {
-		keys = append(keys, approvalKey(m.acc.items[name]))
+		shown = append(shown, m.acc.items[name].Shown())
 	}
-	return keys
-}
-
-// sameApprovals reports whether the service lists exactly the approvals that were shown, in any order.
-func sameApprovals(shown []string, now []control.ApprovalSummary) bool {
-	if len(shown) != len(now) {
-		return false
-	}
-	have := map[string]bool{}
-	for _, k := range shown {
-		have[k] = true
-	}
-	for _, a := range now {
-		if !have[approvalKey(a)] {
-			return false
-		}
-	}
-	return true
-}
-
-// guardedAll runs the all-at-once call only when the service still lists what the question showed; otherwise
-// it answers as changed and calls nothing, because the service binds each approval to its own current state.
-func guardedAll(b Backend, shown []string, call func() (control.ApprovalsAllResult, error)) (control.ApprovalsAllResult, error) {
-	now, err := b.Approvals()
-	if err != nil {
-		return control.ApprovalsAllResult{}, err
-	}
-	if !sameApprovals(shown, now) {
-		return control.ApprovalsAllResult{}, &control.Error{Code: control.CodeChanged}
-	}
-	return call()
+	return shown
 }
 
 // approvalLines name the open approvals in a question, a few of them.
@@ -437,7 +403,7 @@ func (m *Model) accessApproveAll() tea.Cmd {
 		var res control.ApprovalsAllResult
 		return m.requireAdmin(change{
 			call: func(b Backend) (err error) {
-				res, err = guardedAll(b, shown, b.ApproveAll)
+				res, err = b.ApproveAll(shown)
 				return err
 			},
 			done: func(m *Model, err error) tea.Cmd {
@@ -470,7 +436,7 @@ func (m *Model) discardAll() tea.Cmd {
 		var res control.ApprovalsAllResult
 		return m.requireAdmin(change{
 			call: func(b Backend) (err error) {
-				res, err = guardedAll(b, shown, b.DiscardAll)
+				res, err = b.DiscardAll(shown)
 				return err
 			},
 			done: func(m *Model, err error) tea.Cmd {

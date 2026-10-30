@@ -70,7 +70,7 @@ images:
 		t.Fatal(err)
 	}
 	if approve {
-		if _, err := c.ApproveAll(); err != nil {
+		if _, err := approveAll(t, c); err != nil {
 			t.Fatal(err)
 		}
 	}
