@@ -190,8 +190,8 @@ func (m *Model) libraryKeys() []string {
 	case libTemplates:
 		return m.tmplKeys()
 	}
-	if m.lib.cred.page.open {
-		return []string{"←/→ tab", "↑/↓ scroll", "e edit", "d remove", "{back} close"}
+	if m.detailFocus(&m.lib.cred.page) {
+		return []string{"←/→ tab", "↑/↓ scroll", "e edit", "d remove", "{back} back"}
 	}
 	return []string{"↑/↓ move", "enter details", "n new", "e edit", "d remove", "/ filter"}
 }

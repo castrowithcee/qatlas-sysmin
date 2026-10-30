@@ -444,8 +444,8 @@ func (m *Model) activityKeys() []string {
 	if m.act.sub == actRuns {
 		return m.runsKeys()
 	}
-	if m.act.page.open {
-		return []string{"←/→ tab", "↑/↓ scroll", "{back} close"}
+	if m.detailFocus(&m.act.page) {
+		return []string{"←/→ tab", "↑/↓ scroll", "{back} back"}
 	}
 	return []string{"↑/↓ move", "enter details", "f filter", "t verify", "ctrl+r reload", "/ search"}
 }

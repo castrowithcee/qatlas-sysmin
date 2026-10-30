@@ -33,6 +33,64 @@ func (m *Model) addHit(x0, y0, x1, y1 int, act func() tea.Cmd) {
 	m.hits = append(m.hits, hit{x0, y0, x1, y1, act})
 }
 
+// wheelHit is an area of the screen the wheel scrolls under the pointer, without moving the focus.
+type wheelHit struct {
+	x0, y0, x1, y1 int
+	scroll         func(up bool)
+}
+
+// addZone registers the click target of a zone. It ranks beneath every other target, so a click lands on an
+// element inside the zone if there is one and gives the zone the focus otherwise.
+func (m *Model) addZone(x0, y0, x1, y1 int, z zone) {
+	if m.backdrop || m.tooSmall || x1 <= x0 || y1 <= y0 {
+		return
+	}
+	m.zoneHits = append(m.zoneHits, hit{x0, y0, x1, y1, func() tea.Cmd { return m.focusZone(z) }})
+}
+
+// addWheel registers an area that the wheel scrolls.
+func (m *Model) addWheel(x0, y0, x1, y1 int, scroll func(up bool)) {
+	if m.backdrop || m.tooSmall || x1 <= x0 || y1 <= y0 {
+		return
+	}
+	m.wheelHits = append(m.wheelHits, wheelHit{x0, y0, x1, y1, scroll})
+}
+
+// focusZone is the click on a free place of zone z. It does what tab does and no more: an inner level of the
+// content (a typed filter, a log, a guided setup, an open detail) keeps the focus, and a detail that does not
+// stand beside the rows or a page strip that is not there cannot be focused.
+func (m *Model) focusZone(z zone) tea.Cmd {
+	if m.screen != screenArea || m.innerLevel() {
+		return nil
+	}
+	if (z == zoneDetail && !m.detailZoneAvailable()) || (z == zoneSubs && !m.hasSubs()) {
+		return nil
+	}
+	m.zone = z
+	return nil
+}
+
+// focusRows gives the rows the focus for a click on a row. It reports whether the detail had the focus, in
+// which case the click only moves the focus and opens nothing.
+func (m *Model) focusRows() bool {
+	if m.screen != screenArea || m.innerLevel() {
+		return false
+	}
+	fromDetail := m.zoneNow() == zoneDetail
+	m.zone = zoneContent
+	return fromDetail
+}
+
+// endInput ends a filter being typed, as the first level of esc does, before a click leaves for a tab.
+func (m *Model) endInput() {
+	if p := m.currentPage(); p.filtering() {
+		p.list.stopFilter()
+	}
+	if m.area == areaProjects && m.prj != nil && m.prj.list.editing {
+		m.prj.list.stopFilter()
+	}
+}
+
 // addFrameHit registers a click target of the header.
 func (m *Model) addFrameHit(x0, y0, x1, y1 int, act func() tea.Cmd) {
 	if m.backdrop || m.tooSmall || x1 <= x0 || y1 <= y0 {
@@ -124,6 +182,15 @@ func (m *Model) updateMouse(msg tea.MouseMsg) tea.Cmd {
 		if m.dd != nil {
 			return nil
 		}
+		if m.screen == screenArea {
+			for i := len(m.wheelHits) - 1; i >= 0; i-- {
+				if h := m.wheelHits[i]; event.X >= h.x0 && event.X < h.x1 && event.Y >= h.y0 && event.Y < h.y1 {
+					h.scroll(event.Button == tea.MouseWheelUp)
+					m.wheelSeen = wheelSeen{button: event.Button, x: event.X, y: event.Y, at: m.timeNow(), ok: true}
+					return nil
+				}
+			}
+		}
 		cmd := m.wheel(event)
 		m.wheelSeen = wheelSeen{button: event.Button, x: event.X, y: event.Y, at: m.timeNow(), ok: true}
 		return cmd
@@ -131,7 +198,7 @@ func (m *Model) updateMouse(msg tea.MouseMsg) tea.Cmd {
 	if m.dd != nil {
 		return m.clickDropdown(event.X, event.Y)
 	}
-	hits := append(append([]hit{}, m.frameHits...), m.hits...)
+	hits := append(append(append([]hit{}, m.zoneHits...), m.frameHits...), m.hits...)
 	for i := len(hits) - 1; i >= 0; i-- {
 		h := hits[i]
 		if event.X >= h.x0 && event.X < h.x1 && event.Y >= h.y0 && event.Y < h.y1 {

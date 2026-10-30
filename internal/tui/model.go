@@ -117,7 +117,11 @@ type Model struct {
 
 	// The click targets of the frame drawn last; see mouse.go.
 	hits, frameHits []hit
-	footerSpans     []footerSpan
+	// zoneHits are the click targets of the zones, which rank beneath every other target; wheelHits are the
+	// areas the wheel scrolls under the pointer.
+	zoneHits    []hit
+	wheelHits   []wheelHit
+	footerSpans []footerSpan
 	// footerLog collects the key lines a dialog draws itself, so its keys can be clicked as buttons.
 	footerLog *[]footerLine
 	// inModal and inPanel say that a dialog is drawn into a modal or a panel; backdrop, that the frame is
@@ -393,7 +397,7 @@ func (m *Model) renderFrame() string {
 	if m.quitting {
 		return ""
 	}
-	m.hits, m.frameHits, m.tooSmall = nil, nil, false
+	m.hits, m.frameHits, m.zoneHits, m.wheelHits, m.tooSmall = nil, nil, nil, nil, false
 	if m.dd != nil {
 		m.dd.placed = false
 	}

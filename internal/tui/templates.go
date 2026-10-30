@@ -175,8 +175,8 @@ func (m *Model) tmplLines(name string, tab, width int) []string {
 }
 
 func (m *Model) tmplKeys() []string {
-	if m.lib.tmpls.page.open {
-		return []string{"←/→ tab", "↑/↓ scroll", "p derive", "{back} close"}
+	if m.detailFocus(&m.lib.tmpls.page) {
+		return []string{"←/→ tab", "↑/↓ scroll", "p derive", "{back} back"}
 	}
 	return []string{"↑/↓ move", "enter details", "p derive", "/ filter"}
 }

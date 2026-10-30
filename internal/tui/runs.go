@@ -289,9 +289,9 @@ func (m *Model) runsBody(top int) string {
 func (m *Model) runsKeys() []string {
 	switch {
 	case m.act.runs.log.open:
-		return []string{"↑/↓ scroll", "ctrl+r reload", "{back} close"}
-	case m.act.runs.page.open:
-		return []string{"←/→ tab", "↑/↓ scroll", "o log", "{back} close"}
+		return []string{"↑/↓ scroll", "ctrl+r reload", "{back} back"}
+	case m.detailFocus(&m.act.runs.page):
+		return []string{"←/→ tab", "↑/↓ scroll", "o log", "{back} back"}
 	}
 	return []string{"↑/↓ move", "enter details", "o log", "f project", "ctrl+r reload", "/ search"}
 }

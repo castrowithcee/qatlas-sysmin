@@ -21,4 +21,4 @@ Templates › compose-update
 ║                                                                              ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-p derive  esc close  ctrl+l admin  i info  c copy  ? help  : cmds  q quit    1/3
+p derive  esc back  ctrl+l admin  i info  c copy  ? help  : cmds  q quit     1/3

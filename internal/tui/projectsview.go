@@ -36,6 +36,10 @@ func (m *Model) projectsBody() string {
 		left := m.projectListLines(0, listW, rows, !p.focusDetail, framed)
 		p.gap = 0
 		right := m.projectDetailLines(listW, width-listW, rows, p.focusDetail, framed)
+		top := m.workspaceTop()
+		m.addZone(0, top, listW, top+len(left), zoneContent)
+		m.addZone(listW, top, width, top+len(right), zoneDetail)
+		m.addWheel(listW, top, width, top+len(right), func(up bool) { p.pane.wheel(up) })
 		out := make([]string, len(left))
 		for i := range left {
 			out[i] = padLine(left[i], listW) + right[i]
@@ -44,7 +48,9 @@ func (m *Model) projectsBody() string {
 	case p.focusDetail:
 		return strings.Join(m.projectDetailLines(0, width, rows, true, framed), "\n")
 	}
-	return strings.Join(m.projectListLines(0, width, rows, true, framed), "\n")
+	left := m.projectListLines(0, width, rows, true, framed)
+	m.addZone(0, m.workspaceTop(), width, m.workspaceTop()+len(left), zoneContent)
+	return strings.Join(left, "\n")
 }
 
 // projectChrome is the number of lines a panel adds around its body rows: the title and the frame.
@@ -143,6 +149,10 @@ func (m *Model) clickProject(i int) tea.Cmd {
 	if m.screen != screenArea || p.log != nil || i >= len(p.list.matches) || p.list.editing {
 		return nil
 	}
+	if m.focusRows() {
+		p.list.cursor = i
+		return nil
+	}
 	return markOrAct(&p.list.cursor, i, !p.focusDetail, func() tea.Cmd { return m.contentPress("enter") })
 }
 
@@ -172,7 +182,7 @@ func (m *Model) projectDetailLines(x, width, rows int, focused, framed bool) []s
 	}
 	y := m.workspaceTop() + before + 1
 	for i, c := range cells {
-		m.addHit(x+inset+c[0], y, x+inset+min(c[1], room), y+1, func() tea.Cmd { p.tab = projectTab(i); return nil })
+		m.addHit(x+inset+c[0], y, x+inset+min(c[1], room), y+1, func() tea.Cmd { p.tab = projectTab(i); return m.focusZone(zoneDetail) })
 	}
 	body := []string{statusMark(kind, word), clipCells(strip, room), ""}
 	var content []string

@@ -170,10 +170,9 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 	if p.upd != nil {
 		return m.projectUpdateKey(key)
 	}
-	wide := m.usable(0) >= projectsDetailMinWidth
 	step := func(by int) { p.tab = projectTab((int(p.tab) + by + int(projTabCount)) % int(projTabCount)) }
 	switch {
-	case p.focusDetail:
+	case p.focusDetail || m.zoneNow() == zoneDetail:
 		switch {
 		case keyIs(key, actBack):
 			p.focusDetail = false
@@ -188,12 +187,6 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 			p.pane.view.scroll(key, p.pane.page)
 			return nil, true
 		}
-	case wide && keyIs(key, actLeft):
-		step(-1)
-		return nil, true
-	case wide && keyIs(key, actRight):
-		step(1)
-		return nil, true
 	case keyIs(key, actUp) && p.list.cursor <= 0:
 		m.toBar()
 		return nil, true
@@ -208,7 +201,11 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 		return nil, true
 	case keyIs(key, actEnter):
 		if _, has := p.current(); has {
-			p.focusDetail = true
+			if m.detailZoneAvailable() {
+				m.zone = zoneDetail
+			} else {
+				p.focusDetail = true
+			}
 		}
 		return nil, true
 	case keyIs(key, actSpace):
@@ -531,17 +528,17 @@ func (m *Model) projectsKeys() []string {
 	case p.log != nil:
 		return []string{"↑/↓ scroll", "pgup/pgdown page", "home/end ends", "{back} back"}
 	case p.upd != nil && p.upd.results != nil:
-		return []string{"↑/↓ scroll", "{back} close"}
+		return []string{"↑/↓ scroll", "{back} back"}
 	case p.upd != nil:
-		return []string{"↑/↓ item", "enter version", "pgup/pgdown notes", "y update", "n/{back} cancel"}
-	case p.focusDetail:
-		return []string{"↑/↓ scroll", "←/→ tab", "t test", "u update", "e edit", "p duplicate", "d delete", "o log", "{back} list"}
+		return []string{"↑/↓ item", "enter version", "pgup/pgdown notes", "y update", "n/{back} back"}
+	case p.focusDetail || m.zoneNow() == zoneDetail:
+		keys := []string{"↑/↓ scroll", "←/→ tab"}
+		if m.zoneNow() == zoneDetail {
+			keys = append(keys, "tab next")
+		}
+		return append(keys, "{back} back", "t test", "u update", "e edit", "o log")
 	}
-	keys := []string{"↑/↓ move", "t test", "o log", "u update", "space mark", "enter detail", "n new", "e edit", "p duplicate", "/ filter", "d delete"}
-	if m.usable(0) >= projectsDetailMinWidth {
-		keys = append(keys, "←/→ tab")
-	}
-	return keys
+	return []string{"↑/↓ move", "t test", "o log", "u update", "space mark", "enter detail", "n new", "e edit", "p duplicate", "/ filter", "d delete"}
 }
 
 // Secret-looking keys of a project file. The file holds credential names only, but a value in it is free

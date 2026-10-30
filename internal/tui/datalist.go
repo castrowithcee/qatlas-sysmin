@@ -63,12 +63,12 @@ func tabTitle(tab int) string {
 }
 
 // tabStripLine is the strip of the detail tabs and the cells each takes.
-func tabStripLine(p *dataPage, width int) (string, [][2]int) {
+func tabStripLine(p *dataPage, width int, focused bool) (string, [][2]int) {
 	words := make([]string, tabCount)
 	for i := range words {
 		words[i] = tabTitle(i)
 	}
-	strip, spans := tabStrip(words, p.tab, p.open)
+	strip, spans := tabStrip(words, p.tab, focused)
 	return clipCells(strip, width), spans
 }
 
@@ -101,14 +101,36 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 		detailWidth = width * 5 / 12
 		tableWidth = width - detailWidth - 1
 	}
-	left := m.tableBlock(p, v, tableWidth, avail, top, position)
+	detailFocus := m.zoneNow() == zoneDetail
+	left := m.tableBlock(p, v, tableWidth, avail, top, position, !detailFocus)
 	if !wide {
+		m.addZone(0, top, width, top+len(left), zoneContent)
 		return strings.Join(left, "\n")
 	}
 	inner := detailWidth - 4
-	strip, _ := tabStripLine(p, inner)
-	body := append([]string{strip, ""}, v.lines(name, p.tab, inner)...)
-	right := panel(truncateCells(name, inner-2), body, inner, min(max(len(body), len(left)-2), avail-2), panelOpts{})
+	strip, spans := tabStripLine(p, inner, detailFocus)
+	content := v.lines(name, p.tab, inner)
+	height := min(max(len(content)+2, len(left)-2), avail-2)
+	room := max(height-2, 1)
+	p.scroll = min(max(p.scroll, 0), max(len(content)-room, 0))
+	body := append([]string{strip, ""}, content[p.scroll:min(p.scroll+room, len(content))]...)
+	right := panel(truncateCells(name, inner-2), body, inner, height, panelOpts{focused: detailFocus})
+	left0 := tableWidth + 1
+	m.addZone(0, top, tableWidth, top+len(left), zoneContent)
+	m.addZone(left0, top, width, top+len(right), zoneDetail)
+	m.addWheel(left0, top, width, top+len(right), func(up bool) {
+		if up {
+			p.scroll = max(p.scroll-wheelText, 0)
+		} else {
+			p.scroll += wheelText
+		}
+	})
+	for i, span := range spans {
+		m.addHit(left0+2+span[0], top+1, left0+2+span[1], top+2, func() tea.Cmd {
+			p.tab, p.scroll = i, 0
+			return m.focusZone(zoneDetail)
+		})
+	}
 	var out []string
 	for i := range max(len(left), len(right)) {
 		l, r := "", ""
@@ -124,7 +146,7 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 }
 
 // tableBlock is the table of the page in width cells, at most avail lines.
-func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, position string) []string {
+func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, position string, focused bool) []string {
 	framed := width >= tableFrameMinWidth && m.height >= tableFrameMinHeight
 	room := width
 	if framed {
@@ -134,12 +156,12 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 		if !framed {
 			return text
 		}
-		return panelSide(text, room, true)
+		return panelSide(text, room, focused)
 	}
 	total, shown := len(p.list.all), len(p.list.matches)
 	lines := []string{titleLine(fmt.Sprintf("%s (%d)", v.title, total), position, width)}
 	if framed {
-		lines = append(lines, panelTop("", "", room, true))
+		lines = append(lines, panelTop("", "", room, focused))
 	}
 	if p.list.editing || p.list.query() != "" {
 		lines = append(lines, inside(m.searchLineIn(room, &p.list, tr(tFormFilter))))
@@ -165,16 +187,20 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 		i := i
 		row := m.listRowIn(room, i == p.list.cursor, t.line(p.rows[p.list.matches[i]], layout))
 		m.addHit(0, top+len(lines), width, top+len(lines)+1, func() tea.Cmd {
+			fromDetail := m.focusRows()
 			if p.list.cursor != i {
-				p.list.cursor = i
+				p.list.cursor, p.scroll = i, 0
 				return m.dataWant()
+			}
+			if fromDetail {
+				return nil
 			}
 			return m.contentPress("enter")
 		})
 		lines = append(lines, inside(row))
 	}
 	if framed {
-		lines = append(lines, panelBottom(room, true))
+		lines = append(lines, panelBottom(room, focused))
 	}
 	return lines
 }
@@ -189,7 +215,7 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 	if len(content) > room {
 		note = tr(tScrollPosition, p.scroll+1, min(p.scroll+room, len(content)), len(content))
 	}
-	strip, spans := tabStripLine(p, inner)
+	strip, spans := tabStripLine(p, inner, true)
 	body := append([]string{strip, ""}, content[p.scroll:min(p.scroll+room, len(content))]...)
 	head := titleLine(v.title+" › "+truncateCells(name, max(width-lipgloss.Width(v.title)-4, 4)), note, width)
 	for i, span := range spans {
@@ -219,11 +245,42 @@ func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 			p.scroll += 5
 		case keyIs(key, actHome):
 			p.scroll = 0
+		case keyIs(key, actEnd):
+			p.scroll = 1 << 30
 		default:
 			return nil, false
 		}
 		return nil, true
 	}
+	if m.zoneNow() == zoneDetail {
+		switch {
+		case keyIs(key, actLeft):
+			p.tab, p.scroll = (p.tab+tabCount-1)%tabCount, 0
+		case keyIs(key, actRight):
+			p.tab, p.scroll = (p.tab+1)%tabCount, 0
+		case keyIs(key, actUp):
+			p.scroll = max(p.scroll-1, 0)
+		case keyIs(key, actDown):
+			p.scroll++
+		case keyIs(key, actPageUp):
+			p.scroll = max(p.scroll-5, 0)
+		case keyIs(key, actPageDown):
+			p.scroll += 5
+		case keyIs(key, actHome):
+			p.scroll = 0
+		case keyIs(key, actEnd):
+			p.scroll = 1 << 30
+		default:
+			return nil, false
+		}
+		return nil, true
+	}
+	cursor := p.list.cursor
+	defer func() {
+		if p.list.cursor != cursor {
+			p.scroll = 0
+		}
+	}()
 	switch {
 	case keyIs(key, actUp) && p.list.cursor <= 0:
 		m.toBar()
@@ -236,7 +293,12 @@ func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 		p.list.page(key, 0, 10)
 	case keyIs(key, actEnter):
 		if _, ok := p.current(); ok {
-			p.open, p.scroll = true, 0
+			p.scroll = 0
+			if m.detailZoneAvailable() {
+				m.zone = zoneDetail
+			} else {
+				p.open = true
+			}
 		}
 	case keyIs(key, actSearch), keyIs(key, actFilter):
 		p.list.startFilter()
@@ -352,3 +414,7 @@ func factLines(pairs [][2]string, width int) []string {
 	}
 	return out
 }
+
+// detailFocus reports whether the keys of the detail apply to page p: it has the screen, or it is the focused
+// zone beside the rows.
+func (m *Model) detailFocus(p *dataPage) bool { return p.open || m.zoneNow() == zoneDetail }

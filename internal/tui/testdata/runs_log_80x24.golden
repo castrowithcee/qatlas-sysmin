@@ -21,4 +21,4 @@ Run log › demo-app 20261028T120000.000000000Z
 ║                                                                              ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-ctrl+r reload  esc close  ctrl+l admin  i info  c copy  ? help  : cmds  q quit
+ctrl+r reload  esc back  ctrl+l admin  i info  c copy  ? help  : cmds  q quit
