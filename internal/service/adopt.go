@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/url"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -46,7 +47,49 @@ var blockingCodes = map[string]bool{
 }
 
 func (s *Service) registerAdopt() error {
+	if err := s.server.Register(control.OpProjectsStacks, daemon.Handler{Action: auditlog.OperationConfigRead, Func: s.handleProjectsStacks}); err != nil {
+		return err
+	}
 	return s.server.Register(control.OpProjectsAdopt, daemon.Handler{Action: auditlog.OperationConfigApply, Func: s.handleProjectsAdopt})
+}
+
+// handleProjectsStacks lists the running Compose stacks. It reads only, so it needs no open vault.
+func (s *Service) handleProjectsStacks(ctx context.Context, c *daemon.Conn, _ json.RawMessage) (any, error) {
+	lctx, cancel := context.WithTimeout(ctx, control.StacksTimeout)
+	defer cancel()
+	stacks, truncated, err := adopt.ListStacks(lctx, s.cfg.Runner)
+	if err != nil {
+		slog.Warn("cannot list the running stacks", "error", err.Error())
+		code := control.CodeDockerUnavailable
+		if errors.Is(lctx.Err(), context.DeadlineExceeded) {
+			code = control.CodeTimeout
+		}
+		c.Audit("", code)
+		return nil, &control.Error{Code: code}
+	}
+	m, _, err := s.loadModel()
+	if err != nil {
+		return nil, err
+	}
+	out := control.StacksResult{Stacks: make([]control.Stack, 0, len(stacks)), Truncated: truncated}
+	for _, st := range stacks {
+		owner, _ := adopt.Adopted(m, st.Dir)
+		out.Stacks = append(out.Stacks, control.Stack{
+			ComposeProject: st.ComposeProject, Dir: st.Dir, ComposeFiles: st.ComposeFiles,
+			Containers: st.Containers, ManagedBy: owner,
+		})
+	}
+	sort.SliceStable(out.Stacks, func(i, j int) bool {
+		a, b := out.Stacks[i], out.Stacks[j]
+		if (a.ManagedBy == "") != (b.ManagedBy == "") {
+			return a.ManagedBy == ""
+		}
+		if a.ComposeProject != b.ComposeProject {
+			return a.ComposeProject < b.ComposeProject
+		}
+		return a.Dir < b.Dir
+	})
+	return out, nil
 }
 
 // adoptDir accepts an absolute path without control characters and returns it cleaned.

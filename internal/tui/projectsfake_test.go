@@ -232,6 +232,10 @@ func (f *fakeBackend) saveProject(op string, p control.ProjectParams) (control.C
 	return control.ChangeResult{Project: p.Name, State: control.StateApproved, Revision: "rev-" + p.Name}, nil
 }
 
+func (f *fakeBackend) Stacks() (control.StacksResult, error) {
+	return control.StacksResult{}, nil
+}
+
 func (f *fakeBackend) AdoptProject(p control.AdoptParams) (control.AdoptResult, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

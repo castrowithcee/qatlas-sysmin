@@ -182,6 +182,8 @@ func (c *Client) Call(op string, params, result any) error {
 		timeout = control.ChangelogTimeout + CallTimeout
 	case control.OpProjectsAdopt:
 		timeout = control.AdoptTimeout + CallTimeout
+	case control.OpProjectsStacks:
+		timeout = control.StacksTimeout + CallTimeout
 	}
 	now := time.Now()
 	_ = c.conn.SetDeadline(now.Add(timeout))
@@ -488,6 +490,14 @@ func (c *Client) Changelog(project, image, to string) (control.ChangelogResult, 
 func (c *Client) AdoptProject(p control.AdoptParams) (control.AdoptResult, error) {
 	var out control.AdoptResult
 	err := c.Call(control.OpProjectsAdopt, p, &out)
+	return out, err
+}
+
+// Stacks lists the running Compose stacks of the host and the projects that manage them. It needs no open
+// vault and no admin session.
+func (c *Client) Stacks() (control.StacksResult, error) {
+	var out control.StacksResult
+	err := c.Call(control.OpProjectsStacks, nil, &out)
 	return out, err
 }
 

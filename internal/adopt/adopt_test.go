@@ -18,6 +18,7 @@ import (
 // fakeDocker answers docker ps, docker inspect, docker compose config and git remote get-url from fixed text.
 type fakeDocker struct {
 	ps      string
+	stacks  string
 	inspect string
 	compose string
 	origin  string
@@ -30,6 +31,8 @@ func (f *fakeDocker) Run(_ context.Context, c execute.Command) (execute.Result, 
 	switch {
 	case c.Name == "git":
 		out = f.origin
+	case c.Args[0] == "ps" && slices.Contains(c.Args, "--format"):
+		out = f.stacks
 	case c.Args[0] == "ps":
 		out = f.ps
 	case c.Args[0] == "inspect":

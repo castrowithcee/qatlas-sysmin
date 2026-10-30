@@ -52,6 +52,8 @@ type Backend interface {
 	// AdoptProject proposes a project for the running stack in a directory. The interface asks with DryRun
 	// only: nothing is stored.
 	AdoptProject(p control.AdoptParams) (control.AdoptResult, error)
+	// Stacks lists the running Compose stacks and the projects that manage them; it only reads.
+	Stacks() (control.StacksResult, error)
 	// Approval and Credentials only read; Credentials never carries a value.
 	Approval(project string) (control.ApprovalDetail, error)
 	Credentials() ([]control.CredentialSummary, error)
@@ -334,5 +336,10 @@ func (b *ClientBackend) DeployRestore(project, backup string) (res control.Deplo
 func (b *ClientBackend) AdoptProject(p control.AdoptParams) (res control.AdoptResult, err error) {
 	// Only a request that stores nothing may be repeated on a fresh connection.
 	err = b.do(p.DryRun, func(c *client.Client) (e error) { res, e = c.AdoptProject(p); return e })
+	return res, err
+}
+
+func (b *ClientBackend) Stacks() (res control.StacksResult, err error) {
+	err = b.do(true, func(c *client.Client) (e error) { res, e = c.Stacks(); return e })
 	return res, err
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/adopt"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
@@ -21,6 +23,7 @@ import (
 // call it was given.
 type fakeDocker struct {
 	ps, inspect, compose string
+	stacks               string
 	psFails              bool
 
 	mu    sync.Mutex
@@ -37,6 +40,9 @@ func (f *fakeDocker) Run(_ context.Context, c execute.Command) (execute.Result, 
 	case c.Args[0] == "ps":
 		if f.psFails {
 			return execute.Result{Output: []byte("Cannot connect to the Docker daemon at unix:///var/run/docker.sock")}, &execute.ExitError{Code: 1}
+		}
+		if slices.Contains(c.Args, "--format") {
+			return execute.Result{Output: []byte(f.stacks)}, nil
 		}
 		return execute.Result{Output: []byte(f.ps)}, nil
 	case c.Args[0] == "inspect":
@@ -447,5 +453,66 @@ func TestAdoptNoAccessAuditNamesNoPath(t *testing.T) {
 	}
 	if !seen[control.CodeNoAccess] || !seen[control.CodeNotFound] {
 		t.Errorf("audited codes = %v", seen)
+	}
+}
+
+func stackLine(id, project, dir, oneoff string) string {
+	b, _ := json.Marshal(map[string]string{"id": id, "project": project, "dir": dir, "files": filepath.Join(dir, "compose.yml"), "oneoff": oneoff})
+	return string(b) + "\n"
+}
+
+func TestStacksListsManagedLast(t *testing.T) {
+	f, dir := adoptStack(t, "shop-prod", shopCompose, "APP_VERSION=1.4.2\nDB_VERSION=16.2.0\n")
+	e := adoptEnv(t, f)
+	c := e.dial(t)
+	if res, err := c.AdoptProject(control.AdoptParams{Dir: dir}); err != nil || !res.Saved {
+		t.Fatalf("adopt = %+v, %v", res, err)
+	}
+	f.set(func() {
+		f.stacks = stackLine(adoptIDA, "shop-prod", dir, "False") + stackLine(adoptIDB, "shop-prod", dir, "False") +
+			stackLine("0123456789ac", "shop-prod", dir, "True") +
+			stackLine("0123456789ad", "demo", "/srv/demo-stack", "False") +
+			stackLine("0123456789ae", "bad name", "/srv/bad", "False")
+	})
+	res, err := c.Stacks()
+	if err != nil || res.Truncated || len(res.Stacks) != 2 {
+		t.Fatalf("res = %+v, %v", res, err)
+	}
+	if s := res.Stacks[0]; s.ComposeProject != "demo" || s.Dir != "/srv/demo-stack" || s.Containers != 1 || s.ManagedBy != "" {
+		t.Errorf("first = %+v", s)
+	}
+	if s := res.Stacks[1]; s.ComposeProject != "shop-prod" || s.Dir != dir || s.Containers != 2 || s.ManagedBy != "shop-prod" ||
+		len(s.ComposeFiles) != 1 {
+		t.Errorf("second = %+v", s)
+	}
+	if !f.readOnly() {
+		t.Errorf("calls = %+v", f.recorded())
+	}
+}
+
+func TestStacksTruncatedAndDockerDown(t *testing.T) {
+	var b strings.Builder
+	for i := range adopt.MaxStackContainers + 1 {
+		b.WriteString(stackLine(fmt.Sprintf("%012x", i), "demo", "/srv/demo-stack", "False"))
+	}
+	f := &fakeDocker{stacks: b.String()}
+	e := adoptEnv(t, f)
+	c := e.dial(t)
+	res, err := c.Stacks()
+	if err != nil || !res.Truncated || len(res.Stacks) != 1 || res.Stacks[0].Containers != adopt.MaxStackContainers {
+		t.Fatalf("res = %+v, %v", res, err)
+	}
+	f.set(func() { f.psFails = true })
+	_, err = c.Stacks()
+	wantCode(t, err, control.CodeDockerUnavailable)
+}
+
+func TestStacksNeedsNoOpenVault(t *testing.T) {
+	f := &fakeDocker{stacks: stackLine(adoptIDA, "demo", "/srv/demo-stack", "False")}
+	locked := newEnv(t, true, false, func(cfg *Config) { cfg.Runner = f })
+	locked.start(t)
+	res, err := locked.dial(t).Stacks()
+	if err != nil || len(res.Stacks) != 1 || res.Stacks[0].ComposeProject != "demo" {
+		t.Fatalf("res = %+v, %v", res, err)
 	}
 }
