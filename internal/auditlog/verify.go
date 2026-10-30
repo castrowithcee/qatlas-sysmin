@@ -11,14 +11,18 @@ import (
 // DayReport is one day file's part of a Report.
 type DayReport struct {
 	Date string
-	// Entries counts the action entries of the day; a retention-cut marker does not count as one.
+	// Entries counts the action entries of the day; a marker does not count as one.
 	Entries int
-	// Unverified counts the action entries of the day whose MAC is empty: written without the log key,
-	// which never breaks the chain by itself.
+	// Unverified counts the action entries and damaged-line markers of the day whose MAC is empty: written
+	// without the log key, which never breaks the chain by itself.
 	Unverified int
-	// Unchecked counts the action entries of the day that carry a MAC nobody checked, because Verify was
-	// given no Checker.
+	// Unchecked counts the action entries and damaged-line markers of the day that carry a MAC nobody
+	// checked, because Verify was given no Checker.
 	Unchecked int
+	// Damaged counts the lines of the day that do not parse but are documented by the damaged-line marker
+	// right after them, which may be the first line of the next day file. Such a line does not break the
+	// chain.
+	Damaged int
 	// Changed counts the lines of the day, entries and retention-cut markers alike, whose MAC is malformed
 	// or does not match the line. Each one breaks the chain.
 	Changed int
@@ -84,6 +88,11 @@ type Report struct {
 // entry means entries are missing without such a marker. A missing directory is an installation that
 // logged nothing yet, which is an intact, empty chain, not an error.
 //
+// A line that does not parse breaks the chain unless the line right after it, across a day boundary too, is
+// a damaged-line marker that documents it: the marker names the SHA-256 of exactly that line, and it holds
+// as an entry itself, chaining from the last line before the damaged one that parses and passing its check
+// value. A marker that does not hold leaves the damaged line a break as well.
+//
 // Every line that carries a check value is checked with checker, when there is one: a malformed check value
 // or one that does not match counts as changed and breaks the chain, while an empty one only counts as
 // unverified. Without a checker a well-formed check value counts as unchecked instead. A check that cannot
@@ -143,29 +152,48 @@ func Verify(dir string, checker Checker) (Report, error) {
 		}
 	}
 
+	type finding struct {
+		code string
+		seq  uint64
+		text string
+	}
+	type damagedLine struct {
+		day  *DayReport
+		line int
+	}
 	var (
-		report        = Report{Checked: checker != nil}
+		report        = Report{Checked: checker != nil, Days: make([]DayReport, len(days))}
 		previousRaw   []byte
 		previousSeq   uint64
 		sawFirstEntry bool
+		// pending is the damaged line that the marker on the next line documents, if it holds.
+		pending *damagedLine
 	)
-	for _, d := range days {
-		day := DayReport{Date: d.date}
-		line := 0
-		problem := func(code string, seq uint64, text string) {
-			if day.Problem == "" {
-				day.Problem, day.ProblemSeq, day.ProblemCode, day.ProblemLine = text, seq, code, line
-			}
-			report.Broken = true
+	setProblem := func(day *DayReport, code string, seq uint64, line int, text string) {
+		if day.Problem == "" {
+			day.Problem, day.ProblemSeq, day.ProblemCode, day.ProblemLine = text, seq, code, line
 		}
+		report.Broken = true
+	}
+	for k, d := range days {
+		day := &report.Days[k]
+		day.Date = d.date
 		for i, raw := range d.lines {
-			line = i + 1
-			var entry Entry
-			if err := json.Unmarshal(raw, &entry); err != nil {
-				problem(ProblemUnparsable, 0, "a line does not parse as a log entry")
+			line := i + 1
+			entry, ok := parseLine(raw)
+			if !ok {
+				if documents(nextLine(days, k, i), raw) {
+					pending = &damagedLine{day, line}
+				} else {
+					setProblem(day, ProblemUnparsable, 0, line, "a line does not parse as a log entry")
+				}
 				continue
 			}
-			if entry.Kind != KindCut {
+			// The problems of a line are collected first, so a damaged line that its marker fails to document
+			// is named before the marker.
+			var found []finding
+			problem := func(code string, seq uint64, text string) { found = append(found, finding{code, seq, text}) }
+			if entry.Kind == "" {
 				day.Entries++
 			}
 			switch {
@@ -188,28 +216,59 @@ func Verify(dir string, checker Checker) (Report, error) {
 				}
 				problem(ProblemChain, entry.Seq, fmt.Sprintf("entry with sequence %d does not chain from the previous entry", entry.Seq))
 			}
-			countMAC(&day, problem, checker != nil, &results, entry, raw)
+			countMAC(day, problem, checker != nil, &results, entry, raw)
+			if pending != nil {
+				if len(found) == 0 {
+					pending.day.Damaged++
+				} else {
+					setProblem(pending.day, ProblemUnparsable, 0, pending.line, "a line does not parse as a log entry, and the damaged-line marker after it does not hold")
+				}
+				pending = nil
+			}
+			for _, f := range found {
+				setProblem(day, f.code, f.seq, line, f.text)
+			}
 			sawFirstEntry = true
 			previousRaw, previousSeq = raw, entry.Seq
 		}
-		report.Days = append(report.Days, day)
 	}
 	return report, nil
+}
+
+// nextLine returns the line that follows line i of day k in the walk, which is the first line of the next
+// day file that has one when line i is the last of its day, or nil when there is none.
+func nextLine(days []dayFile, k, i int) []byte {
+	if i+1 < len(days[k].lines) {
+		return days[k].lines[i+1]
+	}
+	for _, d := range days[k+1:] {
+		if len(d.lines) > 0 {
+			return d.lines[0]
+		}
+	}
+	return nil
+}
+
+// documents reports whether next is a damaged-line marker that names the hash of exactly damaged. Whether
+// the marker holds as an entry is checked where it is walked.
+func documents(next, damaged []byte) bool {
+	entry, ok := parseLine(next)
+	return ok && entry.Kind == KindDamage && entry.Damage != nil && entry.Damage.LineHash == hashHex(damaged)
 }
 
 // countMAC counts the check value of one line into its day's report. results holds the checker's answers
 // for the well-formed check values not counted yet, in order; this takes the next one when the line has one
 // and checked is true.
 func countMAC(day *DayReport, problem func(string, uint64, string), checked bool, results *[]bool, entry Entry, raw []byte) {
-	action := entry.Kind != KindCut
+	counted := entry.Kind != KindCut
 	switch {
 	case entry.MAC == "":
-		if action {
+		if counted {
 			day.Unverified++
 		}
 		return
 	case wellFormed(raw) && !checked:
-		if action {
+		if counted {
 			day.Unchecked++
 		}
 		return

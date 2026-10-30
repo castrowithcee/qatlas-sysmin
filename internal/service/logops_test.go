@@ -210,6 +210,44 @@ func TestLogVerifyIntactAndTampered(t *testing.T) {
 	if err != nil || got.Intact || got.Problems[0].Code != control.LogProblemUnparsable || got.Problems[0].Line != len(lines)+1 {
 		t.Fatalf("garbage = %+v, %v", got, err)
 	}
+	// The verify request above was logged after the garbage line, which documents that line, so the day is
+	// intact again and counts the damage.
+	got, err = c.VerifyLog()
+	if err != nil || !got.Intact || len(got.Problems) != 0 || !got.Days[0].Intact || got.Days[0].Damaged != 1 ||
+		got.Days[0].Signatures != control.LogSignaturesValid {
+		t.Fatalf("documented garbage = %+v, %v", got, err)
+	}
+}
+
+func TestLogContinuesAfterATornLastLine(t *testing.T) {
+	e, c := logEnv(t)
+	path := e.logFile(t)
+	read := func() []string {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	}
+	torn := strings.Join(read(), "\n") + "\n" + `{"seq":99,"time":"2026-`
+	if err := os.WriteFile(path, []byte(torn), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before := len(read())
+
+	if _, err := c.Status(); err != nil {
+		t.Fatal(err)
+	}
+	after := read()
+	if len(after) != before+2 || !strings.Contains(after[before], `"kind":"damaged-line"`) ||
+		!strings.Contains(after[before+1], `"action":"control.status"`) {
+		t.Fatalf("lines after the torn one = %q, want a marker and the logged request", after[before-1:])
+	}
+	got, err := c.VerifyLog()
+	if err != nil || !got.Intact || len(got.Problems) != 0 || len(got.Days) != 1 || !got.Days[0].Intact ||
+		got.Days[0].Damaged != 1 || got.Days[0].Signatures != control.LogSignaturesValid {
+		t.Fatalf("verify = %+v, %v, want an intact day with one documented damage", got, err)
+	}
 }
 
 func TestLogVerifyWhileLockedDoesNotCheckSignatures(t *testing.T) {

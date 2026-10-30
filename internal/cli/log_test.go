@@ -40,6 +40,7 @@ type verifyRow struct {
 	Day        string `json:"day"`
 	Entries    int    `json:"entries"`
 	Chain      string `json:"chain"`
+	Damaged    int    `json:"damaged"`
 	Signatures string `json:"signatures"`
 	Detail     string `json:"detail"`
 }
@@ -96,6 +97,30 @@ func TestLogVerifyBrokenChain(t *testing.T) {
 	}
 	if len(rows) != 1 || rows[0].Chain != "broken" || !strings.Contains(rows[0].Detail, "sequence 3") {
 		t.Errorf("rows = %+v, want a broken day naming sequence 3", rows)
+	}
+}
+
+func TestLogVerifyCountsDocumentedDamage(t *testing.T) {
+	dir := t.TempDir()
+	path := seedLog(t, dir, false, auditlog.OperationConfigApply)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(`{"seq":2,"time":"20`); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	seedLog(t, dir, false, auditlog.OperationVaultLock)
+
+	code, rows, stderr := verifyJSON(t, "--dir", dir)
+	if code != exitOK || stderr != "" || len(rows) != 1 || rows[0].Chain != "intact" || rows[0].Damaged != 1 || rows[0].Entries != 2 {
+		t.Fatalf("code = %d, rows = %+v, stderr = %q, want an intact day with one documented damage", code, rows, stderr)
+	}
+	if _, stdout, _ := runCLI(t, "log", "verify", "--dir", dir); !strings.Contains(stdout, "DAMAGED") {
+		t.Errorf("the table has no damaged column:\n%s", stdout)
 	}
 }
 

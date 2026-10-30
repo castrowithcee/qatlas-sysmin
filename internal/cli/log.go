@@ -30,8 +30,9 @@ func newLogVerifyCommand(opts *Options) *cobra.Command {
 		Use:   "verify",
 		Short: "Check the hash chain of the action log, day by day",
 		Long: "verify walks every day file of the action log and checks that its entries chain together without a\n" +
-			"change, a swap, or a deletion that no retention cut documents. This command takes no key, so it\n" +
-			"reports signatures as not checked.",
+			"change, a swap, or a deletion that no retention cut documents. An unreadable line, such as one torn\n" +
+			"by a crash, that a marker entry right after it documents leaves the chain intact and is counted as\n" +
+			"damaged. This command takes no key, so it reports signatures as not checked.",
 		Args: noLogArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			fromDay, toDay, err := parseLogRange(from, to)
@@ -42,7 +43,7 @@ func newLogVerifyCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("verify the action log: %w", err)
 			}
-			result := output.Collection{Columns: []string{"day", "entries", "chain", "signatures", "detail"}}
+			result := output.Collection{Columns: []string{"day", "entries", "chain", "damaged", "signatures", "detail"}}
 			broken := false
 			for _, d := range report.Days {
 				if (fromDay != "" && d.Date < fromDay) || (toDay != "" && d.Date > toDay) {
@@ -54,7 +55,7 @@ func newLogVerifyCommand(opts *Options) *cobra.Command {
 					broken = true
 				}
 				result.Rows = append(result.Rows, output.Row{
-					"day": d.Date, "entries": int64(d.Entries), "chain": chain,
+					"day": d.Date, "entries": int64(d.Entries), "chain": chain, "damaged": int64(d.Damaged),
 					"signatures": d.SignatureState(report.Checked), "detail": detail,
 				})
 			}

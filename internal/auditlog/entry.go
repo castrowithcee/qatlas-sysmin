@@ -10,9 +10,12 @@ import (
 	"unicode/utf8"
 )
 
-// KindCut marks a retention-cut marker entry (see Entry.Kind), as opposed to the empty Kind of an action
-// entry.
-const KindCut = "retention-cut"
+// The kinds of marker entry (see Entry.Kind), as opposed to the empty Kind of an action entry. KindCut
+// marks a retention-cut marker, KindDamage a damaged-line marker.
+const (
+	KindCut    = "retention-cut"
+	KindDamage = "damaged-line"
+)
 
 // The two results an entry records.
 const (
@@ -27,8 +30,17 @@ type Cut struct {
 	ThroughSeq uint64 `json:"through_seq"`
 }
 
-// Entry is one line of a log file, in the field order it is written. Kind is empty for an action and
-// KindCut for a retention-cut marker, which carries only Cut beside the chain fields. MAC is the check
+// Damage documents a line that does not parse as an entry, such as one torn by a crash while it was
+// written. Append writes it as the entry right after that line, naming the SHA-256 of the line's exact
+// bytes without its newline, so Verify can tell the damage it documents from a line changed afterwards. It
+// never holds the bytes themselves.
+type Damage struct {
+	LineHash string `json:"line_hash"`
+}
+
+// Entry is one line of a log file, in the field order it is written. Kind is empty for an action, KindCut
+// for a retention-cut marker, which carries only Cut beside the chain fields, and KindDamage for a
+// damaged-line marker, which carries only Damage beside them. MAC is the check
 // value of a signed entry and always the last field; it stays empty for an entry written without the log
 // key, which marks it unverified. No field ever holds an argument, a result payload, or a secret.
 type Entry struct {
@@ -43,6 +55,7 @@ type Entry struct {
 	ErrorCode  string  `json:"error_code,omitempty"`
 	DurationMS int64   `json:"duration_ms,omitempty"`
 	Cut        *Cut    `json:"cut,omitempty"`
+	Damage     *Damage `json:"damage,omitempty"`
 	PrevHash   string  `json:"prev_hash"`
 	// MAC is the check value of a signed entry, empty for an unsigned one; see Key.mac.
 	MAC string `json:"mac"`

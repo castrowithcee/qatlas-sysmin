@@ -122,7 +122,7 @@ func (s *Service) handleLogVerify(context.Context, *daemon.Conn, json.RawMessage
 	out := control.LogVerifyResult{Intact: !report.Broken, Checked: report.Checked, Days: make([]control.LogDay, 0, len(report.Days))}
 	for _, d := range report.Days {
 		out.Days = append(out.Days, control.LogDay{
-			Date: d.Date, Entries: d.Entries, Intact: d.Problem == "",
+			Date: d.Date, Entries: d.Entries, Intact: d.Problem == "", Damaged: d.Damaged,
 			Signatures: strings.ReplaceAll(d.SignatureState(report.Checked), " ", "-"),
 		})
 		if d.Problem == "" {

@@ -359,6 +359,23 @@ func TestActivityShowsABrokenChainWithSymbolAndText(t *testing.T) {
 	}
 }
 
+func TestActivityCountsDocumentedDamage(t *testing.T) {
+	utcClock(t)
+	fb := libFake()
+	fb.lib.verify = intactChain()
+	fb.lib.verify.Days[1].Damaged = 1
+	m := appModel(t, fb, 120, 40)
+	send(m, "3")
+	if view := plain(m); !strings.Contains(view, "● Chain intact, 52 entries · unreadable lines documented: 1 · signatures checked") {
+		t.Errorf("no documented damage shown:\n%s", view)
+	}
+	useLanguage(t, "de")
+	send(m, "t")
+	if view := plain(m); !strings.Contains(view, "unlesbare Zeilen dokumentiert: 1") {
+		t.Errorf("no German documented damage shown:\n%s", view)
+	}
+}
+
 func TestActivityDoesNotPollTheLog(t *testing.T) {
 	fb := libFake()
 	m := appModel(t, fb, 80, 24)
