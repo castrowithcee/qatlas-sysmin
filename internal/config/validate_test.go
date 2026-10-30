@@ -77,6 +77,9 @@ func TestValidateProblems(t *testing.T) {
 		{"no source", func(m *Model) { m.Projects[0].Images = nil }, CodeSourceMissing, "images"},
 		{"two sources", func(m *Model) { m.Projects[0].Git = &GitSource{URL: "https://git.example.com/a.git"} }, CodeSourceConflict, "git"},
 		{"duplicate env var", func(m *Model) { m.Projects[0].Images[1].EnvVar = "APP_TAG" }, CodeDuplicateEnvVar, "images[1].env_var"},
+		{"registry host with two credentials", func(m *Model) {
+			m.Projects[0].Images[1].Credential = "git-example"
+		}, CodeRegistryCredential, "images[1].credential"},
 		{"duplicate project", func(m *Model) { m.Projects = append(m.Projects, m.Projects[0]) }, CodeDuplicateName, "name"},
 		{"duplicate image", func(m *Model) { m.Projects[0].Images[1].Name = "app" }, CodeDuplicateName, "images[1].name"},
 		{"duplicate channel", func(m *Model) { m.Settings.Channels = append(m.Settings.Channels, m.Settings.Channels[0]) }, CodeDuplicateName, "channels[1].name"},

@@ -409,62 +409,33 @@ $out"
 	[ "$(kv "$out" state)" = approved ] || failed 'the project is not approved after the approval'
 }
 
-workaround_login() {
-	hsecret sysmin E2E_REGISTRY_PASSWORD env HOME=/var/lib/sysmin docker login -u "$E2E_REGISTRY_USER" --password-stdin "$E2E_REGISTRY" >/dev/null 2>&1
-}
-
 s03_new_tag_deploy() {
-	for tag in 1.1.0 1.1.1 1.1.2; do
-		if ! push_image web "$tag" "$E2E_CHANGELOG_IMAGE_REPO"; then
-			failed "web:$tag could not be pushed"
-			return 1
-		fi
-		out=$(cli deploy run-now demo-web --format compact 2>&1) || true
-		evidence "pushed web:$tag; run-now: status=$(kv "$out" status) result=$(kv "$out" result) changes=$(kv "$out" changes)"
-		if ! line=$(wait_run demo-web "$tag"); then
-			failed "no run to $tag was listed"
-			return 1
-		fi
-		id=$(field "$line" 1) result=$(field "$line" 5) step=$(field "$line" 9) err=$(field "$line" 10)
-		log=$(run_log demo-web "$id")
-		evidence "run $id: result=$result failed_step=$step; log: logs/demo-web-$id.log"
-		if [ "$result" = succeeded ]; then
-			now=$(running_tag demo-web web)
-			page=$(docker exec "$host" curl -fsS http://127.0.0.1:18081/ 2>&1) || true
-			env=$(docker exec "$host" cat /srv/demo-web/.env)
-			out=$(cli deploy status demo-web --format compact 2>&1) || true
-			evidence "container runs $now, it answers '$page', .env holds $env, deploy status: sources=$(kv "$out" sources) last_run=$(kv "$out" last_run)"
-			evidence "run log:
-$(printf '%s\n' "$log" | grep -E 'result=|-> ' | sed 's/^[^ ]* //')"
-			[ "$now" = "$tag" ] && [ "$page" = "web $tag" ] || failed "the stack does not run $tag after a successful run"
-			if poll 20 hook_has deploy.succeeded "$tag"; then
-				evidence "the webhook receiver got deploy.succeeded for $tag"
-			fi
-			return 0
-		fi
-		case $err in
-		*compose-pull*)
-			if ! printf '%s\n' "$log" | grep -q 'no basic auth credentials'; then
-				failed "compose-pull failed: $err"
-				return 1
-			fi
-			deviation "expected: the deploy pulls with the registry credential of the image (e2e-registry); actual: run $id ended with $result, compose-pull failed with 'no basic auth credentials': the vault credential is used to list tags, but docker compose pull gets no login; the rollback pulls the previous tag as well and fails the same way, which pauses the project"
-			if ! workaround_login; then
-				failed 'docker login for the service user failed'
-				return 1
-			fi
-			workaround 'docker login to the test registry as the service user (password on stdin; stored in /var/lib/sysmin/.docker/config.json outside the vault), project resumed, next attempt with a new tag'
-			;;
-		*)
-			failed "unexpected failure: $err"
-			return 1
-			;;
-		esac
-		out=$(cli deploy resume demo-web --format compact 2>&1) || true
-		evidence "deploy resume: state=$(kv "$out" state)"
-	done
-	failed 'no deploy succeeded'
-	return 1
+	tag=1.1.0
+	if ! push_image web "$tag" "$E2E_CHANGELOG_IMAGE_REPO"; then
+		failed "web:$tag could not be pushed"
+		return 1
+	fi
+	out=$(cli deploy run-now demo-web --format compact 2>&1) || true
+	evidence "pushed web:$tag; run-now: status=$(kv "$out" status) result=$(kv "$out" result) changes=$(kv "$out" changes)"
+	if ! line=$(wait_run demo-web "$tag"); then
+		failed "no run to $tag was listed"
+		return 1
+	fi
+	id=$(field "$line" 1) result=$(field "$line" 5) step=$(field "$line" 9) err=$(field "$line" 10)
+	log=$(run_log demo-web "$id")
+	evidence "run $id: result=$result failed_step=$step; log: logs/demo-web-$id.log"
+	now=$(running_tag demo-web web)
+	page=$(docker exec "$host" curl -fsS http://127.0.0.1:18081/ 2>&1) || true
+	env=$(docker exec "$host" cat /srv/demo-web/.env)
+	out=$(cli deploy status demo-web --format compact 2>&1) || true
+	evidence "container runs $now, it answers '$page', .env holds $env, deploy status: sources=$(kv "$out" sources) last_run=$(kv "$out" last_run)"
+	evidence "run log:
+$(printf '%s\n' "$log" | grep -E 'result=|-> |compose-pull' | sed 's/^[^ ]* //')"
+	[ "$result" = succeeded ] || failed "the run ended with $result: $err"
+	[ "$now" = "$tag" ] && [ "$page" = "web $tag" ] || failed "the stack does not run $tag after the run"
+	if poll 20 hook_has deploy.succeeded "$tag"; then
+		evidence "the webhook receiver got deploy.succeeded for $tag"
+	fi
 }
 
 s04_broken_tag_rollback() {
