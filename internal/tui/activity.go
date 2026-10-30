@@ -363,8 +363,9 @@ func orDash(s string) string {
 }
 
 // chainLines is the result of the chain check: a dot and the word for an intact chain on one line; for a
-// broken one a warning sign and the first problem, and under it the state of the signatures. Colour only
-// repeats what the mark and the word say.
+// broken one a warning sign and the first problem, and under it the state of the signatures. Unreadable
+// lines that a marker documents are counted before the signatures, in either case. Colour only repeats
+// what the mark and the word say.
 func (m *Model) chainLines(width int) []string {
 	c := m.act.chain
 	switch {
@@ -377,6 +378,13 @@ func (m *Model) chainLines(width int) []string {
 	signatures := tr(tLogSigUnchecked)
 	if r.Checked {
 		signatures = tr(tLogSigChecked)
+	}
+	damaged := 0
+	for _, d := range r.Days {
+		damaged += d.Damaged
+	}
+	if damaged > 0 {
+		signatures = tr(tLogDamaged, damaged) + " · " + signatures
 	}
 	if r.Intact {
 		entries := 0

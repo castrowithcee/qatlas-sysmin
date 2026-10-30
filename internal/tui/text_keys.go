@@ -353,6 +353,7 @@ const (
 	tLogChainBroken             textID = "LogChainBroken"
 	tLogSigChecked              textID = "LogSigChecked"
 	tLogSigUnchecked            textID = "LogSigUnchecked"
+	tLogDamaged                 textID = "LogDamaged"
 	tLogLine                    textID = "LogLine"
 	tLogEntry                   textID = "LogEntry"
 	tLogMoreDays                textID = "LogMoreDays"

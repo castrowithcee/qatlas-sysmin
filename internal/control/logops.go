@@ -76,12 +76,15 @@ const (
 // LogVerifyMaxProblems is how many problems an answer lists at most.
 const LogVerifyMaxProblems = 20
 
-// LogDay is the state of one day file. Date is YYYY-MM-DD; Entries counts action entries.
+// LogDay is the state of one day file. Date is YYYY-MM-DD; Entries counts action entries. Damaged counts
+// the unreadable lines of the day, such as one torn by a crash, that a marker entry right after them
+// documents; such a line leaves the day intact.
 type LogDay struct {
 	Date       string `json:"date"`
 	Entries    int    `json:"entries"`
 	Intact     bool   `json:"intact"`
 	Signatures string `json:"signatures"`
+	Damaged    int    `json:"damaged,omitempty"`
 }
 
 // LogProblem is the first problem of one day: Seq is the sequence number of the entry concerned (0 for a

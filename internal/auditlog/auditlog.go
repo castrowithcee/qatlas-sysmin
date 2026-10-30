@@ -75,6 +75,11 @@ func (l *Logger) clock() time.Time {
 // the logger's retention window is removed, and if any file was actually removed, a KindCut marker
 // documenting the cut is written immediately before the real entry, in the same file.
 //
+// When the last line of the newest day file does not parse as an entry, such as a line torn by a crash
+// while it was written, Append does not fail on it: it ends that line with a newline if it lacks one and
+// it is in today's file, and writes a KindDamage marker naming the line's hash before anything else. The
+// marker chains from the last line before the damaged one that does parse, as the entry would have.
+//
 // A returned error means the entry might not be durable. The caller reports it; it must never change the
 // result of the action it was called for.
 func (l *Logger) Append(f Fields) error {
@@ -105,7 +110,11 @@ func (l *Logger) Append(f Fields) error {
 	if err != nil {
 		return err
 	}
-	last, lastRaw, err := lastLine(dir)
+	files, err := dayFiles(dir)
+	if err != nil {
+		return err
+	}
+	end, err := lastLine(dir, files)
 	if err != nil {
 		return err
 	}
@@ -115,13 +124,28 @@ func (l *Logger) Append(f Fields) error {
 	// chain still continues from what was removed instead of silently resetting to the genesis hash.
 	prevHash, seq := genesisHash, uint64(1)
 	switch {
-	case lastRaw != nil:
-		prevHash, seq = hashHex(lastRaw), last.Seq+1
+	case end.raw != nil:
+		prevHash, seq = hashHex(end.raw), end.entry.Seq+1
 	case removedRaw != nil:
 		prevHash, seq = hashHex(removedRaw), removed.Seq+1
 	}
 
 	var lines [][]byte
+	if end.damaged != nil {
+		// The marker comes first, so it is the line right after the damaged one, which is where Verify
+		// looks for it.
+		if end.unterminated && end.damagedPath == todayPath {
+			// appendLines writes an empty line as a lone newline, which ends the damaged line.
+			lines = append(lines, nil)
+		}
+		marker := Entry{Seq: seq, Time: now, Kind: KindDamage, Damage: &Damage{LineHash: hashHex(end.damaged)}, PrevHash: prevHash}
+		raw, err := l.encode(marker)
+		if err != nil {
+			return fmt.Errorf("encode damaged-line entry: %w", err)
+		}
+		lines = append(lines, raw)
+		prevHash, seq = hashHex(raw), seq+1
+	}
 	if removedRaw != nil {
 		cut := Entry{Seq: seq, Time: now, Kind: KindCut, Cut: &Cut{ThroughSeq: removed.Seq}, PrevHash: prevHash}
 		raw, err := l.encode(cut)
@@ -158,8 +182,9 @@ func (l *Logger) encode(entry Entry) ([]byte, error) {
 
 // applyRetention removes every day file older than retentionDays, relative to now, and returns the last
 // entry among the files it removed and its exact raw line, or a nil line when nothing was old enough to
-// remove. Retention only ever removes a contiguous run of the oldest days, so the boundary it leaves behind
-// is always the newest of exactly the files it just deleted.
+// remove or no removed line parses. Retention only ever removes a contiguous run of the oldest days, so the
+// boundary it leaves behind is always the last line of exactly the files it just deleted that parses,
+// found the same way lastLine finds it; a damaged line among them goes with its file.
 func applyRetention(dir string, now time.Time, retentionDays int) (Entry, []byte, error) {
 	files, err := dayFiles(dir)
 	if err != nil {
@@ -175,9 +200,8 @@ func applyRetention(dir string, now time.Time, retentionDays int) (Entry, []byte
 	if len(expired) == 0 {
 		return Entry{}, nil, nil
 	}
-	// files is already sorted chronologically, and expired keeps that order: its last entry is the last
-	// entry the deletion below removes.
-	last, raw, err := lastLineOf(filepath.Join(dir, expired[len(expired)-1]))
+	// files is already sorted chronologically, and expired keeps that order.
+	end, err := lastLine(dir, expired)
 	if err != nil {
 		return Entry{}, nil, err
 	}
@@ -186,11 +210,11 @@ func applyRetention(dir string, now time.Time, retentionDays int) (Entry, []byte
 			return Entry{}, nil, fmt.Errorf("remove expired log %s: %w", name, err)
 		}
 	}
-	if raw == nil {
-		// The expired file that was newest turned out empty, so it left nothing to document a cut through.
+	if end.raw == nil {
+		// The expired files held no line that parses, so they left nothing to document a cut through.
 		return Entry{}, nil, nil
 	}
-	return last, raw, nil
+	return end.entry, end.raw, nil
 }
 
 // dayFiles returns the day file names of dir, sorted chronologically, which is also lexicographic for a
@@ -213,55 +237,91 @@ func dayFiles(dir string) ([]string, error) {
 	return names, nil
 }
 
-// lastLine returns the last entry and its exact raw line among every day file of dir, most recent file
-// first, and nil when none holds a line yet.
-func lastLine(dir string) (Entry, []byte, error) {
-	files, err := dayFiles(dir)
-	if err != nil {
-		return Entry{}, nil, err
-	}
+// chainEnd is where the chain of a set of day files continues.
+type chainEnd struct {
+	// entry and raw are the last line that parses as an entry, raw nil when there is none.
+	entry Entry
+	raw   []byte
+	// damaged is the last line of the newest file holding one when that line does not parse, nil
+	// otherwise; damagedPath is its file, and unterminated is true when no newline follows it.
+	damaged      []byte
+	damagedPath  string
+	unterminated bool
+}
+
+// lastLine returns where the chain of the day files files of dir continues: their last line that parses as
+// an entry, most recent file first, which is the line Verify compares the next entry with. When the very
+// last line does not parse, it is returned as damaged, and the search goes on before it. Only that case
+// reads a whole file; otherwise lastLine reads only the tail of the file it stops at.
+func lastLine(dir string, files []string) (chainEnd, error) {
+	var end chainEnd
 	for i := len(files) - 1; i >= 0; i-- {
-		entry, raw, err := lastLineOf(filepath.Join(dir, files[i]))
+		path := filepath.Join(dir, files[i])
+		raw, err := lastLineOf(path)
 		if err != nil {
-			return Entry{}, nil, err
+			return chainEnd{}, err
 		}
-		if raw != nil {
-			return entry, raw, nil
+		if raw == nil {
+			continue
+		}
+		if entry, ok := parseLine(raw); ok {
+			end.entry, end.raw = entry, raw
+			return end, nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return chainEnd{}, fmt.Errorf("read %s: %w", path, err)
+		}
+		lines := splitLines(data)
+		if len(lines) == 0 {
+			continue
+		}
+		if end.damaged == nil {
+			end.damaged, end.damagedPath = lines[len(lines)-1], path
+			end.unterminated = !bytes.HasSuffix(data, []byte("\n"))
+		}
+		for j := len(lines) - 2; j >= 0; j-- {
+			if entry, ok := parseLine(lines[j]); ok {
+				end.entry, end.raw = entry, lines[j]
+				return end, nil
+			}
 		}
 	}
-	return Entry{}, nil, nil
+	return end, nil
+}
+
+// parseLine decodes one line, and reports whether it parses as an entry at all.
+func parseLine(raw []byte) (Entry, bool) {
+	var entry Entry
+	if err := json.Unmarshal(raw, &entry); err != nil {
+		return Entry{}, false
+	}
+	return entry, true
 }
 
 // lastLineBlockSize is the size of the blocks lastLineOf reads backward from the end of a day file.
 const lastLineBlockSize = 4096
 
-// lastLineOf returns the last line of path and the entry it decodes to, or a nil line when the file does
-// not exist or holds no line. It reads only the tail of the file, so its cost does not grow with the file.
-func lastLineOf(path string) (Entry, []byte, error) {
+// lastLineOf returns the last line of path, whether it parses or not, or nil when the file does not exist
+// or holds no line. It reads only the tail of the file, so its cost does not grow with the file.
+func lastLineOf(path string) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return Entry{}, nil, nil
+			return nil, nil
 		}
-		return Entry{}, nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
-		return Entry{}, nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
 	raw, err := lastLineFrom(f, info.Size(), lastLineBlockSize)
 	if err != nil {
-		return Entry{}, nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
-	if raw == nil {
-		return Entry{}, nil, nil
-	}
-	var entry Entry
-	if err := json.Unmarshal(raw, &entry); err != nil {
-		return Entry{}, nil, fmt.Errorf("parse %s: not a valid log entry", path)
-	}
-	return entry, raw, nil
+	return raw, nil
 }
 
 // lastLineFrom returns the last line of the size bytes in r, exactly as the last element of splitLines
@@ -305,8 +365,9 @@ func splitLines(data []byte) [][]byte {
 }
 
 // appendLines appends every line of lines, each followed by a newline, to path, creating it at fileMode if
-// it does not exist yet and forcing that mode either way. It flushes before returning, so a crash right
-// after Append cannot leave a torn line.
+// it does not exist yet and forcing that mode either way. It syncs before returning, so the lines are
+// durable once it returns. Each line is a write of its own, so a crash while it writes can still leave the
+// last line torn; the next Append documents such a line with a KindDamage marker instead of failing on it.
 func appendLines(path string, lines [][]byte) error {
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, fileMode)
 	if err != nil {

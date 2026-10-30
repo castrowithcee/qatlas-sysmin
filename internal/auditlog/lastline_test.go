@@ -60,22 +60,56 @@ func TestLastLineOfFiles(t *testing.T) {
 		}
 		return p
 	}
-	if _, raw, err := lastLineOf(filepath.Join(dir, "missing")); err != nil || raw != nil {
+	if raw, err := lastLineOf(filepath.Join(dir, "missing")); err != nil || raw != nil {
 		t.Fatalf("missing: raw=%q err=%v", raw, err)
 	}
-	if _, raw, err := lastLineOf(write("empty", "")); err != nil || raw != nil {
+	if raw, err := lastLineOf(write("empty", "")); err != nil || raw != nil {
 		t.Fatalf("empty: raw=%q err=%v", raw, err)
 	}
-	if e, raw, err := lastLineOf(write("nofinal", "{\"seq\":1}\n{\"seq\":2}")); err != nil || raw == nil || e.Seq != 2 {
-		t.Fatalf("no final newline: e=%+v raw=%q err=%v", e, raw, err)
+	if raw, err := lastLineOf(write("nofinal", "{\"seq\":1}\n{\"seq\":2}")); err != nil || string(raw) != "{\"seq\":2}" {
+		t.Fatalf("no final newline: raw=%q err=%v", raw, err)
 	}
-	if _, _, err := lastLineOf(write("bad", "{\"seq\":1}\n{\"seq\":2")); err == nil ||
-		!strings.Contains(err.Error(), "not a valid log entry") {
-		t.Fatalf("damaged last line: err = %v", err)
+	// A damaged last line is returned as it is; deciding what it means is up to the caller.
+	if raw, err := lastLineOf(write("bad", "{\"seq\":1}\n{\"seq\":2")); err != nil || string(raw) != "{\"seq\":2" {
+		t.Fatalf("damaged last line: raw=%q err=%v", raw, err)
 	}
 	big := "{\"seq\":3,\"project\":\"" + strings.Repeat("y", 3*lastLineBlockSize) + "\"}"
-	if e, raw, err := lastLineOf(write("big", "{\"seq\":1}\n"+big+"\n")); err != nil || e.Seq != 3 || string(raw) != big {
-		t.Fatalf("line larger than a block: seq=%d err=%v", e.Seq, err)
+	if raw, err := lastLineOf(write("big", "{\"seq\":1}\n"+big+"\n")); err != nil || string(raw) != big {
+		t.Fatalf("line larger than a block: err=%v", err)
+	}
+}
+
+// TestLastLineSkipsADamagedLastLine shows the chain continues from the last line that parses, before a
+// damaged last line, and across files, while only the very last line is reported as damaged.
+func TestLastLineSkipsADamagedLastLine(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), fileMode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("2026-03-01.jsonl", "{\"seq\":1}\n{\"seq\":2}\n")
+	write("2026-03-02.jsonl", "{\"seq\":3}\nnot json\n{\"seq\":4")
+	files, err := dayFiles(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	end, err := lastLine(dir, files)
+	if err != nil || end.entry.Seq != 3 || string(end.raw) != "{\"seq\":3}" || string(end.damaged) != "{\"seq\":4" ||
+		!end.unterminated || filepath.Base(end.damagedPath) != "2026-03-02.jsonl" {
+		t.Fatalf("end = %+v, %v", end, err)
+	}
+
+	write("2026-03-02.jsonl", "torn\n")
+	end, err = lastLine(dir, files)
+	if err != nil || end.entry.Seq != 2 || string(end.damaged) != "torn" || end.unterminated {
+		t.Fatalf("damaged only line: end = %+v, %v", end, err)
+	}
+
+	write("2026-03-02.jsonl", "{\"seq\":3}\n")
+	end, err = lastLine(dir, files)
+	if err != nil || end.entry.Seq != 3 || end.damaged != nil {
+		t.Fatalf("intact: end = %+v, %v", end, err)
 	}
 }
 

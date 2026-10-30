@@ -8,8 +8,15 @@
 // writers, goroutines or processes, never race the chain. A failed Append is reported to the caller, never
 // written silently.
 //
-// A logger given the log key (see Key and Logger.WithKey) also signs every entry it writes, retention-cut
-// markers included, with a check value in Entry.MAC; see Key.mac for its exact definition. A logger
-// without one leaves MAC empty, which marks an entry unverified: Verify counts such an entry but never
-// treats it as a break, so the chain runs on through signed and unsigned entries alike.
+// Append writes each line with a write of its own, so a crash while it writes can leave the last line
+// torn. The next Append does not fail on such a line: it writes a KindDamage marker right after it that
+// names the SHA-256 of exactly its bytes, never the bytes themselves, and chains from the last line before
+// it that parses. Verify accepts a line that does not parse only when such a marker follows it and holds
+// as an entry, chain and check value included, and counts it as documented damage; any other such line
+// breaks the chain. Only the last line of the newest day file is ever bridged this way.
+//
+// A logger given the log key (see Key and Logger.WithKey) also signs every entry it writes, markers
+// included, with a check value in Entry.MAC; see Key.mac for its exact definition. A logger without one
+// leaves MAC empty, which marks an entry unverified: Verify counts such an entry but never treats it as a
+// break, so the chain runs on through signed and unsigned entries alike.
 package auditlog

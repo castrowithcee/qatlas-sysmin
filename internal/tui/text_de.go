@@ -415,6 +415,7 @@ var textDE = map[textID]string{
 	tLogChainBroken:                 "Kette gebrochen",
 	tLogSigChecked:                  "Signaturen geprüft",
 	tLogSigUnchecked:                "Signaturen nicht geprüft (Tresor gesperrt)",
+	tLogDamaged:                     "unlesbare Zeilen dokumentiert: %d",
 	tLogLine:                        "Zeile %d",
 	tLogEntry:                       "Eintrag %d",
 	tLogMoreDays:                    "+%s weitere",
