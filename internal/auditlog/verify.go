@@ -13,11 +13,11 @@ type DayReport struct {
 	Date string
 	// Entries counts the action entries of the day; a marker does not count as one.
 	Entries int
-	// Unverified counts the action entries and damaged-line markers of the day whose MAC is empty: written
-	// without the log key, which never breaks the chain by itself.
+	// Unverified counts the action entries and markers of the day whose MAC is empty: written without the log
+	// key, which never breaks the chain by itself.
 	Unverified int
-	// Unchecked counts the action entries and damaged-line markers of the day that carry a MAC nobody
-	// checked, because Verify was given no Checker.
+	// Unchecked counts the action entries and markers of the day that carry a MAC nobody checked, because
+	// Verify was given no Checker.
 	Unchecked int
 	// Damaged counts the lines of the day that do not parse but are documented by the damaged-line marker
 	// right after them, which may be the first line of the next day file. Such a line does not break the
@@ -260,17 +260,12 @@ func documents(next, damaged []byte) bool {
 // for the well-formed check values not counted yet, in order; this takes the next one when the line has one
 // and checked is true.
 func countMAC(day *DayReport, problem func(string, uint64, string), checked bool, results *[]bool, entry Entry, raw []byte) {
-	counted := entry.Kind != KindCut
 	switch {
 	case entry.MAC == "":
-		if counted {
-			day.Unverified++
-		}
+		day.Unverified++
 		return
 	case wellFormed(raw) && !checked:
-		if counted {
-			day.Unchecked++
-		}
+		day.Unchecked++
 		return
 	case wellFormed(raw):
 		valid := (*results)[0]
