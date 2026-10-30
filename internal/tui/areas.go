@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -43,20 +44,35 @@ func areaByName(name string) (area, bool) {
 	return areaOverview, false
 }
 
+// zone is the part of the area screen that takes the keys: the tab line, the page strip of an area with
+// pages, or the content under them.
+type zone int
+
+const (
+	zoneTabs zone = iota
+	zoneSubs
+	zoneContent
+)
+
 // enableAreas makes the area screen the base of the interface, served by backend.
 func (m *Model) enableAreas(backend Backend) {
 	m.backend = backend
-	m.home, m.screen, m.area = screenArea, screenArea, areaOverview
+	m.home, m.screen, m.area, m.zone = screenArea, screenArea, areaOverview, zoneTabs
 	m.prj = newProjectsState()
 }
 
-// setArea shows an area, on its first page. Unsaved input of Settings is asked about first.
+// setArea shows an area, on its first page, with the focus in its content. Unsaved input of Settings is asked
+// about first.
 func (m *Model) setArea(a area) tea.Cmd { return m.show(a, 0) }
 
-// show makes page sub of area a the screen; only Settings and Library have pages.
-func (m *Model) show(a area, sub int) tea.Cmd {
+// show makes page sub of area a the screen, with the focus in its content; only Settings, Activity and
+// Library have pages.
+func (m *Model) show(a area, sub int) tea.Cmd { return m.showIn(a, sub, zoneContent) }
+
+// showIn is show with the focus on zone z.
+func (m *Model) showIn(a area, sub int, z zone) tea.Cmd {
 	return m.guarded(func() tea.Cmd {
-		m.area = a
+		m.area, m.zone = a, z
 		m.resetForms()
 		m.clearMessages()
 		m.ovr.cursor = 0
@@ -147,6 +163,9 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	case keyIs(key, actCopy) && m.copySource() != nil:
 		return m.copyCurrent()
 	}
+	if m.zoneNow() != zoneContent {
+		return m.barKey(key)
+	}
 	if m.area == areaSettings {
 		if cmd, ok := m.settingsKey(key); ok {
 			return cmd
@@ -160,19 +179,126 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	if cmd, ok := m.dataKey(key); ok {
 		return cmd
 	}
+	if m.area == areaOverview {
+		if cmd, ok := m.overviewKey(key); ok {
+			return cmd
+		}
+	}
+	// A key an inner level (a log, an update, a detail) leaves unhandled does not leave it: only esc does.
+	inner := m.innerLevel()
 	switch {
-	case keyIs(key, actRight), keyIs(key, actNext):
-		return m.setArea((m.area + 1) % areaCount)
-	case keyIs(key, actLeft), keyIs(key, actPrev):
-		return m.setArea((m.area + areaCount - 1) % areaCount)
+	case keyIs(key, actNext) && !inner:
+		m.zone = zoneTabs
+	case (keyIs(key, actPrev) || keyIs(key, actBack)) && !inner:
+		m.toBar()
 	case keyIs(key, actReload):
 		return m.statusCmd()
 	}
+	return m.digitKey(key)
+}
+
+// digitKey opens the area of a digit, with the focus in its content.
+func (m *Model) digitKey(key tea.KeyPressMsg) tea.Cmd {
 	if len(key.Text) == 1 && key.Text[0] >= '1' && key.Text[0] < '1'+byte(areaCount) {
 		return m.setArea(area(key.Text[0] - '1'))
 	}
-	if m.area == areaOverview {
-		return m.overviewKey(key)
+	return nil
+}
+
+// hasSubs reports whether the area shows a strip of its pages under the tab line.
+func (m *Model) hasSubs() bool {
+	switch m.area {
+	case areaSettings, areaLibrary:
+		return true
+	case areaActivity:
+		return actPages > 1
+	}
+	return false
+}
+
+// barZone is the bar one level above the content: the page strip where the area has one, else the tab line.
+func (m *Model) barZone() zone {
+	if m.hasSubs() {
+		return zoneSubs
+	}
+	return zoneTabs
+}
+
+// toBar hands the focus from the content to the bar above it.
+func (m *Model) toBar() { m.zone = m.barZone() }
+
+// zoneNow is the zone that takes the keys. An inner level of the content holds the focus whatever the zone
+// was, and a page strip falls back to the tab line in an area without one.
+func (m *Model) zoneNow() zone {
+	switch {
+	case m.innerLevel():
+		return zoneContent
+	case m.zone == zoneSubs && !m.hasSubs():
+		return zoneTabs
+	}
+	return m.zone
+}
+
+// innerLevel reports whether the content shows a level that esc closes before it leaves the content: a
+// filter being typed, a field being edited, the guided setup, a log, an update or the detail of a row.
+func (m *Model) innerLevel() bool {
+	if m.typing() || m.flowOpen() {
+		return true
+	}
+	switch m.area {
+	case areaProjects:
+		p := m.prj
+		return p != nil && (p.log != nil || p.upd != nil || p.focusDetail)
+	case areaActivity:
+		if m.act.runs.log.open {
+			return true
+		}
+	}
+	p := m.currentPage()
+	return p != nil && p.open
+}
+
+// barKey handles a key while the tab line or the page strip has the focus. The bars wrap round; down, enter
+// and tab go one zone further in, esc and up one zone back.
+func (m *Model) barKey(key tea.KeyPressMsg) tea.Cmd {
+	subs := m.zoneNow() == zoneSubs
+	step := 0
+	switch {
+	case keyIs(key, actLeft):
+		step = -1
+	case keyIs(key, actRight):
+		step = 1
+	case keyIs(key, actHome) && !subs:
+		return m.showIn(0, 0, zoneTabs)
+	case keyIs(key, actEnd) && !subs:
+		return m.showIn(areaCount-1, 0, zoneTabs)
+	case keyIs(key, actUp), keyIs(key, actBack), keyIs(key, actPrev) && subs:
+		m.zone = zoneTabs
+	case keyIs(key, actPrev):
+		m.zone = zoneContent
+	case keyIs(key, actDown), keyIs(key, actEnter), keyIs(key, actNext):
+		m.zone = zoneContent
+		if !subs && m.hasSubs() {
+			m.zone = zoneSubs
+		}
+	case keyIs(key, actReload):
+		return m.statusCmd()
+	default:
+		return m.digitKey(key)
+	}
+	if step == 0 {
+		return nil
+	}
+	if !subs {
+		return m.showIn(area(wrap(int(m.area)+step, int(areaCount))), 0, zoneTabs)
+	}
+	switch m.area {
+	case areaSettings:
+		return m.setSub(m.set.sub + step)
+	case areaLibrary:
+		return m.setLibSub(m.lib.sub + step)
+	case areaActivity:
+		return m.setActSub(m.act.sub + step)
 	}
 	return nil
 }
@@ -188,8 +314,7 @@ func (m *Model) closeDetails() {
 	}
 }
 
-// dataKey handles a key of the pages with a table: the table and its detail first, then the page's own keys,
-// and, in Library, the keys that change the page.
+// dataKey handles a key of the pages with a table: the table and its detail first, then the page's own keys.
 func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	if m.area == areaActivity && m.act.runs.log.open {
 		if cmd, ok := m.runLogKey(key); ok {
@@ -197,22 +322,6 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 	}
 	p := m.currentPage()
-	if m.area == areaActivity && (p == nil || !p.open) {
-		switch {
-		case keyIs(key, actRight):
-			return m.setActSub(m.act.sub + 1), true
-		case keyIs(key, actLeft):
-			return m.setActSub(m.act.sub - 1), true
-		}
-	}
-	if m.area == areaLibrary && (p == nil || !p.open) {
-		switch {
-		case keyIs(key, actRight):
-			return m.setLibSub(m.lib.sub + 1), true
-		case keyIs(key, actLeft):
-			return m.setLibSub(m.lib.sub - 1), true
-		}
-	}
 	if p == nil {
 		return nil, false
 	}
@@ -243,38 +352,133 @@ func (m *Model) infoKey(key tea.KeyPressMsg) bool {
 	return keyIs(key, actInfo) || (infoExtra != "" && key.String() == infoExtra)
 }
 
-// areaView is the workspace of the area screen: the tab line and the area under it.
+// areaView is the workspace of the area screen: the area under the bars of the frame.
 func (m *Model) areaView() string {
-	line, spans := m.tabLine()
-	top := m.workspaceTop()
-	for i, span := range spans {
-		m.addHit(span.x0, top, span.x1, top+1, func() tea.Cmd { return m.setArea(area(i)) })
-	}
 	m.keyHint(m.areaKeys())
-	return line + "\n\n" + m.areaBody() + m.notes()
+	return m.areaBody() + m.notes()
 }
 
-// tabLine draws the tab line and the cells of each tab. Where the titles do not fit the width, the tabs that
-// are not active shrink to their digit.
-func (m *Model) tabLine() (string, []navSpan) {
-	words := make([]string, areaCount)
-	for a := range words {
-		words[a] = area(a).title()
+// barFocusMark stands in front of the bar that has the focus; the other bars get blanks of the same width, so
+// the tabs never move when the focus does.
+func barFocusMark(focused bool) string {
+	if focused {
+		return "> "
 	}
-	line, cells := tabStrip(words, int(m.area), true)
-	if width := m.usable(0); lipgloss.Width(line) > width {
-		for a := range words {
-			if a != int(m.area) {
-				words[a] = string(rune('1' + a))
+	return "  "
+}
+
+// barLine draws a bar of tabs behind the focus mark and returns the cells of each tab. Where the words do not
+// fit the width, the gaps between the tabs close first; then shrink maps the words of the inactive tabs to
+// something shorter, if it is given. The active tab always stays whole.
+func (m *Model) barLine(words []string, active int, focused bool, shrink func(i int) string) (string, []navSpan) {
+	mark := barFocusMark(focused)
+	width := m.termWidth
+	line, cells := tabStripGap(words, active, focused, " ")
+	if lipgloss.Width(mark)+lipgloss.Width(line) > width {
+		line, cells = tabStripGap(words, active, focused, "")
+	}
+	if shrink != nil && lipgloss.Width(mark)+lipgloss.Width(line) > width {
+		short := make([]string, len(words))
+		for i := range words {
+			short[i] = words[i]
+			if i != active {
+				short[i] = shrink(i)
 			}
 		}
-		line, cells = tabStrip(words, int(m.area), true)
+		line, cells = tabStripGap(short, active, focused, "")
 	}
 	spans := make([]navSpan, len(cells))
 	for i, c := range cells {
-		spans[i] = navSpan{min(c[0], m.usable(0)), min(c[1], m.usable(0))}
+		spans[i] = navSpan{min(c[0]+len(mark), width), min(c[1]+len(mark), width)}
 	}
-	return clipCells(line, m.usable(0)), spans
+	return clipCells(styles.active.Render(mark)+line, width), spans
+}
+
+// tabLine draws the tab line, every area as "digit name", and the cells of each tab. Where the titles do not
+// fit the width, the tabs that are not active shrink to their digit.
+func (m *Model) tabLine() (string, []navSpan) {
+	words := make([]string, areaCount)
+	for a := range words {
+		words[a] = fmt.Sprintf("%d %s", a+1, area(a).title())
+	}
+	return m.barLine(words, int(m.area), m.zoneNow() == zoneTabs, func(i int) string { return string(rune('1' + i)) })
+}
+
+// subLine draws the page strip of the current area; it is empty in an area without pages.
+func (m *Model) subLine() (string, []navSpan) {
+	var words []string
+	active := 0
+	switch m.area {
+	case areaSettings:
+		active = m.set.sub
+		for i := 0; i < subCount; i++ {
+			words = append(words, subTitle(i))
+		}
+	case areaLibrary:
+		active = m.lib.sub
+		for i := 0; i < libCount; i++ {
+			words = append(words, libTitle(i))
+		}
+	case areaActivity:
+		active = m.act.sub
+		for i := 0; i < actPages; i++ {
+			words = append(words, actTitle(i))
+		}
+	}
+	if !m.hasSubs() {
+		return "", nil
+	}
+	return m.barLine(words, active, m.zoneNow() == zoneSubs, nil)
+}
+
+// barRows is the number of rows the tab line and the page strip take above the rule.
+func (m *Model) barRows() int {
+	switch {
+	case m.home != screenArea:
+		return 0
+	case m.hasSubs():
+		return 2
+	}
+	return 1
+}
+
+// barLines are the tab line and the page strip as the frame draws them, and they register their click targets.
+func (m *Model) barLines() []string {
+	if m.barRows() == 0 {
+		return nil
+	}
+	row := len(m.headerLines())
+	line, spans := m.tabLine()
+	lines := []string{line}
+	live := m.screen == screenArea
+	for i, span := range spans {
+		if live {
+			m.addHit(span.x0, row, span.x1, row+1, func() tea.Cmd { return m.setArea(area(i)) })
+		}
+	}
+	if m.barRows() == 2 {
+		line, spans = m.subLine()
+		lines = append(lines, line)
+		for i, span := range spans {
+			if live {
+				m.addHit(span.x0, row+1, span.x1, row+2, func() tea.Cmd { return m.setSubPage(i) })
+			}
+		}
+	}
+	return lines
+}
+
+// setSubPage shows page i of the current area.
+func (m *Model) setSubPage(i int) tea.Cmd {
+	switch m.area {
+	case areaSettings:
+		return m.setSub(i)
+	case areaLibrary:
+		return m.setLibSub(i)
+	case areaActivity:
+		return m.setActSub(i)
+	}
+	return nil
 }
 
 // areaKeys is the key line of the area screen.
@@ -288,26 +492,30 @@ func (m *Model) areaKeys() string {
 		}
 		return "enter next · {back} stop · {save} save"
 	}
-	keys := []string{"1-6 area"}
-	switch m.area {
-	case areaOverview:
+	var keys []string
+	switch zone := m.zoneNow(); {
+	case zone == zoneTabs:
+		keys = []string{"left/right area", "down open"}
+	case zone == zoneSubs:
+		keys = []string{"left/right page", "down open", "{back} back"}
+	case m.area == areaOverview:
 		keys = append(keys, "up/down move")
 		if row := m.overviewCurrent(); row.key != "" {
 			keys = append(keys, row.key)
 		}
-	case areaSettings:
-		keys = append(keys, "left/right page")
+	case m.area == areaSettings:
 		keys = append(keys, m.settingsKeys()...)
-	case areaProjects:
+	case m.area == areaProjects:
 		keys = append(keys, m.projectsKeys()...)
-	case areaAccess:
+	case m.area == areaAccess:
 		keys = append(keys, m.accessKeys()...)
-	case areaLibrary:
+	case m.area == areaLibrary:
 		keys = append(keys, m.libraryKeys()...)
-	case areaActivity:
+	case m.area == areaActivity:
 		keys = append(keys, m.activityKeys()...)
-	default:
-		keys = append(keys, "left/right move")
+	}
+	if m.zoneNow() == zoneContent && !m.innerLevel() {
+		keys = append(keys, "{back} back")
 	}
 	keys = append(keys, m.lockKeys()...)
 	keys = append(keys, "{info} info", "{help} help", "{command} cmds", "q quit")

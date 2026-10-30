@@ -33,7 +33,7 @@ func TestCredentialsListShowsUsesWithTheirState(t *testing.T) {
 
 func TestLibraryPagesSwitchAndCommandsReachThem(t *testing.T) {
 	m := appModel(t, accessFake(), 80, 24)
-	send(m, "5", "right")
+	send(m, "5", "esc", "right")
 	if m.lib.sub != libChannels || !strings.Contains(plain(m), "Channels") {
 		t.Errorf("sub = %d", m.lib.sub)
 	}

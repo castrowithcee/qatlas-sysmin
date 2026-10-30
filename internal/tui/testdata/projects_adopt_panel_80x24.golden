@@ -1,14 +1,14 @@
-sysmin  ● vault open  ● admin 15 min                              ? help  : cmds
+sysmin  ● vault open  ● admin 15 min                           [?] help  [:] cmd
+   1 Overview  [2 Projects]  3 Activity   4 Access   5 Library   6 Settings     
 ────────────────────────────────────────────────────────────────────────────────
- Overview  [Projects]  Activity   Access   Library   Settings                   
-                                                                                
 Projects (3)                                                                 1/3
                                                                                 
-╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
-║   Name║ Adopt running stack                                          ║       ║
-║ >   de║                                                              ║12:00  ║
-║     de║ > Directory:       /srv/demo-stack                           ║12:00  ║
-║     sa║   Name (optional):                                           ║12:00  ║
+╔══════════════════════════════════════════════════════════════════════════════╗
+║   Name╔══════════════════════════════════════════════════════════════╗       ║
+║ >   de║ Adopt running stack                                          ║12:00  ║
+║     de║                                                              ║12:00  ║
+║     sa║ > Directory:       /srv/demo-stack                           ║12:00  ║
+║       ║   Name (optional):                                           ║       ║
 ║       ║     Only reads the stack; nothing is saved.                  ║       ║
 ║       ║                                                              ║       ║
 ║       ║ > Ok <  [ Cancel ]                                           ║       ║

@@ -1,21 +1,21 @@
-sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+> [1 Overview]  2 Projects   3 Activity   4 Access   5 Library   6 Settings                                             
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-[Overview]  Projects   Activity   Access   Library   Settings                                                           
-                                                                                                                        
 > ● Vault      open                                                                                                     
   ● Version    0.0.0-test                                                                                               
     Press enter to open Settings › Update.                                                                              
   ● Config     /etc/sysmin-test                                                                                         
   ● Unlock     manual                                                                                                   
   ⚠ Approvals  2 open                                                                                                   
-    Press enter to open Acce╔══════════════════════════════════════════════════════════════╗                            
-  ● Projects   1 total      ║ Help                                                         ║                            
-  ○ Updates    no data      ║                                                              ║                            
-    Press enter to open Proj║ [keys]  vault   admin-session   approvals   unlock   secret… ║                            
+    Press enter to open Access.                                                                                         
+  ● Projects   1 total      ╔══════════════════════════════════════════════════════════════╗                            
+  ○ Updates    no data      ║ Help                                                         ║                            
+    Press enter to open Proj║                                                              ║                            
+                            ║ [keys]  vault   admin-session   approvals   unlock   secret… ║                            
                             ║                                                              ║                            
                             ║ This screen                                                  ║                            
-                            ║   1-6 area                                                   ║                            
-                            ║   up/down move                                               ║                            
+                            ║   left/right area                                            ║                            
+                            ║   down open                                                  ║                            
                             ║                                                              ║                            
                             ║ Everywhere                                                   ║                            
                             ║   ? help                                                     ║                            

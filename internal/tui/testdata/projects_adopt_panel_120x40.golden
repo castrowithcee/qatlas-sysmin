@@ -1,7 +1,6 @@
-sysmin  ● vault open  ● admin 15 min                                                                      ? help  : cmds
+sysmin  ● vault open  ● admin 15 min                                                                   [?] help  [:] cmd
+   1 Overview  [2 Projects]  3 Activity   4 Access   5 Library   6 Settings                                             
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview  [Projects]  Activity   Access   Library   Settings                                                           
-                                                                                                                        
 Projects (3)                                                        1/3 demo-app                                        
                                                                                                                         
 ╔══════════════════════════════════════════════════════════════════════╗╭──────────────────────────────────────────────╮
@@ -12,8 +11,9 @@ Projects (3)                                                        1/3 demo-app
 ║                                                                      ║│ Mode        auto                             │
 ║                                                                      ║│ Last check  2026-10-29 12:00                 │
 ║                                                                      ║│ Last run    2026-10-29 12:00 succeeded       │
-║                           ╔══════════════════════════════════════════════════════════════╗                           │
-║                           ║ Adopt running stack                                          ║→ 2.0.0 (2 newer)          │
+║                                                                      ║│             (auto)                           │
+║                           ╔══════════════════════════════════════════════════════════════╗→ 2.0.0 (2 newer)          │
+║                           ║ Adopt running stack                                          ║                           │
 ║                           ║                                                              ║                           │
 ║                           ║ > Directory:       /srv/demo-stack                           ║                           │
 ║                           ║   Name (optional):                                           ║                           │

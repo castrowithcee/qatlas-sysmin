@@ -1,9 +1,7 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                  [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects  [3 Activity]  4 Access   5 Library   6 Settings 
+  [Log]  Runs 
 ────────────────────────────────────────────────────────────────────────────────
- Overview   Projects  [Activity]  Access   Library   Settings 
-
-[Log]  Runs 
-
 ⚠ Chain broken · 2026-10-27 entry 31 · hash mismatch · +1 more
   signatures not checked (vault locked)
 Log (12)                                                                    1/12
@@ -20,5 +18,7 @@ Log (12)                                                                    1/12
 ║   2026-10-28 11:52:00  deploy.run         demo-app  success     59 ms  1000  ║
 ║   2026-10-28 11:51:00  session.open       -         failure     66 ms     0  ║
 ║   2026-10-28 11:50:00  config.read        demo-app  success     73 ms  1000  ║
+║   2026-10-28 11:49:00  approval.grant     -         success     80 ms  1000  ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-1-6 area  left/right page  enter details  f filter  ctrl+l admin  ? help  : cmds
+
+enter details  f filter  esc back  ctrl+l admin  ? help  : cmds  q quit

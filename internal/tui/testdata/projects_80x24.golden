@@ -1,7 +1,6 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                  [esc] back  [?] help  [:] cmd
+   1 Overview  [2 Projects]  3 Activity   4 Access   5 Library   6 Settings 
 ────────────────────────────────────────────────────────────────────────────────
- Overview  [Projects]  Activity   Access   Library   Settings 
-
 Projects (3)                                                                 3/3
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -20,5 +19,6 @@ Projects (3)                                                                 3/3
 ║                                                                              ║
 ║                                                                              ║
 ║                                                                              ║
+║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-1-6 area  t test  enter detail  d delete  ctrl+l admin  ? help  : cmds  q quit
+t test  enter detail  d delete  esc back  ctrl+l admin  ? help  : cmds  q quit

@@ -21,9 +21,9 @@ func settingsModel(t *testing.T, fb *fakeBackend, page string) (*Model, string) 
 	send(m, "6")
 	switch page {
 	case "vault":
-		send(m, "right")
+		send(m, "esc", "right", "enter")
 	case "update":
-		send(m, "right", "right")
+		send(m, "esc", "right", "right", "enter")
 	}
 	return m, m.prefsPath
 }
@@ -49,7 +49,7 @@ func TestSettingsOpensOnGeneralWithTheThreePages(t *testing.T) {
 			t.Errorf("the General page lacks %q:\n%s", want, view)
 		}
 	}
-	send(m, "right")
+	send(m, "esc", "right")
 	if m.set.sub != subVault {
 		t.Errorf("right leads to page %d, want Vault", m.set.sub)
 	}
@@ -138,7 +138,7 @@ func TestGeneralRebindsAKeyAndRefusesAnInvalidOne(t *testing.T) {
 
 func TestEditingATextFieldTakesQuestionMarksAndLetters(t *testing.T) {
 	m, _ := settingsModel(t, newFake(control.VaultUnlocked), "general")
-	send(m, "up") // the extra info key, the last row, reached from the first one
+	send(m, "end") // the extra info key, the last row
 	send(m, "enter")
 	typed(m, "?q:i")
 	if m.screen != screenArea || m.pop != nil || m.quitting {
@@ -323,7 +323,7 @@ func TestUpdatePageShowsTheLookupOfThisRun(t *testing.T) {
 			var calls int
 			m := appModel(t, newFake(control.VaultUnlocked), 80, 24)
 			m.version, m.releases = "0.0.0-test", releases(c.info, c.err, &calls)
-			send(m, "6", "right", "right")
+			send(m, "6", "esc", "right", "right", "enter")
 			view := plain(m)
 			if calls != 1 || !strings.Contains(view, "0.0.0-test") {
 				t.Errorf("lookups %d:\n%s", calls, view)
@@ -336,7 +336,7 @@ func TestUpdatePageShowsTheLookupOfThisRun(t *testing.T) {
 			if strings.Contains(view, "no network") {
 				t.Errorf("the page repeats the cause of the failure:\n%s", view)
 			}
-			send(m, "left", "right")
+			send(m, "esc", "left", "right", "enter")
 			if calls != 1 {
 				t.Errorf("reopening the page looked up again (%d)", calls)
 			}

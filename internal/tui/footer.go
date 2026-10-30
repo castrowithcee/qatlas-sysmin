@@ -29,7 +29,7 @@ const (
 	footerHelp     = 0 // never dropped
 	footerBack     = 1
 	footerLock     = 2 // the only way to learn the lock key
-	footerPrimary  = 3 // enter, y, n, the delete key, the digits of the areas and the filter key
+	footerPrimary  = 3 // enter, y, n, the delete key, the digits of the areas, the filter key and the bars
 	footerSave     = 4
 	footerCommand  = 5
 	footerQuit     = 6
@@ -46,7 +46,7 @@ func footerGroupRank(group string, index int) (rank int, right bool) {
 	switch {
 	case key == keyLabel(actHelp) && key != "":
 		return footerHelp, false
-	case group == "left/right page":
+	case group == "left/right page" || group == "left/right area":
 		return footerPrimary, false
 	case isNavigation(key):
 		return footerNavigate + index, true

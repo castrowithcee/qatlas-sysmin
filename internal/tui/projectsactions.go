@@ -171,6 +171,9 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 	case wide && keyIs(key, actRight):
 		step(1)
 		return nil, true
+	case keyIs(key, actUp) && p.list.cursor <= 0:
+		m.toBar()
+		return nil, true
 	case keyIs(key, actUp):
 		p.list.move(-1)
 		return nil, true
@@ -178,7 +181,7 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 		p.list.move(1)
 		return nil, true
 	case keyIs(key, actPageUp), keyIs(key, actPageDown), keyIs(key, actHome), keyIs(key, actEnd):
-		p.list.page(key, 0, max(m.height-projectChrome(m, m.tableFramed())-4, 1))
+		p.list.page(key, 0, max(m.height-projectChrome(m, m.tableFramed())-2, 1))
 		return nil, true
 	case keyIs(key, actEnter):
 		if _, has := p.current(); has {
@@ -222,12 +225,6 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 		return tea.Batch(m.statusCmd(), m.projectListCmd()), true
 	}
 	return nil, false
-}
-
-// projectsBackShown reports whether esc leads one level back inside the area.
-func (m *Model) projectsBackShown() bool {
-	p := m.prj
-	return m.area == areaProjects && p != nil && (p.flow != nil || p.log != nil || p.upd != nil || p.focusDetail || p.list.query() != "")
 }
 
 // selectedProject is the project under the cursor; without one it says so.

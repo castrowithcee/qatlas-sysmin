@@ -1,9 +1,7 @@
-sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access  [5 Library]  6 Settings 
+   Credentials  [Channels]  Templates 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview   Projects   Activity   Access  [Library]  Settings 
-
- Credentials  [Channels]  Templates 
-
 Channels (3)                                                      1/3 ╭─ chat-ops ─────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name      Type      Target                   State              ║ │                                                │
@@ -37,4 +35,6 @@ Channels (3)                                                      1/3 ╭─ cha
 
 
 
-1-6 area  left/right page  enter details  n new  t test  d remove  / filter  ctrl+l admin  ? help  : cmds  q quit
+
+
+enter details  n new  t test  d remove  / filter  esc back  ctrl+l admin  i info  c copy  ? help  : cmds  q quit     1/3

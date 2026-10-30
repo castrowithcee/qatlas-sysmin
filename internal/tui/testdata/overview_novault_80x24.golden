@@ -1,7 +1,6 @@
-sysmin  ● no vault                                                ? help  : cmds
+sysmin  ● no vault                                             [?] help  [:] cmd
+> [1 Overview]  2 Projects   3 Activity   4 Access   5 Library   6 Settings 
 ────────────────────────────────────────────────────────────────────────────────
-[Overview]  Projects   Activity   Access   Library   Settings 
-
 > ⚠ Vault      not set up
     Press enter to set up the vault.
   ● Version    0.0.0-test
@@ -21,4 +20,5 @@ sysmin  ● no vault                                                ? help  : cm
 
 
 
-1-6 area  enter set up  i info  ? help  : cmds  q quit              up/down move
+
+left/right area  down open  i info  ? help  : cmds  q quit

@@ -153,7 +153,7 @@ func TestOneNotchIsOneStepWhateverTheTerminalReports(t *testing.T) {
 	}
 }
 
-func TestTheWheelStopsAtTheEndsWhileTheKeysWrap(t *testing.T) {
+func TestTheWheelAndTheKeysStopAtTheEnds(t *testing.T) {
 	m := frameModel(t, 100, 30)
 	now := wheelClock(m)
 	step := func(b tea.MouseButton) {
@@ -170,12 +170,9 @@ func TestTheWheelStopsAtTheEndsWhileTheKeysWrap(t *testing.T) {
 	if m.list.cursor != 3 {
 		t.Errorf("the wheel ended on %d, want the last row 3", m.list.cursor)
 	}
-	if wheelClamp {
-		t.Error("the wheel clamp stays on after the event")
-	}
 	press(t, m, "down")
-	if m.list.cursor != 0 {
-		t.Errorf("down on the last row went to %d, want the wrap to 0", m.list.cursor)
+	if m.list.cursor != 3 {
+		t.Errorf("down on the last row went to %d, want it to stay on 3", m.list.cursor)
 	}
 }
 

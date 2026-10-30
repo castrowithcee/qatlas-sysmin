@@ -31,7 +31,7 @@ func (m *Model) flowView(room int) string {
 		head = append(head, "")
 	}
 	avail := max(room-len(head), 3)
-	top := m.workspaceTop() + 2 + len(head)
+	top := m.workspaceTop() + len(head)
 	var out []string
 	switch framed := m.tableFramed(); {
 	case framed && width >= flowListMinWidth && avail >= len(steps)+2:

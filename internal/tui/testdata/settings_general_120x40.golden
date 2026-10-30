@@ -1,9 +1,7 @@
-sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Settings]
+  [General]  Vault   Update 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview   Projects   Activity   Access   Library  [Settings]
-
-[General]  Vault   Update 
-
 >  Language:       english ▾ 
    Theme:          terminal ▾ 
    Mouse:          on ▾ 
@@ -37,4 +35,6 @@ sysmin  ● vault open  ● admin off                                           
 
 
 
-1-6 area  left/right page  enter edit  F2 save  ctrl+l admin  i info  ? help  : cmds  q quit                up/down move
+
+
+enter edit  F2 save  esc back  ctrl+l admin  i info  ? help  : cmds  q quit                                 up/down move

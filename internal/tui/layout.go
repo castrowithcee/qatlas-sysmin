@@ -11,17 +11,19 @@ import (
 )
 
 // layoutWorkspace derives the room of the workspace from the terminal. It takes the full width; above it
-// stand the header (one line) and a rule, below it the one-line footer.
+// stand the header (one line), the tab line, the page strip where the area has pages, and a rule, below it the
+// one-line footer.
 func (m *Model) layoutWorkspace() {
 	m.width = max(m.termWidth, 1)
-	m.height = max(m.termHeight-len(m.headerLines())-2, 1)
+	m.height = max(m.termHeight-len(m.headerLines())-m.barRows()-2, 1)
 }
 
-// frame puts the workspace under the header and a rule, and the footer under it. The workspace is cut or
+// frame puts the workspace under the header, the bars and a rule, and the footer under it. The workspace is cut or
 // padded to exactly the rows layoutWorkspace gave it, so the footer is always the last line of the screen.
 func (m *Model) frame(workspace string) string {
 	lines, back := m.headerLayout()
 	m.registerBack(back)
+	lines = append(lines, m.barLines()...)
 	lines = append(lines, styles.quietBorder.Render(strings.Repeat("─", m.termWidth)))
 	body := strings.Split(workspace, "\n")
 	if len(body) > m.height {
@@ -139,12 +141,11 @@ func (m *Model) headerStatus() []string {
 }
 
 // serviceHeader is the header of the service interface: at the left the name and the marks of the vault and
-// the admin session, at the right the keys of help and commands. It stays one row. Where the row is too
-// narrow, the parts give way in a fixed order: first the marks shrink to short words, then the key words go
-// and the admin mark with them, then the commands key; the name and the help key stay.
+// the admin session, at the right the back button and the keys of help and commands. It stays one row. Where
+// the row is too narrow, the parts give way in a fixed order: first the marks shrink to short words and then
+// go, then the key hints, then the back button; the name stays.
 func (m *Model) serviceHeader(width int) ([]string, navSpan) {
-	back := m.backButton()
-	for _, c := range m.headerCombos(back) {
+	for _, c := range m.headerCombos(m.backButton()) {
 		line, _ := fitParts(m.headerMarks(c.left), width)
 		if placed, span, ok := placeBlock(line, c.right, width); ok {
 			return []string{placed}, span
@@ -154,54 +155,49 @@ func (m *Model) serviceHeader(width int) ([]string, navSpan) {
 	return []string{line}, navSpan{}
 }
 
-// headerCombo pairs a level of the marks with a block of keys; a lower level shows less.
+// headerCombo pairs a level of the marks with a block at the right end; a lower level shows less.
 type headerCombo struct {
 	left  int
 	right headerRight
 }
 
-// headerCombos are the layouts to try, richest first.
+// keyHints are the keys of help and of the command line as they are bound now, dimmed like the back button.
+func keyHints() string {
+	var parts []string
+	for _, h := range []struct {
+		act  action
+		text textID
+	}{{actHelp, tHeaderHelp}, {actCommand, tHeaderCmd}} {
+		if key := keyLabel(h.act); key != "" {
+			parts = append(parts, styles.hint.Render("["+key+"] "+tr(h.text)))
+		}
+	}
+	return strings.Join(parts, headerSep)
+}
+
+// headerCombos are the layouts to try, richest first: the marks give way before the key hints, the key hints
+// before the back button.
 func (m *Model) headerCombos(back string) []headerCombo {
-	help, command := keyLabel(actHelp), keyLabel(actCommand)
-	keyWord := func(label, word string) string {
-		if label == "" {
-			return ""
+	hints := keyHints()
+	var combos []headerCombo
+	if back != "" && hints != "" {
+		right := headerRight{text: back + headerSep + hints, back: navSpan{0, lipgloss.Width(back)}}
+		for level := 0; level <= 3; level++ {
+			combos = append(combos, headerCombo{level, right})
 		}
-		return styles.key.Render(label) + styles.hint.Render(" "+word)
 	}
-	join := func(parts ...string) string {
-		var kept []string
-		for _, p := range parts {
-			if p != "" {
-				kept = append(kept, p)
-			}
+	if hints != "" && back == "" {
+		for level := 0; level <= 3; level++ {
+			combos = append(combos, headerCombo{level, headerRight{text: hints}})
 		}
-		return strings.Join(kept, headerSep)
 	}
-	words := join(keyWord(help, tr(tHeaderHelp)), keyWord(command, tr(tHeaderCommands)))
-	bare := join(styles.key.Render(help), func() string {
-		if command == "" {
-			return ""
-		}
-		return styles.key.Render(command)
-	}())
-	helpOnly := styles.key.Render(help)
-	withBack := headerRight{text: join(back, words)}
 	if back != "" {
-		withBack.back = navSpan{0, lipgloss.Width(back)}
+		right := headerRight{text: back, back: navSpan{0, lipgloss.Width(back)}}
+		for level := 0; level <= 3; level++ {
+			combos = append(combos, headerCombo{level, right})
+		}
 	}
-	combos := []headerCombo{}
-	if back != "" {
-		combos = append(combos, headerCombo{0, withBack})
-	}
-	return append(combos,
-		headerCombo{0, headerRight{text: words}},
-		headerCombo{1, headerRight{text: words}},
-		headerCombo{1, headerRight{text: bare}},
-		headerCombo{2, headerRight{text: bare}},
-		headerCombo{2, headerRight{text: helpOnly}},
-		headerCombo{3, headerRight{text: helpOnly}},
-	)
+	return combos
 }
 
 // placeBlock puts block at the right end of line, with at least headerSep before it.

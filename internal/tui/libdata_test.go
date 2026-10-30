@@ -81,7 +81,7 @@ func libFake() *fakeBackend {
 func TestChannelsListShowsStateAndNoSecret(t *testing.T) {
 	for _, size := range [][2]int{{80, 24}, {120, 40}} {
 		m := appModel(t, libFake(), size[0], size[1])
-		send(m, "5", "right")
+		send(m, "5", "esc", "right", "enter")
 		view := plain(m)
 		for _, want := range []string{"Channels (3)", "ops-hook", "ops-mail", "smtp.example.test", "pending approval", "approved"} {
 			if !strings.Contains(view, want) {
@@ -95,7 +95,7 @@ func TestChannelsListShowsStateAndNoSecret(t *testing.T) {
 func TestChannelTestNeedsNoSessionAndShowsAFixedText(t *testing.T) {
 	fb := libFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "5", "right", "down", "t")
+	send(m, "5", "esc", "right", "enter", "down", "t")
 	if fb.count("channel-test ops-hook") != 1 || fb.count("session") != 0 || m.ov != nil {
 		t.Fatalf("calls = %v", fb.log())
 	}
@@ -116,7 +116,7 @@ func TestChannelTestNeedsNoSessionAndShowsAFixedText(t *testing.T) {
 
 // typeChannel fills the form of an smtp channel up to its last row.
 func typeSMTPChannel(m *Model) {
-	send(m, "5", "right", "n")
+	send(m, "5", "esc", "right", "enter", "n")
 	typed(m, "team-mail")
 	send(m, "tab", "right", "tab")
 	typed(m, "smtp.example.test")
@@ -171,7 +171,7 @@ func TestNewChannelPendingWithoutApproval(t *testing.T) {
 
 func TestChannelFormOffersOnlyTheCredentialsOfTheRightKind(t *testing.T) {
 	m := appModel(t, libFake(), 80, 24)
-	send(m, "5", "right", "n")
+	send(m, "5", "esc", "right", "enter", "n")
 	f := m.form
 	_, shown := m.credentialChoices("webhook")
 	if strings.Join(shown, ",") != "none,demo-hmac,unused-token" {
@@ -220,7 +220,7 @@ func TestRemoveChannelAsksThenRemoves(t *testing.T) {
 	fb := libFake()
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
-	send(m, "5", "right", "d")
+	send(m, "5", "esc", "right", "enter", "d")
 	if fb.count("channel-remove chat-ops") != 0 {
 		t.Fatal("removed without the answer")
 	}
@@ -239,7 +239,7 @@ func TestChannelFieldsAreMaskedAndSanitised(t *testing.T) {
 	fb.lib.channels[1].URL = "https://hooks.example.test/" + secretValue + "\x1b[2J\x07"
 	m := appModel(t, fb, 120, 40)
 	m.redactor.Add(secretValue)
-	send(m, "5", "right", "down")
+	send(m, "5", "esc", "right", "enter", "down")
 	for range 3 {
 		view := m.render()
 		if strings.Contains(view, secretValue) || strings.Contains(view, "\x1b[2J") || strings.Contains(view, "\x07") {
@@ -260,7 +260,7 @@ func TestTemplatesListAndDetailShowTheYAML(t *testing.T) {
 		fb.lib.files["compose-update"] += "# " + secretValue + "\x1b[31m\n"
 		m := appModel(t, fb, size[0], size[1])
 		m.redactor.Add(secretValue)
-		send(m, "5", "right", "right")
+		send(m, "5", "esc", "right", "right", "enter")
 		view := plain(m)
 		for _, want := range []string{"Templates (3)", "compose-update", "builtin", "custom"} {
 			if !strings.Contains(view, want) {
@@ -283,7 +283,7 @@ func TestTemplatesListAndDetailShowTheYAML(t *testing.T) {
 func TestDeriveTemplateCallsOnceAndShowsRefusals(t *testing.T) {
 	fb := libFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "5", "right", "right", "p")
+	send(m, "5", "esc", "right", "right", "enter", "p")
 	if m.form == nil {
 		t.Fatal("no form")
 	}

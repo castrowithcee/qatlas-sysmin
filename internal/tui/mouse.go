@@ -41,8 +41,9 @@ func (m *Model) addFrameHit(x0, y0, x1, y1 int, act func() tea.Cmd) {
 	m.frameHits = append(m.frameHits, hit{x0, y0, x1, y1, act})
 }
 
-// workspaceTop is the screen row of the first line of the workspace: below the header and the rule.
-func (m *Model) workspaceTop() int { return len(m.headerLines()) + 1 }
+// workspaceTop is the screen row of the first line of the workspace: below the header, the bars and the rule.
+// Every click target of the workspace counts its rows from here.
+func (m *Model) workspaceTop() int { return len(m.headerLines()) + m.barRows() + 1 }
 
 // hitTop is the screen row of the first line after header, a text the workspace starts with.
 func (m *Model) hitTop(header string) int { return m.workspaceTop() + strings.Count(header, "\n") }
@@ -75,10 +76,6 @@ const wheelText = 3
 // wheelMerge is the longest gap between a wheel event and the event after it that can be its release half. A
 // terminal that reports a notch as a press and a release delivers both as presses, back to back.
 const wheelMerge = 15 * time.Millisecond
-
-// wheelClamp makes wrap stop at the ends while the wheel presses a key: the wheel never jumps from the last
-// row to the first or the other way round, the keys keep their wraparound.
-var wheelClamp bool
 
 // wheelSeen is the last wheel event that moved something.
 type wheelSeen struct {
@@ -161,8 +158,6 @@ func (m *Model) wheel(event tea.Mouse) tea.Cmd {
 	if event.Button == tea.MouseWheelUp {
 		key = tea.KeyUp
 	}
-	wheelClamp = true
-	defer func() { wheelClamp = false }()
 	return m.press(tea.KeyPressMsg{Code: key})
 }
 
@@ -174,6 +169,15 @@ func (m *Model) press(key tea.KeyPressMsg) tea.Cmd {
 	}
 	_, cmd := m.Update(key)
 	return cmd
+}
+
+// contentPress is pressName for a click in the content of the area screen, which the key reaches only with
+// the focus there.
+func (m *Model) contentPress(name string) tea.Cmd {
+	if m.screen == screenArea {
+		m.zone = zoneContent
+	}
+	return m.pressName(name)
 }
 
 // pressName is press for a key named as a footer names it.
@@ -287,7 +291,8 @@ func spanItems(items []string, start int, sep string, width int) []navSpan {
 }
 
 // backShown reports whether esc leads one level back from the screen shown now, which is where the back
-// button stands: from a dialog, a question or a list with a filter, never from the bare list.
+// button stands: from a dialog, a question or a list with a filter, from the content or the page strip of an
+// area, never from the bare list or the tab line.
 func (m *Model) backShown() bool {
 	if m.backdrop || m.dd != nil {
 		return false
@@ -296,7 +301,7 @@ func (m *Model) backShown() bool {
 		return false
 	}
 	if m.home == screenArea {
-		return m.screen != screenArea || m.projectsBackShown()
+		return m.screen != screenArea || m.zoneNow() != zoneTabs
 	}
 	return m.screen != screenList || m.list.editing || m.list.query() != ""
 }

@@ -1,7 +1,6 @@
-sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity  [4 Access]  5 Library   6 Settings 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview   Projects   Activity  [Access]  Library   Settings 
-
 Approvals (2)                                                     2/2 ╭─ sample-app ───────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │  Overview  [Details]  Raw                      │
 ║   Project     Kind     Changes  Notes                             ║ │                                                │
@@ -37,4 +36,5 @@ Approvals (2)                                                     2/2 ╭─ sam
 
 
 
-1-6 area  enter details  F2 approve  d discard  a approve all  / filter  ctrl+l admin  i info  ? help  : cmds  q quit
+
+enter details  F2 approve  d discard  a approve all  / filter  esc back  ctrl+l admin  i info  ? help  : cmds  q quit

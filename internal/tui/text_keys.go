@@ -72,7 +72,7 @@ const (
 	tAreaActivity               textID = "AreaActivity"
 	tAreaAccess                 textID = "AreaAccess"
 	tAreaLibrary                textID = "AreaLibrary"
-	tHeaderCommands             textID = "HeaderCommands"
+	tHeaderCmd                  textID = "HeaderCmd"
 	tHeaderChecking             textID = "HeaderChecking"
 	tVaultOpen                  textID = "VaultOpen"
 	tVaultLocked                textID = "VaultLocked"

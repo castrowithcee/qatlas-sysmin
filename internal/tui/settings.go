@@ -266,12 +266,7 @@ func (m *Model) settingsKeys() []string {
 // settingsKey handles a key of Settings while no field takes the text. It reports false for a key the area
 // screen handles itself.
 func (m *Model) settingsKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
-	switch {
-	case keyIs(key, actRight):
-		return m.setSub(m.set.sub + 1), true
-	case keyIs(key, actLeft):
-		return m.setSub(m.set.sub - 1), true
-	case keyIs(key, actSave):
+	if keyIs(key, actSave) {
 		return m.saveCurrent(), true
 	}
 	switch m.set.sub {
@@ -280,19 +275,31 @@ func (m *Model) settingsKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	case subVault:
 		return m.vaultKey(key)
 	}
-	if keyIs(key, actTest) {
+	switch {
+	case keyIs(key, actTest):
 		return m.checkUpdate(true), true
+	case keyIs(key, actUp):
+		m.toBar()
+		return nil, true
 	}
 	return nil, false
 }
 
-// focusMove moves a focus over n rows.
-func focusMove(focus *int, n int, key tea.KeyPressMsg) bool {
+// formMove moves the focus over the n rows of a Settings form: up and down stop at the ends, and up on the
+// first row goes to the page strip; tab and shift+tab step from field to field and wrap round, as they do
+// while a field is edited.
+func (m *Model) formMove(focus *int, n int, key tea.KeyPressMsg) bool {
 	switch {
+	case keyIs(key, actUp) && *focus <= 0:
+		m.toBar()
 	case keyIs(key, actUp):
-		*focus = wrap(*focus-1, n)
+		*focus--
 	case keyIs(key, actDown):
+		*focus = min(*focus+1, n-1)
+	case keyIs(key, actNext):
 		*focus = wrap(*focus+1, n)
+	case keyIs(key, actPrev):
+		*focus = wrap(*focus-1, n)
 	case keyIs(key, actHome):
 		*focus = 0
 	case keyIs(key, actEnd):
@@ -305,7 +312,7 @@ func focusMove(focus *int, n int, key tea.KeyPressMsg) bool {
 
 func (m *Model) generalKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	g := &m.set.gen
-	if focusMove(&g.focus, genRows, key) {
+	if m.formMove(&g.focus, genRows, key) {
 		return nil, true
 	}
 	if !keyIs(key, actEnter) {
@@ -336,7 +343,7 @@ func (m *Model) generalKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 
 func (m *Model) vaultKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	v := &m.set.vault
-	if focusMove(&v.focus, vaultRows, key) {
+	if m.formMove(&v.focus, vaultRows, key) {
 		return nil, true
 	}
 	if !keyIs(key, actEnter) {

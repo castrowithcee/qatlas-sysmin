@@ -98,11 +98,10 @@ func (l *filterList) selectName(name string) bool {
 	return false
 }
 
-// move steps through the shown entries and wraps at both ends, like every other list of the editor.
-func (l *filterList) move(by int) { l.cursor = wrap(l.cursor+by, len(l.matches)) }
+// move steps through the shown entries and stops at both ends, like every other list of the editor.
+func (l *filterList) move(by int) { l.jump(by) }
 
-// jump moves by a page or to an end. It stops at the ends instead of wrapping: a page key that lands at
-// the other end of a long list would lose the reader's place.
+// jump moves by a page or to an end and stops at the ends.
 func (l *filterList) jump(by int) {
 	l.cursor = min(max(l.cursor+by, 0), max(len(l.matches)-1, 0))
 }

@@ -59,30 +59,22 @@ func (m *Model) setLibSub(sub int) tea.Cmd {
 	return m.enterPage()
 }
 
-// libraryBody is Library under the tab line: the strip of its pages and the page.
+// libraryBody is the page of Library under the bars of the frame.
 func (m *Model) libraryBody() string {
-	words := make([]string, libCount)
-	for i := range words {
-		words[i] = libTitle(i)
-	}
-	strip, cells := tabStrip(words, m.lib.sub, false)
-	top := m.workspaceTop() + 2
-	for i, c := range cells {
-		m.addHit(c[0], top, c[1], top+1, func() tea.Cmd { return m.setLibSub(i) })
-	}
+	top := m.workspaceTop()
 	var body string
 	switch m.lib.sub {
 	case libChannels:
-		body = m.dataBody(&m.lib.chans.page, m.chanSpec(), top+2)
+		body = m.dataBody(&m.lib.chans.page, m.chanSpec(), top)
 	case libTemplates:
-		body = m.dataBody(&m.lib.tmpls.page, m.tmplSpec(), top+2)
+		body = m.dataBody(&m.lib.tmpls.page, m.tmplSpec(), top)
 	default:
-		body = m.dataBody(&m.lib.cred.page, m.credSpec(), top+2)
+		body = m.dataBody(&m.lib.cred.page, m.credSpec(), top)
 		if lines := m.lib.cred.problems; len(lines) > 0 {
 			body += "\n" + strings.Join(lines, "\n")
 		}
 	}
-	return strip + "\n\n" + body
+	return body
 }
 
 func credColumns() []column {
@@ -201,7 +193,7 @@ func (m *Model) libraryKeys() []string {
 	if m.lib.cred.page.open {
 		return []string{"left/right tab", "up/down scroll", "e edit", "d remove", "{back} close"}
 	}
-	return []string{"left/right page", "up/down move", "enter details", "n new", "e edit", "d remove", "/ filter"}
+	return []string{"up/down move", "enter details", "n new", "e edit", "d remove", "/ filter"}
 }
 
 // libraryKey handles the keys of Library that the page does not.

@@ -1,9 +1,7 @@
-sysmin  ● vault open  ● admin off                                                                         ? help  : cmds
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access  [5 Library]  6 Settings 
+   Credentials   Channels  [Templates]
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- Overview   Projects   Activity   Access  [Library]  Settings 
-
- Credentials   Channels  [Templates]
-
 Templates (3)                                                     1/3 ╭─ compose-update ───────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │  Overview  [Details]  Raw                      │
 ║   Name            Origin   Steps  Description                     ║ │                                                │
@@ -37,4 +35,6 @@ Templates (3)                                                     1/3 ╭─ com
 
 
 
-1-6 area  left/right page  enter details  p derive  / filter  ctrl+l admin  i info  c copy  ? help  : cmds  q quit   1/3
+
+
+enter details  p derive  / filter  esc back  ctrl+l admin  i info  c copy  ? help  : cmds  q quit      up/down move  1/3

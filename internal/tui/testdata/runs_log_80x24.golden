@@ -1,9 +1,7 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                  [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects  [3 Activity]  4 Access   5 Library   6 Settings 
+   Log  [Runs]
 ────────────────────────────────────────────────────────────────────────────────
- Overview   Projects  [Activity]  Access   Library   Settings 
-
- Log  [Runs]
-
 Run log › demo-app 20261028T120000.000000000Z
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║ 2026-10-28T12:00:00Z step 1/2 set-env result=ok                              ║
@@ -20,5 +18,7 @@ Run log › demo-app 20261028T120000.000000000Z
 ║                                                                              ║
 ║                                                                              ║
 ║                                                                              ║
+║                                                                              ║
+║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-1-6 area  ctrl+r reload  esc close  ctrl+l admin  i info  ? help  : cmds  q quit
+ctrl+r reload  esc close  ctrl+l admin  i info  c copy  ? help  : cmds  q quit

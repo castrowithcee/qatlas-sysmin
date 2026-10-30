@@ -1,7 +1,6 @@
-sysmin  ● vault open  ● admin off                                 ? help  : cmds
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+> [1 Overview]  2 Projects   3 Activity   4 Access   5 Library   6 Settings 
 ────────────────────────────────────────────────────────────────────────────────
-[Overview]  Projects   Activity   Access   Library   Settings 
-
 > ● Vault      open
   ● Version    0.0.0-test
     Press enter to open Settings › Update.
@@ -21,4 +20,5 @@ sysmin  ● vault open  ● admin off                                 ? help  : 
 
 
 
-1-6 area  ctrl+l admin  i info  ? help  : cmds  q quit              up/down move
+
+left/right area  down open  ctrl+l admin  i info  ? help  : cmds  q quit
