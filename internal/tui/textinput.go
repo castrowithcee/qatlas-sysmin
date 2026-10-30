@@ -13,8 +13,9 @@ import (
 
 // inputStyles are the styles of every text field: plain prompt and text, and the placeholder and suggestion in
 // grey 240. The library's own defaults colour the prompt and a blurred text. The cursor is the terminal's own
-// (see cursorMark) and static: blinking would need the blink command threaded through Init, through every
-// focus change and through the timer messages this event loop drops.
+// (see cursorMark): the library's drawn cursor stays off, its blink timer would need the blink command threaded
+// through Init, through every focus change and through the timer messages this event loop drops. The terminal
+// blinks its own cursor.
 func inputStyles() textinput.Styles {
 	state := textinput.StyleState{
 		Placeholder: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
@@ -70,7 +71,6 @@ func takeCursor(frame string) (string, *tea.Cursor) {
 	for y, line := range strings.Split(frame, "\n") {
 		if before, _, ok := strings.Cut(line, cursorMark); ok {
 			found = tea.NewCursor(ansi.StringWidth(before), y)
-			found.Blink = false
 			break
 		}
 	}

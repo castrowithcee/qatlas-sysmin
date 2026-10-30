@@ -365,7 +365,9 @@ func (m *Model) selected() (string, bool) {
 
 // View draws the frame on the alternate screen, so it stays a fixed window and the shell is left as it was.
 func (m *Model) View() tea.View {
-	v := tea.NewView(m.render())
+	frame, cursor := m.renderCursor()
+	v := tea.NewView(frame)
+	v.Cursor = cursor
 	v.AltScreen = true
 	v.MouseMode = m.mouseMode()
 	return v
@@ -373,11 +375,17 @@ func (m *Model) View() tea.View {
 
 // render draws the frame and applies the base colour of the theme.
 func (m *Model) render() string {
-	view, _ := takeCursor(m.renderFrame())
+	frame, _ := m.renderCursor()
+	return frame
+}
+
+// renderCursor is render together with the cell of the terminal cursor, nil without a focused text field.
+func (m *Model) renderCursor() (string, *tea.Cursor) {
+	view, cursor := takeCursor(m.renderFrame())
 	if styles.filled && view != "" {
 		view = paintCanvas(view, styles.canvasPrefix(), m.termWidth, m.termHeight)
 	}
-	return shown(view)
+	return shown(view), cursor
 }
 
 // renderFrame is the frame before the base colour of the theme is applied.
