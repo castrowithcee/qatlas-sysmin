@@ -250,12 +250,16 @@ func wheelList(l *filterList, up bool, moved func() tea.Cmd) tea.Cmd {
 }
 
 // wheelCursor is a notch of the wheel over a list of n entries kept as a bare cursor.
-func wheelCursor(cursor *int, n int, up bool) {
+func wheelCursor(cursor *int, n int, up bool) { *cursor = wheelStep(*cursor, 0, n, up) }
+
+// wheelStep is the place one notch of the wheel leads to from place at among the places [first, n): one step,
+// and none past either end, where the keys of a form may wrap round.
+func wheelStep(at, first, n int, up bool) int {
 	by := 1
 	if up {
 		by = -1
 	}
-	*cursor = max(min(*cursor+by, n-1), 0)
+	return max(min(at+by, n-1), first)
 }
 
 // press hands a key to the editor as if it had been typed. A mouse event never makes a character: a letter

@@ -418,6 +418,7 @@ func (m *Model) renderFrame() string {
 		view := m.frame(m.workspaceView())
 		m.footerHits()
 		m.hitPickerWheel(0, m.workspaceTop(), m.termWidth, m.termHeight)
+		m.hitFormWheel(0, m.workspaceTop(), m.termWidth, m.termHeight)
 		return view
 	}
 	return m.overlayDropdown(m.frame(m.workspaceView()))

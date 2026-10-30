@@ -114,6 +114,39 @@ func (f *formDlg) step(by int) {
 	}
 }
 
+// wheelRow moves the focus by one visible row and stops at the first and the last.
+func (f *formDlg) wheelRow(up bool) {
+	by := 1
+	if up {
+		by = -1
+	}
+	for j := f.focus + by; j >= 0 && j < len(f.rows); j += by {
+		if !f.rows[j].hidden {
+			f.focusRow(j)
+			return
+		}
+	}
+}
+
+// hitFormWheel makes the cells of the form, credential form or project prompt that is open take the wheel, with
+// the same precedence prompt gives them.
+func (m *Model) hitFormWheel(x0, y0, x1, y1 int) {
+	var scroll func(up bool)
+	switch {
+	case m.screen != screenPrompt || m.ov != nil:
+		return
+	case m.projectPromptOpen():
+		scroll = m.prj.prompt.wheelRow
+	case m.cred != nil:
+		scroll = m.cred.wheelRow
+	case m.form != nil:
+		scroll = m.form.wheelRow
+	default:
+		return
+	}
+	m.addWheel(x0, y0, x1, y1, func(up bool) tea.Cmd { scroll(up); return nil })
+}
+
 // openForm shows f over the screen with its first visible row focused.
 func (m *Model) openForm(f *formDlg) {
 	m.clearMessages()
