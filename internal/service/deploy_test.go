@@ -584,3 +584,35 @@ func TestUnlockWakesThePlannerForTheFirstPoll(t *testing.T) {
 	}
 	waitFor(t, "the first poll", func() bool { return f.runner.count("deploy demo-app '2.0.0'") == 1 })
 }
+
+func TestProjectsListCarriesUpdatesRunAndFault(t *testing.T) {
+	f := newDeployFixture(t, true)
+	_, reader := f.approved(t)
+	dir := filepath.Join(f.cfg.StateDir, "deploy", "demo-app")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	state := `{"schema":1,"project":"demo-app",
+"sources":[{"name":"app","current":"1.0.0","available":["2.0.0"]}],
+"fault":{"time":"2026-03-01T12:00:00Z","run":"run-1","failed_step":"rollback","error":"demo failure"},
+"history":[{"id":"run-1","action":"manual","started":"2026-03-01T12:00:00Z","duration":1000000,"result":"failed"}]}`
+	if err := os.WriteFile(filepath.Join(dir, "state.json"), []byte(state), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	before := len(readEntries(t, filepath.Join(f.cfg.StateDir, "logs")))
+
+	list, err := reader.Projects()
+	if err != nil || len(list) != 2 {
+		t.Fatalf("list = %+v, %v", list, err)
+	}
+	app, two := list[0], list[1]
+	if app.Name != "demo-app" || app.Updates != 1 || !app.Fault || app.LastRun == nil || app.LastRun.Result != "failed" {
+		t.Errorf("demo-app = %+v", app)
+	}
+	if two.Name != "demo-two" || two.Updates != 0 || two.Fault || two.LastRun != nil {
+		t.Errorf("demo-two = %+v", two)
+	}
+	if got := len(readEntries(t, filepath.Join(f.cfg.StateDir, "logs"))); got != before+1 {
+		t.Errorf("audit entries = %d, want %d", got, before+1)
+	}
+}

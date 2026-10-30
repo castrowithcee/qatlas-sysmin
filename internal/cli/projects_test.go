@@ -303,3 +303,28 @@ func TestProjectCommandsDoNotPromptOnATerminal(t *testing.T) {
 		t.Fatalf("the result did not reach the terminal: %q", text)
 	}
 }
+
+func TestProjectListShowsUpdatesAndLastRun(t *testing.T) {
+	sock := startServiceWith(t, true, projectSetup(t))
+	if code, _, stderr := runCLIArgs(append(demoAddArgs, "--socket", sock, "--format", "json")...); code != exitOK {
+		t.Fatalf("add: %d %q", code, stderr)
+	}
+	code, stdout, _ := runCLIArgs("project", "list", "--socket", sock, "--format", "json")
+	rows := jsonRows(t, stdout)
+	if code != exitOK || len(rows) != 1 || rows[0]["updates"] != float64(0) || rows[0]["fault"] != false {
+		t.Fatalf("json: %q", stdout)
+	}
+	order := []string{"name", "template", "source", "dir", "state", "updates", "last_run", "fault"}
+	last := -1
+	for _, k := range order {
+		i := strings.Index(stdout, `"`+k+`"`)
+		if i <= last {
+			t.Fatalf("field %s out of order in %q", k, stdout)
+		}
+		last = i
+	}
+	code, stdout, _ = runCLIArgs("project", "list", "--socket", sock, "--format", "table")
+	if code != exitOK || !strings.Contains(stdout, "UPDATES") || !strings.Contains(stdout, "LAST_RUN") {
+		t.Fatalf("table: %q", stdout)
+	}
+}
