@@ -67,7 +67,7 @@ func TestTheCursorStandsInTheAdoptPathInput(t *testing.T) {
 	for name, p := range cursorProfiles {
 		m := projectsModel(t, adoptFake(), 120, 40)
 		setProfile(p)
-		send(m, "n", "down", "enter")
+		send(m, "n", "down", "enter", "enter")
 		typed(m, "/srv/demo-stack")
 		if before := cursorBefore(t, m); !strings.HasSuffix(before, "/srv/demo-stack") {
 			t.Errorf("%s: text before the cursor = %q, want it to end with the path", name, before)

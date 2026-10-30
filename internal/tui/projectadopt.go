@@ -22,8 +22,7 @@ func (m *Model) projectFlowStart() tea.Cmd {
 		values := []string{tr(tPrjOriginNew), tr(tPrjOriginAdopt)}
 		m.openProjectPicker(tr(tPrjOriginTitle), tr(tPrjOriginNote), values, 0, func(v string) tea.Cmd {
 			if v == values[1] {
-				m.openAdoptPrompt()
-				return nil
+				return m.projectAdoptStacks()
 			}
 			return m.projectFlowShow(newFlowDraft(), "")
 		})
@@ -31,9 +30,9 @@ func (m *Model) projectFlowStart() tea.Cmd {
 	})
 }
 
-// projectAdoptStart opens the question for the directory of a stack to adopt.
+// projectAdoptStart lists the running stacks to adopt one of them.
 func (m *Model) projectAdoptStart() tea.Cmd {
-	return m.projectFlowThen(func() tea.Cmd { m.openAdoptPrompt(); return nil })
+	return m.projectFlowThen(m.projectAdoptStacks)
 }
 
 func (m *Model) openAdoptPrompt() {
@@ -67,13 +66,29 @@ func (m *Model) adoptSubmit() tea.Cmd {
 // projectAdoptMsg is the answer to the request for a proposal.
 type projectAdoptMsg struct {
 	seq int
-	res control.AdoptResult
-	err error
+	// list says the request came from the list of stacks, whose seq numbers them, not from the panel.
+	list bool
+	res  control.AdoptResult
+	err  error
 }
 
 func (projectAdoptMsg) projectsAnswer() {}
 
 func (m *Model) takeProjectAdopt(msg projectAdoptMsg) {
+	if msg.list {
+		if msg.seq != m.prj.stackSeq {
+			return
+		}
+		m.busy = ""
+		switch {
+		case m.screen != screenArea || m.area != areaProjects:
+		case msg.err != nil:
+			m.fail = projectAdoptError(msg.err)
+		default:
+			m.showAdoption(msg.res)
+		}
+		return
+	}
 	p := m.prj.prompt
 	if p == nil || p.kind != promptAdopt || p.seq != msg.seq {
 		return

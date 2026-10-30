@@ -36,6 +36,9 @@ type fakeProjects struct {
 	adopt      control.AdoptResult
 	adoptErr   error
 	adoptAsked []control.AdoptParams
+	// stacks and stacksErr are what Stacks answers.
+	stacks    control.StacksResult
+	stacksErr error
 }
 
 const fakeProjectFile = `schema: 1
@@ -233,7 +236,9 @@ func (f *fakeBackend) saveProject(op string, p control.ProjectParams) (control.C
 }
 
 func (f *fakeBackend) Stacks() (control.StacksResult, error) {
-	return control.StacksResult{}, nil
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.proj.stacks, f.proj.stacksErr
 }
 
 func (f *fakeBackend) AdoptProject(p control.AdoptParams) (control.AdoptResult, error) {

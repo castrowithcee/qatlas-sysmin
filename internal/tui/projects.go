@@ -70,6 +70,8 @@ type projectsState struct {
 	// prompt is the short input panel; promptSeq numbers them.
 	prompt    *projectPrompt
 	promptSeq int
+	// stackSeq numbers the requests for a proposal made from the list of stacks.
+	stackSeq int
 }
 
 func newProjectsState() *projectsState {
@@ -202,6 +204,8 @@ func (m *Model) takeProjectsAnswer(msg projectsAnswer) tea.Cmd {
 		m.takeProjectBackups(msg)
 	case projectAdoptMsg:
 		m.takeProjectAdopt(msg)
+	case projectStacksMsg:
+		m.takeProjectStacks(msg)
 	case projectChannelsMsg:
 		m.takeProjectChannels(msg)
 	case projectCredsMsg:

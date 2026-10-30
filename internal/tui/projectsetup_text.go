@@ -25,6 +25,17 @@ const (
 	tPrjMore        textID = "PrjMore"
 	tPrjNoCurrent   textID = "PrjNoCurrent"
 
+	tStackTitle      textID = "StackTitle"
+	tStackNote       textID = "StackNote"
+	tStackOther      textID = "StackOther"
+	tStackContainers textID = "StackContainers"
+	tStackManaged    textID = "StackManaged"
+	tStackEmpty      textID = "StackEmpty"
+	tStackTruncated  textID = "StackTruncated"
+	tStackFailed     textID = "StackFailed"
+	tStackTimeout    textID = "StackTimeout"
+	tBusyStacks      textID = "BusyStacks"
+
 	tCredPickTitle textID = "CredPickTitle"
 	tCredPickNote  textID = "CredPickNote"
 	tCredNone      textID = "CredNone"
@@ -65,6 +76,17 @@ func init() {
 		tPrjAdoptBlock:  "Blocking problems keep this stack from being taken over.",
 		tPrjMore:        "+%d more",
 		tPrjNoCurrent:   "version unknown",
+
+		tStackTitle:      "Running stacks",
+		tStackNote:       "Choose the Compose stack to adopt.",
+		tStackOther:      "Other directory…",
+		tStackContainers: "containers: %d",
+		tStackManaged:    "managed by %s",
+		tStackEmpty:      "No running Compose stacks found. Choose Other directory… to enter a path.",
+		tStackTruncated:  "The list may be incomplete. Choose Other directory… for a stack that is missing.",
+		tStackFailed:     "%s Choose Other directory… to enter a path, or try again later.",
+		tStackTimeout:    "Listing the running stacks took too long.",
+		tBusyStacks:      "Reading the running stacks",
 
 		tCredPickTitle: "Credential",
 		tCredPickNote:  "Pick one from the vault or create a new one.",
@@ -110,6 +132,17 @@ func init() {
 		tPrjAdoptBlock:  "Blockierende Probleme verhindern das Übernehmen dieses Stacks.",
 		tPrjMore:        "+%d weitere",
 		tPrjNoCurrent:   "Version unbekannt",
+
+		tStackTitle:      "Laufende Stacks",
+		tStackNote:       "Den Compose-Stack zum Übernehmen wählen.",
+		tStackOther:      "Anderes Verzeichnis…",
+		tStackContainers: "Container: %d",
+		tStackManaged:    "verwaltet von %s",
+		tStackEmpty:      "Keine laufenden Compose-Stacks gefunden. Anderes Verzeichnis… wählen, um einen Pfad einzugeben.",
+		tStackTruncated:  "Die Liste kann unvollständig sein. Für einen fehlenden Stack Anderes Verzeichnis… wählen.",
+		tStackFailed:     "%s Anderes Verzeichnis… wählen, um einen Pfad einzugeben, oder später erneut versuchen.",
+		tStackTimeout:    "Das Auflisten der laufenden Stacks hat zu lange gedauert.",
+		tBusyStacks:      "Die laufenden Stacks werden gelesen",
 
 		tCredPickTitle: "Credential",
 		tCredPickNote:  "Eines aus dem Tresor wählen oder ein neues anlegen.",

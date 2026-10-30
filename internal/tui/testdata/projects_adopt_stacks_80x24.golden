@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin 15 min                           [?] help  [:] cmd
+   1 Overview  [2 Projects]  3 Activity   4 Access   5 Library   6 Settings     
+────────────────────────────────────────────────────────────────────────────────
+Projects (3)                                                                 1/3
+                                                                                
+╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
+║   Name║ ⚠ Running stacks                                             ║       ║
+║ >   de║                                                              ║12:00  ║
+║     de║     Choose the Compose stack to adopt.                       ║12:00  ║
+║     sa║   > demo  /srv/demo-stack  containers: 2                     ║12:00  ║
+║       ║     shop  …eleases/2026  containers: 3  managed by shop-prod ║       ║
+║       ║     Other directory…                                         ║       ║
+║       ║     1/3                                                      ║       ║
+║       ║                                                              ║       ║
+║       ║ > Pick <  [ Cancel ]                                         ║       ║
+║       ║                                                              ║       ║
+║       ║ ↑/↓ move · / search · enter pick · esc cancel                ║       ║
+║       ╚══════════════════════════════════════════════════════════════╝       ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+? help                                                                       1/3
