@@ -27,6 +27,30 @@ func StepTypes() []StepType {
 		StepCheckContainer, StepCheckHTTP, StepCommand}
 }
 
+// Effect says what a successful or failed run of a block leaves behind on the host.
+type Effect int
+
+const (
+	// EffectNone: the block changes nothing a rollback would undo.
+	EffectNone Effect = iota
+	// EffectAtomic: the block changes something, but a failing run leaves nothing changed.
+	EffectAtomic
+	// EffectPartial: the block changes something and a failing run can leave part of it changed.
+	EffectPartial
+)
+
+// Effect classifies the block. A free command counts as atomic unless its step is marked
+// partial_changes; see ResolvedStep.Effect.
+func (t StepType) Effect() Effect {
+	switch t {
+	case StepSetEnv, StepCommand:
+		return EffectAtomic
+	case StepComposeUp, StepGitCheckout:
+		return EffectPartial
+	}
+	return EffectNone
+}
+
 // Known reports whether t is a building block.
 func (t StepType) Known() bool {
 	_, ok := stepFields[t]
@@ -80,6 +104,8 @@ type Step struct {
 	Contains string `yaml:"contains,omitempty"`
 	// command: a free shell command line.
 	Run string `yaml:"run,omitempty"`
+	// PartialChanges marks a command that can leave partial changes when it fails.
+	PartialChanges bool `yaml:"partial_changes,omitempty"`
 }
 
 // stepFields lists the fields each type accepts besides type and timeout.
@@ -91,7 +117,7 @@ var stepFields = map[StepType][]string{
 	StepBackup:         {"command", "volume", "keep", "restore_command"},
 	StepCheckContainer: {"services", "containers"},
 	StepCheckHTTP:      {"url", "status", "contains"},
-	StepCommand:        {"run"},
+	StepCommand:        {"run", "partial_changes"},
 }
 
 // setFields returns the names of the type-specific fields that carry a value, in a stable order.
@@ -114,6 +140,7 @@ func (s Step) setFields() []string {
 	add("status", s.Status != 0)
 	add("contains", s.Contains != "")
 	add("run", s.Run != "")
+	add("partial_changes", s.PartialChanges)
 	sort.Strings(out)
 	return out
 }
@@ -154,6 +181,16 @@ type ResolvedStep struct {
 	Status         int
 	Contains       string
 	Shell          string
+	// PartialChanges is the partial_changes mark of a command step.
+	PartialChanges bool
+}
+
+// Effect classifies the step for the rollback decision.
+func (s ResolvedStep) Effect() Effect {
+	if s.Type == StepCommand && s.PartialChanges {
+		return EffectPartial
+	}
+	return s.Type.Effect()
 }
 
 // IsFree reports whether the step runs a free shell command line, which no typed block constrains.

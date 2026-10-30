@@ -474,3 +474,74 @@ func TestGitSourceDeploys(t *testing.T) {
 		t.Fatalf("outcome = %+v state %+v", out.Run, f.status().Sources)
 	}
 }
+
+// stepsProject approves a project without backup that runs the given steps.
+func (f *fixture) stepsProject(steps ...config.Step) {
+	p := config.Project{
+		Schema: config.CurrentSchema, Name: demoProject, Dir: f.projDir, EnvFile: f.envFile,
+		Steps:  steps,
+		Images: []config.Image{demoImage("app", "APP_TAG", auto)},
+	}
+	f.approvals.set(p)
+	f.sources.setTags("app", "1.0.0", "1.1.0")
+}
+
+func TestRollbackOnlyWhenSomethingChanged(t *testing.T) {
+	setEnv := config.Step{Type: config.StepSetEnv, Assign: []string{"{var}={version}"}}
+	pull := config.Step{Type: config.StepComposePull, Services: []string{"{services}"}}
+	up := config.Step{Type: config.StepComposeUp, Services: []string{"{services}"}}
+	cmd := config.Step{Type: config.StepCommand, Run: "work"}
+	partial := config.Step{Type: config.StepCommand, Run: "work", PartialChanges: true}
+	failOn := func(sub string) func(string) bool {
+		return func(line string) bool { return strings.Contains(line, sub) }
+	}
+
+	cases := []struct {
+		name     string
+		steps    []config.Step
+		fail     func(string) bool
+		breakEnv bool
+		want     string
+	}{
+		{"atomic set-env fails first", []config.Step{setEnv, pull, up}, nil, true, ResultFailed},
+		{"pull fails after set-env", []config.Step{setEnv, pull, up}, failOn(" pull"), false, ResultRolledBack},
+		{"compose-up fails first", []config.Step{pull, up}, failOn(" up"), false, ResultRolledBack},
+		{"pull fails first", []config.Step{pull, up}, failOn(" pull"), false, ResultFailed},
+		{"command fails first", []config.Step{cmd}, failOn("work"), false, ResultFailed},
+		{"marked command fails first", []config.Step{partial}, failOn("work"), false, ResultRolledBack},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			if tc.breakEnv {
+				if os.Geteuid() == 0 {
+					t.Skip("directory permissions do not apply to root")
+				}
+				// The atomic env write cannot create its temporary file in a read-only directory.
+				if err := os.Chmod(filepath.Dir(f.envFile), 0o500); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = os.Chmod(filepath.Dir(f.envFile), 0o700) })
+			}
+			f.stepsProject(tc.steps...)
+			if tc.fail != nil {
+				// Fail the step once; the rollback then runs it again and succeeds.
+				failed := false
+				f.runner.fail = func(line string) bool {
+					if failed || !tc.fail(line) {
+						return false
+					}
+					failed = true
+					return true
+				}
+			}
+			out := f.runNow()
+			if out.Run == nil || out.Run.Result != tc.want {
+				t.Fatalf("outcome = %+v, calls %v", out.Run, f.runner.calls())
+			}
+			if tc.want == ResultFailed && f.status().Paused {
+				t.Error("project paused without a rollback")
+			}
+		})
+	}
+}

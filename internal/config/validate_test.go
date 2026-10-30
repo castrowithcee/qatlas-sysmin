@@ -270,3 +270,41 @@ func TestAdminTimeoutValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestPartialChangesOptionOnlyOnCommand(t *testing.T) {
+	m := baseModel()
+	m.Projects[0].Steps = []Step{{Type: StepCommand, Run: "true", PartialChanges: true}}
+	for _, p := range Validate(m, testCredentials) {
+		if strings.HasPrefix(p.Field, "steps[0]") {
+			t.Errorf("command with partial_changes rejected: %+v", p)
+		}
+	}
+	for _, typ := range StepTypes() {
+		if typ == StepCommand {
+			continue
+		}
+		m := baseModel()
+		m.Projects[0].Steps = []Step{{Type: typ, PartialChanges: true}}
+		found := false
+		for _, p := range Validate(m, testCredentials) {
+			found = found || (p.Code == CodeFieldNotAllowed && p.Field == "steps[0].partial_changes")
+		}
+		if !found {
+			t.Errorf("%s accepts partial_changes", typ)
+		}
+	}
+}
+
+func TestStepEffects(t *testing.T) {
+	want := map[StepType]Effect{StepSetEnv: EffectAtomic, StepComposePull: EffectNone, StepComposeUp: EffectPartial,
+		StepGitCheckout: EffectPartial, StepBackup: EffectNone, StepCheckContainer: EffectNone, StepCheckHTTP: EffectNone,
+		StepCommand: EffectAtomic}
+	for _, typ := range StepTypes() {
+		if got := (ResolvedStep{Type: typ}).Effect(); got != want[typ] {
+			t.Errorf("%s effect = %v, want %v", typ, got, want[typ])
+		}
+	}
+	if (ResolvedStep{Type: StepCommand, PartialChanges: true}).Effect() != EffectPartial {
+		t.Error("marked command is not partial")
+	}
+}

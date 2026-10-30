@@ -338,8 +338,8 @@ func (e *Engine) deploy(ctx context.Context, ap approval.Approved, action string
 			rec.FailedStep = fmt.Sprintf("step %d (%s)", se.Index+1, se.Type)
 		}
 		rec.ErrorCode = codeStepFailed
-		if failed <= firstBackup(plan) {
-			log.printf("result=failed; nothing was changed after the backup, so nothing is rolled back")
+		if !shouldRollBack(plan, failed) {
+			log.printf("result=failed; no step changed anything that could be undone, so nothing is rolled back")
 			return rec
 		}
 
@@ -362,6 +362,24 @@ func (e *Engine) deploy(ctx context.Context, ap approval.Approved, action string
 	rec.Duration = clock.Now().Sub(rec.Started)
 	e.finish(ap, rec, targets)
 	return rec
+}
+
+// shouldRollBack reports whether a run that failed at plan step failed has changes to undo: an earlier
+// step changed something, or the failing step itself can leave partial changes. A failure in or before
+// the backup never rolls back.
+func shouldRollBack(plan config.Plan, failed int) bool {
+	if failed < 0 || failed >= len(plan.Steps) || failed <= firstBackup(plan) {
+		return false
+	}
+	if plan.Steps[failed].Effect() == config.EffectPartial {
+		return true
+	}
+	for _, s := range plan.Steps[:failed] {
+		if s.Effect() != config.EffectNone {
+			return true
+		}
+	}
+	return false
 }
 
 func firstBackup(plan config.Plan) int {
