@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"strings"
+	"syscall"
 	"unicode/utf8"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
@@ -47,10 +48,13 @@ func (s *Service) handleDeployLog(_ context.Context, c *daemon.Conn, params json
 	return control.DeployLogResult{Project: p.Project, Run: p.Run, Text: text, Truncated: truncated}, nil
 }
 
-// readLogTail reads at most limit bytes from the end of a regular file. A cut log starts at the next line,
-// so no half line or half character is shown.
+// readLogTail reads at most limit bytes from the end of a regular file; a symbolic link counts as missing. A
+// cut log starts at the next line, so no half line or half character is shown.
 func readLogTail(path string, limit int64) (string, bool, error) {
-	f, err := os.Open(path)
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if errors.Is(err, syscall.ELOOP) {
+		return "", false, fs.ErrNotExist
+	}
 	if err != nil {
 		return "", false, err
 	}

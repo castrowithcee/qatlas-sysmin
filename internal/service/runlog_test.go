@@ -82,3 +82,30 @@ func TestDeployLogIsCutAndCleaned(t *testing.T) {
 		t.Error("control characters in the log")
 	}
 }
+
+func TestDeployLogDoesNotFollowASymbolicLink(t *testing.T) {
+	f := newDeployFixture(t, true)
+	_, reader := f.approved(t)
+	dir := filepath.Join(f.cfg.StateDir, "deploy", "demo-app", "runs")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	const marker = "outside-the-run-directory"
+	target := filepath.Join(t.TempDir(), "elsewhere.txt")
+	if err := os.WriteFile(target, []byte(marker+"\n"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	for id, to := range map[string]string{
+		"20260101T000000.000000000Z": target,
+		"20260102T000000.000000000Z": filepath.Join(t.TempDir(), "missing.txt"),
+	} {
+		if err := os.Symlink(to, filepath.Join(dir, id+".log")); err != nil {
+			t.Fatal(err)
+		}
+		res, err := reader.DeployLog("demo-app", id)
+		wantCode(t, err, control.CodeNotFound)
+		if strings.Contains(res.Text, marker) {
+			t.Errorf("the target of the link was read: %q", res.Text)
+		}
+	}
+}
