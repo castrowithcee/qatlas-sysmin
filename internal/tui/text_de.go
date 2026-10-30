@@ -327,6 +327,7 @@ var textDE = map[textID]string{
 	tErrCannotDiscard:               "Das lässt sich nicht verwerfen.",
 	tErrNotFound:                    "Nicht gefunden.",
 	tErrKindMismatch:                "Ein Credential dieses Namens hat eine andere Art.",
+	tErrNotWritable:                 "Der Dienst darf %s nicht schreiben. Rechte korrigieren, dann erneut freigeben.",
 	tHelpCredentials:                "Credential-Werte werden nur eingegeben, nie gezeigt oder kopiert. Wer eines ändert, das genutzt wird, löst eine Freigabe aus.",
 	tInfoLibCredentials:             "Secrets für Registries, Git, SSH und Mail. Werte werden nie gezeigt.",
 	tInfoLibChannels:                "Benachrichtigungskanäle. Secrets sind Credentials, die sie nennen.",

@@ -70,6 +70,9 @@ type ChangeResult struct {
 	Project  string `json:"project"`
 	State    string `json:"state"`
 	Revision string `json:"revision,omitempty"`
+	// NotWritable lists the paths a deploy of the project writes that the service may not write. The change
+	// is stored; the project cannot be approved until they are writable.
+	NotWritable []string `json:"not_writable,omitempty"`
 }
 
 // ProjectSummary is one project as OpProjectsList reports it.

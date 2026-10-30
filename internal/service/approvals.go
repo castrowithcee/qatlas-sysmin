@@ -151,10 +151,27 @@ func (s *Service) approve(p control.ApprovalParams) error {
 			return &control.Error{Code: control.CodeBadRequest}
 		}
 	}
+	if paths := s.unwritablePaths(p.Project); len(paths) > 0 {
+		return &control.Error{Code: control.CodeNotWritable, Paths: paths}
+	}
 	if err := s.approvals.Approve(p.Project, p.Fingerprint); err != nil {
 		return approvalError(err)
 	}
 	return nil
+}
+
+// unwritablePaths returns what the deploy of the named project writes and the service may not write, from
+// the configuration on disk. A project that is not in it (deleted, or the channels) has none.
+func (s *Service) unwritablePaths(name string) []string {
+	m, _, err := s.store.Load()
+	if err != nil {
+		return nil
+	}
+	p, ok := m.Project(name)
+	if !ok {
+		return nil
+	}
+	return s.notWritable(*p)
 }
 
 func (s *Service) handleDiscard(_ context.Context, c *daemon.Conn, params json.RawMessage) (any, error) {
@@ -211,7 +228,7 @@ func (s *Service) each(c *daemon.Conn, discard bool) (any, error) {
 		}
 		c.Audit(it.Project, codeOfErr(err))
 		if err != nil {
-			out.Failed = append(out.Failed, control.ApprovalFailure{Project: it.Project, Code: codeOfErr(err)})
+			out.Failed = append(out.Failed, control.ApprovalFailure{Project: it.Project, Code: codeOfErr(err), Paths: pathsOfErr(err)})
 			continue
 		}
 		out.Done = append(out.Done, it.Project)
@@ -227,4 +244,11 @@ func codeOfErr(err error) string {
 		return ""
 	}
 	return err.(*control.Error).Code
+}
+
+func pathsOfErr(err error) []string {
+	if err == nil {
+		return nil
+	}
+	return err.(*control.Error).Paths
 }

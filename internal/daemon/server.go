@@ -339,6 +339,9 @@ func (s *Server) dispatch(ctx context.Context, c *Conn, line []byte) (string, co
 		if errors.As(err, &ce) && len(ce.Problems) > 0 {
 			return h.Action, control.Response{V: control.Version, Error: code, Problems: ce.Problems}, code
 		}
+		if errors.As(err, &ce) && len(ce.Paths) > 0 {
+			return h.Action, control.Response{V: control.Version, Error: code, Paths: ce.Paths}, code
+		}
 		return fail(h.Action, code)
 	}
 	resp := control.Response{V: control.Version, OK: true}

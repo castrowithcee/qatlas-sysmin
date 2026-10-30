@@ -108,7 +108,7 @@ func (c *Client) Call(op string, params, result any) error {
 		return errors.New("the service answered in a form this program does not understand")
 	}
 	if !resp.OK {
-		return &control.Error{Code: resp.Error, Problems: resp.Problems}
+		return &control.Error{Code: resp.Error, Problems: resp.Problems, Paths: resp.Paths}
 	}
 	if result != nil && resp.Result != nil {
 		if err := json.Unmarshal(resp.Result, result); err != nil {

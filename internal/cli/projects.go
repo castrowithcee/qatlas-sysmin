@@ -116,13 +116,19 @@ func changeResult(c *cobra.Command, opts *Options, action string, res control.Ch
 	case action == "removed":
 		message = "removed; the removal is not approved yet: a person must approve it in the terminal interface (sysmin tui), and until then the project keeps running as approved"
 	}
-	return emit(c, opts, output.Object{Fields: []output.Field{
+	fields := []output.Field{
 		{Name: "project", Value: res.Project},
 		{Name: "action", Value: action},
 		{Name: "state", Value: res.State},
 		{Name: "revision", Value: res.Revision},
-		{Name: "message", Value: message},
-	}})
+	}
+	if len(res.NotWritable) > 0 {
+		paths := strings.Join(res.NotWritable, ", ")
+		message += "; the service may not write " + paths + ", so the project cannot be approved until it can"
+		fields = append(fields, output.Field{Name: "not_writable", Value: paths})
+	}
+	fields = append(fields, output.Field{Name: "message", Value: message})
+	return emit(c, opts, output.Object{Fields: fields})
 }
 
 // projectFlags are the options that describe a project on add and edit.

@@ -327,6 +327,7 @@ var textEN = map[textID]string{
 	tErrCannotDiscard:               "This cannot be discarded.",
 	tErrNotFound:                    "Not found.",
 	tErrKindMismatch:                "A credential of that name has another kind.",
+	tErrNotWritable:                 "The service may not write %s. Fix the permissions, then approve again.",
 	tHelpCredentials:                "Credential values are only entered, never shown or copied. Changing one that is in use leaves an approval.",
 	tInfoLibCredentials:             "Secrets of registries, git, SSH and mail. Values are never shown.",
 	tInfoLibChannels:                "Notification channels. Secrets are credentials they name.",

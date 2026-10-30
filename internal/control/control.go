@@ -134,6 +134,9 @@ const (
 	CodeNotApproved = "not-approved"
 	// CodeKindMismatch answers a credential set whose kind differs from the stored credential of that name.
 	CodeKindMismatch = "kind-mismatch"
+	// CodeNotWritable answers the approval of a project whose deploy writes paths the service may not write.
+	// The answer lists the paths.
+	CodeNotWritable = "not-writable"
 	// CodeSendFailed answers a test message that the channel did not take. The reason is in the audit log
 	// of the service, not in the answer.
 	CodeSendFailed = "send-failed"
@@ -154,6 +157,8 @@ type Response struct {
 	Error  string          `json:"error,omitempty"`
 	// Problems accompanies the error CodeInvalid.
 	Problems []Problem `json:"problems,omitempty"`
+	// Paths accompanies the error CodeNotWritable.
+	Paths []string `json:"paths,omitempty"`
 }
 
 // The vault states and unlock modes an answer reports.
@@ -244,6 +249,8 @@ type ApprovalDetail struct {
 type ApprovalFailure struct {
 	Project string `json:"project"`
 	Code    string `json:"code"`
+	// Paths lists what the service may not write, with CodeNotWritable.
+	Paths []string `json:"paths,omitempty"`
 }
 
 // ApprovalsAllResult is the answer to OpApprovalsApproveAll and OpApprovalsDiscardAll.
@@ -252,10 +259,12 @@ type ApprovalsAllResult struct {
 	Failed []ApprovalFailure `json:"failed,omitempty"`
 }
 
-// Error is a failed operation, carrying one of the fixed codes. Problems is set only with CodeInvalid.
+// Error is a failed operation, carrying one of the fixed codes. Problems is set only with CodeInvalid and
+// Paths only with CodeNotWritable.
 type Error struct {
 	Code     string
 	Problems []Problem
+	Paths    []string
 }
 
 func (e *Error) Error() string { return "control: " + e.Code }

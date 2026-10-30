@@ -17,12 +17,11 @@ import (
 	"sort"
 	"strings"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/gitrepo"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/version"
+	"github.com/castrowithcee/qatlas-sysmin/internal/writecheck"
 )
 
 // Problem codes.
@@ -540,7 +539,7 @@ func (in *inspector) imageSource(images []config.Image, haveServices bool) {
 		in.problem(CodeNoTrackedImage, "no image tag is an environment variable, so there is nothing sysmin could update",
 			"Use image: repository:${APP_VERSION} in the compose file, or adopt a git working copy.")
 	}
-	if err := writable(p.EnvFile); err != nil {
+	if err := writecheck.File(p.EnvFile); err != nil {
 		in.problem(CodeNotWritable, "sysmin may not write the env file", "Give the account that runs sysmin write access to "+p.EnvFile+".")
 	}
 }
@@ -550,7 +549,7 @@ func (in *inspector) gitSource(ctx context.Context) {
 	p := &in.prop.Project
 	p.Template = "git-tag"
 	p.EnvFile = ""
-	if err := writable(in.dir); err != nil {
+	if err := writecheck.Dir(in.dir); err != nil {
 		in.problem(CodeNotWritable, "sysmin may not write the working copy", "Give the account that runs sysmin write access to "+in.dir+".")
 	}
 
@@ -602,12 +601,3 @@ func originURL(raw string) string {
 }
 
 var scpRe = regexp.MustCompile(`^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[^\s]+$`)
-
-// writable reports whether the effective user may write path, or its directory when it does not exist yet.
-func writable(path string) error {
-	err := unix.Faccessat(unix.AT_FDCWD, path, unix.W_OK, unix.AT_EACCESS)
-	if errors.Is(err, unix.ENOENT) {
-		err = unix.Faccessat(unix.AT_FDCWD, filepath.Dir(path), unix.W_OK, unix.AT_EACCESS)
-	}
-	return err
-}

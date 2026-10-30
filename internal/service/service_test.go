@@ -13,6 +13,7 @@ import (
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
+	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
@@ -63,6 +64,7 @@ func newEnv(t *testing.T, create, bind bool, mods ...func(*Config)) *env {
 	e.cfg = Config{
 		ConfigDir: t.TempDir(), StateDir: state, SocketPath: filepath.Join(sock, "s.sock"),
 		Version: "test", Resolver: groupOfTests{}, Clock: e.clock.now,
+		WriteCheck: func(config.Project) []string { return nil },
 	}
 	if create {
 		v := vault.New(filepath.Join(state, "vault"))
