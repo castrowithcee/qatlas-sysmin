@@ -1,21 +1,21 @@
 sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
 > [1 Overview]  2 Projects   3 Activity   4 Access   5 Library   6 Settings                                             
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-> ● Vault      open                                                                                                     
-  ● Version    0.0.0-test                                                                                               
-    Press enter to open Settings › Update.                                                                              
-  ● Config     /etc/sysmin-test                                                                                         
-  ● Unlock     manual                                                                                                   
-  ⚠ Approvals  2 open                                                                                                   
-    Press enter to open Access.                                                                                         
-  ● Projects   1 total      ╔══════════════════════════════════════════════════════════════╗                            
-  ○ Updates    no data      ║ Help                                                         ║                            
-    Press enter to open Proj║                                                              ║                            
-                            ║ [keys]  vault   admin-session   approvals   unlock   secret… ║                            
-                            ║                                                              ║                            
-                            ║ This screen                                                  ║                            
-                            ║   ←/→ area                                                   ║                            
-                            ║   ↓ open                                                     ║                            
+Overview                                                                                                Wed, 28 Oct 2026
+                                                                                                                        
+╭─ Projects ─────────────────╮ ╭─ Updates ─────────────────╮ ╭─ Approvals ───────────────╮ ╭─ Failed ──────────────────╮
+│ 2                          │ │ 1                         │ │ 2                         │ │ 1                         │
+╰────────────────────────────╯ ╰───────────────────────────╯ ╰───────────────────────────╯ ╰───────────────────────────╯
+sysmin 0.0.0-test  /etc/sysmin-test                                                                                     
+╭─ Next steps ─────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│   ⚠ Review approvals      ╔══════════════════════════════════════════════════════════════╗                           │
+│   ⚠ Update projects       ║ Help                                                         ║                           │
+│   ✗ Check runs of sample-a║                                                              ║                           │
+╰───────────────────────────║ [keys]  vault   admin-session   approvals   unlock   secret… ║───────────────────────────╯
+╭─ Recent runs ─────────────║                                                              ║───────────────────────────╮
+│         11:00  ✓  demo-app║ This screen                                                  ║                           │
+│   10-27 09:30  ✗  sample-a║   ←/→ area                                                   ║                           │
+╰───────────────────────────║   ↓ open                                                     ║───────────────────────────╯
                             ║                                                              ║                            
                             ║ Everywhere                                                   ║                            
                             ║   ? help                                                     ║                            

@@ -222,14 +222,14 @@ func TestNoVaultLeadsToTheSetup(t *testing.T) {
 	fb := newFake(control.VaultAbsent)
 	m := appModel(t, fb, 80, 24)
 	view := plain(m)
-	if !strings.Contains(view, "no vault") || !strings.Contains(view, "Press enter to set up the vault.") {
+	if !strings.Contains(view, "no vault") || !strings.Contains(view, "Set up vault") {
 		t.Fatalf("the overview does not lead to the setup:\n%s", view)
 	}
 	var done []error
 	if cmd := m.requireAdmin(gated(fb, &done)); cmd != nil || m.ov != nil || m.fail != "There is no vault yet." {
 		t.Errorf("a change without a vault: overlay %v, fail %q", m.ov != nil, m.fail)
 	}
-	send(m, "down", "enter")
+	send(m, "1", "enter")
 	if m.ov == nil || !strings.Contains(plain(m), "Set up vault") {
 		t.Fatalf("no setup overlay:\n%s", plain(m))
 	}
@@ -273,7 +273,7 @@ func TestUnreachableServiceShowsTheNextStep(t *testing.T) {
 	fb.down = errDropped
 	m := appModel(t, fb, 80, 24)
 	view := plain(m)
-	if !strings.Contains(view, "service unreachable") || !strings.Contains(view, "then press ctrl+r") {
+	if !strings.Contains(view, "service unreachable") || !strings.Contains(view, "Retry") {
 		t.Errorf("no state or next step:\n%s", view)
 	}
 	var done []error
@@ -380,8 +380,8 @@ func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 	if m.zone != zoneContent {
 		t.Errorf("a digit leaves the focus on %v, want the content", m.zone)
 	}
-	// In the content neither the arrows nor tab change the area.
-	send(m, "right", "left", "tab")
+	// In the content neither the arrows nor tab change the area; tab goes through the zones to the tab line.
+	send(m, "right", "left", "tab", "tab")
 	if m.area != areaOverview || m.zone != zoneTabs {
 		t.Errorf("right, left and tab reach area %v on %v, want the Overview with the tab line focused", m.area, m.zone)
 	}
@@ -436,7 +436,7 @@ func TestForeignPeerOpensNoPassphraseDialog(t *testing.T) {
 	if m.ov != nil {
 		t.Error("the setup overlay opened for a foreign peer")
 	}
-	if !strings.Contains(plain(m), "another process answers") {
+	if !strings.Contains(plain(m), "Retry · Another process answers") {
 		t.Errorf("the overview does not say who answers:\n%s", plain(m))
 	}
 	if fb.count("session") != 0 || fb.count("unlock") != 0 || fb.count("change") != 0 {

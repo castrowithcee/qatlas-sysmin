@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
@@ -20,19 +21,28 @@ func goldenApp(t *testing.T, fb *fakeBackend, w, h int) *Model {
 	return m
 }
 
+// goldenOverview is goldenApp with the fixed clock of the overview tests, for the screens that show the date.
+func goldenOverview(t *testing.T, fb *fakeBackend, w, h int) *Model {
+	t.Helper()
+	utcClock(t)
+	m := goldenApp(t, fb, w, h)
+	m.now = func() time.Time { return ovNow }
+	return m
+}
+
 func TestGoldenAreas(t *testing.T) {
 	sizes := [][2]int{{80, 24}, {120, 40}}
 	screens := []struct {
 		name  string
 		build func(t *testing.T, w, h int) *Model
 	}{
-		{"overview", func(t *testing.T, w, h int) *Model { return goldenApp(t, overviewFake(), w, h) }},
+		{"overview", func(t *testing.T, w, h int) *Model { return goldenOverview(t, overviewFake(), w, h) }},
 		{"overview_autounlock", func(t *testing.T, w, h int) *Model {
 			fb := overviewFake()
 			fb.unlockMode = control.UnlockTPM2
-			return goldenApp(t, fb, w, h)
+			return goldenOverview(t, fb, w, h)
 		}},
-		{"overview_novault", func(t *testing.T, w, h int) *Model { return goldenApp(t, newFake(control.VaultAbsent), w, h) }},
+		{"overview_novault", func(t *testing.T, w, h int) *Model { return goldenOverview(t, newFake(control.VaultAbsent), w, h) }},
 		{"settings_general", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "6")
@@ -44,7 +54,7 @@ func TestGoldenAreas(t *testing.T) {
 			return m
 		}},
 		{"help", func(t *testing.T, w, h int) *Model {
-			m := goldenApp(t, overviewFake(), w, h)
+			m := goldenOverview(t, overviewFake(), w, h)
 			send(m, "?")
 			return m
 		}},
