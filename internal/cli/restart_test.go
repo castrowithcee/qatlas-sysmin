@@ -64,3 +64,12 @@ func TestUpdateAndRestartInstallsThenStartsTheInterfaceAgain(t *testing.T) {
 		t.Errorf("restart %q", restarted)
 	}
 }
+
+func TestDialErrorKeepsTheNextStepOfAForeignPeer(t *testing.T) {
+	err := dialError(fmt.Errorf("x: %w", &client.PeerError{PID: 4321, UID: 1234}))
+	var pe *client.PeerError
+	if !errors.As(err, &pe) || strings.Contains(err.Error(), "is the service running") ||
+		!strings.Contains(err.Error(), "sudo kill 4321") || !strings.Contains(err.Error(), "sudo systemctl restart sysmin") {
+		t.Errorf("err = %v", err)
+	}
+}

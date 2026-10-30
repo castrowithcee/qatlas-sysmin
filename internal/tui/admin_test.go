@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
@@ -414,5 +415,31 @@ func TestTabLineStaysOneRowAndShrinksInANarrowTerminal(t *testing.T) {
 		if strings.Contains(line, "\n") || lipglossWidth(line) > w {
 			t.Errorf("%d columns: tab line %q", w, line)
 		}
+	}
+}
+
+func TestForeignPeerOpensNoPassphraseDialog(t *testing.T) {
+	fb := newFake(control.VaultUnlocked)
+	fb.down = &client.PeerError{PID: 4321, UID: 1234}
+	m := appModel(t, fb, 120, 24)
+	var done []error
+	drain(m, m.requireAdmin(gated(fb, &done)))
+	if m.ov != nil || m.screen == screenPrompt {
+		t.Fatal("a passphrase overlay opened for a foreign peer")
+	}
+	for _, want := range []string{"pid 4321", "uid 1234", "sudo kill 4321", "sudo systemctl restart sysmin"} {
+		if !strings.Contains(m.fail, want) {
+			t.Errorf("error %q lacks %q", m.fail, want)
+		}
+	}
+	m.openOverlay(entrySetup, 2, false, nil, false)
+	if m.ov != nil {
+		t.Error("the setup overlay opened for a foreign peer")
+	}
+	if !strings.Contains(plain(m), "another process answers") {
+		t.Errorf("the overview does not say who answers:\n%s", plain(m))
+	}
+	if fb.count("session") != 0 || fb.count("unlock") != 0 || fb.count("change") != 0 {
+		t.Errorf("calls = %v", fb.log())
 	}
 }

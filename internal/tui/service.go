@@ -28,6 +28,8 @@ type svcState struct {
 	fail      string
 	// noGroup says the last Status failed because this login session does not carry the group sysmin yet.
 	noGroup bool
+	// foreign says the last Status failed because a process other than the service answers at the socket.
+	foreign bool
 	st      control.StatusResult
 	// at is when st arrived; checked is when the service was last asked, answered or not.
 	at, checked time.Time
@@ -70,6 +72,8 @@ func (m *Model) takeStatus(msg statusMsg) tea.Cmd {
 	m.svc.pending = false
 	m.svc.known, m.svc.checked = true, now
 	m.svc.noGroup = errors.Is(msg.err, client.ErrSessionGroup)
+	var pe *client.PeerError
+	m.svc.foreign = errors.As(msg.err, &pe)
 	if msg.err != nil {
 		m.svc.reachable, m.svc.fail = false, errorText(msg.err)
 	} else {
@@ -139,6 +143,13 @@ func (m *Model) adminMinutes() int {
 func errorText(err error) string {
 	if errors.Is(err, client.ErrSessionGroup) {
 		return tr(tErrSessionGroup)
+	}
+	var pe *client.PeerError
+	if errors.As(err, &pe) {
+		if pe.Silent {
+			return tr(tErrPeerSilent, pe.PID, pe.UID, pe.PID)
+		}
+		return tr(tErrPeer, pe.PID, pe.UID, pe.PID)
 	}
 	var ce *control.Error
 	if !errors.As(err, &ce) {

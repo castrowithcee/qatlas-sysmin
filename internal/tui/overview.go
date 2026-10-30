@@ -90,6 +90,10 @@ func (m *Model) overviewRows() []ovRow {
 		return []ovRow{{id: "service", label: tr(tOvService), value: tr(tValNoGroup), kind: statusFail,
 			next: tr(tNextRegroup), key: "enter restart", act: m.regroup}}
 	}
+	if !m.serviceUp() && m.svc.foreign {
+		return []ovRow{{id: "service", label: tr(tOvService), value: tr(tValPeer), kind: statusFail,
+			next: m.svc.fail, key: "enter retry", act: m.statusCmd}}
+	}
 	if !m.serviceUp() {
 		return []ovRow{{id: "service", label: tr(tOvService), value: tr(tValDown), kind: statusFail,
 			next: tr(tNextRetry, keyName(keyOf(actReload))), key: "enter retry", act: m.statusCmd}}

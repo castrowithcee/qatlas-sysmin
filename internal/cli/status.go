@@ -29,6 +29,10 @@ func withService(socket string, fn func(*client.Client) error) error {
 
 // dialError says what to check when the service cannot be reached.
 func dialError(err error) error {
+	var pe *client.PeerError
+	if errors.As(err, &pe) {
+		return err // it names the process and the next step itself
+	}
 	if errors.Is(err, client.ErrSessionGroup) {
 		return fmt.Errorf("%w; log in again, or put \"sudo -g %s\" in front of the command", err, control.ServiceGroup)
 	}
