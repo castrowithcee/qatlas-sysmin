@@ -417,6 +417,7 @@ func (m *Model) renderFrame() string {
 		// A dialog that has no room for a modal fills the workspace; its keys stand in the footer, as buttons.
 		view := m.frame(m.workspaceView())
 		m.footerHits()
+		m.hitPickerWheel(0, m.workspaceTop(), m.termWidth, m.termHeight)
 		return view
 	}
 	return m.overlayDropdown(m.frame(m.workspaceView()))

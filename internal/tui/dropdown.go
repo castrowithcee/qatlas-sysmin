@@ -183,6 +183,9 @@ func (m *Model) overlayDropdown(view string) string {
 		rows[r] = left + line + ansi.Cut(rows[r], x+w, m.termWidth)
 	}
 	d.box.x0, d.box.y0, d.box.x1, d.box.y1 = x, y, x+w, y+len(box)
+	// The list is modal: the areas beneath it do not take the wheel while it is open.
+	m.wheelHits = nil
+	m.addWheel(x, y, x+w, y+len(box), func(up bool) tea.Cmd { wheelCursor(&d.cursor, len(d.values), up); return nil })
 	return strings.Join(rows, "\n")
 }
 

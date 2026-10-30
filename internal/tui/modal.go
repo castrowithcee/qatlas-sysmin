@@ -105,6 +105,7 @@ func (m *Model) modalView() (string, bool) {
 	})
 	top, left := dialogOrigin(dialog, m.termWidth, m.termHeight)
 	m.hitDialog(lines, footers, top, left)
+	m.hitPickerWheel(left, top, left+ansi.StringWidth(dialog[0]), top+len(dialog))
 	return overlay(background, dialog, m.termWidth, m.termHeight), true
 }
 

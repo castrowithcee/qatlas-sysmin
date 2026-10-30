@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Help, info and the command line stand as a panel over the screen they were opened from. None of them is
@@ -25,6 +26,8 @@ type popup struct {
 	kind popKind
 	// topic and scroll are the help topic shown and its first line.
 	topic, scroll int
+	// last is the greatest first line the help topic scrolls to, as drawn last.
+	last int
 	// in is the command line; msg says why the last command did not run; cursor is the match chosen.
 	in     textinput.Model
 	msg    string
@@ -231,6 +234,7 @@ func (m *Model) popupFrame() string {
 				m.addHit(0, top+i, inner, top+i+1, func() tea.Cmd { return m.pickCommand(idx) })
 			}
 		}
+		m.addWheel(0, m.workspaceTop(), m.termWidth, m.workspaceTop()+2+len(body), m.wheelPopup)
 		return m.frame(m.boundView(styles.title.Render(title) + "\n\n" + strings.Join(body, "\n")))
 	}
 	lines := append([]string{styles.title.Render(title), ""}, body...)
@@ -249,7 +253,30 @@ func (m *Model) popupFrame() string {
 			m.addHit(left+2, top+3+i, left+2+inner, top+4+i, func() tea.Cmd { return m.pickCommand(idx) })
 		}
 	}
+	m.addWheel(left, top, left+ansi.StringWidth(dialog[0]), top+len(dialog), m.wheelPopup)
 	return overlay(background, dialog, m.termWidth, m.termHeight)
+}
+
+// wheelPopup is a notch of the wheel over the panel. The help scrolls by wheelText lines and stops at both ends,
+// never leaving its topic; the command line moves its choice by one entry and stops at both ends, where the keys
+// wrap round.
+func (m *Model) wheelPopup(up bool) tea.Cmd {
+	p := m.pop
+	switch p.kind {
+	case popHelp:
+		by := wheelText
+		if up {
+			by = -wheelText
+		}
+		p.scroll = min(max(p.scroll+by, 0), p.last)
+	case popCommand:
+		before := p.cursor
+		wheelCursor(&p.cursor, len(matchCommands(m.commands(), p.in.Value())), up)
+		if p.cursor != before {
+			p.msg = ""
+		}
+	}
+	return nil
 }
 
 // scrolled cuts a help topic to the room it has, from the scroll position of the panel. A topic that does not
@@ -257,11 +284,12 @@ func (m *Model) popupFrame() string {
 func (m *Model) scrolled(body []string, room, width int) []string {
 	p := m.pop
 	if len(body) <= max(room, 1) {
-		p.scroll = 0
+		p.scroll, p.last = 0, 0
 		return body
 	}
 	room = max(room-1, 1)
-	p.scroll = min(max(p.scroll, 0), len(body)-room)
+	p.last = len(body) - room
+	p.scroll = min(max(p.scroll, 0), p.last)
 	out := slices.Clone(body[p.scroll : p.scroll+room])
 	return append(out, styles.hint.Render(truncateCells(tr(tScrollPosition, p.scroll+1, p.scroll+room, len(body)), width)))
 }
