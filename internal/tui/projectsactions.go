@@ -518,7 +518,9 @@ func (m *Model) projectLogView(room int) string {
 	l.page = max(rows-len(body), 1)
 	body = append(body, l.scroll.window(l.wrapped, l.page, false)...)
 	title := truncateCells(tr(tProjLogTitle, l.name, l.run), max(inner-24, 8))
-	return strings.Join(m.projectFrame(title, l.scroll.position(len(l.wrapped), l.page), body, width, rows, true, framed), "\n")
+	lines := m.projectFrame(title, l.scroll.position(len(l.wrapped), l.page), body, width, rows, true, framed)
+	m.addWheel(0, m.workspaceTop(), width, m.workspaceTop()+len(lines), l.scroll.wheel)
+	return strings.Join(lines, "\n")
 }
 
 // projectsKeys is the key line of the area.
