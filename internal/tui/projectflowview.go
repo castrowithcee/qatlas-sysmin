@@ -316,7 +316,7 @@ func (m *Model) flowKeyLine() string {
 	r, has := f.focused()
 	switch {
 	case f.step == flowSummary:
-		keys = append(keys, "up/down scroll")
+		keys = append(keys, "↑/↓ scroll")
 	case !has:
 	case r.typed():
 		if r.kind == flowPath && len(f.in.matches) > 0 {
@@ -324,7 +324,7 @@ func (m *Model) flowKeyLine() string {
 		}
 		keys = append(keys, "enter next")
 	case r.kind == flowChoice:
-		keys = append(keys, "enter choose", "left/right switch")
+		keys = append(keys, "enter choose", "←/→ switch")
 	case r.kind == flowPick:
 		keys = append(keys, "enter pick")
 	case r.kind == flowToggle:
@@ -337,7 +337,7 @@ func (m *Model) flowKeyLine() string {
 		keys = append(keys, "enter open")
 	}
 	if has && r.remove != nil {
-		keys = append(keys, "ctrl+d remove")
+		keys = append(keys, "{remove} remove")
 	}
 	if f.step == flowSummary {
 		keys = append(keys, "{save} save")
@@ -346,7 +346,7 @@ func (m *Model) flowKeyLine() string {
 	}
 	keys = append(keys, "{back} back")
 	if has {
-		keys = append(keys, "up/down field")
+		keys = append(keys, "↑/↓ field")
 	}
 	keys = append(keys, m.lockKeys()...)
 	if !m.flowTyping() {

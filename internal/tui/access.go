@@ -273,9 +273,9 @@ func (m *Model) accessRaw(item control.ApprovalSummary, d control.ApprovalDetail
 // accessKeys is the key line of Access.
 func (m *Model) accessKeys() []string {
 	if m.acc.page.open {
-		return []string{"left/right tab", "up/down scroll", "{save} approve", "d discard", "{back} close"}
+		return []string{"←/→ tab", "↑/↓ scroll", "{save} approve", "d discard", "{back} close"}
 	}
-	return []string{"up/down move", "enter details", "{save} approve", "d discard", "a approve all", "/ filter"}
+	return []string{"↑/↓ move", "enter details", "{save} approve", "d discard", "{approveall} approve all", "/ filter"}
 }
 
 // accessKey handles the letters and the save key of Access.

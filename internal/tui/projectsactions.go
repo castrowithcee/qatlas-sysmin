@@ -207,7 +207,7 @@ func (m *Model) projectsKey(key tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
 		}
 	}
 	switch {
-	case keyIs(key, actNew), keyIs(key, actSetup):
+	case keyIs(key, actNew):
 		return m.projectFlowStart(), true
 	case keyIs(key, actTest):
 		return m.projectSourceTest(), true
@@ -506,19 +506,19 @@ func (m *Model) projectsKeys() []string {
 	p := m.prj
 	switch {
 	case p.log != nil:
-		return []string{"up/down scroll", "pgup/pgdown page", "home/end ends", "{back} back"}
+		return []string{"↑/↓ scroll", "pgup/pgdown page", "home/end ends", "{back} back"}
 	case p.upd != nil && p.upd.results != nil:
-		return []string{"up/down scroll", "{back} close"}
+		return []string{"↑/↓ scroll", "{back} close"}
 	case p.upd != nil:
-		return []string{"up/down item", "enter version", "pgup/pgdown notes", "y update", "n/{back} cancel"}
+		return []string{"↑/↓ item", "enter version", "pgup/pgdown notes", "y update", "n/{back} cancel"}
 	case p.focusDetail:
-		return []string{"up/down scroll", "left/right tab", "t test", "u update", "e edit", "p duplicate", "d delete", "o log", "{back} list"}
+		return []string{"↑/↓ scroll", "←/→ tab", "t test", "u update", "e edit", "p duplicate", "d delete", "o log", "{back} list"}
 	}
 	// The controls have no letter of their own; they are commands.
-	keys := []string{"up/down move", "t test", "o log", "u update", "space mark", "enter detail",
-		"run/pause/pin/restore via {command}", "g/n new", "e edit", "p duplicate", "/ filter", "d delete"}
+	keys := []string{"↑/↓ move", "t test", "o log", "u update", "space mark", "enter detail",
+		"run/pause/pin/restore via {command}", "n new", "e edit", "p duplicate", "/ filter", "d delete"}
 	if m.usable(0) >= projectsDetailMinWidth {
-		keys = append(keys, "left/right tab")
+		keys = append(keys, "←/→ tab")
 	}
 	return keys
 }

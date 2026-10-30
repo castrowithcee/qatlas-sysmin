@@ -488,18 +488,18 @@ func (m *Model) areaKeys() string {
 	}
 	if m.typing() {
 		if m.area == areaProjects || m.currentPage().filtering() {
-			return "type to filter · up/down move · enter keep filter · {back} clear filter"
+			return "type to filter · ↑/↓ move · enter keep filter · {back} clear filter"
 		}
 		return "enter next · {back} stop · {save} save"
 	}
 	var keys []string
 	switch zone := m.zoneNow(); {
 	case zone == zoneTabs:
-		keys = []string{"left/right area", "down open"}
+		keys = []string{"←/→ area", "↓ open"}
 	case zone == zoneSubs:
-		keys = []string{"left/right page", "down open", "{back} back"}
+		keys = []string{"←/→ page", "↓ open", "{back} back"}
 	case m.area == areaOverview:
-		keys = append(keys, "up/down move")
+		keys = append(keys, "↑/↓ move")
 		if row := m.overviewCurrent(); row.key != "" {
 			keys = append(keys, row.key)
 		}

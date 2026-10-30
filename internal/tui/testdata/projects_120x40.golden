@@ -37,4 +37,4 @@ Projects (3)                                                        3/3 sample-j
 ║                                                                      ║│                                              │
 ║                                                                      ║│                                              │
 ╚══════════════════════════════════════════════════════════════════════╝╰──────────────────────────────────────────────╯
-t test  o log  u update  space mark  enter detail  d delete  esc back  ctrl+l admin  ? help  : cmds  q quit
+t test  o log  u update  space mark  enter detail  n new  d delete  esc back  ctrl+l admin  ? help  : cmds  q quit

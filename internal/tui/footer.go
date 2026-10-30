@@ -46,7 +46,7 @@ func footerGroupRank(group string, index int) (rank int, right bool) {
 	switch {
 	case key == keyLabel(actHelp) && key != "":
 		return footerHelp, false
-	case group == "left/right page" || group == "left/right area":
+	case group == "←/→ page" || group == "←/→ area":
 		return footerPrimary, false
 	case isNavigation(key):
 		return footerNavigate + index, true
@@ -79,7 +79,7 @@ func isSectionRange(key string) bool {
 // acting on it.
 func isNavigation(key string) bool {
 	switch key {
-	case "up/down", "left/right", "←/→", "↑/↓", keyOf(actNext), "pgup/pgdown", "home/end":
+	case "↑/↓", "←/→", keyOf(actNext), "pgup/pgdown", "home/end":
 		return true
 	}
 	return false

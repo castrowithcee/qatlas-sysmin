@@ -51,27 +51,21 @@ const (
 	actNo      action = "no"
 	actDiscard action = "discard"
 
-	actSetup      action = "setup"
 	actCopy       action = "copy"
 	actNew        action = "new"
 	actApproveAll action = "approveall"
 	actEdit       action = "edit"
 	actRename     action = "rename"
-	actReveal     action = "reveal"
-	actSummary    action = "summary"
 	actFilter     action = "filter"
-	actRevert     action = "revert"
 	actLogs       action = "logs"
 	actDuplicate  action = "duplicate"
 	actTest       action = "test"
 	actUpdate     action = "update"
 	actSelfUpdate action = "selfupdate"
-	actWrite      action = "write"
 
 	actRemoveField action = "removefield"
 	actSuggestPrev action = "suggestprev"
 	actSuggestNext action = "suggestnext"
-	actNextKind    action = "nextkind"
 	actReload      action = "reload"
 )
 
@@ -112,28 +106,22 @@ var keyDefs = []struct {
 	{actInfo, levelLetter, []string{"i"}, tKeyHelpInfo},
 	{actDelete, levelLetter, []string{"d"}, tKeyHelpDelete},
 	{actQuit, levelLetter, []string{"q"}, tKeyHelpQuit},
-	{actSetup, levelLetter, []string{"g"}, tKeyHelpSetup},
 	{actCopy, levelLetter, []string{"c"}, tKeyHelpCopy},
 	{actNew, levelLetter, []string{"n"}, tKeyHelpNew},
-	{actApproveAll, levelLetter, []string{"a"}, tKeyHelpApproveAll},
+	{actApproveAll, levelLetter, []string{"A"}, tKeyHelpApproveAll},
 	{actEdit, levelLetter, []string{"e"}, tKeyHelpEdit},
 	{actRename, levelLetter, []string{"r"}, tKeyHelpRename},
-	{actReveal, levelLetter, []string{"v"}, tKeyHelpReveal},
-	{actSummary, levelLetter, []string{"s"}, tKeyHelpSummary},
 	{actFilter, levelLetter, []string{"f"}, tKeyHelpFilter},
-	{actRevert, levelLetter, []string{"b"}, tKeyHelpRevert},
 	{actLogs, levelLetter, []string{"o"}, tKeyHelpLogs},
 	{actDuplicate, levelLetter, []string{"p"}, tKeyHelpDuplicate},
 	{actTest, levelLetter, []string{"t"}, tKeyHelpTest},
 	{actUpdate, levelLetter, []string{"u"}, tKeyHelpUpdate},
 	{actSelfUpdate, levelLetter, []string{"U"}, tKeyHelpSelfUpdate},
-	{actWrite, levelLetter, []string{"w"}, tKeyHelpWrite},
 
 	// The control keys of text lines and of the target picker. None can be rebound to a global action.
-	{actRemoveField, levelCtrl, []string{"ctrl+d"}, tKeyHelpRemoveField},
+	{actRemoveField, levelCtrl, []string{"f8"}, tKeyHelpRemoveField},
 	{actSuggestPrev, levelCtrl, []string{"ctrl+p"}, tKeyHelpSuggestPrev},
 	{actSuggestNext, levelCtrl, []string{"ctrl+n"}, tKeyHelpSuggestNext},
-	{actNextKind, levelCtrl, []string{"ctrl+t"}, tKeyHelpNextKind},
 	{actReload, levelCtrl, []string{"ctrl+r"}, tKeyHelpReload},
 
 	{actUp, levelMove, []string{"up"}, tKeyHelpUp},
@@ -239,8 +227,14 @@ func keyOf(a action) string {
 // keyIs reports whether the key press triggers the action. An unbound action never matches.
 func keyIs(msg tea.KeyPressMsg, a action) bool { return key.Matches(msg, keymap[a]) }
 
-// keyName is how a footer spells a key: function keys capitalized, everything else as bound.
+// arrowNames are the glyphs a footer shows for the arrow keys.
+var arrowNames = map[string]string{"up": "↑", "down": "↓", "left": "←", "right": "→"}
+
+// keyName is how a footer spells a key: arrows as glyphs, function keys capitalized, everything else as bound.
 func keyName(k string) string {
+	if g, ok := arrowNames[k]; ok {
+		return g
+	}
 	if len(k) >= 2 && k[0] == 'f' && strings.Trim(k[1:], "0123456789") == "" {
 		return "F" + k[1:]
 	}
@@ -267,6 +261,7 @@ var footerPlaceholders = []struct {
 }{
 	{"{save}", actSave}, {"{help}", actHelp}, {"{info}", actInfo}, {"{command}", actCommand},
 	{"{lock}", actLock}, {"{back}", actBack}, {"{delete}", actDelete}, {"{copy}", actCopy},
+	{"{approveall}", actApproveAll}, {"{remove}", actRemoveField},
 }
 
 // footerKeys replaces the key placeholders of a footer text with the current key names, so a footer

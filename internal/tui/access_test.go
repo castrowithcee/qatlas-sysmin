@@ -191,7 +191,7 @@ func TestApproveAllAsksOnceForThePassphraseAndCallsOnce(t *testing.T) {
 		fb := accessFake()
 		fb.once = once
 		m := appModel(t, fb, 80, 24)
-		send(m, "4", "a")
+		send(m, "4", "A")
 		if m.screen != screenConfirm || !strings.Contains(plain(m), "Approve all 2 open approvals?") {
 			t.Fatalf("once=%v: no question:\n%s", once, plain(m))
 		}
@@ -215,7 +215,7 @@ func TestApproveAllShowsFailuresPerProject(t *testing.T) {
 	fb.session = true
 	fb.failApproveAll = []control.ApprovalFailure{{Project: "sample-app", Code: control.CodeChanged}}
 	m := appModel(t, fb, 80, 24)
-	send(m, "4", "a", "y")
+	send(m, "4", "A", "y")
 	if !strings.Contains(m.fail, "1 failed") || !strings.Contains(m.fail, "sample-app") || !strings.Contains(m.fail, "Changed meanwhile") {
 		t.Errorf("fail = %q", m.fail)
 	}
@@ -227,13 +227,13 @@ func TestApproveAllShowsFailuresPerProject(t *testing.T) {
 func TestEscInTheOverlayRunsNothing(t *testing.T) {
 	fb := accessFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "4", "a", "y")
+	send(m, "4", "A", "y")
 	typed(m, testPass)
 	send(m, "esc")
 	if m.ov != nil || fb.count("approve-all") != 0 || fb.count("session") != 0 {
 		t.Errorf("calls = %v", fb.log())
 	}
-	send(m, "a", "esc")
+	send(m, "A", "esc")
 	if fb.count("approve-all") != 0 || m.screen != screenArea {
 		t.Error("esc on the question approved")
 	}
@@ -308,7 +308,7 @@ func TestApproveAllAndDiscardAllPassTheShownApprovals(t *testing.T) {
 			m.acc.discardAfter = true
 			send(m, "4", "y")
 		} else {
-			send(m, "4", "a", "y")
+			send(m, "4", "A", "y")
 		}
 		if len(fb.shownAll) != 1 || !slices.Equal(fb.shownAll[0], want) || len(m.acc.page.list.all) != 0 {
 			t.Errorf("discard=%v: shown = %v, want %v; calls %v", discard, fb.shownAll, want, fb.log())
@@ -319,7 +319,7 @@ func TestApproveAllAndDiscardAllPassTheShownApprovals(t *testing.T) {
 func TestApproveAllRefusesWhatChangedSinceTheQuestion(t *testing.T) {
 	fb := accessFake()
 	m := appModel(t, fb, 80, 24)
-	changeBetween(t, fb, m, "4", "a")
+	changeBetween(t, fb, m, "4", "A")
 	send(m, "y")
 	typed(m, testPass)
 	send(m, "enter")
@@ -367,7 +367,7 @@ func TestAllAtOnceIsNotOfferedBeyondTheListedRows(t *testing.T) {
 		fb.approvals = append(fb.approvals, control.ApprovalSummary{Project: fmt.Sprintf("extra-%d", i), Kind: "new", Fingerprint: "fp"})
 	}
 	m := appModel(t, fb, 80, 24)
-	send(m, "4", "a")
+	send(m, "4", "A")
 	if m.screen == screenConfirm || !strings.Contains(m.status, "one by one") {
 		t.Errorf("status %q, screen %v", m.status, m.screen)
 	}

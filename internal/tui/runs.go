@@ -289,11 +289,11 @@ func (m *Model) runsBody(top int) string {
 func (m *Model) runsKeys() []string {
 	switch {
 	case m.act.runs.log.open:
-		return []string{"up/down scroll", "ctrl+r reload", "{back} close"}
+		return []string{"↑/↓ scroll", "ctrl+r reload", "{back} close"}
 	case m.act.runs.page.open:
-		return []string{"left/right tab", "up/down scroll", "o log", "{back} close"}
+		return []string{"←/→ tab", "↑/↓ scroll", "o log", "{back} close"}
 	}
-	return []string{"up/down move", "enter details", "o log", "f project", "ctrl+r reload", "/ search"}
+	return []string{"↑/↓ move", "enter details", "o log", "f project", "ctrl+r reload", "/ search"}
 }
 
 // runsKey handles the keys of Runs that the table does not.

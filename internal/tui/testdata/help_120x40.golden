@@ -14,8 +14,8 @@ sysmin  ● vault open  ● admin off                                           
                             ║ [keys]  vault   admin-session   approvals   unlock   secret… ║                            
                             ║                                                              ║                            
                             ║ This screen                                                  ║                            
-                            ║   left/right area                                            ║                            
-                            ║   down open                                                  ║                            
+                            ║   ←/→ area                                                   ║                            
+                            ║   ↓ open                                                     ║                            
                             ║                                                              ║                            
                             ║ Everywhere                                                   ║                            
                             ║   ? help                                                     ║                            
@@ -26,7 +26,7 @@ sysmin  ● vault open  ● admin off                                           
                             ║   esc back                                                   ║                            
                             ║   q quit                                                     ║                            
                             ║                                                              ║                            
-                            ║ up/down scroll · left/right topic · esc close                ║                            
+                            ║ ↑/↓ scroll · ←/→ topic · esc close                           ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
                                                                                                                         
                                                                                                                         

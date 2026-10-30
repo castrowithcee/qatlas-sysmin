@@ -150,9 +150,9 @@ func TestCopyRedactsASecretInTheNameOfTheRow(t *testing.T) {
 
 func TestWithCopyKeyPutsTheGroupAheadOfHelpAndCommands(t *testing.T) {
 	for in, want := range map[string]string{
-		"up/down move · {help} help":                "up/down move · {copy} copy · {help} help",
+		"↑/↓ move · {help} help":                    "↑/↓ move · {copy} copy · {help} help",
 		"enter open · {command} cmds · {help} help": "enter open · {copy} copy · {command} cmds · {help} help",
-		"up/down move":                  "up/down move · {copy} copy",
+		"↑/↓ move":                      "↑/↓ move · {copy} copy",
 		"x · {copy} copy · {help} help": "x · {copy} copy · {help} help",
 	} {
 		if got := withCopyKey(in); got != want {

@@ -371,7 +371,7 @@ func TestProjectsGerman(t *testing.T) {
 }
 
 func TestProjectsFootersNameTheirKeys(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 140, 30)
+	m := projectsModel(t, projectsFake(), 160, 30)
 	m.render()
 	for _, want := range []string{"space", "enter", "t test", "u update", "d delete", "o log", "run/pause/pin/restore"} {
 		if !strings.Contains(m.footerLine(), want) && !strings.Contains(plain(m), want) {

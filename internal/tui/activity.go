@@ -445,9 +445,9 @@ func (m *Model) activityKeys() []string {
 		return m.runsKeys()
 	}
 	if m.act.page.open {
-		return []string{"left/right tab", "up/down scroll", "{back} close"}
+		return []string{"←/→ tab", "↑/↓ scroll", "{back} close"}
 	}
-	return []string{"up/down move", "enter details", "f filter", "t verify", "ctrl+r reload", "/ search"}
+	return []string{"↑/↓ move", "enter details", "f filter", "t verify", "ctrl+r reload", "/ search"}
 }
 
 // activityKey handles the keys of Activity that the table does not.

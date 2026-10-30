@@ -202,10 +202,20 @@ func keyByName(name string) (tea.KeyPressMsg, bool) {
 	if key, ok := functionKeys[strings.ToUpper(name)]; ok {
 		return tea.KeyPressMsg{Code: key}, true
 	}
-	if runes := []rune(name); len(runes) == 1 && runes[0] > ' ' && !(runes[0] >= '0' && runes[0] <= '9') {
+	if runes := []rune(name); len(runes) == 1 && runes[0] > ' ' && !isArrowGlyph(name) && !(runes[0] >= '0' && runes[0] <= '9') {
 		return tea.KeyPressMsg{Code: runes[0], Text: name}, true
 	}
 	return tea.KeyPressMsg{}, false
+}
+
+// isArrowGlyph reports whether name is the footer glyph of an arrow key, which a click cannot press.
+func isArrowGlyph(name string) bool {
+	for _, g := range arrowNames {
+		if g == name {
+			return true
+		}
+	}
+	return false
 }
 
 // functionKeys are the function keys a dialog may name.
