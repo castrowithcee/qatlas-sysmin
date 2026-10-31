@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
+	"github.com/castrowithcee/qatlas-sysmin/internal/tui"
 )
 
 func TestDialErrorNamesSudoForASessionWithoutTheGroup(t *testing.T) {
@@ -71,5 +72,28 @@ func TestDialErrorKeepsTheNextStepOfAForeignPeer(t *testing.T) {
 	if !errors.As(err, &pe) || strings.Contains(err.Error(), "is the service running") ||
 		!strings.Contains(err.Error(), "sudo kill 4321") || !strings.Contains(err.Error(), "sudo systemctl restart sysmin") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+func TestHostRunnerBuildsTheSudoCallWithoutPassingASecret(t *testing.T) {
+	oldLook, oldExe := lookPath, executable
+	t.Cleanup(func() { lookPath, executable = oldLook, oldExe })
+	lookPath = func(string) (string, error) { return "/usr/bin/sudo", nil }
+	executable = func() (string, error) { return "/usr/local/bin/sysmin", nil }
+
+	cmd, err := hostRunner(tui.HostRequest{Args: []string{"journal", "--output", "json"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"/usr/bin/sudo", "/usr/local/bin/sysmin", "host", "journal", "--output", "json"}
+	if !slices.Equal(cmd.Args, want) || cmd.Stdin != nil || cmd.Stdout != nil || cmd.Stderr != nil {
+		t.Errorf("args %q stdin %v stdout %v stderr %v", cmd.Args, cmd.Stdin, cmd.Stdout, cmd.Stderr)
+	}
+	if _, err := hostRunner(tui.HostRequest{Args: []string{"apply"}, Secret: []byte("x")}); err == nil {
+		t.Error("a secret must be refused until it has a channel of its own")
+	}
+	lookPath = func(string) (string, error) { return "", errors.New("not found") }
+	if _, err := hostRunner(tui.HostRequest{Args: []string{"journal"}}); !errors.Is(err, tui.ErrNoSudo) {
+		t.Errorf("without sudo: %v", err)
 	}
 }

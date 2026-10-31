@@ -1,11 +1,14 @@
 package tui
 
 import (
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
@@ -92,7 +95,13 @@ type Model struct {
 	// hst is the Host area and hostSrc what it reads; see host.go.
 	hst     hostState
 	hostSrc HostSource
-	set     settingsState
+	// hostRun builds the sudo call of a change, hostReg describes the actions, hostExec hands the terminal to a
+	// command (tea.ExecProcess unless a test stands in), and hostIn and hostOut are the real terminal.
+	hostRun         HostRunner
+	hostReg         *hostchange.Registry
+	hostExec        func(*exec.Cmd, tea.ExecCallback) tea.Cmd
+	hostIn, hostOut *os.File
+	set             settingsState
 	// prj is the state of the Projects area; see projects.go.
 	prj *projectsState
 	pop *popup
@@ -222,6 +231,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case hostFolderMsg:
 		m.takeHostFolder(msg)
 		return m, nil
+	case hostRanMsg:
+		return m, m.takeHostRan(msg)
 	case credentialsMsg:
 		m.takeCredentials(msg)
 		return m, nil

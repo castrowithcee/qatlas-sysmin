@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
+	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
@@ -30,6 +31,10 @@ type Options struct {
 	Version  string
 	Releases ReleaseCheck
 	In, Out  *os.File
+	// HostRun builds the sudo call that runs a host change, an undo or a root-only read; nil offers none and
+	// every attempt says so. HostActions describes the actions; nil means hostchange.Default().
+	HostRun     HostRunner
+	HostActions *hostchange.Registry
 }
 
 // ErrRegroup is what Run returns when the person asked to restart the interface with the group sysmin; the
@@ -74,6 +79,8 @@ func Run(opts Options) error {
 	model := New(prefs, opts.Redactor)
 	model.prefsPath, model.version, model.releases = opts.PrefsPath, opts.Version, opts.Releases
 	model.hostSrc = opts.Host
+	model.hostRun, model.hostReg = opts.HostRun, opts.HostActions
+	model.setHostTerminal(opts.In, opts.Out)
 	if model.hostSrc == nil {
 		model.hostSrc = hostadmin.NewHost(false)
 	}

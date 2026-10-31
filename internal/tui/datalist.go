@@ -365,6 +365,8 @@ func (m *Model) currentPage() *dataPage {
 		return &m.hst.users.page
 	case m.area == areaHost && m.hst.sub == hostGroups:
 		return &m.hst.groups.page
+	case m.area == areaHost && m.hst.sub == hostChanges:
+		return &m.hst.chg.page
 	}
 	return nil
 }

@@ -1,6 +1,6 @@
 sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
    1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings 
-  [Users]  Groups   Folders 
+  [Users]  Groups   Folders   Changes 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         2/3 ╔═ demo-user ════════════════════════════════════╗
 ╭───────────────────────────────────────────────────────────────────╮ ║ [Overview]  Details   Raw                      ║
@@ -37,4 +37,4 @@ Users (3)                                                         2/3 ╔═ dem
 
 
 
-esc back  ctrl+l admin  i info  c copy  ? help  : cmds  q quit                                  ←/→ tab  ↑/↓ scroll  2/3
+esc back  ctrl+r read as root  ctrl+l admin  i info  c copy  ? help  : cmds  q quit             ←/→ tab  ↑/↓ scroll  2/3

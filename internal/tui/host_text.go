@@ -122,7 +122,7 @@ func init() {
 		tInfoHostUsers:       "Admin: the user may become root with sudo. Docker: the user may use Docker, which is practically root on this host. Enabled: the user is a member of the group sysmin; an admin who is also enabled may use sysmin.",
 		tInfoHostGroups:      "The groups of this host with their members. System groups are read-only here.",
 		tInfoHostFolders:     "Shows who may read and write a folder or file: owner, group and others, in plain words. Nothing is changed.",
-		tHelpHost:            "Host shows the users, groups and folder permissions of this machine, read-only. Admin means sudo rights, Docker is practically root, and enabled means membership of the group sysmin. Grey rows are system accounts; space hides them. Folders reads one path at a time: type it, tab completes, enter reads. A path marked protected is a system path.",
+		tHelpHost:            "Host shows the users, groups and folder permissions of this machine. Admin means sudo rights, Docker is practically root, and enabled means membership of the group sysmin. Grey rows are system accounts; space hides them. Folders reads one path at a time: type it, tab completes, enter reads. A path marked protected is a system path. Changes lists the latest changes made through sysmin and undoes one with enter. What only root can read, such as the locked state and SSH keys of a user or the list of changes, is read through sudo when you press ctrl+r; sudo asks for the password, sysmin never sees it.",
 
 		footerID("enter read"):      "enter read",
 		footerID("enter edit path"): "enter edit path",
@@ -187,7 +187,7 @@ func init() {
 		tInfoHostUsers:       "Admin: Der Benutzer kann mit sudo root werden. Docker: Der Benutzer darf Docker nutzen, was auf diesem Host praktisch root bedeutet. Freigeschaltet: Der Benutzer ist Mitglied der Gruppe sysmin; ein freigeschalteter Admin darf sysmin nutzen.",
 		tInfoHostGroups:      "Die Gruppen dieses Hosts mit ihren Mitgliedern. Systemgruppen sind hier nur lesbar.",
 		tInfoHostFolders:     "Zeigt in einfachen Worten, wer einen Ordner oder eine Datei lesen und schreiben darf: Besitzer, Gruppe und andere. Es wird nichts geändert.",
-		tHelpHost:            "Host zeigt die Benutzer, Gruppen und Ordnerrechte dieses Rechners, nur lesend. Admin heißt sudo-Rechte, Docker ist praktisch root, und freigeschaltet heißt Mitglied der Gruppe sysmin. Graue Zeilen sind Systemkonten; space blendet sie aus. Ordner liest einen Pfad nach dem anderen: eintippen, tab ergänzt, Enter liest. Ein als geschützt markierter Pfad ist ein Systempfad.",
+		tHelpHost:            "Host zeigt die Benutzer, Gruppen und Ordnerrechte dieses Rechners. Admin heißt sudo-Rechte, Docker ist praktisch root, und freigeschaltet heißt Mitglied der Gruppe sysmin. Graue Zeilen sind Systemkonten; space blendet sie aus. Ordner liest einen Pfad nach dem anderen: eintippen, tab ergänzt, Enter liest. Ein als geschützt markierter Pfad ist ein Systempfad. Änderungen listet die letzten Änderungen über sysmin und macht eine mit Enter rückgängig. Was nur root lesen kann, etwa Sperrstatus und SSH-Schlüssel eines Benutzers oder die Liste der Änderungen, wird mit ctrl+r über sudo gelesen; sudo fragt nach dem Passwort, sysmin sieht es nie.",
 
 		footerID("enter read"):      "enter lesen",
 		footerID("enter edit path"): "enter Pfad ändern",

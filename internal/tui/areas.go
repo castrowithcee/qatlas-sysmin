@@ -383,6 +383,12 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		return nil, false
 	}
+	if m.area == areaHost && m.hst.sub == hostChanges && m.zoneNow() != zoneDetail && !p.open {
+		// Enter asks to undo here instead of opening the detail.
+		if cmd, ok := m.changesKey(key); ok {
+			return cmd, true
+		}
+	}
 	if m.area == areaActivity && !p.open && keyIs(key, actFilter) {
 		// f is the filter of the log and the project of the runs here; the table is searched with /.
 		if m.act.sub == actRuns {

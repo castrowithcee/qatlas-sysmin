@@ -170,18 +170,39 @@ func newHostJournalCommand(opts *Options) *cobra.Command {
 			if err != nil {
 				return hostError("host journal", err)
 			}
+			registry := opts.changeEnv().Registry
 			result := output.Collection{Columns: []string{"id", "time", "action", "sentence", "result", "reversible",
-				"sudo_uid"}}
+				"sudo_uid", "undo_sentence", "undo_commands"}}
 			for _, e := range entries {
+				reversible := e.Reversible && e.Result == hostchange.ResultApplied && e.UndoneBy == ""
+				undoSentence, undoCommands := undoPlan(registry, e, reversible)
 				result.Rows = append(result.Rows, output.Row{
 					"id": e.ID, "time": e.Time.UTC().Format(time.RFC3339), "action": e.Action, "sentence": e.Sentence,
-					"result": e.Result, "reversible": e.Reversible && e.Result == hostchange.ResultApplied && e.UndoneBy == "",
-					"sudo_uid": int64(e.SudoUID),
+					"result": e.Result, "reversible": reversible, "sudo_uid": int64(e.SudoUID),
+					"undo_sentence": undoSentence, "undo_commands": undoCommands,
 				})
 			}
 			return emit(c, opts, result)
 		},
 	}
+}
+
+// undoPlan is the confirmation text of the undo of a reversible entry: the sentence and the displayed commands of
+// its inverse, secrets as placeholders. An inverse that cannot be built leaves both empty, so no undo is offered.
+func undoPlan(registry *hostchange.Registry, e hostchange.Entry, reversible bool) (string, []string) {
+	def, ok := registry.Lookup(e.Action)
+	if !reversible || !ok || def.Inverse == nil {
+		return "", []string{}
+	}
+	plan, err := def.Inverse(e.Previous)
+	if err != nil {
+		return "", []string{}
+	}
+	commands := make([]string, len(plan.Commands))
+	for i, c := range plan.Commands {
+		commands[i] = c.Display()
+	}
+	return plan.Sentence, commands
 }
 
 // finishChange prints the report. A change that did not stand is an error after the report, so that the
