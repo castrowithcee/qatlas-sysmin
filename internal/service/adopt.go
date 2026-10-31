@@ -43,7 +43,7 @@ var blockingCodes = map[string]bool{
 	adopt.CodeInvalidLabel:      true,
 	adopt.CodeNoComposeFiles:    true,
 	adopt.CodeGitOrigin:         true,
-	adopt.CodeNotReadable:       true,
+	adopt.CodeMissingAccess:     true,
 }
 
 func (s *Service) registerAdopt() error {
@@ -105,14 +105,8 @@ func adoptDir(dir string) (string, bool) {
 	return filepath.Clean(dir), true
 }
 
-// failDir answers a directory the service cannot use: not-found when it is missing, no-access with the
-// first denied part of the requested path when the service user may not pass it. The audit names no path.
-func failDir(c *daemon.Conn, name string, err error) (any, error) {
-	var access *adopt.AccessError
-	if errors.As(err, &access) {
-		c.Audit(name, control.CodeNoAccess)
-		return nil, &control.Error{Code: control.CodeNoAccess, Paths: []string{access.Path}}
-	}
+// failDir answers a directory that is missing or not a directory. The audit names no path.
+func failDir(c *daemon.Conn, name string) (any, error) {
 	c.Audit(name, control.CodeNotFound)
 	return nil, &control.Error{Code: control.CodeNotFound}
 }
@@ -134,17 +128,12 @@ func (s *Service) handleProjectsAdopt(ctx context.Context, c *daemon.Conn, param
 	if s.vaultState() != control.VaultUnlocked {
 		return fail(control.CodeLocked)
 	}
-	if err := adopt.CheckDir(dir); err != nil {
-		return failDir(c, p.Name, err)
-	}
-
 	ictx, cancel := context.WithTimeout(ctx, control.AdoptTimeout)
 	defer cancel()
 	prop, err := adopt.Inspect(ictx, adopt.Options{Runner: s.cfg.Runner, Git: s.cfg.SourceGit}, dir, p.Name)
 	if err != nil {
-		var access *adopt.AccessError
-		if errors.As(err, &access) || errors.Is(err, adopt.ErrNotDirectory) {
-			return failDir(c, p.Name, err)
+		if errors.Is(err, adopt.ErrNotDirectory) {
+			return failDir(c, p.Name)
 		}
 		slog.Warn("cannot inspect a stack", "error", err.Error())
 		if errors.Is(ictx.Err(), context.DeadlineExceeded) {
@@ -161,7 +150,9 @@ func (s *Service) handleProjectsAdopt(ctx context.Context, c *daemon.Conn, param
 	name := prop.Project.Name
 	problems := make([]control.AdoptProblem, 0, len(prop.Problems)+2)
 	for _, pr := range prop.Problems {
-		problems = append(problems, control.AdoptProblem{Code: pr.Code, Message: pr.Message, Hint: pr.Hint, Blocking: blockingCodes[pr.Code]})
+		problems = append(problems, control.AdoptProblem{
+			Code: pr.Code, Message: pr.Message, Hint: pr.Hint, Blocking: blockingCodes[pr.Code], Access: adoptAccess(pr.Access),
+		})
 	}
 	blocked := adoptTaken(m, dir, name, &problems)
 	for _, pr := range problems {
@@ -210,6 +201,14 @@ func (s *Service) handleProjectsAdopt(ctx context.Context, c *daemon.Conn, param
 	}
 	res.Saved, res.State, res.Revision = true, change.State, change.Revision
 	return res, nil
+}
+
+func adoptAccess(needs []adopt.AccessNeed) []control.AdoptAccess {
+	var out []control.AdoptAccess
+	for _, n := range needs {
+		out = append(out, control.AdoptAccess{Path: n.Path, Right: n.Right})
+	}
+	return out
 }
 
 // adoptTaken adds the problems of a directory or a name that the configuration uses already and reports

@@ -12,9 +12,8 @@ const StacksTimeout = 30 * time.Second
 // output of Docker never leaves the service.
 const CodeDockerUnavailable = "docker-unavailable"
 
-// CodeNoAccess answers an adoption of a directory that exists but that the service cannot reach: the one entry
-// of Paths is the first part of the requested path that the service user may not pass. Nothing is opened to
-// find it, and the entry is always a prefix of the requested path.
+// CodeNoAccess is no longer answered by OpProjectsAdopt: a directory or file the service may not use is the
+// blocking problem "missing-access" of the result. The code stays for clients of older services.
 const CodeNoAccess = "no-access"
 
 // AdoptParams are the parameters of OpProjectsAdopt. Dir is the absolute directory of the running stack;
@@ -53,13 +52,31 @@ type AdoptProject struct {
 	Git            *AdoptGit    `json:"git,omitempty"`
 }
 
+// Rights of an AdoptAccess.
+const (
+	AccessPass  = "pass"
+	AccessRead  = "read"
+	AccessWrite = "write"
+)
+
+// AdoptAccess is one right the service user lacks: Right is AccessPass for a directory it may not search,
+// AccessRead or AccessWrite. A path that the service cannot reach hides what lies below it; those paths are
+// not listed, only said in the message of the problem.
+type AdoptAccess struct {
+	Path  string `json:"path"`
+	Right string `json:"right"`
+}
+
 // AdoptProblem is a finding about the stack with a hint. A blocking problem keeps the proposal from being
-// stored.
+// stored. A problem with the code "missing-access" is blocking and lists in Access every missing right that
+// could be found at once; the field is absent for all other problems, and clients that do not know it show
+// the message and the hint.
 type AdoptProblem struct {
-	Code     string `json:"code"`
-	Message  string `json:"message"`
-	Hint     string `json:"hint,omitempty"`
-	Blocking bool   `json:"blocking,omitempty"`
+	Code     string        `json:"code"`
+	Message  string        `json:"message"`
+	Hint     string        `json:"hint,omitempty"`
+	Blocking bool          `json:"blocking,omitempty"`
+	Access   []AdoptAccess `json:"access,omitempty"`
 }
 
 // AdoptResult is the answer to OpProjectsAdopt. File is the project file as it would be or was stored.

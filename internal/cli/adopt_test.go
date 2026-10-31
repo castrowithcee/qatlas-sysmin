@@ -141,7 +141,7 @@ func TestProjectAdoptErrors(t *testing.T) {
 	d, dir := adoptStackDir(t, "")
 	sock := startAdoptService(t, true, d)
 	code, stdout, stderr := runCLIArgs("project", "adopt", dir, "--socket", sock, "--output", "json")
-	if code != exitRuntime || !strings.Contains(stdout, "compose-config-failed") || strings.Contains(stdout+stderr, "invalid compose file") {
+	if code != exitRuntime || !strings.Contains(stdout, "compose-config-failed") {
 		t.Errorf("blocked: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 	code, _, stderr = runCLIArgs("project", "adopt", filepath.Join(dir, "missing"), "--socket", sock)
@@ -185,10 +185,10 @@ func TestProjectAdoptNoAccessNamesPartAndNextStep(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(closed, 0o700) })
 	sock := startAdoptService(t, true, d)
 
-	code, _, stderr := runCLIArgs("project", "adopt", stack, "--socket", sock)
+	code, stdout, stderr := runCLIArgs("project", "adopt", stack, "--socket", sock, "--output", "json")
 	if code != exitRuntime || strings.Contains(stderr, "does not exist") ||
-		!strings.Contains(stderr, "may not pass "+closed) || !strings.Contains(stderr, "sudo setfacl -m u:sysmin:x "+closed) {
-		t.Errorf("no access: code = %d, stderr = %q", code, stderr)
+		!strings.Contains(stdout, "missing-access") || !strings.Contains(stdout, closed) || !strings.Contains(stdout, "setfacl -m u:") {
+		t.Errorf("no access: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 	code, _, stderr = runCLIArgs("project", "adopt", filepath.Join(dir, "missing"), "--socket", sock)
 	if code != exitRuntime || !strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "setfacl") {

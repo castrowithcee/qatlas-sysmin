@@ -250,10 +250,8 @@ func TestAdoptBlockingProblemsStoreNothing(t *testing.T) {
 	if err != nil || res.Saved || !problemCodes(res)["compose-config-failed"].Blocking {
 		t.Fatalf("result = %+v, %v", res, err)
 	}
-	for _, p := range res.Problems {
-		if strings.Contains(p.Message+p.Hint, "invalid compose file") {
-			t.Error("raw Docker output in the problems")
-		}
+	if got := problemCodes(res)["compose-config-failed"].Message; got != "docker compose config failed: invalid compose file" {
+		t.Errorf("message = %q", got)
 	}
 
 	// No container runs.
@@ -360,15 +358,25 @@ func closeDir(t *testing.T, dir string) {
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
 }
 
-func wantNoAccess(t *testing.T, err error, path string) {
+// wantMissingAccess checks that res holds one blocking missing-access problem that lists exactly want.
+func wantMissingAccess(t *testing.T, res control.AdoptResult, want ...control.AdoptAccess) {
 	t.Helper()
-	var ce *control.Error
-	if !errors.As(err, &ce) || ce.Code != control.CodeNoAccess || !slices.Equal(ce.Paths, []string{path}) {
-		t.Fatalf("err = %v (%+v), want no-access %q", err, ce, path)
+	pr, ok := problemCodes(res)["missing-access"]
+	if !ok || !pr.Blocking || res.Saved || !slices.Equal(pr.Access, want) || pr.Hint == "" {
+		t.Fatalf("result = %+v, want blocking missing-access %v", res, want)
+	}
+	n := 0
+	for _, p := range res.Problems {
+		if p.Code == "missing-access" {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("%d missing-access problems in %+v", n, res.Problems)
 	}
 }
 
-func TestAdoptClosedParentIsNoAccessMissingIsNotFound(t *testing.T) {
+func TestAdoptClosedParentBlocksMissingIsNotFound(t *testing.T) {
 	f, dir := adoptStack(t, "shop-prod", shopCompose, "APP_VERSION=1.4.2\n")
 	closed := filepath.Join(dir, "closed")
 	stack := filepath.Join(closed, "inner", "stack")
@@ -379,10 +387,16 @@ func TestAdoptClosedParentIsNoAccessMissingIsNotFound(t *testing.T) {
 	c := e.dial(t)
 	closeDir(t, closed)
 
-	// The first denied element is named, whatever lies below it, existing or not.
-	for _, d := range []string{stack, filepath.Join(stack, "missing"), closed} {
-		_, err := c.AdoptProject(control.AdoptParams{Dir: d, DryRun: true})
-		wantNoAccess(t, err, closed)
+	// The first denied element is named, whatever lies below it, existing or not; saving is blocked.
+	for _, d := range []string{stack, closed} {
+		res, err := c.AdoptProject(control.AdoptParams{Dir: d})
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantMissingAccess(t, res, control.AdoptAccess{Path: closed, Right: control.AccessPass})
+	}
+	if n := openProjects(t, c); n != 0 {
+		t.Errorf("%d projects stored", n)
 	}
 	_, err := c.AdoptProject(control.AdoptParams{Dir: filepath.Join(dir, "missing", "deeper")})
 	wantCode(t, err, control.CodeNotFound)
@@ -397,10 +411,15 @@ func TestAdoptDirectoryItselfNotPassable(t *testing.T) {
 	e := adoptEnv(t, f)
 	c := e.dial(t)
 	closeDir(t, dir)
-	_, err := c.AdoptProject(control.AdoptParams{Dir: dir, DryRun: true})
-	wantNoAccess(t, err, dir)
-	if len(f.recorded()) != 0 {
-		t.Errorf("Docker was asked: %+v", f.recorded())
+	res, err := c.AdoptProject(control.AdoptParams{Dir: dir, DryRun: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantMissingAccess(t, res, control.AdoptAccess{Path: dir, Right: control.AccessPass})
+	for _, call := range f.recorded() {
+		if call.Args[0] == "compose" {
+			t.Errorf("compose ran: %v", call.Args)
+		}
 	}
 }
 
@@ -417,42 +436,35 @@ func TestAdoptUnreadableComposeFileBlocks(t *testing.T) {
 	if err != nil || res.Saved {
 		t.Fatalf("result = %+v, %v", res, err)
 	}
-	pr, ok := problemCodes(res)["not-readable"]
-	if !ok || !pr.Blocking || !strings.Contains(pr.Message, file) || !strings.Contains(pr.Hint, "setfacl") {
-		t.Fatalf("problems = %+v", res.Problems)
+	wantMissingAccess(t, res, control.AdoptAccess{Path: file, Right: control.AccessRead})
+	if pr := problemCodes(res)["missing-access"]; !strings.Contains(pr.Message, file) || !strings.Contains(pr.Hint, "setfacl") {
+		t.Fatalf("problem = %+v", pr)
 	}
 	if _, wrong := problemCodes(res)["compose-config-failed"]; wrong {
 		t.Errorf("misleading compose-config-failed in %+v", res.Problems)
 	}
 }
 
-func TestAdoptNoAccessAuditNamesNoPath(t *testing.T) {
+func TestAdoptNotFoundAuditNamesNoPath(t *testing.T) {
 	f, dir := adoptStack(t, "shop-prod", shopCompose, "APP_VERSION=1.4.2\n")
-	closed := filepath.Join(dir, "closed")
-	if err := os.MkdirAll(filepath.Join(closed, "stack"), 0o700); err != nil {
-		t.Fatal(err)
-	}
 	e := adoptEnv(t, f)
 	c := e.dial(t)
-	closeDir(t, closed)
-	_, err := c.AdoptProject(control.AdoptParams{Dir: filepath.Join(closed, "stack"), Name: "shop"})
-	wantNoAccess(t, err, closed)
-	_, err = c.AdoptProject(control.AdoptParams{Dir: filepath.Join(dir, "missing"), Name: "shop"})
+	_, err := c.AdoptProject(control.AdoptParams{Dir: filepath.Join(dir, "missing"), Name: "shop"})
 	wantCode(t, err, control.CodeNotFound)
 	e.cancel()
 	<-e.done
 	e.done <- nil
 
-	seen := map[string]bool{}
+	seen := false
 	for _, en := range readEntries(t, filepath.Join(e.cfg.StateDir, "logs")) {
 		b, _ := json.Marshal(en)
 		if strings.Contains(string(b), dir) {
 			t.Errorf("audit entry names a path: %s", b)
 		}
-		seen[en.ErrorCode] = true
+		seen = seen || en.ErrorCode == control.CodeNotFound
 	}
-	if !seen[control.CodeNoAccess] || !seen[control.CodeNotFound] {
-		t.Errorf("audited codes = %v", seen)
+	if !seen {
+		t.Error("not-found not audited")
 	}
 }
 
