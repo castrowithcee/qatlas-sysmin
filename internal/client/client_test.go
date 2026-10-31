@@ -71,7 +71,9 @@ func TestDialNamesASessionWithoutTheGroup(t *testing.T) {
 	}
 	for _, lacks := range []bool{true, false} {
 		restore := client.SetSessionLacksGroup(lacks)
+		restoreStanding := client.SetStandingForTests(true, true)
 		_, err := client.Dial(path)
+		restoreStanding()
 		restore()
 		if err == nil {
 			t.Fatal("dial succeeded")
@@ -300,6 +302,113 @@ func TestAnswerAfterTheFirstOneMayTakeLonger(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		if err := c.Call(control.OpStatus, nil, nil); err != nil {
 			t.Fatalf("call %d: %v", i, err)
+		}
+	}
+}
+
+// answering serves one connection that answers every request with code.
+func answering(t *testing.T, code string) string {
+	t.Helper()
+	dir, _ := os.MkdirTemp("", "sysmin-")
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	path := filepath.Join(dir, "s.sock")
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		buf := make([]byte, 256)
+		_, _ = conn.Read(buf)
+		_ = control.WriteLine(conn, control.Response{V: control.Version, Error: code})
+	}()
+	return path
+}
+
+func TestDialSocketPermissionNamesTheCallersStanding(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root is never refused by file permissions")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "s.sock")
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	if err := os.Chmod(path, 0); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name           string
+		admin, enabled bool
+		lacks          bool
+		want           error
+	}{
+		{"not an administrator", false, false, true, client.ErrReserved},
+		{"not an administrator, enabled", false, true, true, client.ErrReserved},
+		{"administrator, not enabled", true, false, false, client.ErrNotEnabled},
+		{"enabled administrator, old session", true, true, true, client.ErrSessionGroup},
+	} {
+		restoreStanding := client.SetStandingForTests(tc.admin, tc.enabled)
+		restoreSession := client.SetSessionLacksGroup(tc.lacks)
+		_, err := client.Dial(path)
+		restoreSession()
+		restoreStanding()
+		if !errors.Is(err, tc.want) {
+			t.Errorf("%s: err = %v, want %v", tc.name, err, tc.want)
+		}
+	}
+	restoreStanding := client.SetStandingForTests(true, true)
+	restoreSession := client.SetSessionLacksGroup(false)
+	defer restoreSession()
+	defer restoreStanding()
+	if _, err := client.Dial(path); err == nil || errors.Is(err, client.ErrReserved) || errors.Is(err, client.ErrNotEnabled) ||
+		errors.Is(err, client.ErrSessionGroup) {
+		t.Errorf("enabled administrator with the group: err = %v, want the plain connect error", err)
+	}
+}
+
+func TestCallNamesTheCallersStandingForANotAdminAnswer(t *testing.T) {
+	defer client.SetStandingForTests(true, true)()
+	c, err := client.Dial(answering(t, control.CodeNotAdmin))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if _, err := c.Status(); !errors.Is(err, client.ErrReserved) {
+		t.Errorf("err = %v, want ErrReserved even for an administrator in the database", err)
+	}
+}
+
+func TestCallNamesTheCallersStandingForARefusedAnswer(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		admin, enabled bool
+		lacks          bool
+		want           error
+	}{
+		{"not an administrator", false, false, false, client.ErrReserved},
+		{"administrator, not enabled", true, false, false, client.ErrNotEnabled},
+		{"enabled administrator, old session", true, true, true, client.ErrSessionGroup},
+	} {
+		restoreStanding := client.SetStandingForTests(tc.admin, tc.enabled)
+		restoreSession := client.SetSessionLacksGroup(tc.lacks)
+		c, err := client.Dial(answering(t, control.CodeRefused))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = c.Status()
+		c.Close()
+		restoreSession()
+		restoreStanding()
+		if !errors.Is(err, tc.want) {
+			t.Errorf("%s: err = %v, want %v", tc.name, err, tc.want)
 		}
 	}
 }

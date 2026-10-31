@@ -328,13 +328,17 @@ func (h *Host) Group(name string) (Group, error) {
 
 // IsAdmin reports whether the user with this UID is a member of the admin group, by the group database.
 // An unknown UID is no administrator.
-func (h *Host) IsAdmin(uid int) (bool, error) {
+func (h *Host) IsAdmin(uid int) (bool, error) { return h.IsMember(uid, GroupAdmin) }
+
+// IsMember reports whether the user with this UID is a member of the named group, by the group database:
+// listed in its members or having it as primary group. An unknown UID or group is no member.
+func (h *Host) IsMember(uid int, group string) (bool, error) {
 	d, err := h.load()
 	if err != nil {
 		return false, err
 	}
 	for _, p := range d.users {
-		if p.uid == uid && d.memberOf(p, GroupAdmin) {
+		if p.uid == uid && d.memberOf(p, group) {
 			return true, nil
 		}
 	}

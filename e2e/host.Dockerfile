@@ -16,7 +16,7 @@ RUN apt-get update \
 	&& systemctl enable docker containerd
 
 # An administrator account the way a real host has one.
-RUN useradd --create-home --shell /bin/bash e2e-admin \
+RUN useradd --create-home --shell /bin/bash --groups sudo e2e-admin \
 	&& echo 'e2e-admin ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/e2e-admin \
 	&& chmod 0440 /etc/sudoers.d/e2e-admin
 

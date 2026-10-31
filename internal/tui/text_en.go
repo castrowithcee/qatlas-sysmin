@@ -1,5 +1,7 @@
 package tui
 
+import "github.com/castrowithcee/qatlas-sysmin/internal/client"
+
 // textEN is the English catalog of the editor's own texts.
 var textEN = map[textID]string{
 	tListEmpty:                           "Nothing to show yet.",
@@ -130,7 +132,8 @@ var textEN = map[textID]string{
 	tErrExists:                           "A vault exists already.",
 	tErrBusy:                             "The service is busy.",
 	tErrTimeout:                          "The service took too long.",
-	tErrRefused:                          "The service refuses this user.",
+	tErrReserved:                         client.ReservedMessage,
+	tErrNotEnabled:                       "Your account is not enabled for sysmin; an enabled administrator enables it in sysmin tui under Host › Users.",
 	tErrInvalid:                          "The service rejected the input.",
 	tErrService:                          "The service reported an error.",
 	footerID("←/→ area"):                 "←/→ area",

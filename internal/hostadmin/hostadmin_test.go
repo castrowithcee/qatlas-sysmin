@@ -156,6 +156,22 @@ func TestIsAdmin(t *testing.T) {
 	}
 }
 
+func TestIsMember(t *testing.T) {
+	f := newFixture(t, false)
+	for _, tc := range []struct {
+		uid   int
+		group string
+		want  bool
+	}{
+		{1001, "docker", true}, {1001, "sysmin", true}, {1000, "sysmin", true}, {1001, "sudo", false}, {1000, "no-such-group", false},
+		{4242, "docker", false},
+	} {
+		if got, err := f.host.IsMember(tc.uid, tc.group); err != nil || got != tc.want {
+			t.Errorf("IsMember(%d, %q) = %v, %v; want %v", tc.uid, tc.group, got, err, tc.want)
+		}
+	}
+}
+
 func TestUnprivilegedFieldsAreUnknown(t *testing.T) {
 	f := newFixture(t, false)
 	u, err := f.host.User("demo-admin")

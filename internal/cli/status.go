@@ -20,15 +20,28 @@ func withService(socket string, fn func(*client.Client) error) error {
 	}
 	defer c.Close()
 	err = fn(c)
-	var ce *control.Error
-	if errors.As(err, &ce) && ce.Code == control.CodeRefused {
-		return errors.New("the service does not allow this user; only root and members of the group sysmin may use it")
+	if errors.Is(err, client.ErrSessionGroup) {
+		return dialError(err)
+	}
+	return accessError(err)
+}
+
+// accessError turns a caller without access into the one line that says so, printed without a prefix.
+func accessError(err error) error {
+	switch {
+	case errors.Is(err, client.ErrReserved):
+		return &plainError{client.ReservedMessage}
+	case errors.Is(err, client.ErrNotEnabled):
+		return &plainError{client.NotEnabledMessage}
 	}
 	return err
 }
 
 // dialError says what to check when the service cannot be reached.
 func dialError(err error) error {
+	if denied := accessError(err); denied != err {
+		return denied
+	}
 	var pe *client.PeerError
 	if errors.As(err, &pe) {
 		return err // it names the process and the next step itself

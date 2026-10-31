@@ -84,6 +84,10 @@ func (m *Model) takeStatus(msg statusMsg) tea.Cmd {
 		m.ovr.clear()
 		m.clearLists()
 	}
+	if isDenied(msg.err) {
+		m.denied = msg.err
+		return tea.Quit
+	}
 	if m.svc.again {
 		m.svc.again = false
 		return tea.Batch(m.statusCmd(), m.overviewCmd(), m.listsCmd())
@@ -138,10 +142,20 @@ func (m *Model) adminMinutes() int {
 	return int((left + time.Minute - 1) / time.Minute)
 }
 
+// isDenied reports whether err says the caller may not use sysmin.
+func isDenied(err error) bool {
+	return errors.Is(err, client.ErrReserved) || errors.Is(err, client.ErrNotEnabled)
+}
+
 // errorText is the fixed, short text of a failure. It never repeats what the service or the system said, so a
 // passphrase cannot reach the screen through it.
 func errorText(err error) string {
-	if errors.Is(err, client.ErrSessionGroup) {
+	switch {
+	case errors.Is(err, client.ErrReserved):
+		return tr(tErrReserved)
+	case errors.Is(err, client.ErrNotEnabled):
+		return tr(tErrNotEnabled)
+	case errors.Is(err, client.ErrSessionGroup):
 		return tr(tErrSessionGroup)
 	}
 	var pe *client.PeerError
@@ -170,8 +184,6 @@ func errorText(err error) string {
 		return tr(tErrBusy)
 	case control.CodeTimeout:
 		return tr(tErrTimeout)
-	case control.CodeRefused:
-		return tr(tErrRefused)
 	case control.CodeChanged:
 		return tr(tErrChanged)
 	case control.CodeInUse:

@@ -130,6 +130,8 @@ type Model struct {
 	quitting                             bool
 	// regroupAsked says the person quit to restart the interface under sudo -g sysmin; Run reports it.
 	regroupAsked bool
+	// denied is the error that took the access away while the interface ran; Run returns it after the quit.
+	denied error
 	// updateTo is the release the person quit to install; Run reports it.
 	updateTo  string
 	wheelSeen wheelSeen
