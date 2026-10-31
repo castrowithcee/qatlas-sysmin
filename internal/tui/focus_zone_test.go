@@ -50,7 +50,8 @@ func TestEscLeadsFromEveryAreaToTheTabLineAndBackIn(t *testing.T) {
 		{"3", areaActivity, true, 80, 24},
 		{"4", areaAccess, false, 80, 24},
 		{"5", areaLibrary, true, 80, 24},
-		{"6", areaSettings, true, 80, 24},
+		{"6", areaHost, true, 80, 24},
+		{"7", areaSettings, true, 80, 24},
 	}
 	for _, c := range cases {
 		for _, in := range []string{"down", "enter", "tab"} {

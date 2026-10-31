@@ -255,6 +255,7 @@ func appModel(t *testing.T, fb *fakeBackend, w, h int) *Model {
 	t.Cleanup(func() { tickEvery = every })
 	m := New(uiprefs.Default(), nil)
 	m.enableAreas(fb)
+	m.hostSrc = newFixtureHost()
 	sizedModel(m, w, h)
 	drain(m, m.statusCmd())
 	return m

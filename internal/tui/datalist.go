@@ -361,6 +361,10 @@ func (m *Model) currentPage() *dataPage {
 		return &m.lib.chans.page
 	case m.area == areaLibrary && m.lib.sub == libTemplates:
 		return &m.lib.tmpls.page
+	case m.area == areaHost && m.hst.sub == hostUsers:
+		return &m.hst.users.page
+	case m.area == areaHost && m.hst.sub == hostGroups:
+		return &m.hst.groups.page
 	}
 	return nil
 }
