@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -141,7 +142,7 @@ func TestProjectAdoptErrors(t *testing.T) {
 	d, dir := adoptStackDir(t, "")
 	sock := startAdoptService(t, true, d)
 	code, stdout, stderr := runCLIArgs("project", "adopt", dir, "--socket", sock, "--output", "json")
-	if code != exitRuntime || !strings.Contains(stdout, "compose-config-failed") || strings.Contains(stdout+stderr, "invalid compose file") {
+	if code != exitRuntime || !strings.Contains(stdout, "compose-config-failed") {
 		t.Errorf("blocked: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 	code, _, stderr = runCLIArgs("project", "adopt", filepath.Join(dir, "missing"), "--socket", sock)
@@ -185,10 +186,22 @@ func TestProjectAdoptNoAccessNamesPartAndNextStep(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(closed, 0o700) })
 	sock := startAdoptService(t, true, d)
 
-	code, _, stderr := runCLIArgs("project", "adopt", stack, "--socket", sock)
+	code, stdout, stderr := runCLIArgs("project", "adopt", stack, "--socket", sock, "--output", "json")
 	if code != exitRuntime || strings.Contains(stderr, "does not exist") ||
-		!strings.Contains(stderr, "may not pass "+closed) || !strings.Contains(stderr, "sudo setfacl -m u:sysmin:x "+closed) {
-		t.Errorf("no access: code = %d, stderr = %q", code, stderr)
+		!strings.Contains(stdout, "missing-access") || !strings.Contains(stdout, closed) || !strings.Contains(stdout, "setfacl -m u:") {
+		t.Errorf("no access: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+	if u, err := user.Current(); err == nil && !strings.Contains(stdout, "u:"+u.Username+":") {
+		t.Errorf("the hint does not name the service user %q: %q", u.Username, stdout)
+	}
+	var access []string
+	for _, r := range jsonRows(t, stdout) {
+		if r["type"] == "access" {
+			access = append(access, r["name"].(string)+" "+r["ref"].(string))
+		}
+	}
+	if len(access) == 0 || !strings.Contains(strings.Join(access, "\n"), "pass "+closed) {
+		t.Errorf("access rows = %q", access)
 	}
 	code, _, stderr = runCLIArgs("project", "adopt", filepath.Join(dir, "missing"), "--socket", sock)
 	if code != exitRuntime || !strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "setfacl") {

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/i18n"
 )
 
 // adoptFake is the fake service with a stack to adopt.
@@ -146,25 +145,26 @@ func TestAdoptRefusesWhatIsWrongBeforeAskingAndNamesTheFailure(t *testing.T) {
 	if m.fail != tr(tPrjNoDir) {
 		t.Errorf("fail = %q", m.fail)
 	}
-	fb.proj.adoptErr = &control.Error{Code: control.CodeNoAccess, Paths: []string{"/srv/demo"}}
-	send(m, "enter")
-	if want := tr(tPrjNoAccess, "/srv/demo"); m.fail != want || strings.Contains(m.fail, "does not exist") ||
-		!strings.Contains(m.fail, "may not pass /srv/demo") || !strings.Contains(m.fail, "sudo setfacl -m u:sysmin:x /srv/demo") {
-		t.Errorf("no access: fail = %q", m.fail)
-	}
 	send(m, "esc")
 	if m.projectPromptOpen() || m.prj.prompt != nil {
 		t.Error("esc keeps the panel")
 	}
 }
 
-func TestAdoptNoAccessTextInGerman(t *testing.T) {
-	useLanguage(t, i18n.German)
-	err := &control.Error{Code: control.CodeNoAccess, Paths: []string{"/srv/demo"}}
-	got := projectAdoptError(err)
-	if !strings.Contains(got, "/srv/demo nicht durchqueren") || !strings.Contains(got, "sudo setfacl -m u:sysmin:x /srv/demo") ||
-		strings.Contains(got, "gibt es nicht") {
-		t.Errorf("German no-access text = %q", got)
+func TestAdoptShowsEveryMissingAccess(t *testing.T) {
+	fb := adoptFake()
+	fb.proj.adopt.Problems = []control.AdoptProblem{{Code: "missing-access", Blocking: true, Message: "The service may not reach the stack.",
+		Access: []control.AdoptAccess{
+			{Path: "/srv/demo-stack", Right: control.AccessPass}, {Path: "/srv/demo-stack/.env", Right: control.AccessRead},
+			{Path: "/srv/demo-stack/compose.yaml", Right: control.AccessRead}, {Path: "/srv/demo-stack/data", Right: control.AccessWrite}}}}
+	m := projectsModel(t, fb, 120, 40)
+	adoptAsk(t, m, "/srv/demo-stack")
+	got := plain(m)
+	for _, want := range []string{"may not pass /srv/demo-stack", "may not read /srv/demo-stack/.env",
+		"may not read /srv/demo-stack/compose.yaml", "may not write /srv/demo-stack/data"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in\n%s", want, got)
+		}
 	}
 }
 

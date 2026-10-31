@@ -21,7 +21,6 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/gitrepo"
 	"github.com/castrowithcee/qatlas-sysmin/internal/source/version"
-	"github.com/castrowithcee/qatlas-sysmin/internal/writecheck"
 )
 
 // Problem codes.
@@ -44,11 +43,10 @@ const (
 	CodeBuildService      = "build-service"
 	CodeInvalidService    = "invalid-service"
 	CodeNoTrackedImage    = "no-tracked-image"
-	CodeNotWritable       = "not-writable"
 	CodeGitOrigin         = "git-origin"
 	CodeNoTag             = "no-tag-checked-out"
 	CodeTagUnreadable     = "git-tag-unreadable"
-	CodeNotReadable       = "not-readable"
+	CodeMissingAccess     = "missing-access"
 )
 
 // Compose labels set on every container of a stack.
@@ -75,6 +73,8 @@ type Problem struct {
 	Code    string
 	Message string
 	Hint    string
+	// Access lists the missing rights of a CodeMissingAccess problem.
+	Access []AccessNeed
 }
 
 // Proposal is what Inspect found. Project is always in manual mode and is complete only when Problems does
@@ -111,6 +111,12 @@ type inspector struct {
 	prop Proposal
 	// imageProblems are dropped when the stack is tracked through git, where the checkout sets the images.
 	imageProblems []Problem
+	// needs are the rights the service lacks; they become one CodeMissingAccess problem at the end.
+	needs []accessNeed
+	// hidden are the denied directories behind which further paths could not be checked.
+	hidden []string
+	// gitDenied is set when the .git directory exists but may not be used.
+	gitDenied bool
 }
 
 func (in *inspector) problem(code, msg, hint string) {
@@ -132,22 +138,37 @@ func Inspect(ctx context.Context, opts Options, dir, name string) (Proposal, err
 		return Proposal{}, fmt.Errorf("directory %q must be an absolute path", dir)
 	}
 	dir = filepath.Clean(dir)
-	if err := CheckDir(dir); err != nil {
+	var denied *AccessError
+	if err := CheckDir(dir); err != nil && !errors.As(err, &denied) {
 		return Proposal{}, fmt.Errorf("directory %q: %w", dir, err)
 	}
 	in := &inspector{opts: opts, dir: dir}
 	in.prop.Project = config.Project{Schema: config.CurrentSchema, Dir: dir}
 	in.prop.Versions = map[string]string{}
-
-	labels, err := in.stackLabels(ctx)
-	if err != nil {
+	if err := in.inspect(ctx, name, denied); err != nil {
 		return Proposal{}, err
 	}
+	in.accessProblem()
+	return in.prop, nil
+}
+
+// inspect fills the proposal. denied is the first part of the directory path that may not be passed, if any;
+// the labels come from Docker, so the stack can be read nevertheless.
+func (in *inspector) inspect(ctx context.Context, name string, denied *AccessError) error {
+	labels, err := in.stackLabels(ctx)
+	if err != nil {
+		return err
+	}
 	if labels == nil {
-		in.problem(CodeNoContainers, "no running container belongs to a Compose project in this directory",
-			"Start the stack with docker compose up -d from this directory, then adopt it.")
+		if denied != nil {
+			// Whether the stack runs here cannot be told; the closed directory is the finding.
+			in.pass(in.dir, true)
+		} else {
+			in.problem(CodeNoContainers, "no running container belongs to a Compose project in this directory",
+				"Start the stack with docker compose up -d from this directory, then adopt it.")
+		}
 		in.prop.Project.Name = name
-		return in.prop, nil
+		return nil
 	}
 	p := &in.prop.Project
 	p.ComposeProject, p.ComposeFiles, p.EnvFile = labels.project, labels.files, labels.envFile
@@ -160,6 +181,7 @@ func Inspect(ctx context.Context, opts Options, dir, name string) (Proposal, err
 			"Choose a name of lowercase letters, digits and dashes, at most 63 characters.")
 	}
 
+	in.checkAccess(labels)
 	services := in.composeServices(ctx)
 	images := in.images(services)
 
@@ -177,13 +199,15 @@ func Inspect(ctx context.Context, opts Options, dir, name string) (Proposal, err
 		in.prop.Problems = append(in.prop.Problems, in.imageProblems...)
 		in.imageSource(images, len(services) > 0)
 	}
-	return in.prop, nil
+	return nil
 }
 
 type stackLabels struct {
 	project string
 	files   []string
 	envFile string
+	// envFiles are all environment files the labels name, or the .env of the directory when they name none.
+	envFiles []string
 }
 
 type rawLabels struct{ project, files, envFile string }
@@ -259,7 +283,16 @@ func (in *inspector) stackLabels(ctx context.Context) (*stackLabels, error) {
 			"Set compose_files by hand; without the right files Compose may create duplicate containers.")
 	}
 	out.envFile = filepath.Join(in.dir, ".env")
-	if envs := splitList(first.envFile); len(envs) > 0 {
+	envs := splitList(first.envFile)
+	for _, e := range envs {
+		if c, ok := cleanAbs(e); ok {
+			out.envFiles = append(out.envFiles, c)
+		}
+	}
+	if len(out.envFiles) == 0 {
+		out.envFiles = []string{out.envFile}
+	}
+	if len(envs) > 0 {
 		if len(envs) > 1 {
 			in.problem(CodeMultipleEnvFiles, "the stack uses several environment files, sysmin manages one",
 				"Keep the image variable in a single env file and recreate the stack with it.")
@@ -299,15 +332,8 @@ type service struct {
 // cannot produce it.
 func (in *inspector) composeServices(ctx context.Context) map[string]service {
 	p := &in.prop.Project
-	// Compose would fail on these with a message that hides the cause.
-	unreadable := false
-	for _, f := range p.ComposeFiles {
-		if !readable(f) {
-			unreadable = true
-			in.problem(CodeNotReadable, fmt.Sprintf("sysmin may not read the Compose file %s", f), grantHint(f, "r"))
-		}
-	}
-	if unreadable {
+	// Compose would fail on missing access with a message that hides the cause.
+	if len(in.needs) > 0 {
 		return nil
 	}
 	args := []string{"compose"}
@@ -319,13 +345,23 @@ func (in *inspector) composeServices(ctx context.Context) map[string]service {
 	}
 	args = append(args, "config", "--no-interpolate", "--format", "json")
 	res, err := in.opts.Runner.Run(ctx, execute.Command{Name: "docker", Args: args, Dir: in.dir})
-	fail := func() map[string]service {
-		in.problem(CodeComposeConfig, "docker compose config failed, so the images cannot be read",
-			"Run docker compose config in the directory and fix what it reports.")
+	fail := func(out string) map[string]service {
+		line := composeFailureLine(out)
+		if path, ok := deniedOpen(line); ok {
+			if in.pass(path, false) {
+				in.need(path, RightRead, false)
+			}
+			return nil
+		}
+		msg := "docker compose config failed, so the images cannot be read"
+		if line != "" {
+			msg = "docker compose config failed: " + truncateUTF8(line, maxComposeLine)
+		}
+		in.problem(CodeComposeConfig, msg, "Run docker compose config in the directory and fix what it reports.")
 		return nil
 	}
 	if err != nil {
-		return fail()
+		return fail(string(res.Output))
 	}
 	// Warnings may precede the single JSON document.
 	out := string(res.Output)
@@ -333,7 +369,7 @@ func (in *inspector) composeServices(ctx context.Context) map[string]service {
 	if !strings.HasPrefix(out, "{") {
 		i := strings.Index(out, "\n{")
 		if i < 0 {
-			return fail()
+			return fail(out)
 		}
 		start = i + 1
 	}
@@ -341,7 +377,7 @@ func (in *inspector) composeServices(ctx context.Context) map[string]service {
 		Services map[string]service `json:"services"`
 	}
 	if err := json.NewDecoder(strings.NewReader(out[start:])).Decode(&doc); err != nil {
-		return fail()
+		return fail("")
 	}
 	return doc.Services
 }
@@ -497,7 +533,7 @@ func (in *inspector) currentVersion(im config.Image, g *imageGroup) {
 		err, found = nil, false
 	case err != nil:
 		if errors.Is(err, fs.ErrPermission) {
-			in.imageProblem(CodeEnvFileUnreadable, "sysmin may not read the env file "+in.prop.Project.EnvFile, grantHint(in.prop.Project.EnvFile, "r"))
+			in.imageProblem(CodeEnvFileUnreadable, "sysmin may not read the env file "+in.prop.Project.EnvFile, "Give "+serviceUser()+" read access to it.")
 		} else {
 			in.imageProblem(CodeEnvFileUnreadable, "the env file cannot be read", "Make the env file a regular file that sysmin may read.")
 		}
@@ -537,22 +573,11 @@ func (in *inspector) versionProblem(what, val string, image bool) {
 	}
 }
 
-// hasGit reports whether the directory is a git working copy. A .git that the account may not use is a
-// blocking finding of its own and counts as no git, since the tag cannot be read through it.
+// hasGit reports whether the directory is a git working copy. A .git directory that the account may not use
+// still counts, so that the finding names it instead of a misleading image problem.
 func (in *inspector) hasGit() bool {
-	git := filepath.Join(in.dir, ".git")
-	info, err := os.Lstat(git)
-	if err != nil {
-		if errors.Is(err, fs.ErrPermission) {
-			in.problem(CodeNotReadable, "sysmin may not look at "+git, grantHint(in.dir, "x"))
-		}
-		return false
-	}
-	if info.IsDir() && !passable(git) {
-		in.problem(CodeNotReadable, "sysmin may not read the git directory "+git, grantHint(git, "rx"))
-		return false
-	}
-	return true
+	_, err := os.Lstat(filepath.Join(in.dir, ".git"))
+	return err == nil
 }
 
 // imageSource finishes a project that tracks images through env variables.
@@ -560,6 +585,8 @@ func (in *inspector) imageSource(images []config.Image, haveServices bool) {
 	p := &in.prop.Project
 	p.Images = images
 	p.Template = "image-tag"
+	// The env file is written whatever Compose said.
+	in.checkWrite(p.EnvFile, false)
 	if len(images) == 0 {
 		p.Template = ""
 		if !haveServices {
@@ -568,9 +595,6 @@ func (in *inspector) imageSource(images []config.Image, haveServices bool) {
 		in.problem(CodeNoTrackedImage, "no image tag is an environment variable, so there is nothing sysmin could update",
 			"Use image: repository:${APP_VERSION} in the compose file, or adopt a git working copy.")
 	}
-	if err := writecheck.File(p.EnvFile); err != nil {
-		in.problem(CodeNotWritable, "sysmin may not write the env file", "Give "+serviceUser()+" write access to "+p.EnvFile+".")
-	}
 }
 
 // gitSource finishes a project that tracks the tags of a git working copy.
@@ -578,8 +602,9 @@ func (in *inspector) gitSource(ctx context.Context) {
 	p := &in.prop.Project
 	p.Template = "git-tag"
 	p.EnvFile = ""
-	if err := writecheck.Dir(in.dir); err != nil {
-		in.problem(CodeNotWritable, "sysmin may not write the working copy", "Give "+serviceUser()+" write access to "+in.dir+".")
+	in.checkWrite(in.dir, true)
+	if in.gitDenied {
+		return
 	}
 
 	g := &config.GitSource{VersionRule: config.VersionRule{Mode: config.ModeManual}}

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
@@ -21,8 +22,10 @@ type fakeDocker struct {
 	stacks  string
 	inspect string
 	compose string
-	origin  string
-	calls   []execute.Command
+	// composeOut is the output of a failing docker compose config; it is used when compose is empty.
+	composeOut string
+	origin     string
+	calls      []execute.Command
 }
 
 func (f *fakeDocker) Run(_ context.Context, c execute.Command) (execute.Result, error) {
@@ -39,7 +42,11 @@ func (f *fakeDocker) Run(_ context.Context, c execute.Command) (execute.Result, 
 		out = f.inspect
 	case c.Args[0] == "compose":
 		if f.compose == "" {
-			return execute.Result{Output: []byte("invalid compose file")}, &execute.ExitError{Code: 1}
+			out := "invalid compose file"
+			if f.composeOut != "" {
+				out = f.composeOut
+			}
+			return execute.Result{Output: []byte(out)}, &execute.ExitError{Code: 1}
 		}
 		out = f.compose
 	}
@@ -314,6 +321,44 @@ func TestComposeConfigFailureAndWarnings(t *testing.T) {
 	}
 }
 
+func TestComposeFailureMessage(t *testing.T) {
+	f, dir := stack(t, "")
+	long := strings.Repeat("é", 400)
+	cases := []struct {
+		out, want string
+	}{
+		{"level=warning msg=\"x\"\n\x1b[31mservices.app must be a mapping\x1b[0m\x1b]0;title\x07\x07\r\nlevel=warning msg=\"y\"\n", "services.app must be a mapping"},
+		{"first\nfailed to read /srv/demo-stack/.env: line 3: DEMO_SECRET=not-a-real-secret\n", "failed to read /srv/demo-stack/.env: line 3:"},
+		{"bad\x00 \x07value\ttab", "bad value tab"},
+	}
+	for _, c := range cases {
+		f.composeOut = c.out
+		p := inspect(t, f, dir)
+		if !slices.Equal(codes(p), []string{CodeComposeConfig}) || !strings.Contains(p.Problems[0].Message, c.want) {
+			t.Errorf("out %q: problems = %+v", c.out, p.Problems)
+		}
+		if strings.ContainsAny(p.Problems[0].Message, "\x1b\x07\x00\n\r") || strings.Contains(p.Problems[0].Message, "not-a-real-secret") {
+			t.Errorf("unclean message %q", p.Problems[0].Message)
+		}
+	}
+	f.composeOut = long
+	p := inspect(t, f, dir)
+	line := strings.TrimPrefix(p.Problems[0].Message, "docker compose config failed: ")
+	if len(line) != maxComposeLine || !utf8.ValidString(line) {
+		t.Errorf("line = %d bytes, valid %v", len(line), utf8.ValidString(line))
+	}
+}
+
+func TestComposePermissionDeniedIsMissingAccess(t *testing.T) {
+	f, dir := stack(t, "")
+	f.composeOut = "level=warning msg=\"x\"\nopen " + dir + "/.env: permission denied\n"
+	p := inspect(t, f, dir)
+	pr := missingAccess(t, p)
+	if !slices.Equal(pr.Access, []AccessNeed{{filepath.Join(dir, ".env"), RightRead}}) || slices.Contains(codes(p), CodeComposeConfig) {
+		t.Errorf("problems = %+v", p.Problems)
+	}
+}
+
 func TestNotWritable(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root can write to read-only files")
@@ -324,7 +369,7 @@ func TestNotWritable(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := inspect(t, f, dir)
-	if !slices.Equal(codes(p), []string{CodeNotWritable}) || p.Problems[0].Hint == "" {
+	if !slices.Equal(codes(p), []string{CodeMissingAccess}) || p.Problems[0].Hint == "" {
 		t.Errorf("problems = %+v", p.Problems)
 	}
 }
