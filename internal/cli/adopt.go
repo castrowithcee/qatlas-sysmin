@@ -20,12 +20,6 @@ func adoptError(what string, err error) error {
 		switch ce.Code {
 		case control.CodeNotFound:
 			return fmt.Errorf("%s: the directory does not exist or is not a directory", what)
-		case control.CodeNoAccess:
-			path := "a parent directory"
-			if len(ce.Paths) > 0 {
-				path = ce.Paths[0]
-			}
-			return fmt.Errorf("%s: the directory exists, but the service user may not pass %s; give it search access, for example: sudo setfacl -m u:sysmin:x %s", what, quote(path), quote(path))
 		case control.CodeDockerUnavailable:
 			return fmt.Errorf("%s: the service cannot ask Docker for the running containers; check that Docker runs and that the service may use it", what)
 		case control.CodeTimeout:
@@ -57,6 +51,9 @@ func adoptRows(res control.AdoptResult, dryRun bool) output.Collection {
 	}
 	for _, pr := range res.Problems {
 		add(output.Row{"type": "problem", "blocking": pr.Blocking, "code": pr.Code, "message": pr.Message, "hint": pr.Hint})
+		for _, a := range pr.Access {
+			add(output.Row{"type": "access", "name": a.Right, "ref": a.Path})
+		}
 	}
 	status, message := "dry-run", "dry run; nothing was stored"
 	switch {

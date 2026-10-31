@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -189,6 +190,18 @@ func TestProjectAdoptNoAccessNamesPartAndNextStep(t *testing.T) {
 	if code != exitRuntime || strings.Contains(stderr, "does not exist") ||
 		!strings.Contains(stdout, "missing-access") || !strings.Contains(stdout, closed) || !strings.Contains(stdout, "setfacl -m u:") {
 		t.Errorf("no access: code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+	if u, err := user.Current(); err == nil && !strings.Contains(stdout, "u:"+u.Username+":") {
+		t.Errorf("the hint does not name the service user %q: %q", u.Username, stdout)
+	}
+	var access []string
+	for _, r := range jsonRows(t, stdout) {
+		if r["type"] == "access" {
+			access = append(access, r["name"].(string)+" "+r["ref"].(string))
+		}
+	}
+	if len(access) == 0 || !strings.Contains(strings.Join(access, "\n"), "pass "+closed) {
+		t.Errorf("access rows = %q", access)
 	}
 	code, _, stderr = runCLIArgs("project", "adopt", filepath.Join(dir, "missing"), "--socket", sock)
 	if code != exitRuntime || !strings.Contains(stderr, "does not exist") || strings.Contains(stderr, "setfacl") {

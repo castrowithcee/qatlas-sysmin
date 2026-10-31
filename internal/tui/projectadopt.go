@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -107,12 +106,6 @@ func projectAdoptError(err error) string {
 	switch {
 	case isCode(err, control.CodeNotFound):
 		return tr(tPrjNoDir)
-	case isCode(err, control.CodeNoAccess):
-		var ce *control.Error
-		if errors.As(err, &ce) && len(ce.Paths) > 0 {
-			return tr(tPrjNoAccess, pathsText(ce.Paths[:1]))
-		}
-		return errorText(err)
 	case isCode(err, control.CodeDockerUnavailable):
 		return tr(tPrjNoDocker)
 	}
@@ -181,6 +174,9 @@ func (m *Model) showAdoption(res control.AdoptResult) {
 		} else {
 			lines = append(lines, styles.warning.Render("  "+warnMark+" "+truncateCells(text, width-2)))
 		}
+		for _, a := range pr.Access {
+			lines = append(lines, styles.fail.Render("    "+truncateCells(tr(accessText(a.Right), a.Path), width-4)))
+		}
 	}
 	q := question{title: tr(tPrjAdoptTitle, oneLine(pj.Name)), consequence: tr(tPrjAdoptOK), details: lines,
 		keys: "enter take over · {back} back"}
@@ -188,6 +184,17 @@ func (m *Model) showAdoption(res control.AdoptResult) {
 		q.consequence, q.warn, q.keys = tr(tPrjAdoptBlock), true, "{back} close"
 	}
 	m.openProjectDialog(&projectDialog{kind: projDlgAdopt, name: pj.Name, adopt: &res, blocked: blocked}, q)
+}
+
+// accessText is the catalog text for a missing right; it takes the path.
+func accessText(right string) textID {
+	switch right {
+	case control.AccessPass:
+		return tPrjAccessPass
+	case control.AccessRead:
+		return tPrjAccessRead
+	}
+	return tPrjAccessWrite
 }
 
 func versionOrUnknown(v string) string {
