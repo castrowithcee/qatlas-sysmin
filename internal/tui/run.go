@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
@@ -21,6 +22,8 @@ type Options struct {
 	Redactor *redact.Redactor
 	// Backend serves the service interface. Nil runs the bare frame without a service.
 	Backend Backend
+	// Host is what the Host area reads; nil reads the local account databases without privilege.
+	Host HostSource
 	// PrefsPath is the file Settings writes the preferences to; empty means they cannot be saved.
 	PrefsPath string
 	// Version is the running program. Releases looks up the releases for Settings; nil offers no lookup.
@@ -61,6 +64,10 @@ func Run(opts Options) error {
 	applyKeys(prefs.Keys)
 	model := New(prefs, opts.Redactor)
 	model.prefsPath, model.version, model.releases = opts.PrefsPath, opts.Version, opts.Releases
+	model.hostSrc = opts.Host
+	if model.hostSrc == nil {
+		model.hostSrc = hostadmin.NewHost(false)
+	}
 	if opts.Backend != nil {
 		model.enableAreas(opts.Backend)
 	}

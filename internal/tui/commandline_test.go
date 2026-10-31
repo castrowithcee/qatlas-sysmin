@@ -123,7 +123,7 @@ func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
 
 func TestEmptyLineKeysFollowTheBindingAndDescriptionsNameNoKey(t *testing.T) {
 	m := projectsModel(t, projectsFake(), 120, 40)
-	keys := map[string]string{"go overview": "1", "go settings": "6", "new project": keyLabel(actNew), "edit project": keyLabel(actEdit),
+	keys := map[string]string{"go overview": "1", "go settings": "7", "new project": keyLabel(actNew), "edit project": keyLabel(actEdit),
 		"duplicate project": keyLabel(actDuplicate), "admin session": keyLabel(actLock), "reload": keyLabel(actReload),
 		"update": keyLabel(actSelfUpdate), "help": keyLabel(actHelp), "info": keyLabel(actInfo), "quit": keyLabel(actQuit)}
 	for _, c := range matchCommands(m.commands(), "") {

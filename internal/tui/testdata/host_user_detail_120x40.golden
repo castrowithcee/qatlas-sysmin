@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings 
+  [Users]  Groups   Folders 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                         2/3 ╔═ demo-user ════════════════════════════════════╗
+╭───────────────────────────────────────────────────────────────────╮ ║ [Overview]  Details   Raw                      ║
+│   Name        Admin              Docker  Groups            System │ ║                                                ║
+│   demo-admin  yes                yes     demo-admin, sud…         │ ║ Name              demo-user                    ║
+│ > demo-user   yes · not enabled  no      demo-user, sudo…         │ ║ Type              regular                      ║
+│   svc-demo    no                 no      svc-demo          system │ ║ Admin             yes · not enabled            ║
+╰───────────────────────────────────────────────────────────────────╯ ║ Docker            no                           ║
+                                                                      ║ Enabled (sysmin)  no                           ║
+                                                                      ║ Groups            demo-user, sudo, demo-team   ║
+                                                                      ║ Home              /home/demo-user              ║
+                                                                      ║ Locked            no                           ║
+                                                                      ╚════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+esc back  ctrl+l admin  i info  c copy  ? help  : cmds  q quit                                  ←/→ tab  ↑/↓ scroll  2/3

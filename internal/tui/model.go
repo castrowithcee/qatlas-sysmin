@@ -89,7 +89,10 @@ type Model struct {
 	acc accessState
 	act activityState
 	lib libraryState
-	set settingsState
+	// hst is the Host area and hostSrc what it reads; see host.go.
+	hst     hostState
+	hostSrc HostSource
+	set     settingsState
 	// prj is the state of the Projects area; see projects.go.
 	prj *projectsState
 	pop *popup
@@ -207,6 +210,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.dataWant()
 	case accDetailMsg:
 		m.takeAccDetail(msg)
+		return m, nil
+	case hostUsersMsg:
+		m.takeHostUsers(msg)
+		return m, nil
+	case hostGroupsMsg:
+		m.takeHostGroups(msg)
 		return m, nil
 	case credentialsMsg:
 		m.takeCredentials(msg)

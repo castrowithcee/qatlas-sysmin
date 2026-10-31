@@ -193,6 +193,10 @@ func areaPages(a area) []areaPage {
 		for sub := 0; sub < libCount; sub++ {
 			out = append(out, areaPage{sub, libKey(sub), libTitle(sub)})
 		}
+	case areaHost:
+		for sub := 0; sub < hostCount; sub++ {
+			out = append(out, areaPage{sub, hostKey(sub), hostTitle(sub)})
+		}
 	}
 	return out
 }

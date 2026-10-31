@@ -20,18 +20,19 @@ const (
 	areaActivity
 	areaAccess
 	areaLibrary
+	areaHost
 	areaSettings
 	areaCount
 )
 
 // key is the English name of the area, whatever language is drawn: the name commands are given by.
 func (a area) key() string {
-	return [...]string{"Overview", "Projects", "Activity", "Access", "Library", "Settings"}[a]
+	return [...]string{"Overview", "Projects", "Activity", "Access", "Library", "Host", "Settings"}[a]
 }
 
 // title is the name of the area as drawn.
 func (a area) title() string {
-	return tr([...]textID{tAreaOverview, tAreaProjects, tAreaActivity, tAreaAccess, tAreaLibrary, tAreaSettings}[a])
+	return tr([...]textID{tAreaOverview, tAreaProjects, tAreaActivity, tAreaAccess, tAreaLibrary, tAreaHost, tAreaSettings}[a])
 }
 
 // areaByName finds the area whose English name is name, ignoring case.
@@ -66,8 +67,8 @@ func (m *Model) enableAreas(backend Backend) {
 // about first.
 func (m *Model) setArea(a area) tea.Cmd { return m.show(a, 0) }
 
-// show makes page sub of area a the screen, with the focus in its content; only Settings, Activity and
-// Library have pages.
+// show makes page sub of area a the screen, with the focus in its content; only Settings, Activity, Library
+// and Host have pages.
 func (m *Model) show(a area, sub int) tea.Cmd { return m.showIn(a, sub, zoneContent) }
 
 // showIn is show with the focus on zone z.
@@ -85,6 +86,9 @@ func (m *Model) showIn(a area, sub int, z zone) tea.Cmd {
 		}
 		if a == areaActivity {
 			m.act.sub = sub
+		}
+		if a == areaHost {
+			m.hst.sub = sub
 		}
 		m.closeDetails()
 		return m.enterPage()
@@ -117,6 +121,8 @@ func (m *Model) enterPage() tea.Cmd {
 		case libTemplates:
 			return m.templatesCmd()
 		}
+	case m.area == areaHost:
+		return m.hostCmd()
 	case m.area == areaSettings:
 		m.loadForms()
 		switch m.set.sub {
@@ -222,7 +228,7 @@ func (m *Model) digitKey(key tea.KeyPressMsg) tea.Cmd {
 // hasSubs reports whether the area shows a strip of its pages under the tab line.
 func (m *Model) hasSubs() bool {
 	switch m.area {
-	case areaSettings, areaLibrary:
+	case areaSettings, areaLibrary, areaHost:
 		return true
 	case areaActivity:
 		return actPages > 1
@@ -338,6 +344,8 @@ func (m *Model) barKey(key tea.KeyPressMsg) tea.Cmd {
 		return m.setLibSub(m.lib.sub + step)
 	case areaActivity:
 		return m.setActSub(m.act.sub + step)
+	case areaHost:
+		return m.setHostSub(m.hst.sub + step)
 	}
 	return nil
 }
@@ -347,6 +355,7 @@ func (m *Model) closeDetails() {
 	m.acc.page.open, m.lib.cred.page.open, m.lib.chans.page.open = false, false, false
 	m.lib.tmpls.page.open, m.act.page.open, m.lib.cred.problems = false, false, nil
 	m.act.runs.page.open = false
+	m.hst.users.page.open, m.hst.groups.page.open = false, false
 	if m.act.runs.log.open {
 		m.act.runs.log.open = false
 		m.act.runs.log.gen++
@@ -381,6 +390,8 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.libraryKey(key)
 	case areaActivity:
 		return m.activityKey(key)
+	case areaHost:
+		return m.hostKey(key)
 	}
 	return nil, false
 }
@@ -463,6 +474,11 @@ func (m *Model) subLine() (string, []navSpan) {
 		for i := 0; i < actPages; i++ {
 			words = append(words, actTitle(i))
 		}
+	case areaHost:
+		active = m.hst.sub
+		for i := 0; i < hostCount; i++ {
+			words = append(words, hostTitle(i))
+		}
 	}
 	if !m.hasSubs() {
 		return "", nil
@@ -522,6 +538,8 @@ func (m *Model) setSubPage(i int) tea.Cmd {
 		return m.setLibSub(i)
 	case areaActivity:
 		return m.setActSub(i)
+	case areaHost:
+		return m.setHostSub(i)
 	}
 	return nil
 }
@@ -558,6 +576,8 @@ func (m *Model) areaKeys() string {
 		keys = append(keys, m.libraryKeys()...)
 	case m.area == areaActivity:
 		keys = append(keys, m.activityKeys()...)
+	case m.area == areaHost:
+		keys = append(keys, m.hostKeys()...)
 	}
 	if m.zoneNow() == zoneContent && !m.innerLevel() {
 		keys = append(keys, "{back} back")
@@ -597,6 +617,8 @@ func (m *Model) areaBody() string {
 		return m.libraryBody()
 	case areaActivity:
 		return m.activityBody()
+	case areaHost:
+		return m.hostBody()
 	}
 	return m.wrapped(styles.hint, tr(tListEmpty))
 }

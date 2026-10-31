@@ -224,7 +224,7 @@ func TestTypedSecretIsNeverDrawn(t *testing.T) {
 		check("the passphrase entry")
 		typed(m, testPass)
 		send(m, "enter")
-		for _, key := range []string{"1", "2", "3", "4", "5", "6"} {
+		for _, key := range []string{"1", "2", "3", "4", "5", "6", "7"} {
 			send(m, key)
 			check("area " + key)
 			if key == "4" || key == "5" {
