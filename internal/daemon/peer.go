@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/user"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -16,6 +17,9 @@ import (
 
 // ServiceGroup is the group whose members may use the control socket, besides root.
 const ServiceGroup = control.ServiceGroup
+
+// AdminGroup is the group whose members are the administrators of the host.
+const AdminGroup = "sudo"
 
 // NoUID stands in for the user id of a peer whose credentials could not be read.
 const NoUID = ^uint32(0)
@@ -33,6 +37,8 @@ type Resolver interface {
 	GroupID(name string) (uint32, error)
 	// PeerGroups returns the supplementary groups of the peer's process.
 	PeerGroups(p Peer) ([]uint32, error)
+	// IsAdmin reports whether the user with this id is, per the group database, a member of AdminGroup.
+	IsAdmin(uid uint32) (bool, error)
 }
 
 // SystemResolver reads the group database and /proc.
@@ -56,6 +62,58 @@ func (SystemResolver) PeerGroups(p Peer) ([]uint32, error) {
 	}
 	defer f.Close()
 	return parseGroups(f)
+}
+
+// IsAdmin implements Resolver by reading /etc/group and /etc/passwd directly. The files are the whole
+// truth here: no NSS, so a user known only to LDAP or SSSD is not an administrator.
+func (SystemResolver) IsAdmin(uid uint32) (bool, error) {
+	group, err := os.Open("/etc/group")
+	if err != nil {
+		return false, err
+	}
+	defer group.Close()
+	passwd, err := os.Open("/etc/passwd")
+	if err != nil {
+		return false, err
+	}
+	defer passwd.Close()
+	return adminInDatabase(group, passwd, uid)
+}
+
+// adminInDatabase reports whether uid is listed in AdminGroup's member list or has it as primary group. A
+// missing AdminGroup, an unknown uid or a malformed line yields false or an error, never access.
+func adminInDatabase(group, passwd io.Reader, uid uint32) (bool, error) {
+	var gid string
+	var members []string
+	found := false
+	sc := bufio.NewScanner(group)
+	for sc.Scan() {
+		f := strings.Split(sc.Text(), ":")
+		if len(f) < 4 || f[0] != AdminGroup {
+			continue
+		}
+		gid, members, found = f[2], strings.Split(f[3], ","), true
+		break
+	}
+	if err := sc.Err(); err != nil {
+		return false, err
+	}
+	if !found {
+		return false, nil
+	}
+	want := strconv.FormatUint(uint64(uid), 10)
+	sc = bufio.NewScanner(passwd)
+	for sc.Scan() {
+		f := strings.Split(sc.Text(), ":")
+		if len(f) < 4 || f[2] != want {
+			continue
+		}
+		if f[3] == gid {
+			return true, nil
+		}
+		return slices.Contains(members, f[0]), nil // the first entry of the uid decides, as getpwuid does
+	}
+	return false, sc.Err()
 }
 
 func parseGroups(r io.Reader) ([]uint32, error) {
@@ -102,6 +160,27 @@ func peerCred(conn net.Conn) (Peer, error) {
 		return Peer{}, credErr
 	}
 	return Peer{PID: cred.Pid, UID: cred.Uid, GID: cred.Gid}, nil
+}
+
+// isAdmin reports whether p is root or a member of AdminGroup in the group database. Any error means no.
+func isAdmin(res Resolver, p Peer) bool {
+	if p.UID == 0 {
+		return true
+	}
+	ok, err := res.IsAdmin(p.UID)
+	return err == nil && ok
+}
+
+// admit returns "" for a peer that may use the socket, CodeRefused for one outside ServiceGroup and
+// CodeNotAdmin for one inside it that is no administrator.
+func admit(res Resolver, p Peer) string {
+	switch {
+	case !allowed(res, p):
+		return control.CodeRefused
+	case !isAdmin(res, p):
+		return control.CodeNotAdmin
+	}
+	return ""
 }
 
 // allowed reports whether p may use the socket: root, or a member of ServiceGroup by its primary or one of

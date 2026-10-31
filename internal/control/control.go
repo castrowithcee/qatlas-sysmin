@@ -102,7 +102,9 @@ const (
 // The codes an answer's error carries. They are fixed words, never text built from a request, so an answer
 // can neither carry a secret nor echo what a peer sent.
 const (
-	CodeRefused    = "refused"
+	CodeRefused = "refused"
+	// CodeNotAdmin answers a peer that may reach the socket but is not an administrator, or no longer is.
+	CodeNotAdmin   = "not-admin"
 	CodeBadRequest = "bad-request"
 	CodeVersion    = "version"
 	CodeUnknownOp  = "unknown-operation"

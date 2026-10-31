@@ -20,6 +20,7 @@ type testGroups struct{}
 
 func (testGroups) GroupID(string) (uint32, error)           { return uint32(os.Getgid()), nil }
 func (testGroups) PeerGroups(daemon.Peer) ([]uint32, error) { return nil, nil }
+func (testGroups) IsAdmin(uint32) (bool, error)             { return true, nil }
 
 func runCLIArgs(args ...string) (int, string, string) {
 	opts := &Options{Redactor: &redact.Redactor{}}

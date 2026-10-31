@@ -264,9 +264,9 @@ func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 		s.write(conn, control.Response{V: control.Version, Error: control.CodeRefused})
 		return
 	}
-	if !allowed(s.cfg.Resolver, peer) {
-		s.record(peer.UID, auditlog.OperationControlRefuse, "", time.Now(), control.CodeRefused)
-		s.write(conn, control.Response{V: control.Version, Error: control.CodeRefused})
+	if code := admit(s.cfg.Resolver, peer); code != "" {
+		s.record(peer.UID, auditlog.OperationControlRefuse, "", time.Now(), code)
+		s.write(conn, control.Response{V: control.Version, Error: code})
 		return
 	}
 
@@ -300,6 +300,14 @@ func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 			}
 			s.record(peer.UID, auditlog.OperationControlRequest, "", start, code)
 			s.write(conn, control.Response{V: control.Version, Error: code})
+			return
+		}
+
+		// Admin rights are read again for every request: a revocation applies to an open connection too.
+		if !isAdmin(s.cfg.Resolver, peer) {
+			clear(line)
+			s.record(peer.UID, auditlog.OperationControlRefuse, "", start, control.CodeNotAdmin)
+			s.write(conn, control.Response{V: control.Version, Error: control.CodeNotAdmin})
 			return
 		}
 

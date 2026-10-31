@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -52,10 +53,21 @@ func (m *memLog) wait(t *testing.T, n int) []auditlog.Fields {
 }
 
 type fakeResolver struct {
-	gid    uint32
-	groups []uint32
-	err    error
+	gid      uint32
+	groups   []uint32
+	err      error
+	notAdmin bool
 }
+
+func (f fakeResolver) IsAdmin(uint32) (bool, error) { return !f.notAdmin, nil }
+
+// revocable is a resolver whose admin right can be taken away while a connection is open.
+type revocable struct {
+	fakeResolver
+	revoked atomic.Bool
+}
+
+func (r *revocable) IsAdmin(uint32) (bool, error) { return !r.revoked.Load(), nil }
 
 func (f fakeResolver) GroupID(string) (uint32, error)    { return f.gid, f.err }
 func (f fakeResolver) PeerGroups(Peer) ([]uint32, error) { return f.groups, nil }
@@ -161,6 +173,82 @@ func TestPeerCheck(t *testing.T) {
 		if got := allowed(tc.res, tc.peer); got != tc.want {
 			t.Errorf("%s: allowed = %v, want %v", tc.name, got, tc.want)
 		}
+	}
+}
+
+func TestAdminCheck(t *testing.T) {
+	member := fakeResolver{gid: 990, groups: []uint32{990}}
+	noAdmin := member
+	noAdmin.notAdmin = true
+	for _, tc := range []struct {
+		name string
+		peer Peer
+		res  Resolver
+		want string
+	}{
+		{"root without database", Peer{UID: 0}, fakeResolver{err: errors.New("no group"), notAdmin: true}, ""},
+		{"admin in service group", Peer{UID: 1234, GID: 100}, member, ""},
+		{"service group without admin", Peer{UID: 1234, GID: 100}, noAdmin, control.CodeNotAdmin},
+		{"admin outside service group", Peer{UID: 1234, GID: 100}, fakeResolver{gid: 990, groups: []uint32{4}}, control.CodeRefused},
+		{"database error", Peer{UID: 1234, GID: 100}, errAdmin{member}, control.CodeNotAdmin},
+	} {
+		if got := admit(tc.res, tc.peer); got != tc.want {
+			t.Errorf("%s: admit = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+type errAdmin struct{ fakeResolver }
+
+func (errAdmin) IsAdmin(uint32) (bool, error) { return true, errors.New("unreadable") }
+
+func TestAdminInDatabase(t *testing.T) {
+	const accounts = "root:x:0:0::/root:/bin/sh\ndemo-user:x:1001:1001::/home/demo-user:/bin/sh\n" +
+		"demo-admin:x:1002:1002::/home/demo-admin:/bin/sh\ndemo-primary:x:1003:27::/home/p:/bin/sh\n" +
+		"broken\ndemo-other:x:1004:1004::/home/o:/bin/sh\n"
+	const groups = "sysmin:x:990:demo-user,demo-admin\nsudo:x:27:demo-admin,demo-other-name\n"
+	for _, tc := range []struct {
+		name             string
+		groups, accounts string
+		uid              uint32
+		want             bool
+	}{
+		{"listed member", groups, accounts, 1002, true},
+		{"primary group", groups, accounts, 1003, true},
+		{"not a member", groups, accounts, 1001, false},
+		{"name prefix is no member", groups, accounts, 1004, false},
+		{"unknown uid", groups, accounts, 4000, false},
+		{"group missing", "sysmin:x:990:demo-admin\n", accounts, 1002, false},
+		{"malformed group line", "sudo:27\n", accounts, 1002, false},
+	} {
+		got, err := adminInDatabase(strings.NewReader(tc.groups), strings.NewReader(tc.accounts), tc.uid)
+		if err != nil || got != tc.want {
+			t.Errorf("%s: got %v, %v; want %v", tc.name, got, err, tc.want)
+		}
+	}
+}
+
+func TestRevocationAppliesToOpenConnection(t *testing.T) {
+	res := &revocable{fakeResolver: fakeResolver{gid: 990, groups: []uint32{990}}}
+	h := start(t, Config{Resolver: res, Credentials: func(net.Conn) (Peer, error) { return Peer{UID: 4242, GID: 990}, nil }})
+	conn, br := h.raw(t)
+	control.WriteLine(conn, control.Request{V: control.Version, Op: control.OpStatus})
+	if resp := readResp(t, br); !resp.OK {
+		t.Fatalf("first resp = %+v", resp)
+	}
+	h.log.wait(t, 1)
+	res.revoked.Store(true)
+	control.WriteLine(conn, control.Request{V: control.Version, Op: control.OpStatus})
+	resp := readResp(t, br)
+	if resp.OK || resp.Error != control.CodeNotAdmin || resp.Result != nil {
+		t.Fatalf("second resp = %+v", resp)
+	}
+	e := h.log.wait(t, 2)[1]
+	if e.Action != auditlog.OperationControlRefuse || e.ErrorCode != control.CodeNotAdmin || e.ClientUID != 4242 || e.Result != auditlog.ResultFailure {
+		t.Fatalf("entry = %+v", e)
+	}
+	if _, err := br.ReadByte(); err == nil {
+		t.Error("connection stayed open")
 	}
 }
 
