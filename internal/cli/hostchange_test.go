@@ -210,8 +210,9 @@ func TestHostFailedChangeReportsAndExitsNonZero(t *testing.T) {
 	f.w.failSet = "new"
 	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--yes", "--output", "json")
 	m := decode(t, out)
-	if code != 1 || m["result"] != "restored" || m["restored"] != true || !strings.Contains(m["error"].(string), "command 1") ||
-		!strings.Contains(errOut, "previous state is back") {
+	// The only command failed, so nothing of this run stood and nothing is restored.
+	if code != 1 || m["result"] != "failed" || m["restored"] != false || !strings.Contains(m["error"].(string), "command 1") ||
+		!strings.Contains(errOut, "did not succeed") || !strings.Contains(errOut, "nothing was taken back") || f.w.values["alpha"] != "old" {
 		t.Fatalf("code %d %v err %q", code, m, errOut)
 	}
 }

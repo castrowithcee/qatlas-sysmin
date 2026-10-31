@@ -140,12 +140,13 @@ func (r *Runner) run(ctx context.Context, j job) (Result, error) {
 }
 
 func (r *Runner) runLocked(ctx context.Context, j job) (Result, error) {
+	ctx = withActor(ctx, r.SudoUID)
 	for _, c := range j.plan.Commands {
 		if err := validateCommand(c); err != nil {
 			return Result{}, err
 		}
 	}
-	scrub := scrubber(j.plan.Commands, j.secret)
+	scrub := scrubber(j.plan.Commands, j.plan.Redact, j.secret)
 	now := r.Now().UTC()
 	id, err := newID(now)
 	if err != nil {
@@ -154,6 +155,9 @@ func (r *Runner) runLocked(ctx context.Context, j job) (Result, error) {
 	var prev json.RawMessage
 	if j.plan.Capture != nil {
 		if prev, err = j.plan.Capture(ctx); err != nil {
+			if ref, ok := isRefusal(err); ok {
+				return Result{}, &RefusedError{Msg: scrub(ref.Msg)}
+			}
 			return Result{}, fmt.Errorf("record the previous state: %s", scrub(err.Error()))
 		}
 	}
@@ -168,7 +172,7 @@ func (r *Runner) runLocked(ctx context.Context, j job) (Result, error) {
 		return Result{}, fmt.Errorf("write the journal: %w", err)
 	}
 
-	problem := r.runCommands(ctx, j.plan.Commands, scrub)
+	problem, failed := r.runCommands(ctx, j.plan.Commands, scrub)
 	if problem == "" && j.plan.Check != nil {
 		if cerr := j.plan.Check(ctx); cerr != nil {
 			e.Check, e.CheckError = CheckFailed, scrub(cerr.Error())
@@ -178,7 +182,14 @@ func (r *Runner) runLocked(ctx context.Context, j job) (Result, error) {
 		}
 	}
 	e.Result = ResultApplied
-	if problem != "" {
+	switch {
+	case problem != "" && failed == 0:
+		// No step of this plan stood, so there is nothing of this run to take back. Restoring anyway could
+		// act on a state this run did not make, such as an account of the same name that appeared since
+		// the previous state was recorded.
+		e.Error = problem + "; nothing was taken back because no step of this change completed"
+		e.Result = ResultFailed
+	case problem != "":
 		e.Error = problem
 		e.Result = ResultFailed
 		if rerr := r.restore(ctx, j, prev, scrub); rerr != "" {
@@ -213,12 +224,14 @@ func (r *Runner) restore(ctx context.Context, j job, prev json.RawMessage, scrub
 	if err != nil {
 		return scrub(err.Error())
 	}
+	outer, inner := scrub, scrubber(plan.Commands, plan.Redact, nil)
+	scrub = func(s string) string { return inner(outer(s)) }
 	for _, c := range plan.Commands {
 		if err := validateCommand(c); err != nil {
 			return err.Error()
 		}
 	}
-	if problem := r.runCommands(ctx, plan.Commands, scrub); problem != "" {
+	if problem, _ := r.runCommands(ctx, plan.Commands, scrub); problem != "" {
 		return problem
 	}
 	if plan.Check != nil {
@@ -229,7 +242,9 @@ func (r *Runner) restore(ctx context.Context, j job, prev json.RawMessage, scrub
 	return ""
 }
 
-func (r *Runner) runCommands(ctx context.Context, cmds []Command, scrub func(string) string) string {
+// runCommands runs the commands in order and stops at the first failure; it returns the problem and the index
+// of the failed command, or "" and -1.
+func (r *Runner) runCommands(ctx context.Context, cmds []Command, scrub func(string) string) (string, int) {
 	for i, c := range cmds {
 		out, err := r.Exec.Run(ctx, c)
 		if err != nil {
@@ -240,10 +255,10 @@ func (r *Runner) runCommands(ctx context.Context, cmds []Command, scrub func(str
 				}
 				text += ": " + tail
 			}
-			return scrub(text)
+			return scrub(text), i
 		}
 	}
-	return ""
+	return "", -1
 }
 
 func displays(cmds []Command) []string {
@@ -254,11 +269,17 @@ func displays(cmds []Command) []string {
 	return out
 }
 
-// scrubber removes every secret input from text, including the secret handed to the plan.
-func scrubber(cmds []Command, extra []byte) func(string) string {
+// scrubber removes every secret input from text, including the secret handed to the plan and the values the
+// plan asks to redact.
+func scrubber(cmds []Command, redact [][]byte, extra []byte) func(string) string {
 	var secrets [][]byte
 	if len(extra) > 0 {
 		secrets = append(secrets, extra)
+	}
+	for _, v := range redact {
+		if len(v) > 0 {
+			secrets = append(secrets, v)
+		}
 	}
 	for _, c := range cmds {
 		if len(c.Secret) > 0 {

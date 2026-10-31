@@ -13,12 +13,15 @@ type Executor interface {
 	Run(ctx context.Context, c Command) ([]byte, error)
 }
 
-// SystemExecutor runs the commands on the host with a fixed environment.
+// SystemExecutor runs the commands on the host with a fixed environment and the built-in steps itself.
 type SystemExecutor struct{}
 
 func (SystemExecutor) Run(ctx context.Context, c Command) ([]byte, error) {
 	if err := validateCommand(c); err != nil {
 		return nil, err
+	}
+	if c.Builtin {
+		return nil, runBuiltin(c, systemAccount)
 	}
 	cmd := exec.CommandContext(ctx, c.Argv[0], c.Argv[1:]...)
 	cmd.Env = []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL=C"}
@@ -31,6 +34,9 @@ func (SystemExecutor) Run(ctx context.Context, c Command) ([]byte, error) {
 func validateCommand(c Command) error {
 	if len(c.Argv) == 0 || c.Argv[0] == "" {
 		return fmt.Errorf("a command has no program")
+	}
+	if c.Builtin && !builtinSteps[c.Argv[0]] {
+		return fmt.Errorf("unknown built-in step %q", c.Argv[0])
 	}
 	for _, a := range c.Argv {
 		if bytes.IndexByte([]byte(a), 0) >= 0 {

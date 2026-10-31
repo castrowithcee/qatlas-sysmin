@@ -383,9 +383,6 @@ func TestRegistryValidates(t *testing.T) {
 	if err := reg.Register(Definition{ID: "group.add-member", Plan: plan}); err == nil {
 		t.Error("duplicate accepted")
 	}
-	if len(Default().IDs()) != 0 {
-		t.Error("the production registry has no action yet")
-	}
 	f := newFixture(t, false)
 	if _, err := f.runner.Apply(context.Background(), "demo.set", []string{"only-one"}, nil); err == nil || len(f.w.calls) != 0 {
 		t.Errorf("bad arguments must fail before anything runs: %v", err)

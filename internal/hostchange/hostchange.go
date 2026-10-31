@@ -1,12 +1,13 @@
 // Package hostchange is the framework for changes to the host that run as root: an action describes itself
 // in plain words and exact commands, the runner records the previous state in a root-only journal before it
 // changes anything, checks the result, and restores the previous state when the change or its check fails.
-// The package knows no concrete action; later packages register theirs.
+// Default registers the production actions, which are the user actions of users.go.
 package hostchange
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -16,10 +17,12 @@ import (
 // DefaultSecretLabel stands for a secret input wherever a command is shown.
 const DefaultSecretLabel = "<password>"
 
-// Command is one program call. Argv is shown and run exactly as it is. A secret goes to the program's
-// standard input only; it is never part of Argv, of the displayed text or of any output.
+// Command is one program call or one built-in step. Argv is shown and run exactly as it is. A secret goes to
+// the program's standard input only; it is never part of Argv, of the displayed text or of any output.
 type Command struct {
 	Argv []string
+	// Builtin marks a step that sysmin runs itself instead of a program; Argv[0] names one of builtinSteps.
+	Builtin bool
 	// Secret is the standard input of the program, shown as SecretLabel.
 	Secret []byte
 	// SecretLabel replaces the secret in the displayed command; empty means DefaultSecretLabel.
@@ -40,6 +43,9 @@ func (c Command) Display() string {
 		parts[i] = shellQuote(a)
 	}
 	text := strings.Join(parts, " ")
+	if c.Builtin {
+		text = builtinPrefix + text
+	}
 	if len(c.Secret) > 0 {
 		text += " < " + c.label()
 	}
@@ -75,6 +81,9 @@ type Plan struct {
 	Check func(ctx context.Context) error
 	// NotReversible is the reason the change cannot be undone; empty means the definition's Inverse applies.
 	NotReversible string
+	// Redact lists further values that must never appear in an error text, beyond the command secrets: a
+	// password inside a larger standard input, for example.
+	Redact [][]byte
 }
 
 // Definition is a registered action.
@@ -97,6 +106,33 @@ func (e *ArgumentError) Error() string { return e.Msg }
 
 // Argf builds an ArgumentError.
 func Argf(format string, a ...any) error { return &ArgumentError{fmt.Sprintf(format, a...)} }
+
+// RefusedError marks a change that a protection rule or the state of the host refuses before anything runs.
+type RefusedError struct{ Msg string }
+
+func (e *RefusedError) Error() string { return e.Msg }
+
+// Refusef builds a RefusedError.
+func Refusef(format string, a ...any) error { return &RefusedError{fmt.Sprintf(format, a...)} }
+
+type actorKey struct{}
+
+// withActor hands the human behind the sudo call to Capture and Check.
+func withActor(ctx context.Context, uid int) context.Context {
+	return context.WithValue(ctx, actorKey{}, uid)
+}
+
+// ActingUID is the human behind the sudo call, as the runner received it; 0 means root itself or unknown.
+func ActingUID(ctx context.Context) int {
+	uid, _ := ctx.Value(actorKey{}).(int)
+	return uid
+}
+
+func isRefusal(err error) (*RefusedError, bool) {
+	var r *RefusedError
+	ok := errors.As(err, &r)
+	return r, ok
+}
 
 var idPattern = regexp.MustCompile(`^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$`)
 
@@ -147,6 +183,8 @@ func (r *Registry) Describe(id string, args []string, secret []byte) (Plan, erro
 // Default is the registry of the production actions.
 func Default() *Registry {
 	r := NewRegistry()
-	// Concrete actions register here.
+	if err := RegisterUserActions(r, DefaultUserHost()); err != nil {
+		panic(err)
+	}
 	return r
 }
