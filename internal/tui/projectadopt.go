@@ -165,17 +165,17 @@ func (m *Model) showAdoption(res control.AdoptResult) {
 			lines = append(lines, styles.hint.Render("  "+tr(tPrjMore, len(res.Problems)-problems)))
 			break
 		}
-		text := oneLine(pr.Message)
-		if pr.Hint != "" {
-			text += " " + oneLine(pr.Hint)
-		}
+		// Wrapped, never cut: the cause and the way out are what the person needs to act on.
+		style, mark := styles.warning, warnMark
 		if pr.Blocking {
-			lines = append(lines, styles.fail.Render("  ✗ "+truncateCells(text, width-2)))
-		} else {
-			lines = append(lines, styles.warning.Render("  "+warnMark+" "+truncateCells(text, width-2)))
+			style, mark = styles.fail, "✗"
+		}
+		lines = append(lines, wrapIndented(style, "  "+mark+" ", oneLine(pr.Message), width)...)
+		if pr.Hint != "" {
+			lines = append(lines, wrapIndented(styles.hint, "    ", oneLine(pr.Hint), width)...)
 		}
 		for _, a := range pr.Access {
-			lines = append(lines, styles.fail.Render("    "+truncateCells(tr(accessText(a.Right), a.Path), width-4)))
+			lines = append(lines, wrapIndented(styles.fail, "    ", tr(accessText(a.Right), a.Path), width)...)
 		}
 	}
 	q := question{title: tr(tPrjAdoptTitle, oneLine(pj.Name)), consequence: tr(tPrjAdoptOK), details: lines,

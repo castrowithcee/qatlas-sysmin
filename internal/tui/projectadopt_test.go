@@ -379,3 +379,25 @@ func TestGoldenProjectsAdoptStacks(t *testing.T) {
 func flatBoxText(view string) string {
 	return strings.Join(strings.Fields(strings.NewReplacer("│", " ", "╭", " ", "╮", " ", "╰", " ", "╯", " ").Replace(view)), " ")
 }
+
+func TestAdoptShowsLongProblemsInFull(t *testing.T) {
+	msg := strings.TrimSpace(strings.Repeat("alpha bravo charlie delta echo foxtrot ", 4)) + " endmsg"
+	hint := strings.TrimSpace(strings.Repeat("golf hotel india juliet kilo lima ", 4)) + " endhint"
+	for _, size := range [][2]int{{80, 24}, {120, 40}} {
+		t.Run(fmt.Sprintf("%dx%d", size[0], size[1]), func(t *testing.T) {
+			fb := adoptFake()
+			fb.proj.adopt.Problems = []control.AdoptProblem{{Code: "not-writable", Message: msg, Hint: hint, Blocking: true}}
+			m := projectsModel(t, fb, size[0], size[1])
+			adoptAsk(t, m, "/srv/demo-stack")
+			view := plain(m)
+			if strings.Contains(view, "…") {
+				t.Errorf("the problem is cut:\n%s", view)
+			}
+			for _, word := range strings.Fields(msg + " " + hint) {
+				if !strings.Contains(view, word) {
+					t.Fatalf("the problem lacks %q:\n%s", word, view)
+				}
+			}
+		})
+	}
+}
