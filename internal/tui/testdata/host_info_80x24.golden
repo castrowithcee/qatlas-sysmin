@@ -3,20 +3,20 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    1/3
-╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name╔══════════════════════════════════════════════════════════════╗System ║
-║ > demo║ Info                                                         ║       ║
-║   demo║                                                              ║       ║
-║   svc-║ Users                                                        ║system ║
-╚═══════║                                                              ║═══════╝
-        ║ Admin: the user may become root with sudo. Docker: the user  ║        
+╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
+║   Name║ Info                                                         ║System ║
+║ > demo║                                                              ║       ║
+║   demo║ Users                                                        ║       ║
+║   svc-║                                                              ║system ║
+╚═══════║ Admin: the user may become root with sudo. Docker: the user  ║═══════╝
         ║ may use Docker, which is practically root on this host.      ║        
         ║ Enabled: the user is a member of the group sysmin; an admin  ║        
-        ║ who is also enabled may use sysmin.                          ║        
+        ║ who is also enabled may use sysmin. n creates a user, e      ║        
+        ║ changes the marked one; every change asks first, runs        ║        
+        ║ through sudo and can be undone under Changes.                ║        
         ║                                                              ║        
         ║ esc close                                                    ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

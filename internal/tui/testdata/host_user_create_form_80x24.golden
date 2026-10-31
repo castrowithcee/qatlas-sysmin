@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+  [Users]  Groups   Folders   Changes                                           
+────────╔══════════════════════════════════════════════════════════════╗────────
+Users (3║ New user                                                     ║     1/3
+╔═══════║                                                              ║═══════╗
+║   Name║   Name:            demo-new                                  ║System ║
+║ > demo║   Password:        ********                                  ║       ║
+║   demo║   Repeat password: ********                                  ║       ║
+║   svc-║   Admin:            yes                                      ║system ║
+╚═══════║   Docker:           no                                       ║═══════╝
+        ║ > Further groups:   < [x] demo-team  (1 of 1 chosen) >       ║        
+        ║   SSH key:                                                   ║        
+        ║     The user must change the initial password at the first   ║        
+        ║     login. Enter in the SSH key field adds the key.          ║        
+        ║                                                              ║        
+        ║ [ Save ]  [ Cancel ]                                         ║        
+        ║                                                              ║        
+        ║ ←/→ choose · space tick · tab next · F2 save · esc cancel    ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

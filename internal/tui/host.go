@@ -427,7 +427,14 @@ func (m *Model) hostKeys() []string {
 	if m.hst.hideSystem {
 		toggle = "space show system"
 	}
-	return []string{"↑/↓ move", "enter details", toggle, "/ filter"}
+	keys := []string{"↑/↓ move", "enter details"}
+	if m.hst.sub == hostUsers {
+		keys = append(keys, "n new")
+		if m.canEditCurrent() {
+			keys = append(keys, "e edit")
+		}
+	}
+	return append(keys, toggle, "/ filter")
 }
 
 // hostKey handles the keys of Host that the page does not: space hides or shows the system accounts.
@@ -440,6 +447,11 @@ func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 			if _, ok := p.current(); ok {
 				return m.askReadUser(), true
 			}
+		}
+	}
+	if m.hst.sub == hostUsers {
+		if cmd, ok := m.hostUsersKey(key); ok {
+			return cmd, true
 		}
 	}
 	if m.hst.sub == hostFolders {

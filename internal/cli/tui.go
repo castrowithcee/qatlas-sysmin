@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -90,22 +91,30 @@ var (
 )
 
 // hostRunner builds `sudo <this program> host …` for the interface. sudo prompts on the terminal, so the
-// password never reaches this program. The secret input of an action has no way through yet: standard input
-// belongs to sudo's prompt, so a request that carries one is refused rather than sent where sudo could read it
-// as the password.
+// password never reaches this program. Standard input belongs to that prompt, so a request with a secret runs
+// in two steps: the interface first runs the Validate request (sudo -v) on the terminal, then this one with
+// sudo -n, which never prompts, and the secret on the standard input of the command. The secret goes into no
+// argument and no environment variable; the C locale is for the interface to recognise the answer of sudo
+// when it holds no password.
 func hostRunner(req tui.HostRequest) (*exec.Cmd, error) {
-	if len(req.Secret) > 0 {
-		return nil, errors.New("a secret input cannot be passed through sudo yet")
-	}
 	sudo, err := lookPath("sudo")
 	if err != nil {
 		return nil, tui.ErrNoSudo
+	}
+	if req.Validate {
+		return exec.Command(sudo, "-v"), nil
 	}
 	exe, err := executable()
 	if err != nil {
 		return nil, fmt.Errorf("cannot find this program: %w", err)
 	}
-	return exec.Command(sudo, append([]string{exe, "host"}, req.Args...)...), nil
+	if len(req.Secret) == 0 {
+		return exec.Command(sudo, append([]string{exe, "host"}, req.Args...)...), nil
+	}
+	cmd := exec.Command(sudo, append([]string{"-n", exe, "host"}, req.Args...)...)
+	cmd.Stdin = bytes.NewReader(req.Secret)
+	cmd.Env = append(os.Environ(), "LC_ALL=C")
+	return cmd, nil
 }
 
 // execWithGroup replaces this process by the same command under sudo -g sysmin, which carries the group without

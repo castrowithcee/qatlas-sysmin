@@ -344,3 +344,23 @@ func (h *Host) IsMember(uid int, group string) (bool, error) {
 	}
 	return false, nil
 }
+
+// Account is the numeric identity and the home of a local user.
+type Account struct {
+	UID, GID int
+	Home     string
+}
+
+// Account returns the identity of one local user by name, from the passwd file only.
+func (h *Host) Account(name string) (Account, error) {
+	users, err := h.passwd()
+	if err != nil {
+		return Account{}, err
+	}
+	for _, p := range users {
+		if p.name == name {
+			return Account{UID: p.uid, GID: p.gid, Home: p.home}, nil
+		}
+	}
+	return Account{}, fmt.Errorf("user %q: %w", name, ErrNotFound)
+}

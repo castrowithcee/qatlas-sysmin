@@ -12,8 +12,8 @@ import (
 )
 
 // A form is a short overlay of text fields and choices. A field with a known set of values is a choice that
-// the left and right keys step through, never free text. Nothing typed into a form is a secret: secrets are
-// entered in the credential form only.
+// the left and right keys step through, never free text. A row that holds a secret is masked and read with
+// raw: only the host user forms have one, and nothing of it is ever drawn or kept past the form.
 
 // formRow is one row of a form: a text field, or a choice among values.
 type formRow struct {
@@ -27,6 +27,10 @@ type formRow struct {
 	problem       string
 	// hidden rows are skipped by the focus and not drawn.
 	hidden bool
+	// multi makes the choice a set: left and right move through the values, space ticks the one under the
+	// cursor sel. ticked has one entry per value.
+	multi  bool
+	ticked []bool
 }
 
 // formDlg is the form over the screen, drawn as the prompt of screenPrompt.
@@ -43,6 +47,8 @@ type formDlg struct {
 	refresh func(m *Model, f *formDlg)
 	// saveText is the footer text of the save key, such as "{save} save".
 	saveText string
+	// enter, when set, runs first on the enter key; true says it took the key.
+	enter func(m *Model, f *formDlg, row int) bool
 }
 
 func textRow(key, label, value string) formRow {
@@ -51,6 +57,39 @@ func textRow(key, label, value string) formRow {
 
 func choiceRow(key, label string, values, shown []string, sel int) formRow {
 	return formRow{key: key, label: label, choice: true, values: values, shown: shown, sel: sel}
+}
+
+// maskedRow is a text row whose text is drawn as dots.
+func maskedRow(key, label string) formRow {
+	r := formRow{key: key, label: label, in: maskedInput()}
+	return r
+}
+
+// multiRow is a choice of any number of values.
+func multiRow(key, label string, values []string) formRow {
+	return formRow{key: key, label: label, choice: true, multi: true, values: values, ticked: make([]bool, len(values))}
+}
+
+// raw is the text of a text row as typed, blanks included.
+func (r *formRow) raw() string { return r.in.Value() }
+
+// picked are the ticked values of a multi row, in order.
+func (r *formRow) picked() []string {
+	var out []string
+	for i, on := range r.ticked {
+		if on && i < len(r.values) {
+			out = append(out, r.values[i])
+		}
+	}
+	return out
+}
+
+// multiText is how a multi row is drawn: the value under the cursor with its box, and how many are ticked.
+func (r *formRow) multiText() string {
+	if len(r.values) == 0 {
+		return tr(tHostFormNoGroups)
+	}
+	return tickBox(r.ticked[r.sel]) + " " + r.values[r.sel] + "  (" + tr(tHostFormTicked, len(r.picked()), len(r.values)) + ")"
 }
 
 // value is the text of a text row, or the value a choice stands for.
@@ -185,11 +224,30 @@ func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case keyIs(key, actSave):
 		return f.submit(m, f)
+	case keyIs(key, actEnter) && f.enter != nil && f.enter(m, f, f.focus):
+		return nil
 	case keyIs(key, actEnter), keyIs(key, actNext), keyIs(key, actDown):
 		f.step(1)
 		return nil
 	case keyIs(key, actPrev), keyIs(key, actUp):
 		f.step(-1)
+		return nil
+	}
+	if r.multi {
+		switch {
+		case keyIs(key, actSpace) && len(r.values) > 0:
+			r.ticked[r.sel] = !r.ticked[r.sel]
+		case keyIs(key, actRight) && len(r.values) > 0:
+			r.sel = (r.sel + 1) % len(r.values)
+		case keyIs(key, actLeft) && len(r.values) > 0:
+			r.sel = (r.sel + len(r.values) - 1) % len(r.values)
+		default:
+			return nil
+		}
+		r.problem = ""
+		if f.changed != nil {
+			f.changed(m, f, f.focus)
+		}
 		return nil
 	}
 	if r.choice {
@@ -234,7 +292,11 @@ func (m *Model) formDialog() promptDialog {
 		prefix := barMarker(f.focus == i) + padLine(r.label+":", lw+1) + " "
 		room := max(width-lipgloss.Width(prefix)-1, 1)
 		if r.choice {
-			text := truncateCells(r.shownValue(), max(room-6, 1))
+			shown := r.shownValue()
+			if r.multi {
+				shown = r.multiText()
+			}
+			text := truncateCells(shown, max(room-6, 1))
 			if f.focus == i {
 				text = "< " + text + " >"
 			}
@@ -247,7 +309,9 @@ func (m *Model) formDialog() promptDialog {
 		}
 	}
 	keys := "enter next · tab next · " + f.saveText + " · {back} cancel"
-	if f.rows[f.focus].choice {
+	if f.rows[f.focus].multi {
+		keys = "←/→ choose · space tick · tab next · " + f.saveText + " · {back} cancel"
+	} else if f.rows[f.focus].choice {
 		keys = "←/→ choose · tab next · " + f.saveText + " · {back} cancel"
 	}
 	d := promptDialog{title: f.title, input: strings.Join(rows, "\n"), hint: f.hint, keys: keys}

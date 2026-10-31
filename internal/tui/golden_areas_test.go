@@ -193,6 +193,42 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "y")
 			return m
 		}},
+		{"host_user_create_form", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			send(m, "n")
+			typed(m, "demo-new")
+			send(m, "tab")
+			typed(m, "abcdefgh")
+			send(m, "tab")
+			typed(m, "abcdefgh")
+			send(m, "tab", "right", "tab", "tab", "space")
+			return m
+		}},
+		{"host_user_create_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			send(m, "n")
+			typed(m, "demo-new")
+			send(m, "tab")
+			typed(m, "abcdefgh")
+			send(m, "tab")
+			typed(m, "abcdefgh")
+			send(m, "tab", "right", "tab", "right", "tab", "space")
+			save(m)
+			return m
+		}},
+		{"host_user_edit_form", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			selectUser(m, "demo-user")
+			send(m, "e", "right")
+			return m
+		}},
+		{"host_user_enable_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			selectUser(m, "demo-user")
+			send(m, "e")
+			save(m)
+			return m
+		}},
 		{"host_changes_empty", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostChange(t, w, h)
 			runCommand(m, "go host changes")
@@ -254,12 +290,23 @@ func TestGoldenAreas(t *testing.T) {
 }
 
 // goldenHostChange is the Host area without colour over the fake sudo and the fixed clock of the journal.
+// goldenHostUsers is the Users page over the real user actions and a fake sudo.
+func goldenHostUsers(t *testing.T, w, h int) (*Model, *fakeSudo) {
+	t.Helper()
+	m, f := goldenHostChange(t, w, h)
+	m.hostReg = nil
+	old := hostUID
+	hostUID = func() int { return 4242 }
+	t.Cleanup(func() { hostUID = old })
+	return m, f
+}
+
 func goldenHostChange(t *testing.T, w, h int) (*Model, *fakeSudo) {
 	t.Helper()
 	utcClock(t)
 	m := goldenApp(t, overviewFake(), w, h)
 	f := &fakeSudo{}
-	m.hostReg, m.hostRun, m.hostExec = hostActions(t), f.run, f.exec
+	m.hostReg, m.hostRun, m.hostExec, m.hostBg = hostActions(t), f.run, f.exec, f.bg
 	send(m, "6")
 	return m, f
 }
