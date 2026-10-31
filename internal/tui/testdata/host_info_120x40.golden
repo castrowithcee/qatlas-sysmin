@@ -1,6 +1,6 @@
 sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
    1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
-  [Users]  Groups   Folders                                                                                             
+  [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         1/3 ╭─ demo-admin ───────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
@@ -14,10 +14,10 @@ Users (3)                                                         1/3 ╭─ dem
                                                                       │                   sysmin                       │
                             ╔══════════════════════════════════════════════════════════════╗ome/demo-admin             │
                             ║ Info                                                         ║known                      │
-                            ║                                                              ║───────────────────────────╯
-                            ║ Users                                                        ║                            
-                            ║                                                              ║                            
-                            ║ Admin: the user may become root with sudo. Docker: the user  ║                            
+                            ║                                                              ║                           │
+                            ║ Users                                                        ║ the fields only root can  │
+                            ║                                                              ║                           │
+                            ║ Admin: the user may become root with sudo. Docker: the user  ║───────────────────────────╯
                             ║ may use Docker, which is practically root on this host.      ║                            
                             ║ Enabled: the user is a member of the group sysmin; an admin  ║                            
                             ║ who is also enabled may use sysmin.                          ║                            

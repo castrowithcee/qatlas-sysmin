@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings 
+   Users   Groups   Folders  [Changes]
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Changes (0)
+╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║ Press ctrl+r to read the latest changes as root. sudo asks for your password.                                        ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+enter undo  ctrl+r read as root  / filter  esc back  ctrl+l admin  i info  ? help  : cmds  q quit               ↑/↓ move

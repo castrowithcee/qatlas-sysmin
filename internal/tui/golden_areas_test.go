@@ -167,6 +167,52 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "6", "esc", "right", "right")
 			return m
 		}},
+		{"host_change_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostChange(t, w, h)
+			drain(m, m.askHostChange("demo.long", nil))
+			return m
+		}},
+		{"host_change_confirm_irreversible", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostChange(t, w, h)
+			drain(m, m.askHostChange("demo.wipe", nil))
+			return m
+		}},
+		{"host_change_result", func(t *testing.T, w, h int) *Model {
+			m, f := goldenHostChange(t, w, h)
+			f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
+			drain(m, m.askHostChange("demo.set", []string{"alpha", "new"}))
+			send(m, "y")
+			return m
+		}},
+		{"host_change_failed", func(t *testing.T, w, h int) *Model {
+			m, f := goldenHostChange(t, w, h)
+			f.answer = func(HostRequest) (string, error) {
+				return `{"journal_id":"x","sentence":"Set alpha to new.","result":"restored","check":"failed","check_error":"the value was rejected","restored":true,"error":"check failed","warning":"the audit log was not written"}`, exitError(t, "exit 1")
+			}
+			drain(m, m.askHostChange("demo.set", []string{"alpha", "new"}))
+			send(m, "y")
+			return m
+		}},
+		{"host_changes_empty", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostChange(t, w, h)
+			runCommand(m, "go host changes")
+			return m
+		}},
+		{"host_changes", func(t *testing.T, w, h int) *Model {
+			m, f := goldenHostChange(t, w, h)
+			runCommand(m, "go host changes")
+			f.answer = func(HostRequest) (string, error) { return journalJSON, nil }
+			reload(m)
+			return m
+		}},
+		{"host_changes_undo_confirm", func(t *testing.T, w, h int) *Model {
+			m, f := goldenHostChange(t, w, h)
+			runCommand(m, "go host changes")
+			f.answer = func(HostRequest) (string, error) { return journalJSON, nil }
+			reload(m)
+			send(m, "enter")
+			return m
+		}},
 		{"host_info", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "6", "i")
@@ -205,4 +251,15 @@ func TestGoldenAreas(t *testing.T) {
 			})
 		}
 	}
+}
+
+// goldenHostChange is the Host area without colour over the fake sudo and the fixed clock of the journal.
+func goldenHostChange(t *testing.T, w, h int) (*Model, *fakeSudo) {
+	t.Helper()
+	utcClock(t)
+	m := goldenApp(t, overviewFake(), w, h)
+	f := &fakeSudo{}
+	m.hostReg, m.hostRun, m.hostExec = hostActions(t), f.run, f.exec
+	send(m, "6")
+	return m, f
 }

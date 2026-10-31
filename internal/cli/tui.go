@@ -61,7 +61,8 @@ func newTUICommand(opts *Options) *cobra.Command {
 			prefs, prefsPath, warnings := loadPrefs()
 			backend := tui.NewBackend(socket)
 			err := tui.Run(tui.Options{Prefs: prefs, PrefsWarnings: warnings, PrefsPath: prefsPath, Redactor: opts.Redactor,
-				Backend: backend, Version: version, Releases: releaseCheck(opts), In: in, Out: out})
+				Backend: backend, Version: version, Releases: releaseCheck(opts), In: in, Out: out,
+				HostRun: hostRunner})
 			backend.Close()
 			if denied := accessError(err); denied != err {
 				return denied
@@ -87,6 +88,25 @@ var (
 	execv      = unix.Exec
 	runCommand = func(c *exec.Cmd) error { return c.Run() }
 )
+
+// hostRunner builds `sudo <this program> host …` for the interface. sudo prompts on the terminal, so the
+// password never reaches this program. The secret input of an action has no way through yet: standard input
+// belongs to sudo's prompt, so a request that carries one is refused rather than sent where sudo could read it
+// as the password.
+func hostRunner(req tui.HostRequest) (*exec.Cmd, error) {
+	if len(req.Secret) > 0 {
+		return nil, errors.New("a secret input cannot be passed through sudo yet")
+	}
+	sudo, err := lookPath("sudo")
+	if err != nil {
+		return nil, tui.ErrNoSudo
+	}
+	exe, err := executable()
+	if err != nil {
+		return nil, fmt.Errorf("cannot find this program: %w", err)
+	}
+	return exec.Command(sudo, append([]string{exe, "host"}, req.Args...)...), nil
+}
 
 // execWithGroup replaces this process by the same command under sudo -g sysmin, which carries the group without
 // a new login. It returns only on failure.

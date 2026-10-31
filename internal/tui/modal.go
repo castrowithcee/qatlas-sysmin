@@ -153,6 +153,8 @@ type question struct {
 	warn bool
 	// danger draws the answer that destroys something (y or d) as the dangerous button.
 	danger bool
+	// calm draws the heading of a modal without the warning mark: a message that reports success.
+	calm bool
 	// labels name buttons by their key where the key line's words do not fit a button.
 	labels map[string]string
 	// details are finished lines (they may span several rows) between the consequence and the keys.
@@ -161,11 +163,11 @@ type question struct {
 }
 
 // questionHeading is the question of a modal with the warning mark at its left.
-func (m *Model) questionHeading(title string) string {
+func (m *Model) questionHeading(title string, calm bool) string {
 	lines := strings.Split(render(styles.title, m.usable(2), title), "\n")
 	for i, line := range lines {
 		lead := "  "
-		if i == 0 {
+		if i == 0 && !calm {
 			lead = styles.warning.Render(warnMark) + " "
 		}
 		lines[i] = lead + line
@@ -180,7 +182,7 @@ func (m *Model) questionText(q question) string {
 	}
 	var b strings.Builder
 	if m.inModal || m.inPanel {
-		b.WriteString(m.questionHeading(q.title) + "\n\n")
+		b.WriteString(m.questionHeading(q.title, q.calm) + "\n\n")
 	} else {
 		b.WriteString(m.wrapped(styles.title, q.title) + "\n\n")
 	}

@@ -241,6 +241,13 @@ func TestHostJournalAndUndo(t *testing.T) {
 		t.Fatalf("%s %v", out, err)
 	}
 
+	if rows[0]["undo_sentence"] != "Put it back." {
+		t.Errorf("undo sentence %v", rows[0]["undo_sentence"])
+	}
+	if cmds, _ := rows[0]["undo_commands"].([]any); len(cmds) != 1 || cmds[0] != "demo-set alpha old" {
+		t.Errorf("undo commands %v", rows[0]["undo_commands"])
+	}
+
 	code, out, errOut = runChange(t, f, 0, "", "host", "undo", id, "--yes", "--output", "json")
 	if code != 0 {
 		t.Fatalf("%d %q", code, errOut)
@@ -251,7 +258,7 @@ func TestHostJournalAndUndo(t *testing.T) {
 	}
 	_, out, _ = runChange(t, f, 0, "", "host", "journal", "--output", "json")
 	_ = json.Unmarshal([]byte(out), &rows)
-	if len(rows) != 2 || rows[1]["result"] != "undone" || rows[1]["reversible"] != false {
+	if len(rows) != 2 || rows[1]["result"] != "undone" || rows[1]["reversible"] != false || rows[1]["undo_sentence"] != "" {
 		t.Fatalf("%v", rows)
 	}
 	if code, _, _ := runChange(t, f, 0, "", "host", "undo", id, "--yes"); code == 0 {
@@ -293,5 +300,17 @@ func TestSudoUIDIsReadStrictly(t *testing.T) {
 		if got := sudoUID(); got != want {
 			t.Errorf("SUDO_UID %q = %d, want %d", value, got, want)
 		}
+	}
+}
+
+func TestHostApplyAndUndoTakeTheirArgumentsAfterADoubleDash(t *testing.T) {
+	f := newChangeFixture(t)
+	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "--yes", "--output", "json", "--", "demo.set", "alpha", "-new")
+	if code != 0 {
+		t.Fatalf("code %d %q", code, errOut)
+	}
+	id := decode(t, out)["journal_id"].(string)
+	if code, _, errOut = runChange(t, f, 0, "", "host", "undo", "--yes", "--output", "json", "--", id); code != 0 || f.w.values["alpha"] != "old" {
+		t.Fatalf("undo code %d %q %v", code, errOut, f.w.values)
 	}
 }
