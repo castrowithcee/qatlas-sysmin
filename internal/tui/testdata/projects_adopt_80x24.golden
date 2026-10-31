@@ -13,12 +13,12 @@ Projects║ ⚠ Adopt demo-stack                                           ║  
 ║       ║   Env file: /srv/demo-stack/.env                             ║       ║
 ║       ║   Image web: registry.example.com/demo/web (1.4.2)           ║       ║
 ║       ║                                                              ║       ║
-║       ║   ⚠ sysmin may not write the env file Give the account …     ║       ║
+║       ║   ⚠ sysmin may not write the env file                        ║       ║
+║       ║     Give the account write access.                           ║       ║
 ║       ║                                                              ║       ║
 ║       ║ > Take over <  [ Back ]                                      ║       ║
 ║       ║                                                              ║       ║
 ║       ║ enter take over · esc back                                   ║       ║
 ║       ╚══════════════════════════════════════════════════════════════╝       ║
-║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 ? help                                                                       1/3
