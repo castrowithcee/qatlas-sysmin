@@ -59,6 +59,8 @@ func text(v any) string {
 		return strconv.Itoa(x)
 	case float64:
 		return strconv.FormatFloat(x, 'g', -1, 64)
+	case []string:
+		return strings.Join(x, ",")
 	default:
 		return fmt.Sprint(x)
 	}

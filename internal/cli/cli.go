@@ -40,6 +40,8 @@ type Options struct {
 	readSecret func(prompt string) ([]byte, error)
 	// sys supplies the host access of update and uninstall; nil means the real host. Tests set it.
 	sys *system
+	// host supplies the caller and the databases of the host commands; nil means the real host. Tests set it.
+	host *hostEnv
 }
 
 // Run executes the root command against the given streams and returns the process exit code. It never
@@ -57,6 +59,11 @@ func run(cmd *cobra.Command, opts *Options, args []string, stdout, stderr io.Wri
 	executed, err := cmd.ExecuteC()
 	if err == nil {
 		return exitOK
+	}
+	var plain *plainError
+	if errors.As(err, &plain) {
+		fmt.Fprintln(stderr, plain.Error())
+		return exitCode(err)
 	}
 	// Redaction happens before anything is shown.
 	fmt.Fprintf(stderr, "sysmin: %s: %s\n", codeFor(err), opts.Redactor.Error(err))
@@ -117,7 +124,7 @@ func newRootCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newVaultCommand(opts))
 	cmd.AddCommand(newRunCommand(opts), newStatusCommand(opts), newApprovalsCommand(opts), newProjectCommand(opts),
 		newCredentialCommand(opts), newNotifyCommand(opts), newSourceCommand(opts), newDeployCommand(opts),
-		newBackupCommand(opts))
+		newBackupCommand(opts), newHostCommand(opts))
 	cmd.AddCommand(newTUICommand(opts))
 	cmd.AddCommand(newUpdateCommand(opts), newUninstallCommand(opts))
 	// A command without a run function is a help topic: 'sysmin help <topic>' prints its text, and the

@@ -438,3 +438,15 @@ func asProjection(err error, target **ProjectionError) bool {
 	}
 	return ok
 }
+
+func TestStringListIsAnArrayInJSONAndJoinedElsewhere(t *testing.T) {
+	obj := Object{Fields: []Field{{Name: "groups", Value: []string{"a", "b"}}}}
+	for format, want := range map[Format]string{
+		FormatJSON: `{"groups":["a","b"]}` + "\n", FormatCompact: "groups=a,b\n",
+	} {
+		var b strings.Builder
+		if err := Encode(&b, format, obj); err != nil || b.String() != want {
+			t.Errorf("%s = %q, %v; want %q", format, b.String(), err, want)
+		}
+	}
+}

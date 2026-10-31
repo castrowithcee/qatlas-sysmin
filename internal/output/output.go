@@ -28,7 +28,8 @@ func ParseFormat(s string) (Format, error) {
 		s, FormatTable, FormatJSON, FormatCompact)
 }
 
-// Field is one named value of an object. The formats expect scalars: string, bool, int64, float64, or nil.
+// Field is one named value of an object. The formats expect scalars: string, bool, int64, float64, or nil,
+// and also a list of strings, which is a JSON array and joined with commas elsewhere.
 type Field struct {
 	Name  string
 	Value any
