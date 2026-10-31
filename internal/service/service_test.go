@@ -28,6 +28,7 @@ type groupOfTests struct{}
 
 func (groupOfTests) GroupID(string) (uint32, error)           { return uint32(os.Getgid()), nil }
 func (groupOfTests) PeerGroups(daemon.Peer) ([]uint32, error) { return nil, nil }
+func (groupOfTests) IsAdmin(uint32) (bool, error)             { return true, nil }
 
 type testClock struct {
 	mu sync.Mutex

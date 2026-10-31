@@ -63,6 +63,9 @@ func newTUICommand(opts *Options) *cobra.Command {
 			err := tui.Run(tui.Options{Prefs: prefs, PrefsWarnings: warnings, PrefsPath: prefsPath, Redactor: opts.Redactor,
 				Backend: backend, Version: version, Releases: releaseCheck(opts), In: in, Out: out})
 			backend.Close()
+			if denied := accessError(err); denied != err {
+				return denied
+			}
 			var upd *tui.UpdateRequest
 			switch {
 			case errors.Is(err, tui.ErrRegroup):

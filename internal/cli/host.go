@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 )
@@ -26,8 +27,6 @@ func (o *Options) hostEnv() *hostEnv {
 	return &hostEnv{UID: uid, Host: hostadmin.NewHost(uid == 0)}
 }
 
-const reservedMessage = "sysmin is reserved for administrators (sudo)"
-
 // requireAdmin lets root and members of the sudo group through. A failure to read the group database is
 // treated as no access.
 func (e *hostEnv) requireAdmin() error {
@@ -37,7 +36,7 @@ func (e *hostEnv) requireAdmin() error {
 	if admin, err := e.Host.IsAdmin(e.UID); err == nil && admin {
 		return nil
 	}
-	return &plainError{reservedMessage}
+	return &plainError{client.ReservedMessage}
 }
 
 func newHostCommand(opts *Options) *cobra.Command {

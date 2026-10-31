@@ -40,7 +40,16 @@ type UpdateRequest struct{ Version string }
 func (r *UpdateRequest) Error() string { return "install sysmin " + r.Version }
 
 // Run starts the editor on the terminal streams of opts and returns when the person quits.
+//
+// With a Backend, Run asks the service for its status before it draws anything. A caller without access gets
+// client.ErrReserved or client.ErrNotEnabled back and the terminal stays untouched. If the service takes the
+// access away while the interface runs, the interface quits and Run returns the same error.
 func Run(opts Options) error {
+	if opts.Backend != nil {
+		if _, err := opts.Backend.Status(); isDenied(err) {
+			return err
+		}
+	}
 	prefs := opts.Prefs
 	if prefs == (uiprefs.Prefs{}) {
 		prefs = uiprefs.Default()
@@ -74,6 +83,8 @@ func Run(opts Options) error {
 	final, err := program.Run()
 	if fm, ok := final.(*Model); ok && err == nil {
 		switch {
+		case fm.denied != nil:
+			return fm.denied
 		case fm.regroupAsked:
 			return ErrRegroup
 		case fm.updateTo != "":

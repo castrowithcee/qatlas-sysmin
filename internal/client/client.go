@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
 // DialTimeout bounds connecting to the service; CallTimeout bounds one call.
@@ -49,8 +50,10 @@ func Dial(path string) (*Client, error) {
 	}
 	conn, err := net.DialTimeout("unix", path, DialTimeout)
 	if err != nil {
-		if errors.Is(err, syscall.EACCES) && sessionLacksGroup() {
-			err = ErrSessionGroup
+		if errors.Is(err, syscall.EACCES) {
+			if denial := accessDenial(); denial != nil {
+				err = denial
+			}
 		}
 		return nil, fmt.Errorf("cannot reach the service: %w", err)
 	}
@@ -133,6 +136,49 @@ var peerOf = func(conn net.Conn) (peerCred, error) {
 	return peerCred{PID: cred.Pid, UID: cred.Uid}, nil
 }
 
+// ReservedMessage is what every surface says to someone who may not use sysmin. It is the only text for it.
+const ReservedMessage = "sysmin is reserved for administrators (sudo)"
+
+// NotEnabledMessage is what an administrator hears whose account is not a member of the group sysmin.
+const NotEnabledMessage = "your account is not enabled for sysmin; an enabled administrator enables it in sysmin tui under Host › Users"
+
+// ErrReserved is a caller who is no administrator, or no longer is. ErrNotEnabled is an administrator who
+// is not a member of the group sysmin in the group database.
+var (
+	ErrReserved   = errors.New(ReservedMessage)
+	ErrNotEnabled = errors.New(NotEnabledMessage)
+)
+
+// standing reads the group database for the caller: whether the account is an administrator and whether it
+// is a member of the group sysmin. Whatever cannot be read counts as no. It is a variable so a test can
+// stand in for the system.
+var standing = func() (admin, enabled bool) {
+	h := hostadmin.NewHost(false)
+	uid := os.Geteuid()
+	if ok, err := h.IsAdmin(uid); err != nil || !ok {
+		return false, false
+	}
+	ok, err := h.IsMember(uid, control.ServiceGroup)
+	return true, err == nil && ok
+}
+
+// accessDenial names why a refused or unreachable socket is no concern of the service: ErrReserved for a
+// caller who is no administrator, ErrNotEnabled for an administrator outside the group sysmin, and
+// ErrSessionGroup for an enabled administrator whose login session predates the membership. It is nil when
+// none of these explains the refusal.
+func accessDenial() error {
+	admin, enabled := standing()
+	switch {
+	case !admin:
+		return ErrReserved
+	case !enabled:
+		return ErrNotEnabled
+	case sessionLacksGroup():
+		return ErrSessionGroup
+	}
+	return nil
+}
+
 // ErrSessionGroup is a refused connection of a user who is in the group sysmin, from a login session that
 // started before the user joined it: the session does not carry the group yet.
 var ErrSessionGroup = errors.New("this login session started before the user joined the group " + control.ServiceGroup)
@@ -192,14 +238,23 @@ func (c *Client) Call(op string, params, result any) error {
 	if first {
 		_ = c.conn.SetReadDeadline(now.Add(min(firstAnswerTimeout, timeout)))
 	}
-	if err := control.WriteLine(c.conn, req); err != nil {
-		return fmt.Errorf("cannot send the request: %w", err)
-	}
+	// A service that rejects the caller answers and closes before the request arrives, so the write may fail
+	// although the answer is waiting.
+	writeErr := control.WriteLine(c.conn, req)
 	line, err := control.ReadLine(c.br, control.MaxResponseBytes)
 	if err != nil {
 		var ne net.Error
-		if first && errors.As(err, &ne) && ne.Timeout() {
+		if first && errors.As(err, &ne) && ne.Timeout() && writeErr == nil {
 			return &PeerError{PID: c.peer.PID, UID: c.peer.UID, Silent: true}
+		}
+		// A connection that breaks before its first answer is what a rejection looks like when the answer was lost.
+		if !c.answered {
+			if denial := accessDenial(); denial != nil {
+				return denial
+			}
+		}
+		if writeErr != nil {
+			return fmt.Errorf("cannot send the request: %w", writeErr)
 		}
 		return fmt.Errorf("cannot read the answer: %w", err)
 	}
@@ -209,6 +264,14 @@ func (c *Client) Call(op string, params, result any) error {
 		return errors.New("the service answered in a form this program does not understand")
 	}
 	if !resp.OK {
+		switch resp.Error {
+		case control.CodeNotAdmin:
+			return ErrReserved
+		case control.CodeRefused:
+			if denial := accessDenial(); denial != nil {
+				return denial
+			}
+		}
 		return &control.Error{Code: resp.Error, Problems: resp.Problems, Paths: resp.Paths}
 	}
 	if result != nil && resp.Result != nil {
