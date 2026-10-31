@@ -23,6 +23,36 @@ const (
 	ResultFailure = "failure"
 )
 
+// Host names a change of the host: the registered action by its id, the journal entry that holds the
+// details, and the journal entry an undo reverts. It never holds an argument or a command.
+type Host struct {
+	ActionID  string `json:"action_id"`
+	JournalID string `json:"journal_id"`
+	UndoOf    string `json:"undo_of,omitempty"`
+}
+
+var (
+	hostActionPattern  = regexp.MustCompile(`^[a-z][a-z0-9-]*\.[a-z][a-z0-9-]*$`)
+	hostJournalPattern = regexp.MustCompile(`^[0-9]{8}T[0-9]{6}\.[0-9]{6}Z-[0-9a-f]{6}$`)
+)
+
+// maxHostActionLength bounds an action id.
+const maxHostActionLength = 64
+
+// Validate reports whether h has the form of an action id and journal ids. The error names the field, never
+// its value.
+func (h Host) Validate() error {
+	switch {
+	case len(h.ActionID) > maxHostActionLength || !hostActionPattern.MatchString(h.ActionID):
+		return errors.New("host action id has an invalid form")
+	case !hostJournalPattern.MatchString(h.JournalID):
+		return errors.New("host journal id has an invalid form")
+	case h.UndoOf != "" && !hostJournalPattern.MatchString(h.UndoOf):
+		return errors.New("host undo id has an invalid form")
+	}
+	return nil
+}
+
 // Cut documents a retention deletion. Append writes it as the entry right after the deletion, naming the
 // sequence number of the last entry the deletion removed, so Verify never mistakes a documented cut for a
 // corrupted, undocumented gap.
@@ -56,7 +86,9 @@ type Entry struct {
 	DurationMS int64   `json:"duration_ms,omitempty"`
 	Cut        *Cut    `json:"cut,omitempty"`
 	Damage     *Damage `json:"damage,omitempty"`
-	PrevHash   string  `json:"prev_hash"`
+	// Host is set on the entries of OperationHostChange that name a change.
+	Host     *Host  `json:"host,omitempty"`
+	PrevHash string `json:"prev_hash"`
 	// MAC is the check value of a signed entry, empty for an unsigned one; see Key.mac.
 	MAC string `json:"mac"`
 }
@@ -72,6 +104,8 @@ type Fields struct {
 	// ErrorCode names the failure and is set exactly when Result is ResultFailure.
 	ErrorCode string
 	Duration  time.Duration
+	// Host is required for a successful OperationHostChange and allowed for no other action.
+	Host *Host
 }
 
 const maxTextLength = 256
@@ -96,6 +130,16 @@ func (f Fields) Validate() error {
 		return errors.New("a failed result needs an error code of lowercase words with dashes")
 	case f.Result != ResultSuccess && f.Result != ResultFailure:
 		return errors.New("result must be success or failure")
+	}
+	switch {
+	case f.Host != nil && f.Action != OperationHostChange:
+		return errors.New("only a host change names a host action")
+	case f.Host == nil && f.Action == OperationHostChange && f.Result == ResultSuccess:
+		return errors.New("a successful host change names its action")
+	case f.Host != nil:
+		if err := f.Host.Validate(); err != nil {
+			return err
+		}
 	}
 	if f.Duration < 0 || f.Duration > MaxDuration {
 		return errors.New("duration is out of range")

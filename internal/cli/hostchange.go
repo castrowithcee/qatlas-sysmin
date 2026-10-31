@@ -11,6 +11,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/client"
+	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 )
@@ -40,17 +42,33 @@ func (o *Options) changeEnv() *changeEnv {
 		Registry: hostchange.Default(), Exec: hostchange.SystemExecutor{},
 		JournalDir: hostchange.DefaultJournalDir, OwnerUID: 0, Now: time.Now,
 		SudoUID: sudoUID,
-		// The service connects here; until then a change is journaled only.
-		Record: func(hostchange.AuditEntry) error { return nil },
+		Record:  recordChange,
 	}
 }
 
+// sudoUID reads SUDO_UID strictly: plain decimal digits without sign, space or leading zero. Anything else,
+// and a missing variable, counts as 0, the narrow reading that root itself made the change; the journal
+// and the audit entry then name root rather than a guessed user.
 func sudoUID() int {
-	uid, err := strconv.Atoi(os.Getenv("SUDO_UID"))
-	if err != nil || uid <= 0 {
+	text := os.Getenv("SUDO_UID")
+	if text == "" || (len(text) > 1 && text[0] == '0') {
 		return 0
 	}
-	return uid
+	uid, err := strconv.ParseUint(text, 10, 31)
+	if err != nil {
+		return 0
+	}
+	return int(uid)
+}
+
+// recordChange hands a finished change to the service's audit log. Only a final result is recorded; the
+// sentence and commands stay in the journal.
+func recordChange(a hostchange.AuditEntry) error {
+	return withService("", func(c *client.Client) error {
+		return c.RecordHostChange(control.HostRecordParams{
+			Action: a.Action, Result: a.Result, SudoUID: uint32(a.SudoUID), JournalID: a.ID, UndoOf: a.UndoOf,
+		})
+	})
 }
 
 func (e *changeEnv) runner(j *hostchange.Journal) *hostchange.Runner {

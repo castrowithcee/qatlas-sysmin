@@ -261,3 +261,37 @@ func TestHostJournalAndUndo(t *testing.T) {
 		t.Error("an invalid id must fail")
 	}
 }
+
+func TestHostApplyRecordsTheHumanAndTheActionWithoutSecrets(t *testing.T) {
+	f := newChangeFixture(t)
+	code, _, _ := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--yes", "--output", "json")
+	if code != 0 || len(f.audited) != 1 {
+		t.Fatalf("code %d, audited %d", code, len(f.audited))
+	}
+	a := f.audited[0]
+	if a.SudoUID != 1000 || a.Action != "demo.set" || a.Result != hostchange.ResultApplied || !hostchange.ValidID(a.ID) {
+		t.Fatalf("audit = %+v", a)
+	}
+
+	f = newChangeFixture(t)
+	code, _, _ = runChange(t, f, 0, "pass-for-test\n", "host", "apply", "demo.login", "user1", "--yes", "--output", "json")
+	if code != 0 || len(f.audited) != 1 {
+		t.Fatalf("code %d, audited %d", code, len(f.audited))
+	}
+	raw, _ := json.Marshal(f.audited[0])
+	if strings.Contains(string(raw), "pass-for-test") {
+		t.Fatalf("the audit entry carries the secret input: %s", raw)
+	}
+}
+
+func TestSudoUIDIsReadStrictly(t *testing.T) {
+	for value, want := range map[string]int{
+		"1000": 1000, "0": 0, "": 0, "+1000": 0, "-5": 0, " 1000": 0, "1000 ": 0, "01000": 0, "1e3": 0,
+		"abc": 0, "99999999999": 0, "2147483648": 0,
+	} {
+		t.Setenv("SUDO_UID", value)
+		if got := sudoUID(); got != want {
+			t.Errorf("SUDO_UID %q = %d, want %d", value, got, want)
+		}
+	}
+}

@@ -47,7 +47,15 @@ type LogEntry struct {
 	Result     string    `json:"result"`
 	ErrorCode  string    `json:"error_code,omitempty"`
 	DurationMS int64     `json:"duration_ms,omitempty"`
+	Host       *LogHost  `json:"host,omitempty"`
 	Signed     bool      `json:"signed,omitempty"`
+}
+
+// LogHost names the host change an entry records; see auditlog.Host.
+type LogHost struct {
+	ActionID  string `json:"action_id"`
+	JournalID string `json:"journal_id"`
+	UndoOf    string `json:"undo_of,omitempty"`
 }
 
 // LogListResult is the answer to OpLogList. Next is set when more entries match; passing it as After

@@ -55,6 +55,8 @@ type Config struct {
 	CredentialsDir string
 	// Resolver answers the peer check's group questions; nil uses the system's groups.
 	Resolver daemon.Resolver
+	// Credentials reads the peer of a connection; nil uses SO_PEERCRED. Tests name a root or a foreign peer.
+	Credentials func(net.Conn) (daemon.Peer, error)
 	// Clock is the admin sessions' clock; nil is time.Now.
 	Clock func() time.Time
 	// SourceRegistry and SourceGit configure how source.test reaches registries and repositories. The zero
@@ -168,14 +170,15 @@ func Open(cfg Config) (*Service, error) {
 	}
 
 	srv, err := daemon.New(daemon.Config{
-		Logger:     s.log,
-		OnLogError: cfg.OnLogError,
-		Version:    cfg.Version,
-		Resolver:   cfg.Resolver,
-		Status:     s.fillStatus,
-		Guard:      s.guard,
-		NewState:   func(*daemon.Conn) any { return &connState{session: admin.NewSession(cfg.Clock)} },
-		ConnClosed: func(c *daemon.Conn) { st := c.State.(*connState); st.session.End(); st.once = false },
+		Logger:      s.log,
+		OnLogError:  cfg.OnLogError,
+		Version:     cfg.Version,
+		Resolver:    cfg.Resolver,
+		Credentials: cfg.Credentials,
+		Status:      s.fillStatus,
+		Guard:       s.guard,
+		NewState:    func(*daemon.Conn) any { return &connState{session: admin.NewSession(cfg.Clock)} },
+		ConnClosed:  func(c *daemon.Conn) { st := c.State.(*connState); st.session.End(); st.once = false },
 	})
 	if err != nil {
 		return nil, err
@@ -394,7 +397,7 @@ func (s *Service) register() error {
 	if err := s.registerVault(); err != nil {
 		return err
 	}
-	return errors.Join(s.registerDeploy(), s.registerRunLog())
+	return errors.Join(s.registerDeploy(), s.registerRunLog(), s.registerHost())
 }
 
 func (s *Service) handleVaultStatus(context.Context, *daemon.Conn, json.RawMessage) (any, error) {
