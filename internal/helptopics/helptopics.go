@@ -20,6 +20,7 @@ type Topic struct {
 func All() []Topic {
 	return []Topic{
 		{Name: "sysmin", Short: "What sysmin is and what it is for", Text: sysmin},
+		{Name: "host-admin", Short: "Read users, groups and folder permissions of the host", Text: hostAdmin},
 	}
 }
 
@@ -79,3 +80,20 @@ func wrapLine(line string, width int) []string {
 const sysmin = `sysmin is a Go tool that runs as a service on a Linux host. It takes over the setup and operation of a server through guided, repeatable scenarios.
 
 'sysmin --help' lists the commands; 'sysmin tui' opens the terminal interface.`
+
+const hostAdmin = `The host commands show the local users, groups and folder permissions. They only read; nothing on the host is changed.
+
+Commands:
+  sysmin host users
+  sysmin host user <name>
+  sysmin host groups
+  sysmin host group <name>
+  sysmin host folder <path>
+
+Only root and members of the group sudo may use them. Everyone else gets one line and exit code 1.
+
+A user is a system user below UID 1000, an admin in the group sudo, a docker user in the group docker, and enabled in the group sysmin. A group lists the users whose primary group it is as members.
+
+Whether an account is locked or expired and which SSH keys it has are only readable as root. Otherwise they are unknown: null in JSON and 'unknown' in the other formats. Keys are shown as type, comment and SHA256 fingerprint, never as the key itself.
+
+A folder or file shows owner, group and the level of owner, group and others: nothing, read, or read and write. For a directory read and write both need the right to enter it; write without read counts as nothing. It also shows whether ACLs are set, the special bits setuid, setgid and sticky, and whether the path is protected: /, /etc, /usr, /boot, /proc, /sys and everything below the last five. Links and .. are resolved before that check.`
