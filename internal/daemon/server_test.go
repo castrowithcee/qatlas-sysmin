@@ -625,3 +625,34 @@ func TestHandlerAuditsPerProject(t *testing.T) {
 		t.Fatalf("entries = %+v", got)
 	}
 }
+
+func TestRootOnlyHandlerRefusesOthersBeforeItRuns(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		uid  uint32
+		ran  bool
+	}{{"root", 0, true}, {"member", 4242, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			var ran bool
+			h := start(t, Config{Resolver: fakeResolver{gid: 990}, Credentials: func(net.Conn) (Peer, error) {
+				return Peer{UID: tc.uid, GID: 990}, nil
+			}})
+			err := h.srv.Register("rooted", Handler{Action: auditlog.OperationVaultStatus, RootOnly: true,
+				Func: func(context.Context, *Conn, json.RawMessage) (any, error) { ran = true; return nil, nil }})
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn, br := h.raw(t)
+			control.WriteLine(conn, control.Request{V: control.Version, Op: "rooted"})
+			resp := readResp(t, br)
+			e := h.log.wait(t, 1)[0]
+			if ran != tc.ran || resp.OK != tc.ran {
+				t.Fatalf("ran = %v, resp = %+v", ran, resp)
+			}
+			if !tc.ran && (resp.Error != control.CodeNotRoot || e.Action != auditlog.OperationControlRefuse ||
+				e.ErrorCode != control.CodeNotRoot || e.ClientUID != tc.uid || e.Result != auditlog.ResultFailure) {
+				t.Fatalf("resp = %+v entry = %+v", resp, e)
+			}
+		})
+	}
+}

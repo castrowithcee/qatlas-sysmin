@@ -309,6 +309,12 @@ func (c *Client) OpenSession(passphrase string) error {
 	return c.Call(control.OpSessionOpen, control.PassphraseParams{Passphrase: passphrase}, nil)
 }
 
+// RecordHostChange hands a finished host change to the service's audit log. Only root may call it; anyone
+// else gets control.CodeNotRoot.
+func (c *Client) RecordHostChange(p control.HostRecordParams) error {
+	return c.Call(control.OpHostRecord, p, nil)
+}
+
 // EndSession ends the admin session of this connection.
 func (c *Client) EndSession() error { return c.Call(control.OpSessionEnd, nil, nil) }
 

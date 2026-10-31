@@ -42,6 +42,9 @@ type Options struct {
 	sys *system
 	// host supplies the caller and the databases of the host commands; nil means the real host. Tests set it.
 	host *hostEnv
+	// change supplies the registry, executor, journal and clock of the host changes; nil means the real host.
+	// Tests set it.
+	change *changeEnv
 }
 
 // Run executes the root command against the given streams and returns the process exit code. It never

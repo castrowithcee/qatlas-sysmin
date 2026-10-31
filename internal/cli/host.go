@@ -43,9 +43,11 @@ func newHostCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "host",
 		Short: "Show the users, groups and folder permissions of this host",
-		Long: "These commands read the local users, groups and folder permissions and change nothing. Only root and\n" +
-			"members of the group sudo may use them. Whether an account is locked or expired and which SSH keys\n" +
-			"it has are shown only to root; otherwise they are unknown. See 'sysmin help host-admin'.",
+		Long: "The commands users, user, groups, group and folder read the local users, groups and folder permissions\n" +
+			"and change nothing. Only root and members of the group sudo may use them. Whether an account is\n" +
+			"locked or expired and which SSH keys it has are shown only to root; otherwise they are unknown.\n" +
+			"The commands apply, undo and journal change the host and need root; the TUI runs them via sudo.\n" +
+			"See 'sysmin help host-admin'.",
 		Args: gated(opts, noVaultArgs),
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			if err := opts.hostEnv().requireAdmin(); err != nil {
@@ -56,7 +58,8 @@ func newHostCommand(opts *Options) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
 	cmd.AddCommand(newHostUsersCommand(opts), newHostUserCommand(opts), newHostGroupsCommand(opts),
-		newHostGroupCommand(opts), newHostFolderCommand(opts))
+		newHostGroupCommand(opts), newHostFolderCommand(opts), newHostApplyCommand(opts), newHostUndoCommand(opts),
+		newHostJournalCommand(opts))
 	return cmd
 }
 

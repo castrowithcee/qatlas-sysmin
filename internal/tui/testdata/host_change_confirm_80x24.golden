@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+  [Users]  Groups   Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                                    1/3
+╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
+║   Name║ ⚠ Run a long command.                                        ║System ║
+║ > demo║                                                              ║       ║
+║   demo║     You can undo this under Host > Changes.                  ║       ║
+║   svc-║                                                              ║system ║
+╚═══════║   $ demo-tool --option-one value-number-one --option-two     ║═══════╝
+        ║     value-number-two --option-three 'value number three      ║        
+        ║     with spaces' --option-four                               ║        
+        ║     /srv/demo-stack/a/very/long/path/that/keeps/going/on     ║        
+        ║                                                              ║        
+        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║                                                              ║        
+        ║ y apply · n/esc cancel                                       ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

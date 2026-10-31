@@ -19,15 +19,16 @@ const (
 	hostUsers = iota
 	hostGroups
 	hostFolders
+	hostChanges
 	hostCount
 )
 
 func hostTitle(sub int) string {
-	return tr([...]textID{tSubUsers, tSubGroups, tSubFolders}[sub])
+	return tr([...]textID{tSubUsers, tSubGroups, tSubFolders, tSubChanges}[sub])
 }
 
 // hostKey is the English name of a Host page, the one commands are given by.
-func hostKey(sub int) string { return [...]string{"users", "groups", "folders"}[sub] }
+func hostKey(sub int) string { return [...]string{"users", "groups", "folders", "changes"}[sub] }
 
 // HostSource is what Host reads. *hostadmin.Host is the real one; tests hand in a fixture.
 type HostSource interface {
@@ -46,6 +47,7 @@ type hostState struct {
 	users      hostUsersState
 	groups     hostGroupsState
 	fold       hostFoldersState
+	chg        hostChangesState
 }
 
 type hostUsersState struct {
@@ -105,6 +107,7 @@ func (m *Model) hostCmd() tea.Cmd {
 	case hostFolders:
 		return m.enterFolders()
 	}
+	// Changes reads the journal only when asked: that needs root.
 	return nil
 }
 
@@ -296,7 +299,7 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 	admin := shownHost(adminText(u))
 	switch tab {
 	case tabOverview:
-		return factLines([][2]string{
+		lines := factLines([][2]string{
 			{tr(tColName), m.diffText(u.Name)},
 			{tr(tColType), hostKindText(u.System)},
 			{tr(tHostColAdmin), admin},
@@ -306,9 +309,15 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 			{tr(tHostLblHome), m.diffText(u.Home)},
 			{tr(tHostLblLocked), hostKnownBool(u.Locked)},
 		}, width)
+		if u.Locked == nil {
+			lines = append(lines, "")
+			lines = append(lines, wrapIndented(styles.hint, "", tr(tHostReadHint, "ctrl+r"), width)...)
+		}
+		return lines
 	case tabDetails:
 		if u.SSHKeys == nil {
-			return []string{styles.hint.Render(tr(tHostKeysUnknown))}
+			lines := wrapIndented(styles.hint, "", tr(tHostKeysUnknown), width)
+			return append(append(lines, ""), wrapIndented(styles.hint, "", tr(tHostReadHint, "ctrl+r"), width)...)
 		}
 		if len(u.SSHKeys) == 0 {
 			return []string{styles.hint.Render(tr(tHostNoKeys))}
@@ -333,6 +342,15 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 		lines = append(lines, "  - type: "+m.diffText(k.Type), "    comment: "+m.diffText(k.Comment), "    fingerprint: "+m.diffText(k.Fingerprint))
 	}
 	return lines
+}
+
+// hostChangesView is the Changes page: the table of the journal, with a note when it is out of date.
+func (m *Model) hostChangesView(top int) string {
+	body := m.dataBody(&m.hst.chg.page, m.hostChangesSpec(), top)
+	if m.hst.chg.stale && m.hst.chg.have && !m.backdrop {
+		body += "\n" + m.wrapped(styles.warning, tr(tHostChangesStale, "ctrl+r"))
+	}
+	return body
 }
 
 func hostRawBool(b *bool) string {
@@ -382,6 +400,9 @@ func (m *Model) hostBody() string {
 		return m.dataBody(&m.hst.groups.page, m.hostGroupsSpec(), top)
 	case hostFolders:
 		return m.hostFoldersBody()
+	case hostChanges:
+		m.hst.chg.page.cols = m.hostChangeColumns()
+		return m.hostChangesView(top)
 	}
 	m.hst.users.page.cols = m.hostUserColumns()
 	return m.dataBody(&m.hst.users.page, m.hostUsersSpec(), top)
@@ -393,7 +414,14 @@ func (m *Model) hostKeys() []string {
 		return []string{"enter edit path"}
 	}
 	if p := m.currentPage(); p != nil && m.detailFocus(p) {
-		return []string{"←/→ tab", "↑/↓ scroll", "{back} back"}
+		keys := []string{"←/→ tab", "↑/↓ scroll", "{back} back"}
+		if m.hst.sub == hostUsers {
+			keys = append(keys, "ctrl+r read as root")
+		}
+		return keys
+	}
+	if m.hst.sub == hostChanges {
+		return []string{"↑/↓ move", "enter undo", "ctrl+r read as root", "/ filter"}
 	}
 	toggle := "space hide system"
 	if m.hst.hideSystem {
@@ -404,6 +432,16 @@ func (m *Model) hostKeys() []string {
 
 // hostKey handles the keys of Host that the page does not: space hides or shows the system accounts.
 func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
+	if m.hst.sub == hostChanges {
+		return nil, false
+	}
+	if m.hst.sub == hostUsers && keyIs(key, actReload) {
+		if p := m.currentPage(); p != nil && m.detailSeen() {
+			if _, ok := p.current(); ok {
+				return m.askReadUser(), true
+			}
+		}
+	}
 	if m.hst.sub == hostFolders {
 		if keyIs(key, actEnter) || keyIs(key, actSearch) || keyIs(key, actFilter) {
 			f := m.foldersReady()

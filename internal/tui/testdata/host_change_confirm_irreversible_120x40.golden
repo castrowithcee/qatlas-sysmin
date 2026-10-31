@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
+  [Users]  Groups   Folders   Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                         1/3 ╭─ demo-admin ───────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Name        Admin              Docker  Groups            System ║ │                                                │
+║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Name              demo-admin                   │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Type              regular                      │
+║   svc-demo    no                 no      svc-demo          system ║ │ Admin             yes                          │
+╚═══════════════════════════════════════════════════════════════════╝ │ Docker            yes                          │
+                                                                      │ Enabled (sysmin)  yes                          │
+                                                                      │ Groups            demo-admin, sudo, docker,    │
+                                                                      │                   sysmin                       │
+                            ╔══════════════════════════════════════════════════════════════╗ome/demo-admin             │
+                            ║ ⚠ Wipe the demo folder.                                      ║known                      │
+                            ║                                                              ║                           │
+                            ║     This cannot be undone: the old content is not kept       ║ the fields only root can  │
+                            ║                                                              ║                           │
+                            ║   $ demo-wipe '/srv/demo stack'                              ║───────────────────────────╯
+                            ║                                                              ║                            
+                            ║ [ Apply ]  [ Cancel ]                                        ║                            
+                            ║                                                              ║                            
+                            ║ y apply · n/esc cancel                                       ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

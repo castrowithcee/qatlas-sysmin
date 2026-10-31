@@ -34,14 +34,26 @@ type Conn struct {
 	entries []projectEntry
 }
 
-// projectEntry is the outcome of a request for one project; code is empty for success.
-type projectEntry struct{ project, code string }
+// projectEntry is the outcome of a request for one project; code is empty for success. uid and host are
+// set only for a host change, which is logged for the human behind sudo.
+type projectEntry struct {
+	project, code string
+	uid           *uint32
+	host          *auditlog.Host
+}
 
 // Audit records the outcome of the running request for one project, with the error code that refused it or
 // an empty one. When a handler records any, the request is logged as one entry per project instead of one
 // without a project. A handler serves one request at a time per connection, so this needs no lock.
 func (c *Conn) Audit(project, code string) {
-	c.entries = append(c.entries, projectEntry{project, code})
+	c.entries = append(c.entries, projectEntry{project: project, code: code})
+}
+
+// AuditHost records the outcome of the running request as a host change made by the user uid, with the
+// error code of a change that did not stand or an empty one. The entry names uid as its client instead of
+// the peer, which is root.
+func (c *Conn) AuditHost(uid uint32, host auditlog.Host, code string) {
+	c.entries = append(c.entries, projectEntry{code: code, uid: &uid, host: &host})
 }
 
 // HandlerFunc serves one request. A non-nil result is encoded as the answer's result. An error that is a
@@ -49,10 +61,12 @@ func (c *Conn) Audit(project, code string) {
 type HandlerFunc func(ctx context.Context, c *Conn, params json.RawMessage) (any, error)
 
 // Handler is one registered operation. Action is the audit action its requests are logged under. Mutating
-// marks an operation that changes state; Config.Guard runs before it.
+// marks an operation that changes state; Config.Guard runs before it. RootOnly refuses every peer but root
+// with control.CodeNotRoot before the guard and the handler run; the refusal is logged as a control refusal.
 type Handler struct {
 	Action   string
 	Mutating bool
+	RootOnly bool
 	Func     HandlerFunc
 }
 
@@ -146,8 +160,8 @@ func (s *Server) Register(op string, h Handler) error {
 	if op == "" || h.Func == nil {
 		return errors.New("an operation needs a name and a function")
 	}
-	if err := (auditlog.Fields{Action: h.Action, Result: auditlog.ResultSuccess}).Validate(); err != nil {
-		return fmt.Errorf("operation %q: %w", op, err)
+	if !auditlog.KnownOperation(h.Action) {
+		return fmt.Errorf("operation %q: action is not a known operation", op)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -318,7 +332,11 @@ func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 			s.record(peer.UID, action, "", start, code)
 		}
 		for _, e := range c.entries {
-			s.record(peer.UID, action, e.project, start, e.code)
+			uid := peer.UID
+			if e.uid != nil {
+				uid = *e.uid
+			}
+			s.recordFields(auditlog.Fields{ClientUID: uid, Action: action, Project: e.project, Host: e.host}, start, e.code)
 		}
 		if !s.write(conn, resp) {
 			return
@@ -343,6 +361,9 @@ func (s *Server) dispatch(ctx context.Context, c *Conn, line []byte) (string, co
 	s.mu.Unlock()
 	if !ok {
 		return fail(auditlog.OperationControlRequest, control.CodeUnknownOp)
+	}
+	if h.RootOnly && c.Peer.UID != 0 {
+		return fail(auditlog.OperationControlRefuse, control.CodeNotRoot)
 	}
 	if h.Mutating {
 		if s.cfg.Guard == nil {
@@ -401,7 +422,11 @@ func (s *Server) write(conn net.Conn, resp control.Response) bool {
 
 // record appends the one entry a request leaves. A failed write is reported and changes nothing else.
 func (s *Server) record(uid uint32, action, project string, start time.Time, code string) {
-	f := auditlog.Fields{ClientUID: uid, Action: action, Project: project, Result: auditlog.ResultSuccess, Duration: time.Since(start)}
+	s.recordFields(auditlog.Fields{ClientUID: uid, Action: action, Project: project}, start, code)
+}
+
+func (s *Server) recordFields(f auditlog.Fields, start time.Time, code string) {
+	f.Result, f.Duration = auditlog.ResultSuccess, time.Since(start)
 	if code != "" {
 		f.Result, f.ErrorCode = auditlog.ResultFailure, code
 	}

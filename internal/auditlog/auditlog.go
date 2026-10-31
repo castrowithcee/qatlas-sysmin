@@ -159,7 +159,7 @@ func (l *Logger) Append(f Fields) error {
 	uid := f.ClientUID
 	entry := Entry{
 		Seq: seq, Time: now, ClientUID: &uid, Action: f.Action, Project: f.Project, Result: f.Result,
-		ErrorCode: f.ErrorCode, DurationMS: f.Duration.Milliseconds(), PrevHash: prevHash,
+		ErrorCode: f.ErrorCode, DurationMS: f.Duration.Milliseconds(), Host: f.Host, PrevHash: prevHash,
 	}
 	raw, err := l.encode(entry)
 	if err != nil {

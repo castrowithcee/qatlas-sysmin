@@ -46,6 +46,10 @@ const (
 	OperationVaultStatus    = "vault.status"
 	OperationSessionOpen    = "session.open"
 	OperationSessionEnd     = "session.end"
+
+	// OperationHostChange is a change of the host that root made with a registered action. Its entry names
+	// the human behind sudo as the client and the action in Host, never an argument.
+	OperationHostChange = "host.change"
 )
 
 // knownOperations is every action Validate accepts, so a new one is added here.
@@ -61,6 +65,7 @@ var knownOperations = map[string]bool{
 	OperationWebhookReceive: true, OperationWebhookReject: true, OperationNotifySend: true,
 	OperationControlRequest: true, OperationControlRefuse: true, OperationControlStatus: true,
 	OperationVaultStatus: true, OperationSessionOpen: true, OperationSessionEnd: true,
+	OperationHostChange: true,
 }
 
 // KnownOperation reports whether action is one of the Operation constants.

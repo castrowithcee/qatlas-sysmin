@@ -97,6 +97,9 @@ func (s *Service) handleLogList(_ context.Context, _ *daemon.Conn, params json.R
 			Seq: e.Seq, Time: e.Time, ClientUID: e.ClientUID, Action: e.Action, Project: e.Project,
 			Result: e.Result, ErrorCode: e.ErrorCode, DurationMS: e.DurationMS, Signed: e.MAC != "",
 		}
+		if e.Host != nil {
+			out.Entries[i].Host = &control.LogHost{ActionID: e.Host.ActionID, JournalID: e.Host.JournalID, UndoOf: e.Host.UndoOf}
+		}
 	}
 	return out, nil
 }

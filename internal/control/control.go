@@ -97,6 +97,10 @@ const (
 	// OpProjectsStacks lists the running Compose stacks of the host, whether a project manages them or not.
 	// It only reads and needs neither an open vault nor an admin session.
 	OpProjectsStacks = "projects.stacks"
+
+	// OpHostRecord records a finished host change in the audit log. Only root may call it, and it needs
+	// neither an open vault nor an admin session: the sudo call that made the change is the proof.
+	OpHostRecord = "host.record"
 )
 
 // The codes an answer's error carries. They are fixed words, never text built from a request, so an answer
@@ -104,7 +108,9 @@ const (
 const (
 	CodeRefused = "refused"
 	// CodeNotAdmin answers a peer that may reach the socket but is not an administrator, or no longer is.
-	CodeNotAdmin   = "not-admin"
+	CodeNotAdmin = "not-admin"
+	// CodeNotRoot answers a peer that may reach the socket but called an operation only root may call.
+	CodeNotRoot    = "not-root"
 	CodeBadRequest = "bad-request"
 	CodeVersion    = "version"
 	CodeUnknownOp  = "unknown-operation"
@@ -330,4 +336,22 @@ func WriteLine(w io.Writer, v any) error {
 	}
 	_, err = w.Write(append(data, '\n'))
 	return err
+}
+
+// The results of a host change that OpHostRecord takes: the change stands, the change failed, and the
+// change failed and the previous state is back.
+const (
+	HostResultApplied  = "applied"
+	HostResultFailed   = "failed"
+	HostResultRestored = "restored"
+)
+
+// HostRecordParams are the parameters of OpHostRecord. SudoUID is the human behind the sudo call, 0 when
+// unknown. The parameters carry no sentence, command, argument or secret.
+type HostRecordParams struct {
+	Action    string `json:"action"`
+	Result    string `json:"result"`
+	SudoUID   uint32 `json:"sudo_uid"`
+	JournalID string `json:"journal_id"`
+	UndoOf    string `json:"undo_of,omitempty"`
 }
