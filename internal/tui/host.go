@@ -45,6 +45,7 @@ type hostState struct {
 	hideSystem bool
 	users      hostUsersState
 	groups     hostGroupsState
+	fold       hostFoldersState
 }
 
 type hostUsersState struct {
@@ -101,6 +102,8 @@ func (m *Model) hostCmd() tea.Cmd {
 			list, err := src.Groups()
 			return hostGroupsMsg{list, err}
 		}
+	case hostFolders:
+		return m.enterFolders()
 	}
 	return nil
 }
@@ -378,7 +381,7 @@ func (m *Model) hostBody() string {
 		m.hst.groups.page.cols = m.hostGroupColumns()
 		return m.dataBody(&m.hst.groups.page, m.hostGroupsSpec(), top)
 	case hostFolders:
-		return m.wrapped(styles.hint, tr(tHostFoldersSoon))
+		return m.hostFoldersBody()
 	}
 	m.hst.users.page.cols = m.hostUserColumns()
 	return m.dataBody(&m.hst.users.page, m.hostUsersSpec(), top)
@@ -387,7 +390,7 @@ func (m *Model) hostBody() string {
 // hostKeys is the key line of Host.
 func (m *Model) hostKeys() []string {
 	if m.hst.sub == hostFolders {
-		return nil
+		return []string{"enter edit path"}
 	}
 	if p := m.currentPage(); p != nil && m.detailFocus(p) {
 		return []string{"←/→ tab", "↑/↓ scroll", "{back} back"}
@@ -401,6 +404,15 @@ func (m *Model) hostKeys() []string {
 
 // hostKey handles the keys of Host that the page does not: space hides or shows the system accounts.
 func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
+	if m.hst.sub == hostFolders {
+		if keyIs(key, actEnter) || keyIs(key, actSearch) || keyIs(key, actFilter) {
+			f := m.foldersReady()
+			f.editing = true
+			f.in.Focus()
+			return nil, true
+		}
+		return nil, false
+	}
 	if !keyIs(key, actSpace) {
 		return nil, false
 	}

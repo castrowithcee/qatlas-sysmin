@@ -147,6 +147,9 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 		if p := m.currentPage(); p.filtering() {
 			return m.filterKey(p, key)
 		}
+		if m.hostTyping() {
+			return m.foldersKey(key)
+		}
 		return m.editKey(key)
 	}
 	// The guided setup is a form: only help, the command line and the info leave it to the frame.
@@ -245,7 +248,10 @@ func (m *Model) barZone() zone {
 }
 
 // toBar hands the focus from the content to the bar above it.
-func (m *Model) toBar() { m.zone = m.barZone() }
+func (m *Model) toBar() {
+	m.zone = m.barZone()
+	m.hst.fold.editing = false
+}
 
 // detailZoneAvailable reports whether the detail of the marked row stands beside the rows, which makes it a
 // zone of its own. Where it has the screen to itself it is an inner level of the content instead.
@@ -371,6 +377,10 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	p := m.currentPage()
 	if p == nil {
+		// Folders has no table, only its path line.
+		if m.area == areaHost {
+			return m.hostKey(key)
+		}
 		return nil, false
 	}
 	if m.area == areaActivity && !p.open && keyIs(key, actFilter) {
@@ -552,6 +562,9 @@ func (m *Model) areaKeys() string {
 	if m.typing() {
 		if m.area == areaProjects || m.currentPage().filtering() {
 			return "type to filter · ↑/↓ move · enter keep filter · {back} clear filter"
+		}
+		if m.hostTyping() {
+			return m.hostFoldersKeys()
 		}
 		return "enter next · {back} stop · {save} save"
 	}

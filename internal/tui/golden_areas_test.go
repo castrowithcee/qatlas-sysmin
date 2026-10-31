@@ -148,6 +148,41 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "6", "esc", "right")
 			return m
 		}},
+		{"host_folders", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, overviewFake(), w, h)
+			send(m, "6", "esc", "right", "right", "enter", "enter")
+			typed(m, "/srv/demo-stack")
+			send(m, "enter", "esc")
+			return m
+		}},
+		{"host_folders_protected", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, overviewFake(), w, h)
+			send(m, "6", "esc", "right", "right", "enter", "enter")
+			typed(m, "/etc")
+			send(m, "enter", "esc")
+			return m
+		}},
+		{"host_folders_empty", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, overviewFake(), w, h)
+			send(m, "6", "esc", "right", "right")
+			return m
+		}},
+		{"host_info", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, overviewFake(), w, h)
+			send(m, "6", "i")
+			return m
+		}},
+		{"host_help", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, overviewFake(), w, h)
+			send(m, "6", "?")
+			for range helpTopics {
+				if strings.Contains(plain(m), "Host shows the users") {
+					break
+				}
+				send(m, "right")
+			}
+			return m
+		}},
 		{"passphrase_change", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "7", "esc", "right", "enter", "enter")

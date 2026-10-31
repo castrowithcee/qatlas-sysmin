@@ -217,6 +217,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case hostGroupsMsg:
 		m.takeHostGroups(msg)
 		return m, nil
+	case hostFolderMsg:
+		m.takeHostFolder(msg)
+		return m, nil
 	case credentialsMsg:
 		m.takeCredentials(msg)
 		return m, nil

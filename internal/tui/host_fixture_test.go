@@ -1,23 +1,45 @@
 package tui
 
-import "github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
+import (
+	"fmt"
+	"io/fs"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
+)
 
 // fixtureHost is a host source with invented accounts, so no test reads the accounts of the machine it runs on.
 type fixtureHost struct {
 	users  []hostadmin.User
 	groups []hostadmin.Group
-	err    error
+	// folders are the paths Folder knows; any other is not found, so no test stats the real file system.
+	folders map[string]hostadmin.Folder
+	err     error
 }
 
 func (f *fixtureHost) Users() ([]hostadmin.User, error)   { return f.users, f.err }
 func (f *fixtureHost) Groups() ([]hostadmin.Group, error) { return f.groups, f.err }
-func (f *fixtureHost) Folder(string) (hostadmin.Folder, error) {
-	return hostadmin.Folder{}, hostadmin.ErrNotFound
+func (f *fixtureHost) Folder(path string) (hostadmin.Folder, error) {
+	if folder, ok := f.folders[path]; ok {
+		return folder, nil
+	}
+	if path == "/srv/locked" {
+		return hostadmin.Folder{}, fmt.Errorf("stat %s: %w", path, fs.ErrPermission)
+	}
+	return hostadmin.Folder{}, fmt.Errorf("path %q: %w", path, hostadmin.ErrNotFound)
 }
 
 func newFixtureHost() *fixtureHost {
-	unlocked := false
+	unlocked, yes := false, true
 	return &fixtureHost{
+		folders: map[string]hostadmin.Folder{
+			"/srv/demo-stack": {Path: "/srv/demo-stack", Resolved: "/srv/demo-stack", Kind: "directory", Owner: "root", Group: "sysmin",
+				Mode: "2750", OwnerAcc: hostadmin.AccessReadWrite, GroupAcc: hostadmin.AccessRead, OthersAcc: hostadmin.AccessNothing,
+				ACL: &yes, Setgid: true},
+			"/etc": {Path: "/etc", Resolved: "/etc", Kind: "directory", Owner: "root", Group: "root", Mode: "0755",
+				OwnerAcc: hostadmin.AccessReadWrite, GroupAcc: hostadmin.AccessRead, OthersAcc: hostadmin.AccessRead, ACL: &unlocked, Protected: true},
+			"/srv/demo-stack/app.conf": {Path: "/srv/demo-stack/app.conf", Resolved: "/srv/demo-stack/app.conf", Kind: "file", Owner: "demo-user",
+				Group: "demo-team", Mode: "0640", OwnerAcc: hostadmin.AccessReadWrite, GroupAcc: hostadmin.AccessRead, OthersAcc: hostadmin.AccessNothing},
+		},
 		users: []hostadmin.User{
 			{Name: "demo-admin", UID: 1000, PrimaryGroup: "demo-admin", Groups: []string{"demo-admin", "sudo", "docker", "sysmin"},
 				Home: "/home/demo-admin", Admin: true, Docker: true, Enabled: true},
