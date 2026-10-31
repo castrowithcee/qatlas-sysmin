@@ -101,7 +101,9 @@ type Model struct {
 	hostReg         *hostchange.Registry
 	hostExec        func(*exec.Cmd, tea.ExecCallback) tea.Cmd
 	hostIn, hostOut *os.File
-	set             settingsState
+	// hostBg runs a command that needs no terminal (exec.Cmd.Run unless a test stands in).
+	hostBg func(*exec.Cmd) error
+	set    settingsState
 	// prj is the state of the Projects area; see projects.go.
 	prj *projectsState
 	pop *popup

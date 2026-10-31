@@ -23,10 +23,13 @@ import (
 // HostRequest is one call of the sudo hook: the arguments after "sysmin host".
 type HostRequest struct {
 	Args []string
-	// Secret is the extension point for an action that wants a secret input. Standard input belongs to sudo's
-	// password prompt, so the secret needs a channel of its own (an inherited extra file descriptor, or a
-	// sudo-validated two-step); until one exists the hook must refuse a non-empty Secret and askHostChange
-	// refuses an action that wants one before it asks anything.
+	// Validate asks for the command that makes sudo ask for the password on the terminal and remember it
+	// (sudo -v); Args and Secret are empty then.
+	Validate bool
+	// Secret is the standard input of an action that wants a secret input. Standard input belongs to sudo's
+	// password prompt, so a request with a Secret runs in two steps: a Validate request on the terminal, then
+	// this request without a prompt (sudo -n) with Secret as the standard input of the command. The hook
+	// returns a command whose Stdin carries it; it never goes into the arguments or the environment.
 	Secret []byte
 }
 
@@ -58,8 +61,11 @@ func (m *Model) hostRegistry() *hostchange.Registry {
 }
 
 // runHost hands the terminal to the command of req; after gets what it printed on standard output and the
-// error of the run.
+// error of the run. A request with a secret runs through runHostSecret.
 func (m *Model) runHost(req HostRequest, after func(out []byte, err error) tea.Cmd) tea.Cmd {
+	if len(req.Secret) > 0 {
+		return m.runHostSecret(req, nil, after)
+	}
 	var cmd *exec.Cmd
 	err := errors.New("no way to run commands as root")
 	if m.hostRun != nil {
@@ -68,19 +74,97 @@ func (m *Model) runHost(req HostRequest, after func(out []byte, err error) tea.C
 	if err != nil {
 		return func() tea.Msg { return hostRanMsg{after: after, err: err} }
 	}
-	var out bytes.Buffer
+	// sudo asks for the password on the terminal itself, not on standard error, so capturing standard error
+	// leaves the prompt visible and gives the reason of a run that printed no report.
+	var out, errOut bytes.Buffer
 	cmd.Stdout = &out
 	if cmd.Stdin == nil && m.hostIn != nil {
 		cmd.Stdin = m.hostIn
 	}
-	if cmd.Stderr == nil && m.hostOut != nil {
-		cmd.Stderr = m.hostOut
+	if cmd.Stderr == nil {
+		cmd.Stderr = &errOut
 	}
 	exec := m.hostExec
 	if exec == nil {
 		exec = tea.ExecProcess
 	}
-	return exec(cmd, func(err error) tea.Msg { return hostRanMsg{after: after, out: out.Bytes(), err: err} })
+	return exec(cmd, func(err error) tea.Msg {
+		if err != nil && errOut.Len() > 0 {
+			err = &hostRunError{err: err, stderr: errOut.String()}
+		}
+		return hostRanMsg{after: after, out: out.Bytes(), err: err}
+	})
+}
+
+// hostRunError is the error of a run without a prompt: the failure, and what the command wrote to standard
+// error with the secrets taken out.
+type hostRunError struct {
+	err    error
+	stderr string
+}
+
+func (e *hostRunError) Error() string { return e.err.Error() }
+func (e *hostRunError) Unwrap() error { return e.err }
+
+// zero overwrites a buffer that held a secret.
+func zero(b []byte) { clear(b) }
+
+func zeroAll(secret []byte, mask [][]byte) {
+	zero(secret)
+	for _, b := range mask {
+		zero(b)
+	}
+}
+
+// scrub takes every secret out of text.
+func scrub(text string, secrets ...[]byte) string {
+	for _, s := range secrets {
+		if len(s) > 0 {
+			text = strings.ReplaceAll(text, string(s), "<hidden>")
+		}
+	}
+	return text
+}
+
+// runHostSecret runs a request that carries a secret in two steps. sudo asks for the password on the real
+// terminal in the first (sudo -v), which sysmin never sees; the second runs without a prompt, the secret on
+// the standard input of the command, and stops where sudo would have asked again. The secret is overwritten
+// when the run is over. mask are further texts, such as a password inside the secret, that must not reach the
+// screen.
+func (m *Model) runHostSecret(req HostRequest, mask [][]byte, after func(out []byte, err error) tea.Cmd) tea.Cmd {
+	secret := req.Secret
+	return m.runHost(HostRequest{Validate: true}, func(_ []byte, err error) tea.Cmd {
+		if err != nil {
+			zeroAll(secret, mask)
+			kind, exit := classifyRun(nil, err)
+			m.hostFailNoticeAs(tr(tHostChangeFailed), kind, exit, err, false)
+			return nil
+		}
+		var cmd *exec.Cmd
+		if m.hostRun == nil {
+			err = errors.New("no way to run commands as root")
+		} else {
+			cmd, err = m.hostRun(req)
+		}
+		if err != nil {
+			zeroAll(secret, mask)
+			return func() tea.Msg { return hostRanMsg{after: after, err: err} }
+		}
+		var out, errOut bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &out, &errOut
+		run := m.hostBg
+		if run == nil {
+			run = (*exec.Cmd).Run
+		}
+		return func() tea.Msg {
+			err := run(cmd)
+			if err != nil {
+				err = &hostRunError{err: err, stderr: scrub(errOut.String(), append([][]byte{secret}, mask...)...)}
+			}
+			zeroAll(secret, mask)
+			return hostRanMsg{after: after, out: out.Bytes(), err: err}
+		}
+	})
 }
 
 // hostReport is what `host apply` and `host undo` print.
@@ -154,6 +238,47 @@ func (m *Model) hostFailNotice(kind hostFailure, exit int, err error, change boo
 	if change {
 		title = tr(tHostChangeFailed)
 	}
+	m.hostFailNoticeAs(title, kind, exit, err, change)
+}
+
+// noCredential reports the standard error of sudo -n that has no password to use. The hook runs sudo with the
+// C locale, so the words are those of sudo itself.
+func noCredential(stderr string) bool {
+	return strings.Contains(stderr, "a password is required") || strings.Contains(stderr, "a terminal is required")
+}
+
+// stderrLines are the first lines of what a run without a prompt wrote to standard error, cut to the modal.
+func stderrLines(err error) string {
+	var re *hostRunError
+	if !errors.As(err, &re) {
+		return ""
+	}
+	var lines []string
+	for _, l := range strings.Split(strings.TrimSpace(re.stderr), "\n") {
+		if l = strings.TrimSpace(l); l != "" && len(lines) < 3 {
+			lines = append(lines, ansi.Truncate(safeText(l), 200, "…"))
+		}
+	}
+	return strings.Join(lines, " ")
+}
+
+func (m *Model) hostFailNoticeAs(title string, kind hostFailure, exit int, err error, change bool) {
+	var text string
+	reason := stderrLines(err)
+	switch {
+	case noCredential(reason):
+		text = tr(tHostErrNoCredential)
+	case change && reason != "" && !strings.HasPrefix(reason, "sudo:") && (kind == failDenied || kind == failExit):
+		// A line of sudo itself ("sudo: 3 incorrect password attempts") keeps the message about sudo; anything
+		// else is the reason sysmin gave.
+		text = tr(tHostErrReported, m.diffText(reason))
+	default:
+		text = m.hostFailText(kind, exit, err, change)
+	}
+	m.hostNotice(question{title: title, consequence: text, warn: true, danger: true, keys: "{back} close"})
+}
+
+func (m *Model) hostFailText(kind hostFailure, exit int, err error, change bool) string {
 	var text string
 	switch kind {
 	case failNoSudo:
@@ -176,7 +301,7 @@ func (m *Model) hostFailNotice(kind hostFailure, exit int, err error, change boo
 	default:
 		text = tr(tHostErrOutput)
 	}
-	m.hostNotice(question{title: title, consequence: text, warn: true, danger: true, keys: "{back} close"})
+	return text
 }
 
 // wrapWords breaks text into lines of at most width cells, at spaces only: a break inside a path or an option
@@ -243,39 +368,82 @@ func planQuestion(sentence string, commands []string, notReversible, verb string
 	return q
 }
 
-// askHostChange asks for the action id with args and, on y, runs it as root. Nothing is run or changed before
-// the answer; a refusal of the arguments or of the action comes back as a message.
-func (m *Model) askHostChange(id string, args []string) tea.Cmd {
+// hostAsk is one change the person asked for. Secret is the standard input of an action that wants one; it is
+// overwritten when the run is over or the question is dropped. Mask are texts inside it that no message may
+// show. Power names what the change allows, when that is practically everything on the host.
+type hostAsk struct {
+	id     string
+	args   []string
+	secret []byte
+	mask   [][]byte
+	power  bool
+}
+
+// hostPlanned is a change the registry accepted, ready to be confirmed.
+type hostPlanned struct {
+	ask      hostAsk
+	plan     hostchange.Plan
+	commands []string
+}
+
+// planHost describes the change; the error is the reason it is refused, as a message. Nothing is run.
+func (m *Model) planHost(a hostAsk) (hostPlanned, string) {
 	reg := m.hostRegistry()
-	def, ok := reg.Lookup(id)
+	def, ok := reg.Lookup(a.id)
 	switch {
 	case !ok:
-		m.hostNotice(question{title: tr(tHostChangeRefused), consequence: tr(tHostUnknownAction, id), warn: true, keys: "{back} close"})
-		return nil
-	case def.WantsSecret:
-		m.hostNotice(question{title: tr(tHostChangeRefused), consequence: tr(tHostSecretUnsupported), warn: true, keys: "{back} close"})
-		return nil
+		return hostPlanned{}, tr(tHostUnknownAction, a.id)
+	case def.WantsSecret && len(a.secret) == 0:
+		return hostPlanned{}, tr(tHostSecretUnsupported)
 	}
-	plan, err := reg.Describe(id, args, nil)
+	plan, err := reg.Describe(a.id, a.args, a.secret)
 	if err != nil {
-		m.hostNotice(question{title: tr(tHostChangeRefused), consequence: m.diffText(err.Error()), warn: true, keys: "{back} close"})
-		return nil
+		return hostPlanned{}, m.diffText(err.Error())
 	}
 	commands := make([]string, len(plan.Commands))
 	for i, c := range plan.Commands {
 		commands[i] = c.Display()
 	}
-	argv := append([]string{"apply", "--yes", "--output", "json", "--", id}, args...)
-	m.askConfirm(planQuestion(plan.Sentence, commands, plan.NotReversible, "apply"), func() tea.Cmd {
-		return m.runHostChange(argv, plan.Sentence)
+	return hostPlanned{ask: a, plan: plan, commands: commands}, ""
+}
+
+// confirmHost shows the confirmation of a planned change; y runs it.
+func (m *Model) confirmHost(p hostPlanned) {
+	a := p.ask
+	q := planQuestion(p.plan.Sentence, p.commands, p.plan.NotReversible, "apply")
+	if a.power {
+		q.warn = true
+		q.consequence = tr(tHostPowerWarn) + " " + q.consequence
+	}
+	argv := append([]string{"apply", "--yes", "--output", "json", "--", a.id}, a.args...)
+	m.askConfirm(q, func() tea.Cmd {
+		return m.runHostChange(argv, p.plan.Sentence, a.secret, a.mask)
 	})
+	m.confirm.cancel = func() { zeroAll(a.secret, a.mask) }
+}
+
+// askHostChange asks for the action id with args and, on y, runs it as root. Nothing is run or changed before
+// the answer; a refusal of the arguments or of the action comes back as a message. An action that wants a
+// secret input is asked through confirmHost by the form that collects it.
+func (m *Model) askHostChange(id string, args []string) tea.Cmd {
+	p, refusal := m.planHost(hostAsk{id: id, args: args})
+	if refusal != "" {
+		m.hostNotice(question{title: tr(tHostChangeRefused), consequence: refusal, warn: true, keys: "{back} close"})
+		return nil
+	}
+	m.confirmHost(p)
 	return nil
 }
 
 // runHostChange runs a host apply or undo and shows what it reported. The page shown is read again afterwards:
 // the host may have changed even when the run failed and was restored.
-func (m *Model) runHostChange(argv []string, sentence string) tea.Cmd {
-	return m.runHost(HostRequest{Args: argv}, func(out []byte, err error) tea.Cmd {
+func (m *Model) runHostChange(argv []string, sentence string, secret []byte, mask [][]byte) tea.Cmd {
+	req := HostRequest{Args: argv, Secret: secret}
+	run := func(after func(out []byte, err error) tea.Cmd) tea.Cmd { return m.runHost(req, after) }
+	if len(secret) > 0 {
+		run = func(after func(out []byte, err error) tea.Cmd) tea.Cmd { return m.runHostSecret(req, mask, after) }
+	}
+	return run(func(out []byte, err error) tea.Cmd {
 		report, ok := parseReport(out)
 		if !ok {
 			kind, exit := classifyRun(out, err)
@@ -301,6 +469,10 @@ func (m *Model) hostResult(r hostReport, asked string) {
 		if !r.Reversible {
 			q.consequence = tr(tHostDoneFinal)
 		}
+	case hostchange.ResultRefused:
+		q.title, q.warn = tr(tHostRefused, m.diffText(r.Error)), true
+		q.consequence = tr(tHostRefusedNote)
+		r.Error = ""
 	case hostchange.ResultRestored:
 		q.title, q.warn, q.danger = tr(tHostFailedRestored, m.diffText(sentence)), true, true
 		q.consequence = tr(tHostRestoredNote)
@@ -330,6 +502,9 @@ func (m *Model) hostResult(r hostReport, asked string) {
 // afterChange reloads the page shown so it matches the host. The journal is not read again on its own: that
 // would ask for the password a second time, so its list is marked as out of date.
 func (m *Model) afterChange(r hostReport) tea.Cmd {
+	if r.Result == hostchange.ResultRefused {
+		return nil
+	}
 	m.hst.chg.stale = true
 	if m.hst.sub == hostChanges {
 		return nil

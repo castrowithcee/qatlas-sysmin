@@ -198,7 +198,7 @@ func TestHostApplyUserRefusalChangesNothing(t *testing.T) {
 	f.env.Registry, f.env.Exec = reg, execFn(run)
 	f.env.SudoUID = func() int { return 1000 }
 	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.set-admin", "demo-admin", "off")
-	if code == 0 || out != "" || !strings.Contains(errOut, "from yourself") || len(w.argv) != 0 {
+	if code != 1 || !strings.Contains(out, "refused") || !strings.Contains(out, "from yourself") || !strings.Contains(errOut, "from yourself") || len(w.argv) != 0 {
 		t.Fatalf("code %d out %q err %q argv %q", code, out, errOut, w.argv)
 	}
 	code, _, _ = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.set-admin", "Demo", "off")

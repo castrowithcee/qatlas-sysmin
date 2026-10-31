@@ -30,6 +30,8 @@ const (
 	ResultFailed   = "failed"
 	ResultRestored = "restored"
 	ResultUndone   = "undone"
+	// ResultRefused is reported by host apply and undo for a change a rule refused; no journal entry has it.
+	ResultRefused = "refused"
 )
 
 // Outcomes of the check after a change.

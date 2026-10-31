@@ -81,6 +81,19 @@ func newChangeFixture(t *testing.T) *changeFixture {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	if err := reg.Register(hostchange.Definition{
+		ID: "demo.guard",
+		Plan: func([]string, []byte) (hostchange.Plan, error) {
+			return hostchange.Plan{
+				Sentence: "Guarded change.", NotReversible: "demo", Commands: []hostchange.Command{{Argv: []string{"demo-set", "guard", "x"}}},
+				Capture: func(context.Context) (json.RawMessage, error) {
+					return nil, hostchange.Refusef("demo-user is the last administrator")
+				},
+			}, nil
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
 	tick := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
 	f.dir = filepath.Join(t.TempDir(), "sysmin-host", "journal")
 	f.env = &changeEnv{
@@ -160,6 +173,32 @@ func TestHostChangeRefusesNonRootAndMissingYes(t *testing.T) {
 	code, _, errOut = runChange(t, f, 1001, "", "host", "apply", "demo.set", "--yes")
 	if code != 1 || !strings.HasPrefix(errOut, "sysmin is reserved") {
 		t.Errorf("non-admin: code %d err %q", code, errOut)
+	}
+}
+
+func TestHostApplyReportsARefusalWithItsReasonAndChangesNothing(t *testing.T) {
+	f := newChangeFixture(t)
+	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "demo.guard", "--yes", "--output", "json")
+	if code != 1 {
+		t.Fatalf("code %d err %q", code, errOut)
+	}
+	if out == "" {
+		t.Fatalf("no report; stderr %q", errOut)
+	}
+	m := decode(t, out)
+	if m["result"] != "refused" || m["error"] != "demo-user is the last administrator" || m["action"] != "demo.guard" ||
+		m["journal_id"] != "" || m["reversible"] != false {
+		t.Errorf("%v", m)
+	}
+	if len(f.w.calls) != 0 {
+		t.Errorf("executed %v", f.w.calls)
+	}
+	if files, _ := os.ReadDir(f.dir); len(files) != 0 {
+		for _, de := range files {
+			if strings.HasSuffix(de.Name(), ".json") {
+				t.Errorf("a refusal wrote the journal entry %s", de.Name())
+			}
+		}
 	}
 }
 

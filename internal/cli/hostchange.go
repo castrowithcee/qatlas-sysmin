@@ -129,6 +129,9 @@ func newHostApplyCommand(opts *Options) *cobra.Command {
 			}
 			res, err := env.runner(journal).Apply(c.Context(), args[0], args[1:], secret)
 			if err != nil {
+				if refused, ok := refusedChange(c, opts, args[0], err); ok {
+					return refused
+				}
 				var arg *hostchange.ArgumentError
 				if errors.As(err, &arg) {
 					return &UsageError{err}
@@ -161,6 +164,9 @@ func newHostUndoCommand(opts *Options) *cobra.Command {
 			}
 			res, err := env.runner(journal).Undo(c.Context(), args[0])
 			if err != nil {
+				if refused, ok := refusedChange(c, opts, "", err); ok {
+					return refused
+				}
 				return hostError("host undo", err)
 			}
 			return finishChange(c, opts, res)
@@ -221,6 +227,31 @@ func undoPlan(registry *hostchange.Registry, e hostchange.Entry, reversible bool
 		commands[i] = c.Display()
 	}
 	return plan.Sentence, commands
+}
+
+// refusedChange reports a change that a rule refused before anything ran: the report object with the result
+// "refused" and the reason, then an error for the exit code. No journal entry exists for it.
+func refusedChange(c *cobra.Command, opts *Options, action string, err error) (error, bool) {
+	var refusal *hostchange.RefusedError
+	if !errors.As(err, &refusal) {
+		return nil, false
+	}
+	if emitErr := emit(c, opts, output.Object{Fields: []output.Field{
+		{Name: "journal_id", Value: ""},
+		{Name: "action", Value: action},
+		{Name: "sentence", Value: ""},
+		{Name: "commands", Value: []string{}},
+		{Name: "result", Value: hostchange.ResultRefused},
+		{Name: "check", Value: ""},
+		{Name: "check_error", Value: ""},
+		{Name: "restored", Value: false},
+		{Name: "reversible", Value: false},
+		{Name: "error", Value: refusal.Msg},
+		{Name: "warning", Value: ""},
+	}}); emitErr != nil {
+		return emitErr, true
+	}
+	return fmt.Errorf("refused: %s", refusal.Msg), true
 }
 
 // finishChange prints the report. A change that did not stand is an error after the report, so that the

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -26,6 +27,13 @@ type fakeSudo struct {
 	// buildErr makes the hook fail before anything runs.
 	buildErr error
 	ran      int
+	// validateErr is the end of the run that asks sudo for the password (sudo -v); stderr is what the run
+	// without a prompt wrote to standard error; stdins are the standard inputs it was given.
+	validateErr error
+	stderr      string
+	stdins      []string
+	// order records the kind of each run: "terminal" for a hand-over, "quiet" for a run without a terminal.
+	order []string
 }
 
 func (f *fakeSudo) run(req HostRequest) (*exec.Cmd, error) {
@@ -33,7 +41,32 @@ func (f *fakeSudo) run(req HostRequest) (*exec.Cmd, error) {
 	if f.buildErr != nil {
 		return nil, f.buildErr
 	}
-	return exec.Command("fake-sudo", req.Args...), nil
+	if req.Validate {
+		return exec.Command("fake-sudo", "-v"), nil
+	}
+	cmd := exec.Command("fake-sudo", req.Args...)
+	if len(req.Secret) > 0 {
+		cmd.Stdin = bytes.NewReader(req.Secret)
+	}
+	return cmd, nil
+}
+
+// bg is the stand-in for running a command without a terminal.
+func (f *fakeSudo) bg(cmd *exec.Cmd) error {
+	f.order = append(f.order, "quiet")
+	f.ran++
+	if cmd.Stdin != nil {
+		body, _ := io.ReadAll(cmd.Stdin)
+		f.stdins = append(f.stdins, string(body))
+	}
+	var out string
+	var err error
+	if f.answer != nil {
+		out, err = f.answer(HostRequest{Args: cmd.Args[1:]})
+	}
+	_, _ = cmd.Stdout.Write([]byte(out))
+	_, _ = cmd.Stderr.Write([]byte(f.stderr))
+	return err
 }
 
 // exec is the stand-in for tea.ExecProcess: it writes the prepared output to the command's standard output
@@ -41,6 +74,10 @@ func (f *fakeSudo) run(req HostRequest) (*exec.Cmd, error) {
 func (f *fakeSudo) exec(cmd *exec.Cmd, fn tea.ExecCallback) tea.Cmd {
 	return func() tea.Msg {
 		f.ran++
+		f.order = append(f.order, "terminal")
+		if len(cmd.Args) == 2 && cmd.Args[1] == "-v" {
+			return fn(f.validateErr)
+		}
 		var out string
 		var err error
 		if f.answer != nil {
@@ -123,7 +160,7 @@ func hostChangeModel(t *testing.T, w, h int) (*Model, *fakeSudo, *countingHost) 
 	m := appModel(t, overviewFake(), w, h)
 	host := &countingHost{fixtureHost: newFixtureHost()}
 	f := &fakeSudo{}
-	m.hostSrc, m.hostReg, m.hostRun, m.hostExec = host, hostActions(t), f.run, f.exec
+	m.hostSrc, m.hostReg, m.hostRun, m.hostExec, m.hostBg = host, hostActions(t), f.run, f.exec, f.bg
 	send(m, "6")
 	return m, f, host
 }
@@ -470,7 +507,7 @@ func TestTheChildGetsTheRealTerminalAndAStdoutOfItsOwn(t *testing.T) {
 	}
 	drain(m, m.askHostChange("demo.set", []string{"alpha", "new"}))
 	send(m, "y")
-	if seen == nil || seen.Stdin != io.Reader(inFile) || seen.Stderr != io.Writer(outFile) || seen.Stdout == nil || seen.Stdout == io.Writer(outFile) {
+	if seen == nil || seen.Stdin != io.Reader(inFile) || seen.Stderr == nil || seen.Stderr == io.Writer(outFile) || seen.Stdout == nil || seen.Stdout == io.Writer(outFile) {
 		t.Errorf("stdin %v stdout %v stderr %v", seen.Stdin, seen.Stdout, seen.Stderr)
 	}
 }

@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"slices"
 	"strings"
@@ -89,8 +90,22 @@ func TestHostRunnerBuildsTheSudoCallWithoutPassingASecret(t *testing.T) {
 	if !slices.Equal(cmd.Args, want) || cmd.Stdin != nil || cmd.Stdout != nil || cmd.Stderr != nil {
 		t.Errorf("args %q stdin %v stdout %v stderr %v", cmd.Args, cmd.Stdin, cmd.Stdout, cmd.Stderr)
 	}
-	if _, err := hostRunner(tui.HostRequest{Args: []string{"apply"}, Secret: []byte("x")}); err == nil {
-		t.Error("a secret must be refused until it has a channel of its own")
+	validate, err := hostRunner(tui.HostRequest{Validate: true})
+	if err != nil || !slices.Equal(validate.Args, []string{"/usr/bin/sudo", "-v"}) {
+		t.Errorf("validate: %v %v", validate, err)
+	}
+	marker := "invented-input-marker"
+	secret, err := hostRunner(tui.HostRequest{Args: []string{"apply", "--yes", "--", "demo.login"}, Secret: []byte(marker)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantSecret := []string{"/usr/bin/sudo", "-n", "/usr/local/bin/sysmin", "host", "apply", "--yes", "--", "demo.login"}
+	if !slices.Equal(secret.Args, wantSecret) {
+		t.Errorf("secret args %q", secret.Args)
+	}
+	body, _ := io.ReadAll(secret.Stdin)
+	if string(body) != marker || strings.Contains(strings.Join(secret.Args, " ")+strings.Join(secret.Env, " "), marker) {
+		t.Errorf("the secret must be the standard input only: stdin %q", body)
 	}
 	lookPath = func(string) (string, error) { return "", errors.New("not found") }
 	if _, err := hostRunner(tui.HostRequest{Args: []string{"journal"}}); !errors.Is(err, tui.ErrNoSudo) {

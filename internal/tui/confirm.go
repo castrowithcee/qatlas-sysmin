@@ -7,6 +7,8 @@ type confirmAsk struct {
 	yes func() tea.Cmd
 	// notice makes the dialog a message: enter, esc, y and n all just close it.
 	notice bool
+	// cancel runs when the question is dropped unanswered, such as to overwrite a secret it holds.
+	cancel func()
 }
 
 // askConfirm shows q as a modal over the screen. Only y runs yes; n and esc drop it.
@@ -29,6 +31,9 @@ func (m *Model) updateConfirm(key tea.KeyPressMsg) tea.Cmd {
 		m.closeDialog()
 		return yes()
 	case keyIs(key, actNo), keyIs(key, actBack):
+		if cancel := m.confirm.cancel; cancel != nil {
+			cancel()
+		}
 		m.closeDialog()
 		m.status = tr(tCancelled)
 	}

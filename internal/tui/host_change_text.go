@@ -50,6 +50,11 @@ const (
 	tHostReadNote          textID = "HostReadNote"
 	tHostReadHint          textID = "HostReadHint"
 	tHostReadDone          textID = "HostReadDone"
+	tHostErrNoCredential   textID = "HostErrNoCredential"
+	tHostErrReported       textID = "HostErrReported"
+	tHostPowerWarn         textID = "HostPowerWarn"
+	tHostRefused           textID = "HostRefused"
+	tHostRefusedNote       textID = "HostRefusedNote"
 )
 
 func init() {
@@ -71,7 +76,7 @@ func init() {
 		tHostIrreversible:      "This cannot be undone: %s",
 		tHostChangeRefused:     "This change cannot be made",
 		tHostUnknownAction:     "There is no action %q.",
-		tHostSecretUnsupported: "This action needs a secret input, which cannot be passed through sudo yet. Nothing was changed.",
+		tHostSecretUnsupported: "This action needs a secret input, which only its own form can give. Nothing was changed.",
 		tHostDone:              "Done: %s",
 		tHostDoneUndoable:      "The change is in the journal. You can undo it under Host > Changes.",
 		tHostDoneFinal:         "This change cannot be undone.",
@@ -99,6 +104,11 @@ func init() {
 		tHostReadNote:          "Reads the locked state and the SSH keys of this user, which only root can see. Nothing is changed. sudo asks for your password.",
 		tHostReadHint:          "Press %s to read the fields only root can see.",
 		tHostReadDone:          "Read %s as root.",
+		tHostErrNoCredential:   "sudo no longer holds your password and cannot ask again here (for example because its timeout is zero). Nothing was changed.",
+		tHostErrReported:       "sysmin answered without a report: %s. Read Host > Changes to see whether anything was done.",
+		tHostRefused:           "Not changed: %s",
+		tHostRefusedNote:       "A rule of the host refused this change before anything was done.",
+		tHostPowerWarn:         "Admin and Docker rights allow practically everything on this host.",
 
 		footerID("y apply"):             "y apply",
 		footerID("y undo"):              "y undo",
@@ -124,7 +134,7 @@ func init() {
 		tHostIrreversible:      "Das lässt sich nicht rückgängig machen: %s",
 		tHostChangeRefused:     "Diese Änderung ist nicht möglich",
 		tHostUnknownAction:     "Es gibt keine Aktion %q.",
-		tHostSecretUnsupported: "Diese Aktion braucht eine geheime Eingabe, die noch nicht über sudo übergeben werden kann. Es wurde nichts geändert.",
+		tHostSecretUnsupported: "Diese Aktion braucht eine geheime Eingabe, die nur ihr eigenes Formular geben kann. Es wurde nichts geändert.",
 		tHostDone:              "Erledigt: %s",
 		tHostDoneUndoable:      "Die Änderung steht im Journal. Du kannst sie unter Host > Änderungen rückgängig machen.",
 		tHostDoneFinal:         "Diese Änderung lässt sich nicht rückgängig machen.",
@@ -152,6 +162,11 @@ func init() {
 		tHostReadNote:          "Liest den Sperrstatus und die SSH-Schlüssel dieses Benutzers, die nur root sehen kann. Es wird nichts geändert. sudo fragt nach deinem Passwort.",
 		tHostReadHint:          "Drücke %s, um die Felder zu lesen, die nur root sieht.",
 		tHostReadDone:          "%s als root gelesen.",
+		tHostErrNoCredential:   "sudo hält dein Passwort nicht mehr und kann hier nicht erneut fragen (zum Beispiel wegen eines Timeouts von null). Es wurde nichts geändert.",
+		tHostErrReported:       "sysmin hat ohne Bericht geantwortet: %s. Unter Host > Änderungen steht, ob etwas geschehen ist.",
+		tHostRefused:           "Nicht geändert: %s",
+		tHostRefusedNote:       "Eine Regel des Hosts hat diese Änderung abgelehnt, bevor etwas geschah.",
+		tHostPowerWarn:         "Admin- und Docker-Rechte erlauben praktisch alles auf diesem Host.",
 
 		footerID("y apply"):             "y ausführen",
 		footerID("y undo"):              "y rückgängig",
