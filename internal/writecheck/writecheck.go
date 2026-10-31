@@ -12,17 +12,15 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 )
 
-// File reports why path cannot be replaced by a write: set-env writes a temporary file next to it and renames
-// it over the file, so the directory must be writable whether or not the file exists, and an existing file
-// must be writable as well.
+// File reports why set-env cannot write path. An existing file is written in place, so it must be writable
+// itself and its directory does not matter; a missing file is created with a rename, so its directory must be
+// writable.
 func File(path string) error {
-	if err := access(filepath.Dir(path)); err != nil {
-		return err
+	err := access(path)
+	if errors.Is(err, unix.ENOENT) {
+		return access(filepath.Dir(path))
 	}
-	if err := access(path); err != nil && !errors.Is(err, unix.ENOENT) {
-		return err
-	}
-	return nil
+	return err
 }
 
 // Dir reports why files below dir cannot be written. A missing dir counts as writable when its parent is,
@@ -41,8 +39,8 @@ func access(path string) error {
 	return unix.Faccessat(unix.AT_FDCWD, path, unix.W_OK, 0)
 }
 
-// Missing returns the paths the deploy of p writes that the service may not write: the env file with its
-// directory, and the working copy of a git project.
+// Missing returns the paths the deploy of p writes that the service may not write: the env file, and the
+// working copy of a git project.
 func Missing(p config.Project) []string {
 	var out []string
 	if p.EnvFile != "" && File(p.EnvFile) != nil {

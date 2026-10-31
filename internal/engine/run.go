@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"slices"
 	"time"
 
@@ -283,6 +284,7 @@ func (e *Engine) prepare(ap approval.Approved, rec *RunRecord) (io.WriteCloser, 
 		return f, nil, codeExecutor, fmt.Errorf("the executor is not available: %w", err)
 	}
 	ex.Log, ex.BackupRoot, ex.Now = f, e.cfg.BackupRoot, e.cfg.Clock.Now
+	ex.EnvBackupRoot = filepath.Join(e.cfg.StateDir, "env-backups")
 	return f, ex, "", nil
 }
 

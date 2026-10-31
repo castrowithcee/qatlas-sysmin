@@ -503,7 +503,7 @@ func TestRollbackOnlyWhenSomethingChanged(t *testing.T) {
 		breakEnv bool
 		want     string
 	}{
-		{"atomic set-env fails first", []config.Step{setEnv, pull, up}, nil, true, ResultFailed},
+		{"set-env fails first", []config.Step{setEnv, pull, up}, nil, true, ResultFailed},
 		{"pull fails after set-env", []config.Step{setEnv, pull, up}, failOn(" pull"), false, ResultRolledBack},
 		{"compose-up fails first", []config.Step{pull, up}, failOn(" up"), false, ResultRolledBack},
 		{"pull fails first", []config.Step{pull, up}, failOn(" pull"), false, ResultFailed},
@@ -515,13 +515,12 @@ func TestRollbackOnlyWhenSomethingChanged(t *testing.T) {
 			f := newFixture(t)
 			if tc.breakEnv {
 				if os.Geteuid() == 0 {
-					t.Skip("directory permissions do not apply to root")
+					t.Skip("file permissions do not apply to root")
 				}
-				// The atomic env write cannot create its temporary file in a read-only directory.
-				if err := os.Chmod(filepath.Dir(f.envFile), 0o500); err != nil {
+				// The in-place env write cannot open a read-only file.
+				if err := os.Chmod(f.envFile, 0o400); err != nil {
 					t.Fatal(err)
 				}
-				t.Cleanup(func() { _ = os.Chmod(filepath.Dir(f.envFile), 0o700) })
 			}
 			f.stepsProject(tc.steps...)
 			if tc.fail != nil {

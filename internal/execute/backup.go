@@ -17,6 +17,9 @@ import (
 const (
 	// DefaultBackupRoot is where backups are kept when Executor.BackupRoot is empty.
 	DefaultBackupRoot = "/var/lib/sysmin/backups"
+	// DefaultEnvBackupRoot is where the previous content of env files is kept when Executor.EnvBackupRoot is
+	// empty.
+	DefaultEnvBackupRoot = "/var/lib/sysmin/env-backups"
 
 	// DefaultBackupImage is the helper image of volume backups: busybox 1.37.0, pinned by the digest of its
 	// multi-platform index.
@@ -40,6 +43,13 @@ func (e *Executor) backupRoot() string {
 		return e.BackupRoot
 	}
 	return DefaultBackupRoot
+}
+
+func (e *Executor) envBackupRoot() string {
+	if e.EnvBackupRoot != "" {
+		return e.EnvBackupRoot
+	}
+	return DefaultEnvBackupRoot
 }
 
 func (e *Executor) backupImage() string {

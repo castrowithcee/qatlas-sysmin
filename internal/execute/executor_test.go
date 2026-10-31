@@ -159,7 +159,7 @@ func TestDryRunExecutesNothing(t *testing.T) {
 
 func TestSetEnvStepReportsPrevious(t *testing.T) {
 	p := writeFile(t, "A=1\n", 0o600)
-	rep, err := (&Executor{Runner: &fakeRunner{}}).Execute(context.Background(), config.Plan{Steps: []config.ResolvedStep{
+	rep, err := (&Executor{Runner: &fakeRunner{}, EnvBackupRoot: t.TempDir()}).Execute(context.Background(), config.Plan{Project: "demo-stack", Steps: []config.ResolvedStep{
 		{Type: config.StepSetEnv, Timeout: time.Second, EnvFile: p, Assignments: []config.Assignment{{Key: "A", Value: "2"}}}}})
 	if err != nil || !reflect.DeepEqual(rep.Steps[0].Previous, []EnvChange{{"A", "1", true}}) || readFile(t, p) != "A=2\n" {
 		t.Errorf("%v %+v", err, rep.Steps[0])

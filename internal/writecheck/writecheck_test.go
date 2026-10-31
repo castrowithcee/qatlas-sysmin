@@ -23,14 +23,11 @@ func lockedDir(t *testing.T) string {
 	return dir
 }
 
-func TestFileInUnwritableDirectory(t *testing.T) {
+func TestExistingFileInUnwritableDirectory(t *testing.T) {
 	dir := t.TempDir()
 	env := filepath.Join(dir, ".env")
 	if err := os.WriteFile(env, []byte("A=1\n"), 0o600); err != nil {
 		t.Fatal(err)
-	}
-	if err := File(env); err != nil {
-		t.Fatalf("writable file and directory: %v", err)
 	}
 	if os.Geteuid() == 0 {
 		t.Skip("root can write to any directory")
@@ -39,8 +36,18 @@ func TestFileInUnwritableDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	if err := File(env); err != nil {
+		t.Errorf("a writable file in an unwritable directory: %v", err)
+	}
+	if got := Missing(config.Project{EnvFile: env}); got != nil {
+		t.Errorf("Missing = %v, want none", got)
+	}
+}
+
+func TestMissingFileInUnwritableDirectory(t *testing.T) {
+	env := filepath.Join(lockedDir(t), ".env")
 	if err := File(env); err == nil {
-		t.Error("a writable file in an unwritable directory counts as writable")
+		t.Error("a missing file in an unwritable directory counts as writable")
 	}
 }
 
