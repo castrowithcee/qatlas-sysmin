@@ -59,9 +59,12 @@ func TestWrapIndentsContinuations(t *testing.T) {
 	}
 }
 
-func TestSysminTopicIsListed(t *testing.T) {
-	topics := All()
-	if len(topics) != 1 || topics[0].Name != "sysmin" {
-		t.Fatalf("All() = %v, want exactly the sysmin topic", topics)
+func TestTopicsAreListedInOrder(t *testing.T) {
+	var names []string
+	for _, topic := range All() {
+		names = append(names, topic.Name)
+	}
+	if got := strings.Join(names, ","); got != "sysmin,host-admin" {
+		t.Fatalf("All() = %s, want sysmin,host-admin", got)
 	}
 }

@@ -53,3 +53,8 @@ func exitCode(err error) int {
 	}
 	return exitRuntime
 }
+
+// plainError is a runtime error that is printed exactly as written, without the usual prefix.
+type plainError struct{ msg string }
+
+func (e *plainError) Error() string { return e.msg }
