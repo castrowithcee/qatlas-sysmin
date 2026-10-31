@@ -3,6 +3,8 @@ package execute
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -18,9 +20,22 @@ import (
 // newEnvFileMode is the mode of an env file SetEnv has to create.
 const newEnvFileMode fs.FileMode = 0o640
 
-// writeTemp writes the new content to the temporary file; tests replace it to inject a write failure.
+const (
+	envBackupMode    fs.FileMode = 0o600
+	envBackupDirMode fs.FileMode = 0o700
+)
+
+// writeTemp writes the content of a new env file to its temporary file; tests replace it to inject a write
+// failure.
 var writeTemp = func(f *os.File, data []byte) error {
 	_, err := f.Write(data)
+	return err
+}
+
+// writeInPlace writes the new content over an existing env file from offset 0; tests replace it to inject a
+// failure after the write began.
+var writeInPlace = func(f *os.File, data []byte) error {
+	_, err := f.WriteAt(data, 0)
 	return err
 }
 
@@ -209,19 +224,26 @@ func unescapeDouble(s string) string {
 
 // SetEnv sets the assignments in the env file at path and returns the values they replaced, in assignment
 // order. All other bytes of the file stay as they are; only the lines of the assigned variables change, and
-// a variable the file lacks is appended. The file is replaced atomically, so on any error or when ctx ends
-// before the final rename the original stays unchanged and no temporary file remains.
+// a variable the file lacks is appended.
+//
+// An existing file is written in place through its own descriptor, so its owner, mode and ACLs stay and the
+// directory needs no write permission. The old content is first saved to backupFile (mode 0600, replaced by
+// the next call); if writing fails or ctx ends before it begins, the file keeps or regains its old content.
+// A missing file is created with a temporary file and a rename, which needs a writable directory.
 //
 // A variable that occurs more than once is replaced in every line; the previous value is the last one, which
 // is the one Compose uses. Interpolation is not applied to previous values. The env file itself must not be
 // a symbolic link.
-func SetEnv(ctx context.Context, path string, assignments []config.Assignment) ([]EnvChange, error) {
+func SetEnv(ctx context.Context, path string, assignments []config.Assignment, backupFile string) ([]EnvChange, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	data, mode, owner, err := readEnvFile(path)
+	f, data, err := openEnvFile(path)
 	if err != nil {
 		return nil, err
+	}
+	if f != nil {
+		defer f.Close()
 	}
 
 	want := map[string]string{}
@@ -256,7 +278,12 @@ func SetEnv(ctx context.Context, path string, assignments []config.Assignment) (
 		prev[a.Key] = EnvChange{Key: a.Key}
 	}
 
-	if err := replaceFile(ctx, path, []byte(buf.String()), mode, owner); err != nil {
+	if f == nil {
+		err = createFile(ctx, path, []byte(buf.String()))
+	} else {
+		err = rewriteFile(ctx, f, []byte(data), []byte(buf.String()), backupFile)
+	}
+	if err != nil {
 		return nil, err
 	}
 	changes := make([]EnvChange, 0, len(assignments))
@@ -304,45 +331,108 @@ func ReadEnvValue(path, key string) (value string, found bool, err error) {
 	return value, found, nil
 }
 
-type fileOwner struct {
-	set      bool
-	uid, gid int
-}
-
-// readEnvFile returns the content, mode and owner of the env file; a missing file is empty with the default
-// mode.
-func readEnvFile(path string) (string, fs.FileMode, fileOwner, error) {
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+// openEnvFile opens the env file for reading and writing and returns it with its content. A missing file
+// gives a nil file and empty content.
+func openEnvFile(path string) (*os.File, string, error) {
+	f, err := os.OpenFile(path, os.O_RDWR|syscall.O_NOFOLLOW, 0)
 	if errors.Is(err, fs.ErrNotExist) {
-		return "", newEnvFileMode, fileOwner{}, nil
+		return nil, "", nil
 	}
 	if errors.Is(err, syscall.ELOOP) {
-		return "", 0, fileOwner{}, fmt.Errorf("env file %s is a symbolic link", path)
+		return nil, "", fmt.Errorf("env file %s is a symbolic link", path)
 	}
 	if err != nil {
-		return "", 0, fileOwner{}, err
+		return nil, "", err
 	}
-	defer f.Close()
 	info, err := f.Stat()
-	if err != nil {
-		return "", 0, fileOwner{}, err
-	}
-	if !info.Mode().IsRegular() {
-		return "", 0, fileOwner{}, fmt.Errorf("env file %s is not a regular file", path)
+	if err == nil && !info.Mode().IsRegular() {
+		err = fmt.Errorf("env file %s is not a regular file", path)
 	}
 	var data bytes.Buffer
-	if _, err := data.ReadFrom(f); err != nil {
-		return "", 0, fileOwner{}, err
+	if err == nil {
+		_, err = data.ReadFrom(f)
 	}
-	var o fileOwner
-	if st, ok := info.Sys().(*syscall.Stat_t); ok {
-		o = fileOwner{set: true, uid: int(st.Uid), gid: int(st.Gid)}
+	if err != nil {
+		f.Close()
+		return nil, "", err
 	}
-	return data.String(), info.Mode().Perm(), o, nil
+	return f, data.String(), nil
 }
 
-// replaceFile writes data to a temporary file next to path and renames it over path.
-func replaceFile(ctx context.Context, path string, data []byte, mode fs.FileMode, owner fileOwner) (err error) {
+// rewriteFile saves old to backupFile, then replaces the content of f with data. A failure after the write
+// began puts old back.
+func rewriteFile(ctx context.Context, f *os.File, old, data []byte, backupFile string) error {
+	if err := saveBackup(backupFile, old); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	err := writeInPlace(f, data)
+	if err == nil {
+		err = f.Truncate(int64(len(data)))
+	}
+	if err == nil {
+		err = f.Sync()
+	}
+	if err == nil {
+		return nil
+	}
+	rerr := restoreContent(f, old)
+	if rerr != nil {
+		return fmt.Errorf("%w (restoring the old content failed: %v)", err, rerr)
+	}
+	return err
+}
+
+func restoreContent(f *os.File, old []byte) error {
+	if _, err := f.WriteAt(old, 0); err != nil {
+		return err
+	}
+	if err := f.Truncate(int64(len(old))); err != nil {
+		return err
+	}
+	return f.Sync()
+}
+
+// saveBackup stores data in a file only the service can read, since an env file holds secrets.
+func saveBackup(path string, data []byte) (err error) {
+	if path == "" {
+		return errors.New("no backup file for the env file")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), envBackupDirMode); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, envBackupMode)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+	}()
+	if err = f.Chmod(envBackupMode); err != nil {
+		return err
+	}
+	if _, err = f.Write(data); err != nil {
+		return err
+	}
+	return f.Sync()
+}
+
+// envBackupPath is the backup file of one env file of a project below root.
+func envBackupPath(root, project, envFile string) (string, error) {
+	dir, err := projectBackupDir(root, project)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256([]byte(envFile))
+	return filepath.Join(dir, "env-"+hex.EncodeToString(sum[:8])+".bak"), nil
+}
+
+// createFile writes data to a temporary file next to path and renames it over path.
+func createFile(ctx context.Context, path string, data []byte) (err error) {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
@@ -354,12 +444,8 @@ func replaceFile(ctx context.Context, path string, data []byte, mode fs.FileMode
 			os.Remove(tmp.Name())
 		}
 	}()
-	if err = tmp.Chmod(mode); err != nil {
+	if err = tmp.Chmod(newEnvFileMode); err != nil {
 		return err
-	}
-	if owner.set {
-		// Best effort: only a privileged service can hand the file back to its owner.
-		_ = tmp.Chown(owner.uid, owner.gid)
 	}
 	if err = writeTemp(tmp, data); err != nil {
 		return err
@@ -388,7 +474,11 @@ func runSetEnv(ctx context.Context, s *stepRun, st config.ResolvedStep) error {
 	if err := checkSetEnv(st); err != nil {
 		return err
 	}
-	prev, err := SetEnv(ctx, st.EnvFile, st.Assignments)
+	backup, err := envBackupPath(s.e.envBackupRoot(), s.project, st.EnvFile)
+	if err != nil {
+		return err
+	}
+	prev, err := SetEnv(ctx, st.EnvFile, st.Assignments, backup)
 	if err != nil {
 		return err
 	}

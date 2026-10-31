@@ -1,12 +1,14 @@
 package execute
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
@@ -22,6 +24,12 @@ func writeFile(t *testing.T, content string, mode os.FileMode) string {
 		t.Fatal(err)
 	}
 	return p
+}
+
+// testBackup returns a backup file path in a fresh directory.
+func testBackup(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(t.TempDir(), "backups", "demo-stack", "env.bak")
 }
 
 func readFile(t *testing.T, p string) string {
@@ -46,7 +54,7 @@ func noTempFiles(t *testing.T, dir string) {
 func TestSetEnvKeepsOtherBytes(t *testing.T) {
 	orig := "# header\n\n  export  APP_TAG = 1.0.0   # pinned\r\nOTHER='a b'\nDB_TAG=\"x\"\nTRAILING=1\nLAST=z"
 	p := writeFile(t, orig, 0o600)
-	prev, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "APP_TAG", Value: "1.2.3"}, {Key: "NEW_ONE", Value: "v"}})
+	prev, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "APP_TAG", Value: "1.2.3"}, {Key: "NEW_ONE", Value: "v"}}, testBackup(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +75,7 @@ func TestSetEnvKeepsOtherBytes(t *testing.T) {
 func TestSetEnvPreviousValues(t *testing.T) {
 	p := writeFile(t, "A=\nB='it''s'\nC=\"a\\\"b # c\" # note\nD=\"line1\nline2\"\nE=plain # c\nexport F='x'\n", 0o644)
 	prev, err := SetEnv(context.Background(), p, []config.Assignment{
-		{Key: "A", Value: "1"}, {Key: "C", Value: "2"}, {Key: "D", Value: "3"}, {Key: "E", Value: "4"}, {Key: "F", Value: "5"}, {Key: "Z", Value: ""}})
+		{Key: "A", Value: "1"}, {Key: "C", Value: "2"}, {Key: "D", Value: "3"}, {Key: "E", Value: "4"}, {Key: "F", Value: "5"}, {Key: "Z", Value: ""}}, testBackup(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +91,7 @@ func TestSetEnvPreviousValues(t *testing.T) {
 
 func TestSetEnvCreatesFile(t *testing.T) {
 	p := filepath.Join(t.TempDir(), ".env")
-	prev, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "A", Value: "1"}})
+	prev, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "A", Value: "1"}}, testBackup(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +105,7 @@ func TestSetEnvCreatesFile(t *testing.T) {
 
 func TestSetEnvDuplicateKeyReplacedEverywhere(t *testing.T) {
 	p := writeFile(t, "A=1\nB=2\nA=3\n", 0o600)
-	prev, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "A", Value: "9"}})
+	prev, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "A", Value: "9"}}, testBackup(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +122,7 @@ func TestSetEnvRefusesSymlink(t *testing.T) {
 	if err := os.Symlink(target, link); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := SetEnv(context.Background(), link, []config.Assignment{{Key: "A", Value: "2"}}); err == nil {
+	if _, err := SetEnv(context.Background(), link, []config.Assignment{{Key: "A", Value: "2"}}, testBackup(t)); err == nil {
 		t.Fatal("expected an error")
 	}
 	if readFile(t, target) != "A=1\n" {
@@ -125,41 +133,120 @@ func TestSetEnvRefusesSymlink(t *testing.T) {
 	}
 }
 
-func TestSetEnvAtomicOnWriteFailure(t *testing.T) {
-	orig := "# keep\nA=1\n"
+func TestSetEnvInPlaceKeepsModeInReadOnlyDirectory(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can write to any directory")
+	}
+	p := writeFile(t, "A=1\n", 0o604)
+	dir := filepath.Dir(p)
+	before, _ := os.Stat(p)
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	if _, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "A", Value: "22"}}, testBackup(t)); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, p); got != "A=22\n" {
+		t.Errorf("got %q", got)
+	}
+	after, _ := os.Stat(p)
+	if after.Mode().Perm() != 0o604 || !os.SameFile(before, after) {
+		t.Errorf("mode %v, same file %v", after.Mode().Perm(), os.SameFile(before, after))
+	}
+}
+
+func TestSetEnvShrinksFile(t *testing.T) {
+	p := writeFile(t, "A=a-long-demo-value\nB=2\n", 0o600)
+	if _, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "A", Value: "1"}}, testBackup(t)); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, p); got != "A=1\nB=2\n" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestSetEnvRestoresOnWriteFailure(t *testing.T) {
+	orig := "# keep\nA=1\nDEMO_SECRET=not-a-real-secret\n"
 	p := writeFile(t, orig, 0o600)
-	old := writeTemp
-	t.Cleanup(func() { writeTemp = old })
-	writeTemp = func(f *os.File, data []byte) error {
-		f.Write(data[:3])
+	old := writeInPlace
+	t.Cleanup(func() { writeInPlace = old })
+	writeInPlace = func(f *os.File, data []byte) error {
+		f.WriteAt(data[:3], 0)
+		f.Truncate(3)
 		return errors.New("disk full")
 	}
-	if _, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "A", Value: "2"}}); err == nil {
-		t.Fatal("expected an error")
+	_, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "A", Value: "a-much-longer-demo-value"}}, testBackup(t))
+	if err == nil || err.Error() != "disk full" {
+		t.Fatalf("got %v", err)
 	}
 	if readFile(t, p) != orig {
-		t.Error("original changed")
+		t.Errorf("original not restored: %q", readFile(t, p))
 	}
 	noTempFiles(t, filepath.Dir(p))
 }
 
-func TestSetEnvAtomicOnCanceledContext(t *testing.T) {
+func TestSetEnvCanceledContextLeavesFile(t *testing.T) {
 	orig := "A=1\n"
 	p := writeFile(t, orig, 0o600)
 	ctx, cancel := context.WithCancel(context.Background())
-	old := writeTemp
-	t.Cleanup(func() { writeTemp = old })
-	writeTemp = func(f *os.File, data []byte) error {
-		cancel() // the context ends after the content is written, before the rename
-		return old(f, data)
-	}
-	if _, err := SetEnv(ctx, p, []config.Assignment{{Key: "A", Value: "2"}}); !errors.Is(err, context.Canceled) {
+	cancel()
+	if _, err := SetEnv(ctx, p, []config.Assignment{{Key: "A", Value: "2"}}, testBackup(t)); !errors.Is(err, context.Canceled) {
 		t.Fatalf("got %v", err)
 	}
 	if readFile(t, p) != orig {
 		t.Error("original changed")
 	}
+}
+
+func TestSetEnvCreateFailureLeavesNoTempFile(t *testing.T) {
+	p := filepath.Join(t.TempDir(), ".env")
+	old := writeTemp
+	t.Cleanup(func() { writeTemp = old })
+	writeTemp = func(f *os.File, data []byte) error { return errors.New("disk full") }
+	if _, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "A", Value: "2"}}, testBackup(t)); err == nil {
+		t.Fatal("expected an error")
+	}
+	if _, err := os.Stat(p); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("file exists: %v", err)
+	}
 	noTempFiles(t, filepath.Dir(p))
+}
+
+func TestSetEnvSavesBackup(t *testing.T) {
+	orig := "DEMO_SECRET=not-a-real-secret\nA=1\n"
+	p := writeFile(t, orig, 0o600)
+	bk := testBackup(t)
+	if _, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "A", Value: "2"}}, bk); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Stat(bk)
+	if err != nil || fi.Mode().Perm() != 0o600 || readFile(t, bk) != orig {
+		t.Errorf("backup: %v, %v", fi, err)
+	}
+	if di, _ := os.Stat(filepath.Dir(bk)); di.Mode().Perm() != 0o700 {
+		t.Errorf("backup dir mode %v", di.Mode().Perm())
+	}
+}
+
+func TestRunSetEnvBackupStaysOutOfLogs(t *testing.T) {
+	dir := t.TempDir()
+	env := filepath.Join(dir, ".env")
+	os.WriteFile(env, []byte("DEMO_SECRET=not-a-real-secret\nA=1\n"), 0o600)
+	root := filepath.Join(t.TempDir(), "env-backups")
+	var log bytes.Buffer
+	s := &stepRun{e: &Executor{EnvBackupRoot: root, Log: &log}, project: "demo-stack"}
+	st := config.ResolvedStep{EnvFile: env, Assignments: []config.Assignment{{Key: "A", Value: "2"}}}
+	if err := runSetEnv(context.Background(), s, st); err != nil {
+		t.Fatal(err)
+	}
+	bk, _ := envBackupPath(root, "demo-stack", env)
+	if readFile(t, bk) != "DEMO_SECRET=not-a-real-secret\nA=1\n" {
+		t.Error("backup content")
+	}
+	if strings.Contains(log.String(), "not-a-real-secret") || strings.Contains(log.String(), bk) {
+		t.Errorf("log leaks backup: %q", log.String())
+	}
 }
 
 func TestFormatEnvValue(t *testing.T) {
@@ -190,10 +277,10 @@ func TestFormatEnvValue(t *testing.T) {
 func TestFormatRoundTrip(t *testing.T) {
 	for _, v := range []string{"1.0", "", "a b", "a#b", "$HOME", `q"q`, "it's", "it's #x", " lead", "trail ", "k=v", `back\slash`} {
 		p := writeFile(t, "X=old\n", 0o600)
-		if _, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "X", Value: v}}); err != nil {
+		if _, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "X", Value: v}}, testBackup(t)); err != nil {
 			t.Fatalf("%q: %v", v, err)
 		}
-		prev, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "X", Value: "next"}})
+		prev, err := SetEnv(context.Background(), p, []config.Assignment{{Key: "X", Value: "next"}}, testBackup(t))
 		if err != nil || prev[0].Previous != v {
 			t.Errorf("%q read back as %q (%v)", v, prev[0].Previous, err)
 		}

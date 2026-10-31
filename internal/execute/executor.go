@@ -37,6 +37,9 @@ type Executor struct {
 	// BackupRoot holds one directory per project with one directory per backup; empty means
 	// DefaultBackupRoot.
 	BackupRoot string
+	// EnvBackupRoot holds one directory per project with the saved previous content of its env files; empty
+	// means DefaultEnvBackupRoot. The files hold secrets and never leave this directory.
+	EnvBackupRoot string
 	// BackupImage is the helper image of volume backups; empty means DefaultBackupImage. It must be pinned by
 	// digest.
 	BackupImage string
