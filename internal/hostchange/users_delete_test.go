@@ -299,8 +299,13 @@ func TestDeleteWithHomeLeavesTheRisksToTheAdmin(t *testing.T) {
 			}
 			return link
 		}, HomeLink, "demo-other"},
-		// Every file of the fake host belongs to the test's own UID, never to demo-user's 1001.
-		{"owned by someone else", func(*userFixture) string { return "" }, HomeForeignOwner, ""},
+		// Every file of the fake host belongs to the test's own UID, which on some CI runners is demo-user's 1001.
+		{"owned by someone else", func(f *userFixture) string {
+			if u := f.user("demo-user"); u.uid == os.Getuid() {
+				u.uid = 1004
+			}
+			return ""
+		}, HomeForeignOwner, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newUserFixture(t, 1000)

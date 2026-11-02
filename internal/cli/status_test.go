@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -88,7 +89,9 @@ func startServiceCfg(t *testing.T, bound bool, setup func(configDir string), mod
 	go func() { done <- runService(ctx, cfg) }()
 	t.Cleanup(func() { cancel(); <-done })
 	for i := 0; i < 300; i++ {
-		if _, err := os.Lstat(cfg.SocketPath); err == nil {
+		// The socket file exists between bind and listen; only a successful dial means the service accepts.
+		if c, err := net.Dial("unix", cfg.SocketPath); err == nil {
+			c.Close()
 			return cfg.SocketPath, state, configDir
 		}
 		time.Sleep(10 * time.Millisecond)
