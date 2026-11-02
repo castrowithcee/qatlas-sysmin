@@ -62,6 +62,17 @@ func (m *Model) furtherGroups(withSystem bool) []string {
 	return names
 }
 
+// systemNotes marks the system groups among names for a pick row.
+func (m *Model) systemNotes(names []string) []string {
+	notes := make([]string, len(names))
+	for i, g := range names {
+		if m.isSystemGroup(g) {
+			notes[i] = tr(tHostSystem)
+		}
+	}
+	return notes
+}
+
 func (m *Model) isSystemGroup(name string) bool {
 	for _, g := range m.hst.groups.all {
 		if g.Name == name {
@@ -188,7 +199,7 @@ func (m *Model) openUserCreate() tea.Cmd {
 		maskedRow("again", tr(tHostFormPassword2)),
 		choiceRow("admin", tr(tHostColAdmin), yesNo, shown, 0),
 		choiceRow("docker", tr(tHostColDocker), yesNo, shown, 0),
-		multiRow("groups", tr(tHostFormFurther), m.furtherGroups(false)),
+		pickRow("groups", tr(tHostFormFurther), m.furtherGroups(false), nil),
 		textRow("key", tr(tHostFormKey), ""),
 	}
 	f.enter = func(_ *Model, f *formDlg, row int) bool {
@@ -358,8 +369,8 @@ func (m *Model) openUserEdit() tea.Cmd {
 	f := &formDlg{title: tr(tHostEditTitle, m.diffText(u.Name)), saveText: "{save} save", submit: st.submit}
 	f.rows = []formRow{
 		choiceRow("what", tr(tHostFormWhat), ids, shown, 0),
-		multiRow("add", tr(tHostFormAddTo), add),
-		multiRow("remove", tr(tHostFormRemoveFrom), remove),
+		pickRow("add", tr(tHostFormAddTo), add, m.systemNotes(add)),
+		pickRow("remove", tr(tHostFormRemoveFrom), remove, m.systemNotes(remove)),
 		maskedRow("password", tr(tHostFormPassword)),
 		maskedRow("again", tr(tHostFormPassword2)),
 		choiceRow("must", tr(tHostFormMust), []string{hostYes, hostNo}, []string{tr(tHostYes), tr(tHostNo)}, 0),

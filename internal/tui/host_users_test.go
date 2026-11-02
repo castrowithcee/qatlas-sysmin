@@ -93,7 +93,7 @@ func TestCreateBuildsTheActionAndPassesPasswordAndKeyOnStandardInputOnly(t *test
 	seeNoInput(t, m, "the password field")
 	send(m, "tab")
 	typed(m, inputMarker)
-	send(m, "tab", "right", "tab", "right", "tab", "space", "tab")
+	send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter", "tab")
 	typed(m, line)
 	send(m, "enter")
 	if !strings.Contains(plain(m), fp) {
@@ -275,8 +275,8 @@ func TestEachChangeRunsItsOwnActionWithItsOwnConfirm(t *testing.T) {
 		power bool
 	}{
 		{chgEnable, func(*Model, string) {}, []string{"user.enable", "demo-user"}, "", false},
-		{chgAddGroups, func(m *Model, _ string) { send(m, "tab", "space") }, []string{"user.add-groups", "demo-user", "demo-ops"}, "", false},
-		{chgRemoveGroups, func(m *Model, _ string) { send(m, "tab", "space") }, []string{"user.remove-groups", "demo-user", "demo-team"}, "", false},
+		{chgAddGroups, func(m *Model, _ string) { send(m, "tab", "enter", "space", "enter") }, []string{"user.add-groups", "demo-user", "demo-ops"}, "", false},
+		{chgRemoveGroups, func(m *Model, _ string) { send(m, "tab", "enter", "space", "enter") }, []string{"user.remove-groups", "demo-user", "demo-team"}, "", false},
 		{chgAdminOff, func(*Model, string) {}, []string{"user.set-admin", "demo-user", "off", "without-sysmin"}, "", false},
 		{chgDockerOn, func(*Model, string) {}, []string{"user.set-docker", "demo-user", "on"}, "", true},
 		{chgPassword, func(m *Model, _ string) {
@@ -405,7 +405,7 @@ func TestRootAndSystemUsersAreChangeableWithARedConfirmation(t *testing.T) {
 	} {
 		chooseChange(t, m, tc.user, tc.change)
 		if tc.pick {
-			send(m, "tab", "right", "space") // demo-sys, the second of the groups to choose from
+			send(m, "tab", "enter", "down", "space", "enter") // demo-sys, the second of the groups to choose from
 		}
 		save(m)
 		if m.ask == nil || m.ask.danger != tc.red || len(f.reqs) != 0 {
