@@ -45,7 +45,8 @@ type stackInfo struct {
 
 // stackPreview is the answer of `host preview folder.setup-stacks`.
 type stackPreview struct {
-	Sentence string `json:"sentence"`
+	Sentence string   `json:"sentence"`
+	Commands []string `json:"commands"`
 	Preview  *struct {
 		Path             string       `json:"path"`
 		Folder           *stackChange `json:"folder"`
@@ -100,7 +101,9 @@ func (m *Model) confirmStackSetup(target string, p stackPreview) {
 		q.consequence = tr(tHostStacksOthers) + " " + q.consequence
 		q.warn = true
 	}
-	q.details = []string{"\n" + strings.Join(m.stackLines(target, v.Folder, v.Stacks, v.Kept), "\n")}
+	lines := m.stackLines(target, v.Folder, v.Stacks, v.Kept, len(p.Commands) > 0)
+	lines = append(lines, m.commandLines(p.Commands, stackDetailRoom(m.termHeight)-len(lines))...)
+	q.details = []string{"\n" + strings.Join(lines, "\n")}
 	argv := append([]string{"apply", "--yes", "--output", "json", "--", hostchange.ActionFolderSetupStacks},
 		hostchange.StackFolderArgs(target)...)
 	m.askConfirm(q, func() tea.Cmd { return m.runHostChange(argv, p.Sentence, nil, nil) })
@@ -134,7 +137,7 @@ func keptText(base string, k stackKept) string {
 
 // stackLines are the lines of the confirmation: the folder, one block per stack, and what stays. When the
 // room of a modal is used up, the stacks that do not fit are counted.
-func (m *Model) stackLines(target string, folder *stackChange, stacks []stackInfo, kept []stackKept) []string {
+func (m *Model) stackLines(target string, folder *stackChange, stacks []stackInfo, kept []stackKept, commands bool) []string {
 	var blocks [][]string
 	if folder != nil {
 		blocks = append(blocks, hostLines(styles.cell, "", m.diffText(target)+": "+stackChangeText(*folder, nil)))
@@ -164,6 +167,9 @@ func (m *Model) stackLines(target string, folder *stackChange, stacks []stackInf
 		blocks = append(blocks, hostLines(styles.hint, "", m.diffText(keptText(target, k))))
 	}
 	room := stackDetailRoom(m.termHeight)
+	if commands {
+		room-- // the commands keep at least one line
+	}
 	var lines []string
 	for i, b := range blocks {
 		limit := room
@@ -174,6 +180,19 @@ func (m *Model) stackLines(target string, folder *stackChange, stacks []stackInf
 			return append(lines, hostLines(styles.hint, "", tr(tHostStacksMore, len(blocks)-i))...)
 		}
 		lines = append(lines, b...)
+	}
+	return lines
+}
+
+// commandLines are the exact commands, dimmed, as far as room lines hold whole commands; the rest is counted.
+func (m *Model) commandLines(commands []string, room int) []string {
+	var lines []string
+	for i, c := range commands {
+		block := hostLines(styles.hint, "$ ", m.diffText(c))
+		if len(lines)+len(block) > room-1 && (i < len(commands)-1 || len(lines)+len(block) > room) {
+			return append(lines, hostLines(styles.hint, "", tr(tHostStacksMoreCommands, len(commands)-i))...)
+		}
+		lines = append(lines, block...)
 	}
 	return lines
 }

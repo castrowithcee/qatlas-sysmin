@@ -10,7 +10,7 @@ import (
 
 const stackSentence = "Set up the stack folder /srv/demo-stack for the service (2 stacks: web, api)."
 
-const stackPreviewJSON = `{"action":"folder.setup-stacks","sentence":"` + stackSentence + `","commands":[],"preview":{
+const stackPreviewJSON = `{"action":"folder.setup-stacks","sentence":"` + stackSentence + `","commands":["chown root:sysmin /srv/demo-stack","chmod 0750 /srv/demo-stack","chmod 0640 /srv/demo-stack/web/compose.yaml"],"preview":{
  "path":"/srv/demo-stack",
  "folder":{"path":"/srv/demo-stack","role":"folder","before":{"owner":"demo-user","group":"demo-user","mode":"0755"},"after":{"owner":"root","group":"sysmin","mode":"0750"}},
  "stacks":[
@@ -74,6 +74,7 @@ func TestStackSetupReadsThePreviewThroughSudoAndConfirmsBeforeAnythingRuns(t *te
 		"Set up the stack folder /srv/demo-stack for the service?",
 		"web (running): folder root:sysmin 0750 (was demo-user:demo-user 0755), compose.yaml 0640 (was 0644), .env 0660 (was 0644)",
 		"api: folder root:sysmin 0750 (was demo-user:demo-user 0755), compose.yaml 0640 (was 0644)",
+		"$ chown root:sysmin /srv/demo-stack",
 		"Stays: nginx.conf (a container mounts it",
 		"Other users except root have no access to these folders and files afterwards",
 		"You can undo this under Host > Changes.",

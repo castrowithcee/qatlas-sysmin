@@ -13,6 +13,7 @@ const (
 	tHostStacksSetUpAlready textID = "HostStacksSetUpAlready"
 	tHostStacksStays        textID = "HostStacksStays"
 	tHostStacksMore         textID = "HostStacksMore"
+	tHostStacksMoreCommands textID = "HostStacksMoreCommands"
 )
 
 func init() {
@@ -26,6 +27,7 @@ func init() {
 		tHostStacksSetUpAlready: "set up already",
 		tHostStacksStays:        "Stays: %s (%s)",
 		tHostStacksMore:         "… and %d more entries, not shown",
+		tHostStacksMoreCommands: "… and %d more commands",
 
 		footerID("s set up stacks"): "s set up stacks",
 	})
@@ -39,6 +41,7 @@ func init() {
 		tHostStacksSetUpAlready: "schon eingerichtet",
 		tHostStacksStays:        "Bleibt: %s (%s)",
 		tHostStacksMore:         "… und %d weitere Einträge, nicht gezeigt",
+		tHostStacksMoreCommands: "… und %d weitere Befehle",
 
 		footerID("s set up stacks"): "s Stacks einrichten",
 	})
