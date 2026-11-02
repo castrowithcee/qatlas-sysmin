@@ -123,6 +123,8 @@ func isPseudoFS(path string) bool {
 type FolderHost struct {
 	Accounts *hostadmin.Host
 	Stacks   StackCheck
+	// rootUID is the owner the stack folder setup writes; tests that cannot own files as root change it.
+	rootUID int
 }
 
 // DefaultFolderHost is the real host.
@@ -133,7 +135,10 @@ func DefaultFolderHost() FolderHost {
 // RegisterFolderActions adds the folder actions, reading the host through h.
 func RegisterFolderActions(r *Registry, h FolderHost) error {
 	f := folderActions{h}
-	return r.Register(Definition{ID: ActionFolderSetPermissions, Plan: f.planSetPermissions, Inverse: f.inverseSetPermissions})
+	if err := r.Register(Definition{ID: ActionFolderSetPermissions, Plan: f.planSetPermissions, Inverse: f.inverseSetPermissions}); err != nil {
+		return err
+	}
+	return r.Register(Definition{ID: ActionFolderSetupStacks, Plan: f.planSetupStacks, Inverse: f.inverseSetupStacks, Preview: f.previewSetupStacks})
 }
 
 type folderActions struct{ h FolderHost }
@@ -386,13 +391,26 @@ func (f folderActions) inverseSetPermissions(prev json.RawMessage) (Plan, error)
 	if err := checkFolderPath(st.Path); err != nil || len(st.Entries) == 0 {
 		return Plan{}, errors.New("the recorded state of the folder is not usable")
 	}
+	cmds, err := restoreCommands(st.Path, st.Entries)
+	if err != nil {
+		return Plan{}, err
+	}
+	what := "the folder " + st.Path
+	if st.Recursive {
+		what = fmt.Sprintf("the folder %s and everything below it (%d entries)", st.Path, len(st.Entries))
+	}
+	return Plan{Sentence: "Restore the previous owner, group and permissions of " + what + ".", Commands: cmds}, nil
+}
+
+// restoreCommands sets every recorded entry below root back to its recorded owner, group and mode.
+func restoreCommands(root string, entries []folderEntry) ([]Command, error) {
 	type owner struct{ uid, gid int }
 	owners := map[owner][]string{}
 	modes := map[uint32][]string{}
-	for _, e := range st.Entries {
-		if !lexicallyUnder(st.Path, e.Path) || filepath.Clean(e.Path) != e.Path || e.Mode > 0o7777 || e.UID < 0 || e.GID < 0 ||
+	for _, e := range entries {
+		if !lexicallyUnder(root, e.Path) || filepath.Clean(e.Path) != e.Path || e.Mode > 0o7777 || e.UID < 0 || e.GID < 0 ||
 			!slices.Contains([]string{"dir", "file", "link", "other"}, e.Kind) {
-			return Plan{}, fmt.Errorf("the recorded state of %q is not usable", e.Path)
+			return nil, fmt.Errorf("the recorded state of %q is not usable", e.Path)
 		}
 		o := owner{e.UID, e.GID}
 		owners[o] = append(owners[o], e.Path)
@@ -424,11 +442,7 @@ func (f folderActions) inverseSetPermissions(prev json.RawMessage) (Plan, error)
 			cmds = append(cmds, Command{Argv: append([]string{"chmod", "--", fmt.Sprintf("%04o", m)}, chunk...)})
 		}
 	}
-	what := "the folder " + st.Path
-	if st.Recursive {
-		what = fmt.Sprintf("the folder %s and everything below it (%d entries)", st.Path, len(st.Entries))
-	}
-	return Plan{Sentence: "Restore the previous owner, group and permissions of " + what + ".", Commands: cmds}, nil
+	return cmds, nil
 }
 
 // chunkPaths splits paths so that no command gets too many or too long arguments.

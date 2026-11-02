@@ -145,6 +145,62 @@ func newHostApplyCommand(opts *Options) *cobra.Command {
 	return cmd
 }
 
+func newHostPreviewCommand(opts *Options) *cobra.Command {
+	return &cobra.Command{
+		Use:   "preview <action-id> [args...]",
+		Short: "Show what a registered action would do, without changing anything (run by the TUI via sudo)",
+		Long: "Plans one registered action as root and prints its sentence, its commands and, where the action has\n" +
+			"them, structured confirmation data in the field \"preview\". It runs no command and writes neither the\n" +
+			"journal nor the audit log. A refusal is reported like in 'host apply'.",
+		Args: gated(opts, func(_ *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return newSyntaxError(errors.New("an action id is needed"))
+			}
+			return nil
+		}),
+		RunE: func(c *cobra.Command, args []string) error {
+			if err := requireRoot(opts.system(), "host preview"); err != nil {
+				return err
+			}
+			reg := opts.changeEnv().Registry
+			if _, ok := reg.Lookup(args[0]); !ok {
+				return &UsageError{fmt.Errorf("unknown action %q", args[0])}
+			}
+			fail := func(err error) error {
+				if refused, ok := refusedChange(c, opts, args[0], err); ok {
+					return refused
+				}
+				var arg *hostchange.ArgumentError
+				if errors.As(err, &arg) {
+					return &UsageError{err}
+				}
+				return hostError("host preview", err)
+			}
+			data, err := reg.Preview(c.Context(), args[0], args[1:])
+			if err != nil {
+				return fail(err)
+			}
+			sentence, commands := "", []string{}
+			plan, err := reg.Describe(args[0], args[1:], nil)
+			switch {
+			case err == nil:
+				sentence = plan.Sentence
+				for _, cmd := range plan.Commands {
+					commands = append(commands, cmd.Display())
+				}
+			case data == nil:
+				return fail(err)
+			}
+			return emit(c, opts, output.Object{Fields: []output.Field{
+				{Name: "action", Value: args[0]},
+				{Name: "sentence", Value: sentence},
+				{Name: "commands", Value: commands},
+				{Name: "preview", Value: data},
+			}})
+		},
+	}
+}
+
 func newHostUndoCommand(opts *Options) *cobra.Command {
 	var yes bool
 	cmd := &cobra.Command{

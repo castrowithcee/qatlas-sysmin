@@ -105,6 +105,9 @@ type Definition struct {
 	Plan func(args []string, secret []byte) (Plan, error)
 	// Inverse builds the plan that returns to the captured state; nil means the action is never reversible.
 	Inverse func(previous json.RawMessage) (Plan, error)
+	// Preview, when set, reads the host as the caller and returns structured data for the confirmation, which
+	// the root command "host preview" prints as JSON. It changes nothing.
+	Preview func(ctx context.Context, args []string) (any, error)
 }
 
 // ArgumentError marks arguments an action refuses.
@@ -186,6 +189,18 @@ func (r *Registry) Describe(id string, args []string, secret []byte) (Plan, erro
 		return Plan{}, fmt.Errorf("unknown action %q", id)
 	}
 	return d.Plan(args, secret)
+}
+
+// Preview returns the structured confirmation data of an action; nil without error means the action has none.
+func (r *Registry) Preview(ctx context.Context, id string, args []string) (any, error) {
+	d, ok := r.defs[id]
+	if !ok {
+		return nil, fmt.Errorf("unknown action %q", id)
+	}
+	if d.Preview == nil {
+		return nil, nil
+	}
+	return d.Preview(ctx, args)
 }
 
 // Default is the registry of the production actions.

@@ -36,6 +36,9 @@ type StackCheck struct {
 	Interval time.Duration
 	// CanRead says why the service user cannot read path; nil asks the kernel as the service user.
 	CanRead func(path string) error
+	// CanWrite says why the service user cannot write the existing file path in place; nil asks the kernel
+	// as the service user.
+	CanWrite func(path string) error
 }
 
 // ContainerState is what Watch compares later observations with.
@@ -140,25 +143,34 @@ func (s StackCheck) inspect(ctx context.Context, ids []string) (map[string]inspe
 	return nil, fmt.Errorf("docker inspect failed: %w", err)
 }
 
-// Affected returns the running stacks that have their working directory, a compose file, an env file or a
-// bind mount of a container at or below changed. A host without docker has none. Containers beyond what
-// adopt.ListStacks considers cannot be checked, which is an error rather than a silent gap.
-func (s StackCheck) Affected(ctx context.Context, changed string) ([]AffectedStack, error) {
+// listRunning reads the running stacks and their inspected containers. A host without docker has none.
+func (s StackCheck) listRunning(ctx context.Context) ([]adopt.Stack, map[string]inspected, error) {
 	stacks, truncated, err := adopt.ListStacks(ctx, s.docker())
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return nil, fmt.Errorf("the running stacks cannot be listed: %w", err)
+		return nil, nil, fmt.Errorf("the running stacks cannot be listed: %w", err)
 	}
 	if truncated {
-		return nil, errors.New("too many running containers to check the stacks reliably")
+		return nil, nil, errors.New("too many running containers to check the stacks reliably")
 	}
 	var ids []string
 	for _, st := range stacks {
 		ids = append(ids, st.ContainerIDs...)
 	}
 	details, err := s.inspect(ctx, ids)
+	if err != nil {
+		return nil, nil, err
+	}
+	return stacks, details, nil
+}
+
+// Affected returns the running stacks that have their working directory, a compose file, an env file or a
+// bind mount of a container at or below changed. A host without docker has none. Containers beyond what
+// adopt.ListStacks considers cannot be checked, which is an error rather than a silent gap.
+func (s StackCheck) Affected(ctx context.Context, changed string) ([]AffectedStack, error) {
+	stacks, details, err := s.listRunning(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +319,13 @@ func lexicallyUnder(root, p string) bool {
 
 // canReadAsServiceUser asks the kernel whether the service user can read path, by running test -r with the
 // user's identity and groups.
-func canReadAsServiceUser(path string) error {
+func canReadAsServiceUser(path string) error { return testAsServiceUser("-r", path, "not readable") }
+
+// canWriteAsServiceUser asks the kernel whether the service user can write the existing file path in place,
+// which is how writecheck.File judges it from inside the service.
+func canWriteAsServiceUser(path string) error { return testAsServiceUser("-w", path, "not writable") }
+
+func testAsServiceUser(flag, path, reason string) error {
 	u, err := user.Lookup(client.ServiceUser)
 	if err != nil {
 		return fmt.Errorf("the user %s is unknown: %w", client.ServiceUser, err)
@@ -329,7 +347,7 @@ func canReadAsServiceUser(path string) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(test, "-r", path)
+	cmd := exec.Command(test, flag, path)
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LC_ALL=C"}
 	cmd.Dir = "/"
 	cmd.SysProcAttr = &syscall.SysProcAttr{Credential: &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid), Groups: groups}}
@@ -337,7 +355,7 @@ func canReadAsServiceUser(path string) error {
 		if _, statErr := os.Lstat(path); statErr != nil {
 			return statErr
 		}
-		return errors.New("not readable")
+		return errors.New(reason)
 	}
 	return nil
 }
