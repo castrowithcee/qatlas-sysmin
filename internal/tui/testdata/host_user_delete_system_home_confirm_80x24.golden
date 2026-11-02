@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+  [Users]  Groups   Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Users (3╔══════════════════════════════════════════════════════════════╗     3/3
+╔═══════║ ⚠ Delete the user svc-demo together with its home and mail   ║═══════╗
+║   Name║   spool.                                                     ║System ║
+║   ▾ Us║                                                              ║       ║
+║   demo║     Packages or services may depend on this system account.  ║       ║
+║   demo║     /usr/lib/svc-demo is a system path. /usr/lib/svc-demo    ║       ║
+║   ▾ Sy║     belongs to root. This cannot be undone: the home         ║       ║
+║ > svc-║     /usr/lib/svc-demo and the mail spool are deleted with    ║system ║
+╚═══════║     all their files.                                         ║═══════╝
+        ║                                                              ║        
+        ║   $ userdel -r svc-demo                                      ║        
+        ║                                                              ║        
+        ║ [ Delete ]  [ Cancel ]                                       ║        
+        ║                                                              ║        
+        ║ y delete · n/esc cancel                                      ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

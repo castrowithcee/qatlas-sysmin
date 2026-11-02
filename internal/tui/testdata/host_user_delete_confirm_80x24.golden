@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+  [Users]  Groups   Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                                    2/2
+╔══════════════════════════════════════════════════════════════════════════════╗
+║   Name╔══════════════════════════════════════════════════════════════╗System ║
+║   ▾ Us║ ⚠ Delete the user demo-user; its home and files stay.        ║       ║
+║   demo║                                                              ║       ║
+║ > demo║     A user with running processes is not deleted. You can    ║       ║
+║   ▸ Sy║     undo this under Host > Changes.                          ║       ║
+╚═══════║                                                              ║═══════╝
+        ║   $ userdel demo-user                                        ║        
+        ║                                                              ║        
+        ║ [ Delete ]  [ Cancel ]                                       ║        
+        ║                                                              ║        
+        ║ y delete · n/esc cancel                                      ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

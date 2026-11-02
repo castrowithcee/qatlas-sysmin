@@ -15,7 +15,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
 
-// Users are created and changed from Host > Users with n and e. Each form collects one change, checks what it
+// Users are created, changed and deleted from Host > Users with n, e and d. Each form collects one change, checks what it
 // can before anything leaves the form, and ends in the confirmation of hostchange; the root command checks it
 // all again and stays the authority.
 
@@ -493,6 +493,14 @@ func (m *Model) guardLock(u hostadmin.User) string {
 	return m.guardAdmin(u, tHostSelfAdmin)
 }
 
+// guardDelete gives the early message of the rules the root action enforces for deleting.
+func (m *Model) guardDelete(u hostadmin.User) string {
+	if uid := hostUID(); uid != 0 && uid == u.UID {
+		return tr(tHostSelfDelete)
+	}
+	return m.guardAdmin(u, tHostSelfDelete)
+}
+
 // guardAdmin refuses the last admin; an admin whose account has ended does not remain.
 func (m *Model) guardAdmin(u hostadmin.User, self textID) string {
 	if !u.Admin {
@@ -586,15 +594,114 @@ func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 	return nil
 }
 
-// hostUsersKey handles n and e on the Users page.
+// hostUsersKey handles n, e and d on the Users page.
 func (m *Model) hostUsersKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
 	case keyIs(key, actNew):
 		return m.openUserCreate(), true
 	case keyIs(key, actEdit):
 		return m.openUserEdit(), true
+	case keyIs(key, actDelete):
+		return m.openUserDelete(), true
 	}
 	return nil, false
+}
+
+// --- delete ---
+
+// homeRiskReader is a host source that names the risks of deleting a home itself, as a test fixture does.
+type homeRiskReader interface {
+	HomeRisks(name, home string) ([]hostchange.HomeRisk, error)
+}
+
+// homeRisks reads what deleting the home of u would reach beyond its own files. It reads only what the user
+// running the interface may read.
+func (m *Model) homeRisks(u hostadmin.User) ([]hostchange.HomeRisk, error) {
+	switch src := m.hostSrc.(type) {
+	case *hostadmin.Host:
+		return hostchange.HomeRisks(src, u.Name, u.Home)
+	case homeRiskReader:
+		return src.HomeRisks(u.Name, u.Home)
+	}
+	return nil, nil
+}
+
+// homeRiskText says each risk of deleting the home of u in one plain sentence.
+func (m *Model) homeRiskText(u hostadmin.User) string {
+	home := m.diffText(u.Home)
+	risks, err := m.homeRisks(u)
+	var parts []string
+	for _, r := range risks {
+		who := m.diffText(strings.Join(r.Who, ", "))
+		switch r.Kind {
+		case hostchange.HomeSystemPath:
+			parts = append(parts, tr(tHostHomeSystem, home))
+		case hostchange.HomeHoldsHome:
+			parts = append(parts, tr(tHostHomeHolds, home, who))
+		case hostchange.HomeLink:
+			parts = append(parts, tr(tHostHomeLink, home))
+		case hostchange.HomeNotDirectory:
+			parts = append(parts, tr(tHostHomeNotDir, home))
+		case hostchange.HomeForeignOwner:
+			parts = append(parts, tr(tHostHomeOwner, home, who))
+		}
+	}
+	if err != nil {
+		parts = append(parts, tr(tHostHomeUnread, home, m.diffText(err.Error())))
+	}
+	return strings.Join(parts, " ")
+}
+
+// The choices for the home of a deleted user, by the id of the choice.
+const (
+	homeKeep   = "keep"
+	homeDelete = "delete"
+)
+
+// openUserDelete asks whether the home of the marked user goes too; F2 leads to the red confirmation. Keeping
+// the home is the default and the only delete that can be undone.
+func (m *Model) openUserDelete() tea.Cmd {
+	name, ok := m.hst.users.page.current()
+	if !ok {
+		return nil
+	}
+	u, ok := m.hst.users.items[name]
+	if !ok {
+		return nil
+	}
+	f := &formDlg{title: tr(tHostDeleteTitle, m.diffText(u.Name)), saveText: "{save} continue"}
+	f.rows = []formRow{
+		choiceRow("home", tr(tHostFormHome), []string{homeKeep, homeDelete}, []string{tr(tHostHomeKeep), tr(tHostHomeDelete)}, 0),
+	}
+	arrange := func(f *formDlg) {
+		f.hint = tr(tHostDeleteHint)
+		if f.row("home").value() == homeDelete {
+			f.hint = tr(tHostDeleteHomeHint)
+		}
+	}
+	f.changed = func(_ *Model, f *formDlg, _ int) { arrange(f) }
+	f.submit = func(m *Model, f *formDlg) tea.Cmd {
+		if msg := m.guardDelete(u); msg != "" {
+			f.notice = msg
+			return nil
+		}
+		ask := hostAsk{id: hostchange.ActionUserDelete, args: []string{u.Name}, risk: m.riskOf(u, nil)}
+		if f.row("home").value() == homeDelete {
+			ask.args = append(ask.args, "with-home")
+			ask.final = strings.TrimSpace(m.homeRiskText(u) + " " + tr(tHostDeleteFinal, m.diffText(u.Home)))
+		}
+		p, refusal := m.planHost(ask)
+		if refusal != "" {
+			f.notice = refusal
+			return nil
+		}
+		m.closeForm()
+		m.confirmHost(p)
+		return nil
+	}
+	arrange(f)
+	m.openForm(f)
+	return nil
 }
 
 // canEditCurrent reports whether a user is marked that e can change.

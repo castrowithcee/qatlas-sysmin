@@ -25,6 +25,8 @@ type UserHost struct {
 	MailDir string
 	// Lastlog is the classic login record file; Lastlog2 is the database that replaces it on newer systems.
 	Lastlog, Lastlog2 string
+	// Proc is the process file system, read for the processes of a user before it is deleted.
+	Proc string
 	// lookup replaces the passwd lookup of the owner checks in tests, whose files all belong to one user.
 	lookup accountLookup
 }
@@ -33,7 +35,7 @@ type UserHost struct {
 func DefaultUserHost() UserHost {
 	return UserHost{
 		Accounts: hostadmin.NewHost(true), HomeBase: "/home", MailDir: "/var/mail",
-		Lastlog: "/var/log/lastlog", Lastlog2: "/var/lib/lastlog/lastlog2.db",
+		Lastlog: "/var/log/lastlog", Lastlog2: "/var/lib/lastlog/lastlog2.db", Proc: "/proc",
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
+	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
 
 // goldenApp is the service interface of the given size as it is drawn with NO_COLOR set, so the files hold the
@@ -297,6 +298,36 @@ func TestGoldenAreas(t *testing.T) {
 		{"host_user_lock_confirm", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
 			chooseChange(t, m, "demo-user", chgLock)
+			save(m)
+			return m
+		}},
+		{"host_user_delete_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			selectUser(m, "demo-user")
+			send(m, "d")
+			save(m)
+			return m
+		}},
+		{"host_user_delete_home_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			selectUser(m, "demo-user")
+			send(m, "d", "right")
+			save(m)
+			return m
+		}},
+		{"host_user_delete_system_home_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			for i := range m.hst.users.all {
+				if m.hst.users.all[i].Name == "svc-demo" {
+					m.hst.users.all[i].Home = "/usr/lib/svc-demo"
+				}
+			}
+			m.fillHostUsers()
+			m.hostSrc.(*fixtureHost).homeRisks = map[string][]hostchange.HomeRisk{"svc-demo": {
+				{Kind: hostchange.HomeSystemPath}, {Kind: hostchange.HomeForeignOwner, Who: []string{"root"}},
+			}}
+			selectAccount(m, "svc-demo")
+			send(m, "d", "right")
 			save(m)
 			return m
 		}},
