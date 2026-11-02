@@ -361,10 +361,19 @@ func TestOffersFollowTheUser(t *testing.T) {
 	}
 }
 
+// selectAccount marks the user name and unfolds the system section when the user sits in it.
+func selectAccount(m *Model, name string) {
+	p := &m.hst.users.page
+	if !p.list.selectName(name) {
+		openSystem(m, p, "enter")
+		selectUser(m, name)
+	}
+}
+
 // chooseChange opens the form of name and moves to the change id.
 func chooseChange(t *testing.T, m *Model, name, id string) {
 	t.Helper()
-	selectUser(m, name)
+	selectAccount(m, name)
 	send(m, "e")
 	if m.form == nil {
 		t.Fatalf("no form for %s:\n%s", name, plain(m))
@@ -414,7 +423,7 @@ func TestRootAndSystemUsersAreChangeableWithARedConfirmation(t *testing.T) {
 func TestEveryAccountOffersTheChangeForm(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
 	for _, name := range []string{"svc-demo", "demo-user"} {
-		selectUser(m, name)
+		selectAccount(m, name)
 		if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "e edit") {
 			t.Errorf("%s: keys %q", name, keys)
 		}

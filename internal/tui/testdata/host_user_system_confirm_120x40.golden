@@ -5,12 +5,12 @@ sysmin  ● vault open  ● admin off                                           
 Users (3)                                                         3/3 ╭─ svc-demo ─────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Name              svc-demo                     │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Type              system                       │
-║ > svc-demo    no                 no      svc-demo          system ║ │ Admin             no                           │
-╚═══════════════════════════════════════════════════════════════════╝ │ Docker            no                           │
-                                                                      │ Enabled (sysmin)  no                           │
-                                                                      │ Groups            svc-demo                     │
+║   ▾ Users (2)                                                     ║ │ Name              svc-demo                     │
+║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              system                       │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             no                           │
+║   ▾ System accounts (1)                                           ║ │ Docker            no                           │
+║ > svc-demo    no                 no      svc-demo          system ║ │ Enabled (sysmin)  no                           │
+╚═══════════════════════════════════════════════════════════════════╝ │ Groups            svc-demo                     │
                             ╔══════════════════════════════════════════════════════════════╗ar/lib/svc-demo            │
                             ║ ⚠ Give svc-demo access to Docker (group docker).             ║known                      │
                             ║                                                              ║                           │

@@ -2,14 +2,14 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
    1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    1/3
+Users (3)                                                                    1/2
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║   Name╔══════════════════════════════════════════════════════════════╗System ║
-║ > demo║ ⚠ Wipe the demo folder.                                      ║       ║
-║   demo║                                                              ║       ║
-║   svc-║     This cannot be undone: the old content is not kept       ║system ║
-╚═══════║                                                              ║═══════╝
-        ║   $ demo-wipe '/srv/demo stack'                              ║        
+║   ▾ Us║ ⚠ Wipe the demo folder.                                      ║       ║
+║ > demo║                                                              ║       ║
+║   demo║     This cannot be undone: the old content is not kept       ║       ║
+║   ▸ Sy║                                                              ║       ║
+╚═══════║   $ demo-wipe '/srv/demo stack'                              ║═══════╝
         ║                                                              ║        
         ║ [ Apply ]  [ Cancel ]                                        ║        
         ║                                                              ║        

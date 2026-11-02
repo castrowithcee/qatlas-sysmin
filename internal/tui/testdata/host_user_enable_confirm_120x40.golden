@@ -2,14 +2,14 @@ sysmin  ● vault open  ● admin off                                           
    1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                         2/3 ╭─ demo-user ────────────────────────────────────╮
+Users (3)                                                         2/2 ╭─ demo-user ────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Name              demo-user                    │
-║ > demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Type              regular                      │
-║   svc-demo    no                 no      svc-demo          system ║ │ Admin             yes · not enabled            │
-╚═══════════════════════════════════════════════════════════════════╝ │ Docker            no                           │
-                                                                      │ Enabled (sysmin)  no                           │
+║   ▾ Users (2)                                                     ║ │ Name              demo-user                    │
+║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              regular                      │
+║ > demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             yes · not enabled            │
+║   ▸ System accounts (1)                                           ║ │ Docker            no                           │
+╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (sysmin)  no                           │
                                                                       │ Groups            demo-user, sudo, demo-team   │
                                                                       │ Home              /home/demo-user              │
                             ╔══════════════════════════════════════════════════════════════╗                           │

@@ -62,6 +62,9 @@ const (
 	tInfoHostGroups      textID = "InfoHostGroups"
 	tInfoHostFolders     textID = "InfoHostFolders"
 	tHelpHost            textID = "HelpHost"
+	tHostSysAccounts     textID = "HostSysAccounts"
+	tHostSysGroups       textID = "HostSysGroups"
+	tSectionHint         textID = "SectionHint"
 )
 
 func init() {
@@ -122,14 +125,17 @@ func init() {
 		tInfoHostUsers:       "Admin: the user may become root with sudo. Docker: the user may use Docker, which is practically root on this host. Enabled: the user is a member of the group sysmin; an admin who is also enabled may use sysmin. n creates a user, e changes the marked one; every change asks first, runs through sudo and can be undone under Changes.",
 		tInfoHostGroups:      "The groups of this host with their members. System groups are read-only here.",
 		tInfoHostFolders:     "Shows who may read and write a folder or file: owner, group and others, in plain words. Nothing is changed.",
-		tHelpHost:            "Host shows the users, groups and folder permissions of this machine. Admin means sudo rights, Docker is practically root, and enabled means membership of the group sysmin. Grey rows are system accounts and groups, whose ID lies outside 1000 to 60000; space hides them. e changes root and system accounts like any other account, and the confirmation is then red, because packages or services may depend on them; only taking admin from yourself or from the last admin is refused. Folders reads one path at a time: type it, tab completes, enter reads. A path marked protected is a system path. n creates a user whose initial password must be changed at the first login; e changes the marked one (groups, Admin, Docker, password, SSH keys), one change at a time. Changes lists the latest changes made through sysmin and undoes one with enter. What only root can read, such as the locked state and SSH keys of a user or the list of changes, is read through sudo when you press ctrl+r; sudo asks for the password, sysmin never sees it.",
+		tHelpHost:            "Host shows the users, groups and folder permissions of this machine. Admin means sudo rights, Docker is practically root, and enabled means membership of the group sysmin. Grey rows are system accounts and groups, whose ID lies outside 1000 to 60000; they sit in their own section, which starts collapsed. enter or space on a heading collapses or expands it. e changes root and system accounts like any other account, and the confirmation is then red, because packages or services may depend on them; only taking admin from yourself or from the last admin is refused. Folders reads one path at a time: type it, tab completes, enter reads. A path marked protected is a system path. n creates a user whose initial password must be changed at the first login; e changes the marked one (groups, Admin, Docker, password, SSH keys), one change at a time. Changes lists the latest changes made through sysmin and undoes one with enter. What only root can read, such as the locked state and SSH keys of a user or the list of changes, is read through sudo when you press ctrl+r; sudo asks for the password, sysmin never sees it.",
 
 		footerID("enter read"):      "enter read",
 		footerID("enter edit path"): "enter edit path",
 
-		footerID("space hide system"): "space hide system",
-		footerID("space show system"): "space show system",
-		footerID("space tick"):        "space tick",
+		footerID("enter collapse"): "enter collapse",
+		footerID("enter expand"):   "enter expand",
+		footerID("space tick"):     "space tick",
+		tHostSysAccounts:           "System accounts",
+		tHostSysGroups:             "System groups",
+		tSectionHint:               "Press enter or space to collapse or expand this section.",
 	})
 	maps.Copy(textDE, map[textID]string{
 		tAreaHost:            "Host",
@@ -188,13 +194,16 @@ func init() {
 		tInfoHostUsers:       "Admin: Der Benutzer kann mit sudo root werden. Docker: Der Benutzer darf Docker nutzen, was auf diesem Host praktisch root bedeutet. Freigeschaltet: Der Benutzer ist Mitglied der Gruppe sysmin; ein freigeschalteter Admin darf sysmin nutzen. n legt einen Benutzer an, e ändert den markierten; jede Änderung fragt vorher, läuft über sudo und lässt sich unter Änderungen rückgängig machen.",
 		tInfoHostGroups:      "Die Gruppen dieses Hosts mit ihren Mitgliedern. Systemgruppen sind hier nur lesbar.",
 		tInfoHostFolders:     "Zeigt in einfachen Worten, wer einen Ordner oder eine Datei lesen und schreiben darf: Besitzer, Gruppe und andere. Es wird nichts geändert.",
-		tHelpHost:            "Host zeigt die Benutzer, Gruppen und Ordnerrechte dieses Rechners. Admin heißt sudo-Rechte, Docker ist praktisch root, und freigeschaltet heißt Mitglied der Gruppe sysmin. Graue Zeilen sind Systemkonten und Systemgruppen, deren ID außerhalb von 1000 bis 60000 liegt; space blendet sie aus. e ändert root und Systemkonten wie jedes andere Konto, die Rückfrage ist dann rot, weil Pakete oder Dienste davon abhängen können; abgelehnt wird nur, sich selbst oder dem letzten Admin den Admin zu entziehen. Ordner liest einen Pfad nach dem anderen: eintippen, tab ergänzt, Enter liest. Ein als geschützt markierter Pfad ist ein Systempfad. n legt einen Benutzer an, dessen Startpasswort beim ersten Login geändert werden muss; e ändert den markierten (Gruppen, Admin, Docker, Passwort, SSH-Schlüssel), jeweils eine Änderung. Änderungen listet die letzten Änderungen über sysmin und macht eine mit Enter rückgängig. Was nur root lesen kann, etwa Sperrstatus und SSH-Schlüssel eines Benutzers oder die Liste der Änderungen, wird mit ctrl+r über sudo gelesen; sudo fragt nach dem Passwort, sysmin sieht es nie.",
+		tHelpHost:            "Host zeigt die Benutzer, Gruppen und Ordnerrechte dieses Rechners. Admin heißt sudo-Rechte, Docker ist praktisch root, und freigeschaltet heißt Mitglied der Gruppe sysmin. Graue Zeilen sind Systemkonten und Systemgruppen, deren ID außerhalb von 1000 bis 60000 liegt; sie stehen in einem eigenen Abschnitt, der eingeklappt beginnt. Enter oder space auf einer Überschrift klappt ihn ein oder aus. e ändert root und Systemkonten wie jedes andere Konto, die Rückfrage ist dann rot, weil Pakete oder Dienste davon abhängen können; abgelehnt wird nur, sich selbst oder dem letzten Admin den Admin zu entziehen. Ordner liest einen Pfad nach dem anderen: eintippen, tab ergänzt, Enter liest. Ein als geschützt markierter Pfad ist ein Systempfad. n legt einen Benutzer an, dessen Startpasswort beim ersten Login geändert werden muss; e ändert den markierten (Gruppen, Admin, Docker, Passwort, SSH-Schlüssel), jeweils eine Änderung. Änderungen listet die letzten Änderungen über sysmin und macht eine mit Enter rückgängig. Was nur root lesen kann, etwa Sperrstatus und SSH-Schlüssel eines Benutzers oder die Liste der Änderungen, wird mit ctrl+r über sudo gelesen; sudo fragt nach dem Passwort, sysmin sieht es nie.",
 
 		footerID("enter read"):      "enter lesen",
 		footerID("enter edit path"): "enter Pfad ändern",
 
-		footerID("space hide system"): "space System ausblenden",
-		footerID("space show system"): "space System anzeigen",
-		footerID("space tick"):        "space wählen",
+		footerID("enter collapse"): "enter einklappen",
+		footerID("enter expand"):   "enter ausklappen",
+		tHostSysAccounts:           "Systemkonten",
+		tHostSysGroups:             "Systemgruppen",
+		tSectionHint:               "Enter oder space klappt diesen Abschnitt ein oder aus.",
+		footerID("space tick"):     "space wählen",
 	})
 }

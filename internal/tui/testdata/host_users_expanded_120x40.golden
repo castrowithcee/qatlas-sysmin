@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings 
+  [Users]  Groups   Folders   Changes 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                         3/3 ╭─ svc-demo ─────────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Name        Admin              Docker  Groups            System ║ │                                                │
+║   ▾ Users (2)                                                     ║ │ Name              svc-demo                     │
+║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              system                       │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             no                           │
+║   ▾ System accounts (1)                                           ║ │ Docker            no                           │
+║ > svc-demo    no                 no      svc-demo          system ║ │ Enabled (sysmin)  no                           │
+╚═══════════════════════════════════════════════════════════════════╝ │ Groups            svc-demo                     │
+                                                                      │ Home              /var/lib/svc-demo            │
+                                                                      │ Locked            unknown                      │
+                                                                      │                                                │
+                                                                      │ Press ctrl+r to read the fields only root can  │
+                                                                      │ see.                                           │
+                                                                      ╰────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+enter details  n new  e edit  / filter  esc back  ctrl+l admin  i info  c copy  ? help  : cmds  q quit     ↑/↓ move  3/3
