@@ -2,14 +2,14 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
    1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    2/3
+Users (3)                                                                    2/2
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║   Name        Admin              Docker  Groups                       System ║
-║   demo╔══════════════════════════════════════════════════════════════╗       ║
-║ > demo║ Change demo-user                                             ║       ║
-║   svc-║                                                              ║system ║
-╚═══════║ > Change:       < Remove from groups >                       ║═══════╝
-        ║   Remove from:  [ ] demo-team  (0 of 1 chosen)               ║        
+║   ▾ Us╔══════════════════════════════════════════════════════════════╗       ║
+║   demo║ Change demo-user                                             ║       ║
+║ > demo║                                                              ║       ║
+║   ▸ Sy║ > Change:       < Remove from groups >                       ║       ║
+╚═══════║   Remove from:  [ ] demo-team  (0 of 1 chosen)               ║═══════╝
         ║                                                              ║        
         ║ [ Save ]  [ Cancel ]                                         ║        
         ║                                                              ║        

@@ -2,30 +2,30 @@ sysmin  ● vault open  ● admin off                                           
    1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                         1/3 ╭─ demo-admin ───────────────────────────────────╮
+Users (3)                                                         1/2 ╭─ demo-admin ───────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Name              demo-admin                   │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Type              regular                      │
-║   svc-demo    no          ╔══════════════════════════════════════════════════════════════╗s                          │
-╚═══════════════════════════║ Help                                                         ║s                          │
-                            ║                                                              ║s                          │
-                            ║  secrets   channels   templates   audit-log   runs  [host]   ║mo-admin, sudo, docker,    │
-                            ║                                                              ║smin                       │
-                            ║ Host shows the users, groups and folder permissions of this  ║ome/demo-admin             │
-                            ║ machine. Admin means sudo rights, Docker is practically      ║known                      │
-                            ║ root, and enabled means membership of the group sysmin. Grey ║                           │
-                            ║ rows are system accounts; space hides them. Folders reads    ║ the fields only root can  │
-                            ║ one path at a time: type it, tab completes, enter reads. A   ║                           │
-                            ║ path marked protected is a system path. n creates a user     ║───────────────────────────╯
-                            ║ whose initial password must be changed at the first login; e ║                            
-                            ║ changes the marked one (groups, Admin, Docker, password, SSH ║                            
-                            ║ keys), one change at a time. Changes lists the latest        ║                            
-                            ║ changes made through sysmin and undoes one with enter. What  ║                            
-                            ║ only root can read, such as the locked state and SSH keys of ║                            
-                            ║ a user or the list of changes, is read through sudo when you ║                            
-                            ║ press ctrl+r; sudo asks for the password, sysmin never sees  ║                            
-                            ║ it.                                                          ║                            
+║   ▾ Users (2)                                                     ║ │ Name              demo-admin                   │
+║ > demo-admin  yes         ╔══════════════════════════════════════════════════════════════╗gular                      │
+║   demo-user   yes · not en║ Help                                                         ║s                          │
+║   ▸ System accounts (1)   ║                                                              ║s                          │
+╚═══════════════════════════║  secrets   channels   templates   audit-log   runs  [host]   ║s                          │
+                            ║                                                              ║mo-admin, sudo, docker,    │
+                            ║ Host shows the users, groups and folder permissions of this  ║smin                       │
+                            ║ machine. Admin means sudo rights, Docker is practically      ║ome/demo-admin             │
+                            ║ root, and enabled means membership of the group sysmin. Grey ║known                      │
+                            ║ rows are system accounts; they sit in their own section,     ║                           │
+                            ║ which starts collapsed. enter or space on a heading          ║ the fields only root can  │
+                            ║ collapses or expands it. Folders reads one path at a time:   ║                           │
+                            ║ type it, tab completes, enter reads. A path marked protected ║───────────────────────────╯
+                            ║ is a system path. n creates a user whose initial password    ║                            
+                            ║ must be changed at the first login; e changes the marked one ║                            
+                            ║ (groups, Admin, Docker, password, SSH keys), one change at a ║                            
+                            ║ time. Changes lists the latest changes made through sysmin   ║                            
+                            ║ and undoes one with enter. What only root can read, such as  ║                            
+                            ║ the locked state and SSH keys of a user or the list of       ║                            
+                            ║ changes, is read through sudo when you press ctrl+r; sudo    ║                            
+                            ║ asks for the password, sysmin never sees it.                 ║                            
                             ║                                                              ║                            
                             ║ ↑/↓ scroll · ←/→ topic · esc close                           ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            

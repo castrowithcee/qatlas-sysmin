@@ -363,6 +363,7 @@ func TestOffersFollowTheUser(t *testing.T) {
 
 func TestRootAndSystemUsersAreReadOnly(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
+	openSystem(m, &m.hst.users.page, "enter")
 	selectUser(m, "svc-demo")
 	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "n new") || strings.Contains(keys, "e edit") {
 		t.Errorf("keys %q", keys)

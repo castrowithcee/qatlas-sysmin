@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings 
+   Users  [Groups]  Folders   Changes 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Groups (4)                                                        2/4 ╭─ sudo ─────────────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Name       Members  System                                      ║ │                                                │
+║   ▾ Groups (1)                                                    ║ │ Name     sudo                                  │
+║   demo-team        1                                              ║ │ Type     system (read-only)                    │
+║   ▾ System groups (3)                                             ║ │ Members  2                                     │
+║ > sudo             2  system                                      ║ │                                                │
+║   docker           1  system                                      ║ │                                                │
+║   sysmin           1  system                                      ║ │                                                │
+╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+enter details  / filter  esc back  ctrl+l admin  i info  c copy  ? help  : cmds  q quit                    ↑/↓ move  2/4
