@@ -19,7 +19,8 @@ Users (3)                   ║                                                 
                             ║ path marked protected is a system path. e changes the folder ║                           │
                             ║ shown, after a confirmation that names the number of entries ║───────────────────────────╯
                             ║ and, for a system path, the risk; if a stack stops being     ║                            
-                            ║ healthy, the change is taken back. n creates a person, whose ║                            
+                            ║ healthy, the change is taken back. s sets up the stack       ║                            
+                            ║ folder shown for the service. n creates a person, whose      ║                            
                             ║ initial password must be changed at the first login, or a    ║                            
                             ║ service account without login (no password, no shell, no SSH ║                            
                             ║ keys, a home only on request); e changes the marked one      ║                            
@@ -35,6 +36,5 @@ Users (3)                   ║                                                 
                             ║                                                              ║                            
                             ║ ↑/↓ scroll · ←/→ topic · esc close                           ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
 ? help                                                                                                                  

@@ -17,7 +17,7 @@ Users (3║  secrets   channels   templates   audit-log   runs  [host]   ║    
         ║ one path at a time: type it, tab completes, enter reads. A   ║        
         ║ path marked protected is a system path. e changes the folder ║        
         ║ shown, after a confirmation that names the number of entries ║        
-        ║ lines 1-15 of 29                                             ║        
+        ║ lines 1-15 of 30                                             ║        
         ║                                                              ║        
         ║ ↑/↓ scroll · ←/→ topic · esc close                           ║        
         ╚══════════════════════════════════════════════════════════════╝        

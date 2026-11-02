@@ -50,6 +50,7 @@ var textDE = map[textID]string{
 	tKeyHelpDuplicate:                    "Duplizieren",
 	tKeyHelpTest:                         "Testen",
 	tKeyHelpUpdate:                       "Update",
+	tKeyHelpSetup:                        "einrichten",
 	tKeyHelpSelfUpdate:                   "sysmin aktualisieren",
 	tKeyHelpRemoveField:                  "Feld entfernen",
 	tKeyHelpSuggestPrev:                  "Vorheriger Vorschlag",

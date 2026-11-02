@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Ove╔══════════════════════════════════════════════════════════════╗ttings  
+   Users║ ⚠ Set up the stack folder /srv/demo-stack for the service?   ║        
+────────║                                                              ║────────
+Folders ║     Other users except root have no access to these folders  ║        
+        ║     and files afterwards. You can undo this under Host >     ║        
+Path: /s║     Changes.                                                 ║        
+        ║                                                              ║        
+Type    ║   /srv/demo-stack: root:sysmin 0750 (was                     ║        
+Owner ro║   demo-user:demo-user 0755)                                  ║        
+Group sy║   web (running): folder root:sysmin 0750 (was                ║        
+Others  ║   demo-user:demo-user 0755), compose.yaml 0640 (was          ║        
+Mode    ║   0644), .env 0660 (was 0644)                                ║        
+ACL     ║     Stays: nginx.conf (a container mounts it and the         ║w       
+Special ║     service must not change who owns it)                     ║        
+        ║   api: folder root:sysmin 0750 (was demo-user:demo-user      ║        
+        ║   0755), compose.yaml 0640 (was 0644)                        ║        
+        ║                                                              ║        
+        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║                                                              ║        
+        ║ y apply · n/esc cancel                                       ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+? help                                                                          

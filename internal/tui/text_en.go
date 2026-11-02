@@ -52,6 +52,7 @@ var textEN = map[textID]string{
 	tKeyHelpDuplicate:                    "duplicate",
 	tKeyHelpTest:                         "test",
 	tKeyHelpUpdate:                       "update",
+	tKeyHelpSetup:                        "set up",
 	tKeyHelpSelfUpdate:                   "update sysmin",
 	tKeyHelpRemoveField:                  "remove field",
 	tKeyHelpSuggestPrev:                  "previous suggestion",
