@@ -29,6 +29,9 @@ func TestListStacksGroupsAndSkipsOneOff(t *testing.T) {
 		stacks[1].ComposeProject != "other" || stacks[1].Containers != 1 {
 		t.Fatalf("stacks = %+v", stacks)
 	}
+	if !slices.Equal(stacks[0].ContainerIDs, []string{idA, idB}) || !slices.Equal(stacks[1].ContainerIDs, []string{"0123456789ad"}) {
+		t.Errorf("container IDs = %v, %v", stacks[0].ContainerIDs, stacks[1].ContainerIDs)
+	}
 	call := f.calls[0]
 	if call.Name != "docker" || call.Args[0] != "ps" || slices.Contains(call.Args, "-a") || slices.Contains(call.Args, "--all") ||
 		!slices.Contains(call.Args, "label="+labelProject) {

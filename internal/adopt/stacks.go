@@ -25,6 +25,8 @@ type Stack struct {
 	ComposeFiles   []string
 	// Containers counts the running containers, without one-off ones.
 	Containers int
+	// ContainerIDs are the full IDs of those containers.
+	ContainerIDs []string
 }
 
 type stackRow struct {
@@ -78,6 +80,7 @@ func ListStacks(ctx context.Context, r execute.Runner) (stacks []Stack, truncate
 			stacks = append(stacks, Stack{ComposeProject: row.Project, Dir: dir, ComposeFiles: files})
 		}
 		stacks[i].Containers++
+		stacks[i].ContainerIDs = append(stacks[i].ContainerIDs, row.ID)
 	}
 	return stacks, truncated, nil
 }
