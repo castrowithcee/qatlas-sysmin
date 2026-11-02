@@ -11,7 +11,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
 
-// Groups are created, renamed and deleted from Host > Groups with n, r and d. Each ends in the confirmation of
+// Groups are created, renamed and deleted from Host > Groups with n, r and d, and their members are changed with e. Each ends in the confirmation of
 // hostchange; the root command checks it all again and stays the authority.
 
 // groupNameForm is the format the root action accepts for a group name.
@@ -68,11 +68,13 @@ func (m *Model) groupRisk(g hostadmin.Group) string {
 	return strings.Join(parts, " ")
 }
 
-// hostGroupsKey handles n, r and d on the Groups page.
+// hostGroupsKey handles n, e, r and d on the Groups page.
 func (m *Model) hostGroupsKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
 	case keyIs(key, actNew):
 		return m.openGroupCreate(), true
+	case keyIs(key, actEdit):
+		return m.openGroupMembers(), true
 	case keyIs(key, actRename):
 		return m.openGroupRename(), true
 	case keyIs(key, actDelete):

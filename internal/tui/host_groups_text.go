@@ -17,6 +17,12 @@ const (
 	tHostRiskRenameGroup  textID = "HostRiskRenameGroup"
 	tHostRiskGroupRoot    textID = "HostRiskGroupRoot"
 	tHostRiskGroupDocker  textID = "HostRiskGroupDocker"
+	tHostMembersTitle     textID = "HostMembersTitle"
+	tHostMembersHint      textID = "HostMembersHint"
+	tHostMembersSudoHint  textID = "HostMembersSudoHint"
+	tHostMembersAdd       textID = "HostMembersAdd"
+	tHostMembersRemove    textID = "HostMembersRemove"
+	tHostMembersTickOne   textID = "HostMembersTickOne"
 )
 
 func init() {
@@ -34,6 +40,14 @@ func init() {
 		tHostRiskRenameGroup:  "Configurations such as sudoers address a group by its name and keep the old one; they stop working until they are changed too.",
 		tHostRiskGroupRoot:    "The group root belongs to the root account and to system files.",
 		tHostRiskGroupDocker:  "Members of the group docker use Docker, which is practically root.",
+		tHostMembersTitle:     "Members of %s",
+		tHostMembersHint:      "One confirmation covers all changes. A user whose primary group this is cannot be added or removed.",
+		tHostMembersSudoHint:  "Admins in sudo get access to sysmin too; removing one takes both. Admin rights allow practically everything on this host.",
+		tHostMembersAdd:       "Add",
+		tHostMembersRemove:    "Remove",
+		tHostMembersTickOne:   "Choose at least one user.",
+		footerID("e members"): "e members",
+		footerID("r rename"):  "r rename",
 	})
 	maps.Copy(textDE, map[textID]string{
 		tHostGroupNewTitle:    "Neue Gruppe",
@@ -49,5 +63,13 @@ func init() {
 		tHostRiskRenameGroup:  "Konfigurationen wie sudoers sprechen eine Gruppe über ihren Namen an und behalten den alten; sie wirken nicht mehr, bis sie ebenfalls geändert sind.",
 		tHostRiskGroupRoot:    "Die Gruppe root gehört zum Konto root und zu Systemdateien.",
 		tHostRiskGroupDocker:  "Mitglieder der Gruppe docker nutzen Docker, und das ist praktisch root.",
+		tHostMembersTitle:     "Mitglieder von %s",
+		tHostMembersHint:      "Eine Rückfrage deckt alle Änderungen ab. Wessen Hauptgruppe dies ist, kann weder hinzugefügt noch entfernt werden.",
+		tHostMembersSudoHint:  "Admins in sudo bekommen auch Zugang zu sysmin; wer entfernt wird, verliert beides. Adminrechte erlauben praktisch alles auf diesem Host.",
+		tHostMembersAdd:       "Hinzufügen",
+		tHostMembersRemove:    "Entfernen",
+		tHostMembersTickOne:   "Wähle mindestens einen Benutzer.",
+		footerID("e members"): "e Mitglieder",
+		footerID("r rename"):  "r umbenennen",
 	})
 }

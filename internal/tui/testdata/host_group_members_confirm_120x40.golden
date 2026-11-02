@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
+   Users  [Groups]  Folders   Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Groups (4)                                                        1/1 ╭─ demo-team ────────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Name       Members  System                                      ║ │                                                │
+║   ▾ Groups (1)                                                    ║ │ Name     demo-team                             │
+║ > demo-team        1                                              ║ │ Type     regular                               │
+║   ▸ System groups (3)                                             ║ │ Members  1                                     │
+╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
+                                                                                                                        
+                                                                                                                        
+                            ╔══════════════════════════════════════════════════════════════╗                            
+                            ║ ⚠ Add demo-admin and svc-demo to the group demo-team and     ║                            
+                            ║   remove demo-user from the group demo-team.                 ║                            
+                            ║                                                              ║                            
+                            ║     You can undo this under Host > Changes.                  ║                            
+                            ║                                                              ║                            
+                            ║   $ gpasswd -a demo-admin demo-team                          ║                            
+                            ║   $ gpasswd -a svc-demo demo-team                            ║                            
+                            ║   $ gpasswd -d demo-user demo-team                           ║                            
+                            ║                                                              ║                            
+                            ║ [ Apply ]  [ Cancel ]                                        ║                            
+                            ║                                                              ║                            
+                            ║ y apply · n/esc cancel                                       ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

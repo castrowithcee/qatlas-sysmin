@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
+   Users  [Groups]  Folders   Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Groups (4)                                                        3/4 ╭─ docker ───────────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Name       Members  System                                      ║ │                                                │
+║   ▾ Groups (1)                                                    ║ │ Name     docker                                │
+║   demo-team        1                                              ║ │ Type     system (read-only)                    │
+║   ▾ System groups (3)                                             ║ │ Members  1                                     │
+║   sudo             2  system                                      ║ │                                                │
+║ > docker           1  system                                      ║ │                                                │
+║   sysmin           1  syst╔══════════════════════════════════════════════════════════════╗                           │
+╚═══════════════════════════║ ⚠ Add demo-user to the group docker.                         ║───────────────────────────╯
+                            ║                                                              ║                            
+                            ║     Members of the group docker use Docker, which is         ║                            
+                            ║     practically root. Packages or services may depend on     ║                            
+                            ║     this system group. Admin and Docker rights allow         ║                            
+                            ║     practically everything on this host. You can undo this   ║                            
+                            ║     under Host > Changes.                                    ║                            
+                            ║                                                              ║                            
+                            ║   $ gpasswd -a demo-user docker                              ║                            
+                            ║                                                              ║                            
+                            ║ [ Apply ]  [ Cancel ]                                        ║                            
+                            ║                                                              ║                            
+                            ║ y apply · n/esc cancel                                       ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

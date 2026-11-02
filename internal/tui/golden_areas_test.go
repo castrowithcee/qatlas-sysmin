@@ -352,6 +352,36 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "d")
 			return m
 		}},
+		{"host_group_members_form", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "demo-team")
+			send(m, "e")
+			tickIn(m, 1)
+			send(m, "tab")
+			tickIn(m, 1)
+			return m
+		}},
+		{"host_group_members_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "demo-team")
+			send(m, "e")
+			tickIn(m, 2)
+			send(m, "tab")
+			tickIn(m, 1)
+			save(m)
+			return m
+		}},
+		{"host_group_members_docker_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "docker")
+			send(m, "e")
+			tickIn(m, 1)
+			save(m)
+			return m
+		}},
 		{"host_group_rename_confirm", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
 			runCommand(m, "go host groups")
