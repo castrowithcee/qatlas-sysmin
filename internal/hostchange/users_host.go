@@ -19,6 +19,9 @@ import (
 type UserHost struct {
 	// Accounts reads passwd, group and shadow; it must be privileged.
 	Accounts *hostadmin.Host
+	// GShadow is the group shadow file, read to refuse deleting a group with a password or administrators;
+	// empty skips that check.
+	GShadow string
 	// HomeBase is the directory new homes are created in.
 	HomeBase string
 	// MailDir holds the mail spools that userdel -r removes.
@@ -34,7 +37,7 @@ type UserHost struct {
 // DefaultUserHost is the real host.
 func DefaultUserHost() UserHost {
 	return UserHost{
-		Accounts: hostadmin.NewHost(true), HomeBase: "/home", MailDir: "/var/mail",
+		Accounts: hostadmin.NewHost(true), GShadow: "/etc/gshadow", HomeBase: "/home", MailDir: "/var/mail",
 		Lastlog: "/var/log/lastlog", Lastlog2: "/var/lib/lastlog/lastlog2.db", Proc: "/proc",
 	}
 }

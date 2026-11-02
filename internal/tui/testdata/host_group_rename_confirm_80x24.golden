@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+   Users  [Groups]  Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Groups (4)                                                                   1/1
+╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
+║   Name║ ⚠ Rename the group demo-team to demo-crew.                   ║       ║
+║   ▾ Gr║                                                              ║       ║
+║ > demo║     Configurations such as sudoers address a group by its    ║       ║
+║   ▸ Sy║     name and keep the old one; they stop working until they  ║       ║
+╚═══════║     are changed too. You can undo this under Host > Changes. ║═══════╝
+        ║                                                              ║        
+        ║   $ groupmod -n demo-crew demo-team                          ║        
+        ║                                                              ║        
+        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║                                                              ║        
+        ║ y apply · n/esc cancel                                       ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

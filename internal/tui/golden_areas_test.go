@@ -331,6 +331,36 @@ func TestGoldenAreas(t *testing.T) {
 			save(m)
 			return m
 		}},
+		{"host_group_create_form", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			send(m, "n")
+			typed(m, "demo-crew")
+			return m
+		}},
+		{"host_group_delete_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "demo-team")
+			send(m, "d")
+			return m
+		}},
+		{"host_group_delete_system_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "docker")
+			send(m, "d")
+			return m
+		}},
+		{"host_group_rename_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "demo-team")
+			send(m, "r")
+			typed(m, "demo-crew")
+			save(m)
+			return m
+		}},
 		{"host_user_system_confirm", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
 			chooseChange(t, m, "svc-demo", chgDockerOn)

@@ -244,3 +244,32 @@ func TestHostApplyUserDeleteRefusalsChangeNothing(t *testing.T) {
 		t.Errorf("an unknown option is a usage error: %d", code)
 	}
 }
+
+func TestHostApplyGroupRefusalsChangeNothing(t *testing.T) {
+	w, uh, run := newUsersWorld(t)
+	f := newChangeFixture(t)
+	reg := hostchange.NewRegistry()
+	if err := hostchange.RegisterUserActions(reg, uh); err != nil {
+		t.Fatal(err)
+	}
+	f.env.Registry, f.env.Exec = reg, execFn(run)
+	f.env.SudoUID = func() int { return 1000 }
+	for _, tc := range []struct {
+		args   []string
+		code   int
+		reason string
+	}{
+		{[]string{"group.delete", "sudo"}, 1, "never deleted"},
+		{[]string{"group.delete", "demo-user"}, 1, "primary group of demo-user"},
+		{[]string{"group.rename", "sysmin", "demo-access"}, 1, "never renamed"},
+		{[]string{"group.rename", "demo-user", "sudo"}, 1, "exists already"},
+		{[]string{"group.create", "demo-admin"}, 1, "exists already"},
+		{[]string{"group.create", "Demo"}, 2, ""},
+		{[]string{"group.rename", "demo-user"}, 2, ""},
+	} {
+		code, out, errOut := runChange(t, f, 0, "", append([]string{"host", "apply", "--yes", "--"}, tc.args...)...)
+		if code != tc.code || tc.code == 1 && (!strings.Contains(out, "refused") || !strings.Contains(errOut, tc.reason)) || len(w.argv) != 0 {
+			t.Errorf("%q: code %d out %q err %q argv %q", tc.args, code, out, errOut, w.argv)
+		}
+	}
+}

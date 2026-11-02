@@ -12,9 +12,9 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
-// Host shows the users, groups and folder permissions of the machine sysmin runs on, read-only. The data comes
-// from the local databases through a HostSource, not from the service: reading them needs no privilege, and
-// the fields only root can read stay unknown.
+// Host shows the users, groups and folder permissions of the machine sysmin runs on. The data comes from the
+// local databases through a HostSource, not from the service: reading them needs no privilege, and the fields
+// only root can read stay unknown. Changes go through root actions, never through the source.
 const (
 	hostUsers = iota
 	hostGroups
@@ -442,6 +442,12 @@ func (m *Model) hostKeys() []string {
 			keys = append(keys, "e edit", "d delete")
 		}
 	}
+	if m.hst.sub == hostGroups {
+		keys = append(keys, "n new")
+		if _, ok := m.currentGroup(); ok {
+			keys = append(keys, "r rename", "d delete")
+		}
+	}
 	return append(keys, "/ filter")
 }
 
@@ -461,6 +467,9 @@ func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		if cmd, ok := m.hostUsersKey(key); ok {
 			return cmd, true
 		}
+	}
+	if m.hst.sub == hostGroups {
+		return m.hostGroupsKey(key)
 	}
 	if m.hst.sub == hostFolders {
 		if keyIs(key, actEnter) || keyIs(key, actSearch) || keyIs(key, actFilter) {
