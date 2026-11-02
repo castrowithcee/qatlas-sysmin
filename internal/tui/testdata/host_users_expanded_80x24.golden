@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                  [esc] back  [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings 
+  [Users]  Groups   Folders   Changes 
+────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                                    3/3
+╔══════════════════════════════════════════════════════════════════════════════╗
+║   Name        Admin              Docker  Groups                       System ║
+║   ▾ Users (2)                                                                ║
+║   demo-admin  yes                yes     demo-admin, sudo, docker, …         ║
+║   demo-user   yes · not enabled  no      demo-user, sudo, demo-team          ║
+║   ▾ System accounts (1)                                                      ║
+║ > svc-demo    no                 no      svc-demo                     system ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+
+
+
+
+
+
+
+
+enter details  n new  / filter  esc back  ctrl+l admin  ? help  : cmds  q quit

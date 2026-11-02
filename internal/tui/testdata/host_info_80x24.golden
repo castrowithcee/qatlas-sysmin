@@ -2,14 +2,14 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
    1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    1/3
+Users (3)                                                                    1/2
 ╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
 ║   Name║ Info                                                         ║System ║
-║ > demo║                                                              ║       ║
-║   demo║ Users                                                        ║       ║
-║   svc-║                                                              ║system ║
-╚═══════║ Admin: the user may become root with sudo. Docker: the user  ║═══════╝
-        ║ may use Docker, which is practically root on this host.      ║        
+║   ▾ Us║                                                              ║       ║
+║ > demo║ Users                                                        ║       ║
+║   demo║                                                              ║       ║
+║   ▸ Sy║ Admin: the user may become root with sudo. Docker: the user  ║       ║
+╚═══════║ may use Docker, which is practically root on this host.      ║═══════╝
         ║ Enabled: the user is a member of the group sysmin; an admin  ║        
         ║ who is also enabled may use sysmin. n creates a user, e      ║        
         ║ changes the marked one; every change asks first, runs        ║        

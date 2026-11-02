@@ -2,14 +2,14 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
    1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    2/3
+Users (3)                                                                    2/2
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║   Name╔══════════════════════════════════════════════════════════════╗System ║
-║   demo║ ⚠ Give the administrator demo-user access to sysmin (group   ║       ║
-║ > demo║   sysmin).                                                   ║       ║
-║   svc-║                                                              ║system ║
-╚═══════║     You can undo this under Host > Changes.                  ║═══════╝
-        ║                                                              ║        
+║   ▾ Us║ ⚠ Give the administrator demo-user access to sysmin (group   ║       ║
+║   demo║   sysmin).                                                   ║       ║
+║ > demo║                                                              ║       ║
+║   ▸ Sy║     You can undo this under Host > Changes.                  ║       ║
+╚═══════║                                                              ║═══════╝
         ║   $ usermod -aG sysmin demo-user                             ║        
         ║                                                              ║        
         ║ [ Apply ]  [ Cancel ]                                        ║        

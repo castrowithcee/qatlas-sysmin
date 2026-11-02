@@ -148,6 +148,16 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "6", "esc", "right")
 			return m
 		}},
+		{"host_users_expanded", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, overviewFake(), w, h)
+			send(m, "6", "down", "down", "enter", "down")
+			return m
+		}},
+		{"host_groups_expanded", func(t *testing.T, w, h int) *Model {
+			m := goldenApp(t, overviewFake(), w, h)
+			send(m, "6", "esc", "right", "down", "down", "enter", "down")
+			return m
+		}},
 		{"host_folders", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "6", "esc", "right", "right", "enter", "enter")
