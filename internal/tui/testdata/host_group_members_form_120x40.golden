@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
+   Users  [Groups]  Folders   Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Groups (4)                                                        1/1 ╭─ demo-team ────────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Name       Members  System                                      ║ │                                                │
+║   ▾ Groups (1)                                                    ║ │ Name     demo-team                             │
+║ > demo-team        1                                              ║ │ Type     regular                               │
+║   ▸ System groups (3)                                             ║ │ Members  1                                     │
+╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                            ╔══════════════════════════════════════════════════════════════╗                            
+                            ║ Members of demo-team                                         ║                            
+                            ║                                                              ║                            
+                            ║   Add:     demo-admin                                        ║                            
+                            ║ > Remove:  demo-user                                         ║                            
+                            ║     One confirmation covers all changes. A user whose        ║                            
+                            ║     primary group this is cannot be added or removed.        ║                            
+                            ║                                                              ║                            
+                            ║ > Choose <  [ Continue ]  [ Cancel ]                         ║                            
+                            ║                                                              ║                            
+                            ║ enter choose · tab next · F2 continue · esc cancel           ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

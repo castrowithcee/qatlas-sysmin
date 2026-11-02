@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/json"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -698,5 +699,195 @@ func TestUnlockIsOfferedAndAcceptedForALockedAccount(t *testing.T) {
 	want := []string{"apply", "--yes", "--output", "json", "--", "user.unlock", "demo-user"}
 	if len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) {
 		t.Errorf("calls %+v", f.reqs)
+	}
+}
+
+func TestDeleteAsksForTheHomeAndSendsItsChoice(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		keys     []string
+		hint     string
+		says     []string
+		not      string
+		wantArgs []string
+	}{
+		{"keep the home", nil, "can be undone",
+			[]string{"$ userdel demo-user", "its home and files stay", "running processes", "You can undo this under Host > Changes."},
+			"cannot be undone", []string{"user.delete", "demo-user"}},
+		{"delete the home", []string{"right"}, "cannot be undone",
+			[]string{"$ userdel -r demo-user", "This cannot be undone: the home /home/demo-user and the mail spool are deleted"},
+			"You can undo this", []string{"user.delete", "demo-user", "with-home"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m, f, host, _ := userModel(t, 120, 40)
+			selectUser(m, "demo-user")
+			if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "d delete") {
+				t.Errorf("keys %q", keys)
+			}
+			send(m, "d")
+			if m.form == nil || m.form.row("home").value() != homeKeep || !strings.Contains(flat(m), "Delete demo-user") {
+				t.Fatalf("no form keeping the home by default:\n%s", plain(m))
+			}
+			send(m, tc.keys...)
+			if !strings.Contains(m.form.hint, tc.hint) {
+				t.Errorf("hint %q, want %q", m.form.hint, tc.hint)
+			}
+			save(m)
+			if m.ask == nil || !m.ask.danger || !m.ask.warn || len(f.reqs) != 0 {
+				t.Fatalf("no red confirmation before anything runs: ask %+v calls %v\n%s", m.ask, f.reqs, plain(m))
+			}
+			view := flat(m)
+			for _, want := range append(tc.says, "Delete", "Cancel") {
+				if !strings.Contains(view, want) {
+					t.Errorf("confirmation lacks %q:\n%s", want, plain(m))
+				}
+			}
+			if strings.Contains(view, tc.not) {
+				t.Errorf("confirmation says %q:\n%s", tc.not, plain(m))
+			}
+			f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
+			reads := host.users
+			send(m, "y")
+			want := append([]string{"apply", "--yes", "--output", "json", "--"}, tc.wantArgs...)
+			if len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) || len(f.stdins) != 0 {
+				t.Fatalf("calls %+v, want %q", f.reqs, want)
+			}
+			if host.users != reads+1 {
+				t.Error("the page was not read again")
+			}
+		})
+	}
+}
+
+func TestCancellingTheDeleteRunsNothing(t *testing.T) {
+	m, f, _, _ := userModel(t, 120, 40)
+	selectUser(m, "demo-user")
+	send(m, "d", "esc")
+	if m.form != nil || m.ask != nil {
+		t.Fatalf("still open:\n%s", plain(m))
+	}
+	send(m, "d")
+	save(m)
+	send(m, "n")
+	if m.ask != nil || len(f.reqs) != 0 {
+		t.Fatalf("ran: %+v", f.reqs)
+	}
+}
+
+func TestDeleteIsRefusedEarlyForYourselfAndTheLastAdmin(t *testing.T) {
+	m, f, _, _ := userModel(t, 120, 40)
+	hostUID = func() int { return 1000 }
+	selectUser(m, "demo-admin")
+	send(m, "d")
+	save(m)
+	if m.form == nil || !strings.Contains(flat(m), "You cannot delete yourself.") || len(f.reqs) != 0 {
+		t.Errorf("own account:\n%s", plain(m))
+	}
+	send(m, "esc")
+	hostUID = func() int { return 4242 }
+	selectUser(m, "demo-admin")
+	send(m, "d", "right")
+	save(m)
+	if m.form == nil || !strings.Contains(flat(m), "last admin") || len(f.reqs) != 0 {
+		t.Errorf("last admin:\n%s", plain(m))
+	}
+}
+
+func TestDeletingRootOrASystemAccountNamesTheRisk(t *testing.T) {
+	m, f, _, _ := userModel(t, 120, 40)
+	m.hst.users.all = append(m.hst.users.all, hostadmin.User{Name: "root", UID: 0, PrimaryGroup: "root", Groups: []string{"root"}, Home: "/root", System: true})
+	m.fillHostUsers()
+	for _, tc := range []struct {
+		user string
+		says []string
+	}{
+		{"svc-demo", []string{"Packages or services may depend on this system account.", "$ userdel svc-demo"}},
+		{"root", []string{"root is the account with all rights", "may depend on this system account", "$ userdel root"}},
+	} {
+		selectAccount(m, tc.user)
+		send(m, "d")
+		save(m)
+		if m.ask == nil || !m.ask.danger || len(f.reqs) != 0 {
+			t.Fatalf("%s: ask %+v\n%s", tc.user, m.ask, plain(m))
+		}
+		for _, want := range tc.says {
+			if !strings.Contains(flat(m), want) {
+				t.Errorf("%s lacks %q:\n%s", tc.user, want, plain(m))
+			}
+		}
+		send(m, "n")
+	}
+}
+
+func TestDeleteSpeaksGerman(t *testing.T) {
+	m, _, _, _ := userModel(t, 120, 40)
+	useLanguage(t, "de")
+	selectUser(m, "demo-user")
+	send(m, "d")
+	for _, want := range []string{"demo-user löschen", "Behalten", "lässt sich rückgängig machen"} {
+		if !strings.Contains(flat(m), want) {
+			t.Errorf("lacks %q:\n%s", want, plain(m))
+		}
+	}
+	send(m, "right")
+	save(m)
+	if view := flat(m); !strings.Contains(view, "Das lässt sich nicht rückgängig machen: Das Home") || !strings.Contains(view, "/home/demo-user und der Mail-Spool") {
+		t.Errorf("\n%s", plain(m))
+	}
+}
+
+func TestDeleteWithHomeNamesEachRiskOfTheHome(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		risks []hostchange.HomeRisk
+		says  []string
+	}{
+		{"none", nil, nil},
+		{"system path", []hostchange.HomeRisk{{Kind: hostchange.HomeSystemPath}}, []string{"/home/demo-user is a system path."}},
+		{"holds homes", []hostchange.HomeRisk{{Kind: hostchange.HomeHoldsHome, Who: []string{"demo-admin", "svc-demo"}}},
+			[]string{"/home/demo-user holds the home of demo-admin, svc-demo."}},
+		{"link", []hostchange.HomeRisk{{Kind: hostchange.HomeLink}}, []string{"/home/demo-user is a link."}},
+		{"not a directory and foreign", []hostchange.HomeRisk{{Kind: hostchange.HomeNotDirectory}, {Kind: hostchange.HomeForeignOwner, Who: []string{"demo-admin"}}},
+			[]string{"/home/demo-user is not a directory.", "/home/demo-user belongs to demo-admin."}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m, f, host, _ := userModel(t, 120, 40)
+			host.homeRisks = map[string][]hostchange.HomeRisk{"demo-user": tc.risks}
+			selectUser(m, "demo-user")
+			send(m, "d")
+			save(m)
+			// Keeping the home names none of the risks of the home.
+			if view := flat(m); strings.Contains(view, "/home/demo-user is") || strings.Contains(view, "belongs to") || strings.Contains(view, "holds the home") {
+				t.Errorf("keeping the home names a risk:\n%s", plain(m))
+			}
+			send(m, "n", "d", "right")
+			save(m)
+			if m.ask == nil || !m.ask.danger || len(f.reqs) != 0 {
+				t.Fatalf("ask %+v\n%s", m.ask, plain(m))
+			}
+			view := flat(m)
+			for _, want := range append(tc.says, "This cannot be undone: the home /home/demo-user") {
+				if !strings.Contains(view, want) {
+					t.Errorf("lacks %q:\n%s", want, plain(m))
+				}
+			}
+			if len(tc.says) == 0 && (strings.Contains(view, "is a system path") || strings.Contains(view, "belongs to")) {
+				t.Errorf("names a risk it does not have:\n%s", plain(m))
+			}
+		})
+	}
+}
+
+func TestHomeRisksOfTheRealSourceAreRead(t *testing.T) {
+	dir := t.TempDir()
+	h := hostadmin.NewHost(false)
+	h.PasswdPath = dir + "/passwd"
+	if err := os.WriteFile(h.PasswdPath, []byte("demo-user:x:1001:1001::/usr/local/demo-gone:/bin/bash\ndemo-other:x:1002:1002::/usr/local/demo-gone/demo-other:/bin/bash\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m := &Model{hostSrc: h}
+	text := m.homeRiskText(hostadmin.User{Name: "demo-user", UID: 1001, Home: "/usr/local/demo-gone"})
+	if text != "/usr/local/demo-gone is a system path. /usr/local/demo-gone holds the home of demo-other." {
+		t.Errorf("%q", text)
 	}
 }

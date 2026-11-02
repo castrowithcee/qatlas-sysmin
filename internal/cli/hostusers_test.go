@@ -47,7 +47,7 @@ func (w *usersWorld) edit(t *testing.T, file string, fn func(fields []string) []
 func newUsersWorld(t *testing.T) (*usersWorld, hostchange.UserHost, func(context.Context, hostchange.Command) ([]byte, error)) {
 	t.Helper()
 	w := &usersWorld{dir: t.TempDir()}
-	for _, d := range []string{"home/demo-admin", "home/demo-user", "mail", "log"} {
+	for _, d := range []string{"home/demo-admin", "home/demo-user", "mail", "log", "proc"} {
 		if err := os.MkdirAll(w.path(d), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -66,7 +66,7 @@ func newUsersWorld(t *testing.T) (*usersWorld, hostchange.UserHost, func(context
 	}
 	h := hostadmin.NewHost(true)
 	h.PasswdPath, h.GroupPath, h.ShadowPath = w.path("passwd"), w.path("group"), w.path("shadow")
-	uh := hostchange.UserHost{Accounts: h, HomeBase: w.path("home"), MailDir: w.path("mail"), Lastlog: w.path("log/lastlog")}
+	uh := hostchange.UserHost{Accounts: h, HomeBase: w.path("home"), MailDir: w.path("mail"), Lastlog: w.path("log/lastlog"), Proc: w.path("proc")}
 	run := func(_ context.Context, c hostchange.Command) ([]byte, error) {
 		w.argv = append(w.argv, strings.Join(c.Argv, " "))
 		w.shown = append(w.shown, c.Display())
@@ -212,5 +212,64 @@ func TestHostApplyUserRefusalChangesNothing(t *testing.T) {
 	code, out, _ = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.create-service", "demo-user")
 	if code != 1 || !strings.Contains(out, "exists already") || len(w.argv) != 0 {
 		t.Errorf("an existing name is refused: code %d out %q argv %q", code, out, w.argv)
+	}
+}
+
+func TestHostApplyUserDeleteRefusalsChangeNothing(t *testing.T) {
+	w, uh, run := newUsersWorld(t)
+	f := newChangeFixture(t)
+	reg := hostchange.NewRegistry()
+	if err := hostchange.RegisterUserActions(reg, uh); err != nil {
+		t.Fatal(err)
+	}
+	f.env.Registry, f.env.Exec = reg, execFn(run)
+	f.env.SudoUID = func() int { return 1001 }
+	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.delete", "demo-user")
+	if code != 1 || !strings.Contains(out, "refused") || !strings.Contains(errOut, "your own account") || len(w.argv) != 0 {
+		t.Fatalf("own account: code %d out %q err %q argv %q", code, out, errOut, w.argv)
+	}
+
+	f.env.SudoUID = func() int { return 1000 }
+	if err := os.MkdirAll(w.path("proc/4711"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(w.path("proc/4711/status"), []byte("Name:\tdemo\nUid:\t1001\t1001\t1001\t1001\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errOut = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.delete", "demo-user", "with-home")
+	if code != 1 || !strings.Contains(out, "refused") || !strings.Contains(errOut, "still has running processes; end them first") || len(w.argv) != 0 {
+		t.Fatalf("running processes: code %d out %q err %q argv %q", code, out, errOut, w.argv)
+	}
+	if code, _, _ = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.delete", "demo-user", "home"); code != 2 {
+		t.Errorf("an unknown option is a usage error: %d", code)
+	}
+}
+
+func TestHostApplyGroupRefusalsChangeNothing(t *testing.T) {
+	w, uh, run := newUsersWorld(t)
+	f := newChangeFixture(t)
+	reg := hostchange.NewRegistry()
+	if err := hostchange.RegisterUserActions(reg, uh); err != nil {
+		t.Fatal(err)
+	}
+	f.env.Registry, f.env.Exec = reg, execFn(run)
+	f.env.SudoUID = func() int { return 1000 }
+	for _, tc := range []struct {
+		args   []string
+		code   int
+		reason string
+	}{
+		{[]string{"group.delete", "sudo"}, 1, "never deleted"},
+		{[]string{"group.delete", "demo-user"}, 1, "primary group of demo-user"},
+		{[]string{"group.rename", "sysmin", "demo-access"}, 1, "never renamed"},
+		{[]string{"group.rename", "demo-user", "sudo"}, 1, "exists already"},
+		{[]string{"group.create", "demo-admin"}, 1, "exists already"},
+		{[]string{"group.create", "Demo"}, 2, ""},
+		{[]string{"group.rename", "demo-user"}, 2, ""},
+	} {
+		code, out, errOut := runChange(t, f, 0, "", append([]string{"host", "apply", "--yes", "--"}, tc.args...)...)
+		if code != tc.code || tc.code == 1 && (!strings.Contains(out, "refused") || !strings.Contains(errOut, tc.reason)) || len(w.argv) != 0 {
+			t.Errorf("%q: code %d out %q err %q argv %q", tc.args, code, out, errOut, w.argv)
+		}
 	}
 }

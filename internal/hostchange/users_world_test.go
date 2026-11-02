@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -21,8 +22,9 @@ import (
 )
 
 // userWorld is an invented host for the user actions: the fake executor applies useradd, usermod, chpasswd,
-// chage and userdel to an in-memory model and writes passwd, group and shadow files from it, and runs the
-// built-in steps for real inside a temporary home. Every account maps to the test's own UID on disk.
+// chage, userdel and groupadd to an in-memory model and writes passwd, group and shadow files from it, and runs
+// the built-in steps for real inside a temporary home. Every account maps to the test's own UID on disk. The
+// tools behave like those of Debian: userdel removes the user's own group only where nothing else uses it.
 type userWorld struct {
 	t       *testing.T
 	dir     string
@@ -33,6 +35,14 @@ type userWorld struct {
 	failOn  string            // displayed command that fails and echoes its standard input
 	shells  map[string]string // login shell by user; a missing one is /bin/bash
 	expires map[string]string // expiry day by user; a missing one is none
+	gecos   map[string]string // comment field by user; a missing one is empty
+	aging   map[string][4]string
+	running map[int]bool // UIDs with a process in the process table
+	// gshadow holds the group password and administrators by group, as "password:administrators"; a missing
+	// group has the Debian default "!:".
+	gshadow map[string]string
+	// keepGroups makes userdel keep the user's own group, as it does with USERGROUPS_ENAB no.
+	keepGroups bool
 	// useraddShell, when set, replaces the shell a useradd call asks for.
 	useraddShell string
 	host         UserHost
@@ -54,7 +64,8 @@ type worldGroup struct {
 func newUserWorld(t *testing.T) *userWorld {
 	t.Helper()
 	dir := t.TempDir()
-	w := &userWorld{t: t, dir: dir, stdins: map[string]string{}, shells: map[string]string{}, expires: map[string]string{}}
+	w := &userWorld{t: t, dir: dir, stdins: map[string]string{}, shells: map[string]string{}, expires: map[string]string{},
+		gecos: map[string]string{}, aging: map[string][4]string{}, running: map[int]bool{}, gshadow: map[string]string{}}
 	home := func(n string) string { return filepath.Join(dir, "home", n) }
 	w.users = []worldUser{
 		{"root", 0, 0, "/root", "$6$demo-root", "19000"},
@@ -82,7 +93,7 @@ func newUserWorld(t *testing.T) *userWorld {
 			t.Fatal(err)
 		}
 	}
-	for _, d := range []string{"mail", "log"} {
+	for _, d := range []string{"mail", "log", "proc/self"} {
 		if err := os.MkdirAll(filepath.Join(dir, d), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -91,7 +102,9 @@ func newUserWorld(t *testing.T) *userWorld {
 	h.PasswdPath, h.GroupPath, h.ShadowPath = filepath.Join(dir, "passwd"), filepath.Join(dir, "group"), filepath.Join(dir, "shadow")
 	w.host = UserHost{
 		Accounts: h, HomeBase: filepath.Join(dir, "home"), MailDir: filepath.Join(dir, "mail"),
+		GShadow: filepath.Join(dir, "gshadow"),
 		Lastlog: filepath.Join(dir, "log", "lastlog"), Lastlog2: filepath.Join(dir, "lastlog2.db"),
+		Proc: filepath.Join(dir, "proc"),
 	}
 	// A classic lastlog with room for the first regular users and no login recorded.
 	if err := os.WriteFile(w.host.Lastlog, make([]byte, 1001*lastlogRecord), 0o644); err != nil {
@@ -102,23 +115,62 @@ func newUserWorld(t *testing.T) *userWorld {
 }
 
 func (w *userWorld) flush() {
-	var pw, gr, sh strings.Builder
+	var pw, gr, sh, gs strings.Builder
 	for _, u := range w.users {
 		shell := w.shells[u.name]
 		if shell == "" {
 			shell = "/bin/bash"
 		}
-		fmt.Fprintf(&pw, "%s:x:%d:%d::%s:%s\n", u.name, u.uid, u.gid, u.home, shell)
-		fmt.Fprintf(&sh, "%s:%s:%s:0:99999:7::%s:\n", u.name, u.hash, u.lastchg, w.expires[u.name])
+		fmt.Fprintf(&pw, "%s:x:%d:%d:%s:%s:%s\n", u.name, u.uid, u.gid, w.gecos[u.name], u.home, shell)
+		ag := w.agingOf(u.name)
+		fmt.Fprintf(&sh, "%s:%s:%s:%s:%s:%s:%s:%s:\n", u.name, u.hash, u.lastchg, ag[0], ag[1], ag[2], ag[3], w.expires[u.name])
 	}
 	for _, g := range w.groups {
 		fmt.Fprintf(&gr, "%s:x:%d:%s\n", g.name, g.gid, strings.Join(g.members, ","))
+		secret, ok := w.gshadow[g.name]
+		if !ok {
+			secret = "!:"
+		}
+		fmt.Fprintf(&gs, "%s:%s:%s\n", g.name, secret, strings.Join(g.members, ","))
 	}
-	for path, content := range map[string]string{w.host.Accounts.PasswdPath: pw.String(), w.host.Accounts.GroupPath: gr.String(), w.host.Accounts.ShadowPath: sh.String()} {
+	for path, content := range map[string]string{w.host.Accounts.PasswdPath: pw.String(), w.host.Accounts.GroupPath: gr.String(), w.host.Accounts.ShadowPath: sh.String(), w.host.GShadow: gs.String()} {
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			w.t.Fatal(err)
 		}
 	}
+}
+
+// agingOf is the minimum, maximum, warning and inactivity days of a user; useradd sets those of a Debian
+// login.defs.
+func (w *userWorld) agingOf(name string) [4]string {
+	if ag, ok := w.aging[name]; ok {
+		return ag
+	}
+	return [4]string{"0", "99999", "7", ""}
+}
+
+// process puts a process with the real and effective UID into the process table.
+func (w *userWorld) process(pid, real, effective int) {
+	w.t.Helper()
+	dir := filepath.Join(w.host.Proc, strconv.Itoa(pid))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		w.t.Fatal(err)
+	}
+	status := fmt.Sprintf("Name:\tdemo\nUmask:\t0022\nUid:\t%d\t%d\t%d\t%d\nGid:\t0\t0\t0\t0\n", real, effective, effective, effective)
+	if err := os.WriteFile(filepath.Join(dir, "status"), []byte(status), 0o644); err != nil {
+		w.t.Fatal(err)
+	}
+	w.running[real], w.running[effective] = true, true
+}
+
+// option is the value after the first of flags in argv, the name at the end excluded.
+func option(argv []string, flags ...string) (string, bool) {
+	for _, f := range flags {
+		if i := slices.Index(argv, f); i > 0 && i+1 < len(argv)-1 {
+			return argv[i+1], true
+		}
+	}
+	return "", false
 }
 
 func (w *userWorld) user(name string) *worldUser {
@@ -174,6 +226,9 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 	switch a[0] {
 	case "useradd":
 		name := a[len(a)-1]
+		if w.user(name) != nil {
+			return []byte("useradd: user '" + name + "' already exists"), errors.New("exit status 9")
+		}
 		uid := 1000
 		for _, u := range w.users {
 			if hostadmin.Regular(u.uid) && u.uid >= uid {
@@ -186,29 +241,94 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 				uid--
 			}
 		}
-		homeFlag := slices.Index(a, "-d")
-		if homeFlag < 0 {
-			homeFlag = slices.Index(a, "--home-dir")
+		if v, ok := option(a, "-u"); ok {
+			uid, _ = strconv.Atoi(v)
+			if slices.ContainsFunc(w.users, func(u worldUser) bool { return u.uid == uid }) {
+				return []byte("useradd: UID " + v + " is not unique"), errors.New("exit status 4")
+			}
 		}
-		home := a[homeFlag+1]
-		if i := slices.Index(a, "--shell"); i > 0 {
-			w.shells[name] = a[i+1]
+		var further []string
+		if v, ok := option(a, "-G"); ok {
+			further = strings.Split(v, ",")
+		}
+		for _, g := range further {
+			if w.group(g) == nil {
+				return []byte("useradd: group '" + g + "' does not exist"), errors.New("exit status 6")
+			}
+		}
+		gid := uid
+		if v, ok := option(a, "-g"); ok {
+			g := w.group(v)
+			if g == nil {
+				return []byte("useradd: group '" + v + "' does not exist"), errors.New("exit status 6")
+			}
+			gid = g.gid
+		} else {
+			w.groups = append(w.groups, worldGroup{name, uid, nil})
+		}
+		home, _ := option(a, "-d", "--home-dir")
+		if v, ok := option(a, "-s", "--shell"); ok {
+			w.shells[name] = v
 		}
 		if w.useraddShell != "" {
 			w.shells[name] = w.useraddShell
 		}
-		w.users = append(w.users, worldUser{name, uid, uid, home, "!", "20000"})
-		w.groups = append(w.groups, worldGroup{name, uid, nil})
-		if i := slices.Index(a, "-G"); i > 0 {
-			for _, g := range strings.Split(a[i+1], ",") {
-				w.group(g).members = append(w.group(g).members, name)
-			}
+		if v, ok := option(a, "-c"); ok {
+			w.gecos[name] = v
+		}
+		w.users = append(w.users, worldUser{name, uid, gid, home, "!", "20000"})
+		for _, g := range further {
+			w.group(g).members = append(w.group(g).members, name)
 		}
 		if slices.Contains(a, "-m") || slices.Contains(a, "--create-home") {
 			if err := os.Mkdir(home, 0o755); err != nil {
 				return nil, err
 			}
 		}
+	case "groupadd": // [-g gid] name; without -g the next GID after the highest regular one, like Debian
+		name := a[len(a)-1]
+		if w.group(name) != nil {
+			return []byte("groupadd: group '" + name + "' already exists"), errors.New("exit status 9")
+		}
+		gid := 1000
+		for _, g := range w.groups {
+			if hostadmin.Regular(g.gid) && g.gid >= gid {
+				gid = g.gid + 1
+			}
+		}
+		if v, ok := option(a, "-g"); ok {
+			gid, _ = strconv.Atoi(v)
+			if slices.ContainsFunc(w.groups, func(g worldGroup) bool { return g.gid == gid }) {
+				return []byte("groupadd: GID '" + v + "' already exists"), errors.New("exit status 4")
+			}
+		}
+		w.groups = append(w.groups, worldGroup{name, gid, nil})
+	case "groupdel": // refuses the primary group of a user like the real one
+		name := a[len(a)-1]
+		g := w.group(name)
+		if g == nil {
+			return []byte("groupdel: group '" + name + "' does not exist"), errors.New("exit status 6")
+		}
+		for _, u := range w.users {
+			if u.gid == g.gid {
+				return []byte("groupdel: cannot remove the primary group of user '" + u.name + "'"), errors.New("exit status 8")
+			}
+		}
+		w.groups = slices.DeleteFunc(w.groups, func(x worldGroup) bool { return x.name == name })
+		delete(w.gshadow, name)
+	case "groupmod": // -n new old, in the group and the gshadow file
+		g := w.group(a[3])
+		switch {
+		case g == nil:
+			return []byte("groupmod: group '" + a[3] + "' does not exist"), errors.New("exit status 6")
+		case w.group(a[2]) != nil:
+			return []byte("groupmod: group '" + a[2] + "' already exists"), errors.New("exit status 9")
+		}
+		if secret, ok := w.gshadow[g.name]; ok {
+			w.gshadow[a[2]] = secret
+			delete(w.gshadow, g.name)
+		}
+		g.name = a[2]
 	case "chpasswd":
 		name, value, _ := strings.Cut(strings.TrimSuffix(string(c.Secret), "\n"), ":")
 		u := w.user(name)
@@ -219,12 +339,34 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 			u.hash = "$y$demo$" + hex.EncodeToString(sum[:8])
 		}
 		u.lastchg = "20001"
-	case "chage":
-		day := a[2]
-		if day == "-1" {
-			day = ""
+	case "chage": // pairs of -d, -m, -M, -W, -I and -E with a day, where -1 clears the field, then the name
+		name := a[len(a)-1]
+		u := w.user(name)
+		if u == nil {
+			return []byte("chage: user '" + name + "' does not exist"), errors.New("exit status 1")
 		}
-		w.user(a[3]).lastchg = day
+		ag := w.agingOf(name)
+		for i := 1; i+1 < len(a); i += 2 {
+			day := a[i+1]
+			if day == "-1" {
+				day = ""
+			}
+			switch a[i] {
+			case "-d":
+				u.lastchg = day
+			case "-m":
+				ag[0] = day
+			case "-M":
+				ag[1] = day
+			case "-W":
+				ag[2] = day
+			case "-I":
+				ag[3] = day
+			case "-E":
+				w.expires[name] = day
+			}
+		}
+		w.aging[name] = ag
 	case "usermod":
 		if a[1] == "-e" { // -e day name
 			a = []string{a[0], "-", a[1], a[2], a[3]}
@@ -249,7 +391,31 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 				g.members = append(g.members, name)
 			}
 		}
-	case "gpasswd": // -d name group, which fails for a non-member like the real one
+	case "gpasswd": // -a or -d name group, which fail for an unknown user (-a) or a non-member (-d) like the real one, or -M a,b group
+		if a[1] == "-a" {
+			g := w.group(a[3])
+			switch {
+			case w.user(a[2]) == nil:
+				return []byte("gpasswd: user '" + a[2] + "' does not exist"), errors.New("exit status 3")
+			case g == nil:
+				return []byte("gpasswd: group '" + a[3] + "' does not exist"), errors.New("exit status 3")
+			}
+			if !slices.Contains(g.members, a[2]) {
+				g.members = append(g.members, a[2])
+			}
+			break
+		}
+		if a[1] == "-M" {
+			var members []string
+			for _, m := range strings.Split(a[2], ",") {
+				if w.user(m) == nil {
+					return []byte("gpasswd: user '" + m + "' does not exist"), errors.New("exit status 3")
+				}
+				members = append(members, m)
+			}
+			w.group(a[3]).members = members
+			break
+		}
 		g := w.group(a[3])
 		if !slices.Contains(g.members, a[2]) {
 			return []byte("gpasswd: user is not a member"), errors.New("exit status 3")
@@ -258,16 +424,40 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 	case "userdel":
 		name := a[len(a)-1]
 		u := w.user(name)
+		if u == nil {
+			return []byte("userdel: user '" + name + "' does not exist"), errors.New("exit status 6")
+		}
+		if w.running[u.uid] {
+			return []byte("userdel: user " + name + " is currently used by process 4711"), errors.New("exit status 8")
+		}
 		if slices.Contains(a, "-r") {
-			if err := os.RemoveAll(u.home); err != nil {
-				return nil, err
+			for _, path := range []string{u.home, filepath.Join(w.host.MailDir, name)} {
+				// Nothing outside the test directory is ever removed; a path outside it passes only where it does
+				// not exist, so there is nothing to remove.
+				if !strings.HasPrefix(path, w.dir+"/") {
+					if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+						return nil, fmt.Errorf("the fake host removes nothing outside %s: %s", w.dir, path)
+					}
+					continue
+				}
+				if err := os.RemoveAll(path); err != nil {
+					return nil, err
+				}
 			}
 		}
+		gid := u.gid
 		w.users = slices.DeleteFunc(w.users, func(x worldUser) bool { return x.name == name })
-		w.groups = slices.DeleteFunc(w.groups, func(g worldGroup) bool { return g.name == name })
 		for i := range w.groups {
 			w.groups[i].members = slices.DeleteFunc(w.groups[i].members, func(m string) bool { return m == name })
 		}
+		if g := w.group(name); !w.keepGroups && g != nil && g.gid == gid && len(g.members) == 0 &&
+			!slices.ContainsFunc(w.users, func(x worldUser) bool { return x.gid == gid }) {
+			w.groups = slices.DeleteFunc(w.groups, func(g worldGroup) bool { return g.name == name })
+		}
+		for _, m := range []map[string]string{w.shells, w.expires, w.gecos} {
+			delete(m, name)
+		}
+		delete(w.aging, name)
 	default:
 		return nil, fmt.Errorf("the fake host does not know %s", a[0])
 	}

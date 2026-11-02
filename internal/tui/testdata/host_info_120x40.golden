@@ -10,18 +10,18 @@ Users (3)                                                         1/2 ╭─ dem
 ║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             yes                          │
 ║   ▸ System accounts (1)                                           ║ │ Docker            yes                          │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (sysmin)  yes                          │
-                                                                      │ Groups            demo-admin, sudo, docker,    │
-                            ╔══════════════════════════════════════════════════════════════╗smin                       │
-                            ║ Info                                                         ║ome/demo-admin             │
-                            ║                                                              ║known                      │
-                            ║ Users                                                        ║                           │
-                            ║                                                              ║ the fields only root can  │
-                            ║ Admin: the user may become root with sudo. Docker: the user  ║                           │
-                            ║ may use Docker, which is practically root on this host.      ║───────────────────────────╯
-                            ║ Enabled: the user is a member of the group sysmin; an admin  ║                            
+                            ╔══════════════════════════════════════════════════════════════╗mo-admin, sudo, docker,    │
+                            ║ Info                                                         ║smin                       │
+                            ║                                                              ║ome/demo-admin             │
+                            ║ Users                                                        ║known                      │
+                            ║                                                              ║                           │
+                            ║ Admin: the user may become root with sudo. Docker: the user  ║ the fields only root can  │
+                            ║ may use Docker, which is practically root on this host.      ║                           │
+                            ║ Enabled: the user is a member of the group sysmin; an admin  ║───────────────────────────╯
                             ║ who is also enabled may use sysmin. n creates a user, e      ║                            
-                            ║ changes the marked one; every change asks first, runs        ║                            
-                            ║ through sudo and can be undone under Changes.                ║                            
+                            ║ changes the marked one, d deletes it; every change asks      ║                            
+                            ║ first, runs through sudo and can be undone under Changes,    ║                            
+                            ║ except deleting a home.                                      ║                            
                             ║                                                              ║                            
                             ║ esc close                                                    ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            

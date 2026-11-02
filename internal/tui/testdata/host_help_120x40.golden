@@ -1,40 +1,40 @@
 sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
-   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
-  [Users]  Groups   Folders ╔══════════════════════════════════════════════════════════════╗                            
-────────────────────────────║ Help                                                         ║────────────────────────────
-Users (3)                   ║                                                              ║───────────────────────────╮
-╔═══════════════════════════║  secrets   channels   templates   audit-log   runs  [host]   ║  Raw                      │
-║   Name        Admin       ║                                                              ║                           │
-║   ▾ Users (2)             ║ Host shows the users, groups and folder permissions of this  ║mo-admin                   │
-║ > demo-admin  yes         ║ machine. Admin means sudo rights, Docker is practically      ║gular                      │
-║   demo-user   yes · not en║ root, and enabled means membership of the group sysmin. Grey ║s                          │
-║   ▸ System accounts (1)   ║ rows are system accounts and groups, whose ID lies outside   ║s                          │
-╚═══════════════════════════║ 1000 to 60000; they sit in their own section, which starts   ║s                          │
-                            ║ collapsed. enter or space on a heading collapses or expands  ║mo-admin, sudo, docker,    │
-                            ║ it. e changes root and system accounts like any other        ║smin                       │
-                            ║ account, and the confirmation is then red, because packages  ║ome/demo-admin             │
-                            ║ or services may depend on them; only taking admin from or    ║known                      │
-                            ║ locking yourself or the last admin is refused. Folders reads ║                           │
-                            ║ one path at a time: type it, tab completes, enter reads. A   ║ the fields only root can  │
-                            ║ path marked protected is a system path. e changes the folder ║                           │
-                            ║ shown, after a confirmation that names the number of entries ║───────────────────────────╯
-                            ║ and, for a system path, the risk; if a stack stops being     ║                            
-                            ║ healthy, the change is taken back. s sets up the stack       ║                            
-                            ║ folder shown for the service. n creates a person, whose      ║                            
-                            ║ initial password must be changed at the first login, or a    ║                            
-                            ║ service account without login (no password, no shell, no SSH ║                            
-                            ║ keys, a home only on request); e changes the marked one      ║                            
-                            ║ (groups, Admin, Docker, password, SSH keys, lock), one       ║                            
-                            ║ change at a time. Lock is the normal way to stop someone: it ║                            
-                            ║ blocks every login, also by SSH key, while running sessions  ║                            
-                            ║ stay open; Unlock releases the password and removes the end  ║                            
-                            ║ of the account. Changes lists the latest changes made        ║                            
-                            ║ through sysmin and undoes one with enter. What only root can ║                            
-                            ║ read, such as the locked state and SSH keys of a user or the ║                            
-                            ║ list of changes, is read through sudo when you press ctrl+r; ║                            
-                            ║ sudo asks for the password, sysmin never sees it.            ║                            
+   1 Overview   2 Projects  ╔══════════════════════════════════════════════════════════════╗                            
+  [Users]  Groups   Folders ║ Help                                                         ║                            
+────────────────────────────║                                                              ║────────────────────────────
+Users (3)                   ║  secrets   channels   templates   audit-log   runs  [host]   ║───────────────────────────╮
+╔═══════════════════════════║                                                              ║  Raw                      │
+║   Name        Admin       ║ Host shows the users, groups and folder permissions of this  ║                           │
+║   ▾ Users (2)             ║ machine. Admin means sudo rights, Docker is practically      ║mo-admin                   │
+║ > demo-admin  yes         ║ root, and enabled means membership of the group sysmin. Grey ║gular                      │
+║   demo-user   yes · not en║ rows are system accounts and groups, whose ID lies outside   ║s                          │
+║   ▸ System accounts (1)   ║ 1000 to 60000; they sit in their own section, which starts   ║s                          │
+╚═══════════════════════════║ collapsed. enter or space on a heading collapses or expands  ║s                          │
+                            ║ it. e and d work on root and system accounts like on any     ║mo-admin, sudo, docker,    │
+                            ║ other account, and the confirmation is then red, because     ║smin                       │
+                            ║ packages or services may depend on them; only taking admin   ║ome/demo-admin             │
+                            ║ from, locking or deleting yourself or the last admin is      ║known                      │
+                            ║ refused. Folders reads one path at a time: type it, tab      ║                           │
+                            ║ completes, enter reads. A path marked protected is a system  ║ the fields only root can  │
+                            ║ path. e changes the folder shown, after a confirmation that  ║                           │
+                            ║ names the number of entries and, for a system path, the      ║───────────────────────────╯
+                            ║ risk; if a stack stops being healthy, the change is taken    ║                            
+                            ║ back. s sets up the stack folder shown for the service. n    ║                            
+                            ║ creates a person, whose initial password must be changed at  ║                            
+                            ║ the first login, or a service account without login (no      ║                            
+                            ║ password, no shell, no SSH keys, a home only on request); e  ║                            
+                            ║ changes the marked one (groups, Admin, Docker, password, SSH ║                            
+                            ║ keys, lock), one change at a time. Lock is the normal way to ║                            
+                            ║ stop someone: it blocks every login, also by SSH key, while  ║                            
+                            ║ running sessions stay open; Unlock releases the password and ║                            
+                            ║ removes the end of the account. d deletes the marked user    ║                            
+                            ║ after asking whether its home goes too: keeping the home is  ║                            
+                            ║ the default and can be undone, which creates the account     ║                            
+                            ║ again with the same UID, groups and password; deleting the   ║                            
+                            ║ home and mail spool cannot be undone. A user with running    ║                            
+                            ║ processes is not deleted. On Groups, n creates a group, e    ║                            
+                            ║ lines 1-31 of 48                                             ║                            
                             ║                                                              ║                            
                             ║ ↑/↓ scroll · ←/→ topic · esc close                           ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
 ? help                                                                                                                  

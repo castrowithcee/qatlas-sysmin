@@ -5,6 +5,7 @@ import (
 	"io/fs"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
+	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
 
 // fixtureHost is a host source with invented accounts, so no test reads the accounts of the machine it runs on.
@@ -14,6 +15,12 @@ type fixtureHost struct {
 	// folders are the paths Folder knows; any other is not found, so no test stats the real file system.
 	folders map[string]hostadmin.Folder
 	err     error
+	// homeRisks are the risks of deleting a user's home, by user name.
+	homeRisks map[string][]hostchange.HomeRisk
+}
+
+func (f *fixtureHost) HomeRisks(name, _ string) ([]hostchange.HomeRisk, error) {
+	return f.homeRisks[name], nil
 }
 
 func (f *fixtureHost) Users() ([]hostadmin.User, error)   { return f.users, f.err }

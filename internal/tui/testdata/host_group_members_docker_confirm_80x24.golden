@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+   Users  [Groups]  Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Groups (╔══════════════════════════════════════════════════════════════╗     3/4
+╔═══════║ ⚠ Add demo-user to the group docker.                         ║═══════╗
+║   Name║                                                              ║       ║
+║   ▾ Gr║     Members of the group docker use Docker, which is         ║       ║
+║   demo║     practically root. Packages or services may depend on     ║       ║
+║   ▾ Sy║     this system group. Admin and Docker rights allow         ║       ║
+║   sudo║     practically everything on this host. You can undo this   ║       ║
+║ > dock║     under Host > Changes.                                    ║       ║
+║   sysm║                                                              ║       ║
+╚═══════║   $ gpasswd -a demo-user docker                              ║═══════╝
+        ║                                                              ║        
+        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║                                                              ║        
+        ║ y apply · n/esc cancel                                       ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

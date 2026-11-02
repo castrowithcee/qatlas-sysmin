@@ -8,6 +8,7 @@ import (
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
+	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
 
 // goldenApp is the service interface of the given size as it is drawn with NO_COLOR set, so the files hold the
@@ -316,6 +317,96 @@ func TestGoldenAreas(t *testing.T) {
 		{"host_user_lock_confirm", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
 			chooseChange(t, m, "demo-user", chgLock)
+			save(m)
+			return m
+		}},
+		{"host_user_delete_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			selectUser(m, "demo-user")
+			send(m, "d")
+			save(m)
+			return m
+		}},
+		{"host_user_delete_home_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			selectUser(m, "demo-user")
+			send(m, "d", "right")
+			save(m)
+			return m
+		}},
+		{"host_user_delete_system_home_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			for i := range m.hst.users.all {
+				if m.hst.users.all[i].Name == "svc-demo" {
+					m.hst.users.all[i].Home = "/usr/lib/svc-demo"
+				}
+			}
+			m.fillHostUsers()
+			m.hostSrc.(*fixtureHost).homeRisks = map[string][]hostchange.HomeRisk{"svc-demo": {
+				{Kind: hostchange.HomeSystemPath}, {Kind: hostchange.HomeForeignOwner, Who: []string{"root"}},
+			}}
+			selectAccount(m, "svc-demo")
+			send(m, "d", "right")
+			save(m)
+			return m
+		}},
+		{"host_group_create_form", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			send(m, "n")
+			typed(m, "demo-crew")
+			return m
+		}},
+		{"host_group_delete_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "demo-team")
+			send(m, "d")
+			return m
+		}},
+		{"host_group_delete_system_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "docker")
+			send(m, "d")
+			return m
+		}},
+		{"host_group_members_form", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "demo-team")
+			send(m, "e")
+			tickIn(m, 1)
+			send(m, "tab")
+			tickIn(m, 1)
+			return m
+		}},
+		{"host_group_members_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "demo-team")
+			send(m, "e")
+			tickIn(m, 2)
+			send(m, "tab")
+			tickIn(m, 1)
+			save(m)
+			return m
+		}},
+		{"host_group_members_docker_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "docker")
+			send(m, "e")
+			tickIn(m, 1)
+			save(m)
+			return m
+		}},
+		{"host_group_rename_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			runCommand(m, "go host groups")
+			selectGroup(m, "demo-team")
+			send(m, "r")
+			typed(m, "demo-crew")
 			save(m)
 			return m
 		}},
