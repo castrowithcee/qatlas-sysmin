@@ -99,7 +99,7 @@ func (s StackCheck) interval() time.Duration {
 // inspectFormat prints one JSON object per container with only what the check needs; no environment.
 const inspectFormat = `{"id":{{json .Id}},"name":{{json .Name}},"restarts":{{json .RestartCount}},` +
 	`"status":{{json .State.Status}},"running":{{json .State.Running}},"restarting":{{json .State.Restarting}},` +
-	`"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}""{{end}},` +
+	`"health":{{with index .State "Health"}}{{json .Status}}{{else}}""{{end}},` +
 	`"envfiles":{{json (index .Config.Labels "com.docker.compose.project.environment_file")}},` +
 	`"mounts":{{json .Mounts}}}`
 
