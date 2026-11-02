@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
 	"github.com/castrowithcee/qatlas-sysmin/internal/service"
 )
@@ -266,4 +267,20 @@ func TestProjectAdoptListExcludesTheRest(t *testing.T) {
 			t.Errorf("%v: code = %d, stderr = %q", args, code, stderr)
 		}
 	}
+}
+
+func TestAdoptRowsMissingAccessHintReferstoTheInterface(t *testing.T) {
+	res := control.AdoptResult{Problems: []control.AdoptProblem{{Code: "missing-access", Blocking: true,
+		Message: "the service user demo-user may not pass /mnt/nvme", Hint: "Give demo-user the access, for example: sudo setfacl -m u:demo-user:x /mnt/nvme"}}}
+	for _, row := range adoptRows(res, true).Rows {
+		if row["type"] != "problem" {
+			continue
+		}
+		hint, _ := row["hint"].(string)
+		if !strings.Contains(hint, "setfacl") || !strings.Contains(hint, "sysmin tui") {
+			t.Errorf("hint = %q", hint)
+		}
+		return
+	}
+	t.Fatal("no problem row")
 }

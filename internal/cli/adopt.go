@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/adopt"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/output"
@@ -50,7 +51,11 @@ func adoptRows(res control.AdoptResult, dryRun bool) output.Collection {
 		add(output.Row{"type": "git", "name": "git", "ref": g.URL, "current": g.Current})
 	}
 	for _, pr := range res.Problems {
-		add(output.Row{"type": "problem", "blocking": pr.Blocking, "code": pr.Code, "message": pr.Message, "hint": pr.Hint})
+		hint := pr.Hint
+		if pr.Code == adopt.CodeMissingAccess {
+			hint += " The terminal interface (sysmin tui) offers to set this access up when you adopt the stack there."
+		}
+		add(output.Row{"type": "problem", "blocking": pr.Blocking, "code": pr.Code, "message": pr.Message, "hint": hint})
 		for _, a := range pr.Access {
 			add(output.Row{"type": "access", "name": a.Right, "ref": a.Path})
 		}

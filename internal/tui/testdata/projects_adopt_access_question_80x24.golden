@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin 15 min               [esc] back  [?] help  [:] cmd
+   1 Overview [2 Projects] 3 Activity  4 Access  5 Library  6 Host  7 Settings 
+────────────────────────────────────────────────────────────────────────────────
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║ ⚠ Set up access?                                                             ║
+║                                                                              ║
+║     Other users except root have no access to the stack folder and its files ║
+║     afterwards. You can undo this under Host > Changes.                      ║
+║                                                                              ║
+║   /srv/demo-stack is set up for the service:                                 ║
+║   root:sysmin, compose files read, env file write, data                      ║
+║   folders untouched.                                                         ║
+║   The service may pass, not list, these parent folders:                      ║
+║     /mnt/nvme                                                                ║
+║     /mnt/nvme/stacks                                                         ║
+║   $ chown root:sysmin /srv/demo-stack                                        ║
+║   $ chmod 0750 /srv/demo-stack                                               ║
+║   $ [builtin] setfacl -m g:sysmin:x /mnt/nvme                                ║
+║   $ [builtin] setfacl -m g:sysmin:x /mnt/nvme/stacks                         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+y apply  n/esc cancel

@@ -204,6 +204,8 @@ func (m *Model) takeProjectsAnswer(msg projectsAnswer) tea.Cmd {
 		m.takeProjectBackups(msg)
 	case projectAdoptMsg:
 		m.takeProjectAdopt(msg)
+	case projectAccessMsg:
+		m.takeProjectAccess(msg)
 	case projectStacksMsg:
 		m.takeProjectStacks(msg)
 	case projectChannelsMsg:

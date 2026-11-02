@@ -36,6 +36,8 @@ type fakeProjects struct {
 	adopt      control.AdoptResult
 	adoptErr   error
 	adoptAsked []control.AdoptParams
+	// adoptQueue holds the proposals the next requests answer with, before adopt.
+	adoptQueue []control.AdoptResult
 	// stacks and stacksErr are what Stacks answers.
 	stacks    control.StacksResult
 	stacksErr error
@@ -248,6 +250,11 @@ func (f *fakeBackend) AdoptProject(p control.AdoptParams) (control.AdoptResult, 
 	f.proj.adoptAsked = append(f.proj.adoptAsked, p)
 	if f.proj.adoptErr != nil {
 		return control.AdoptResult{}, f.proj.adoptErr
+	}
+	if len(f.proj.adoptQueue) > 0 {
+		res := f.proj.adoptQueue[0]
+		f.proj.adoptQueue = f.proj.adoptQueue[1:]
+		return res, nil
 	}
 	return f.proj.adopt, nil
 }

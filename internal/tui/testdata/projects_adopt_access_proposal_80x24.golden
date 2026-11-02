@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin 15 min                           [?] help  [:] cmd
+   1 Ove╔══════════════════════════════════════════════════════════════╗ttings  
+────────║ ⚠ Adopt demo-stack                                           ║────────
+Projects║                                                              ║     1/3
+        ║     Blocking problems keep this stack from being taken over. ║        
+╔═══════║   Name: demo-stack                                           ║═══════╗
+║   Name║   Directory: /srv/demo-stack                                 ║       ║
+║ >   de║   Compose file: /srv/demo-stack/compose.yaml                 ║12:00  ║
+║     de║   Compose file: /srv/demo-stack/compose.override.yaml        ║12:00  ║
+║     sa║   Compose project: demo-stack                                ║12:00  ║
+║       ║   Env file: /srv/demo-stack/.env                             ║       ║
+║       ║   Image web: registry.example.com/demo/web (1.4.2)           ║       ║
+║       ║                                                              ║       ║
+║       ║   ✗ the service user demo-user may not pass /mnt/nvme        ║       ║
+║       ║     Access is missing. Press y to set it up for the          ║       ║
+║       ║     service.                                                 ║       ║
+║       ║     may not pass /mnt/nvme                                   ║       ║
+║       ║                                                              ║       ║
+║       ║ [ Set up access ]  [ Close ]                                 ║       ║
+║       ║                                                              ║       ║
+║       ║ y set up access · esc close                                  ║       ║
+║       ╚══════════════════════════════════════════════════════════════╝       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+? help                                                                       1/3

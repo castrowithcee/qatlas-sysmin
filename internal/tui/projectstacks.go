@@ -125,6 +125,6 @@ func (m *Model) adoptStack(s control.Stack) tea.Cmd {
 	seq, b := m.prj.stackSeq, m.backend
 	return func() tea.Msg {
 		res, err := b.AdoptProject(params)
-		return projectAdoptMsg{seq: seq, list: true, res: res, err: err}
+		return projectAdoptMsg{seq: seq, params: params, list: true, res: res, err: err}
 	}
 }

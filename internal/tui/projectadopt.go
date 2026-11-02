@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/adopt"
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
@@ -58,13 +59,14 @@ func (m *Model) adoptSubmit() tea.Cmd {
 	params := control.AdoptParams{Dir: dir, Name: name, DryRun: true}
 	return func() tea.Msg {
 		res, err := b.AdoptProject(params)
-		return projectAdoptMsg{seq: seq, res: res, err: err}
+		return projectAdoptMsg{seq: seq, params: params, res: res, err: err}
 	}
 }
 
 // projectAdoptMsg is the answer to the request for a proposal.
 type projectAdoptMsg struct {
-	seq int
+	seq    int
+	params control.AdoptParams
 	// list says the request came from the list of stacks, whose seq numbers them, not from the panel.
 	list bool
 	res  control.AdoptResult
@@ -84,7 +86,7 @@ func (m *Model) takeProjectAdopt(msg projectAdoptMsg) {
 		case msg.err != nil:
 			m.fail = projectAdoptError(msg.err)
 		default:
-			m.showAdoption(msg.res)
+			m.showAdoption(msg.res, msg.params)
 		}
 		return
 	}
@@ -98,7 +100,7 @@ func (m *Model) takeProjectAdopt(msg projectAdoptMsg) {
 		return
 	}
 	m.closeProjectPrompt()
-	m.showAdoption(msg.res)
+	m.showAdoption(msg.res, msg.params)
 }
 
 // projectAdoptError is the fixed text of a refused request for a proposal.
@@ -122,10 +124,16 @@ func adoptBlocked(res control.AdoptResult) bool {
 	return false
 }
 
-// showAdoption shows the proposal: what the stack is, and the problems with it, the blocking ones marked.
-func (m *Model) showAdoption(res control.AdoptResult) {
+func (m *Model) showAdoption(res control.AdoptResult, params control.AdoptParams) {
+	m.showAdoptionAs(res, params, adoptNote{})
+}
+
+// showAdoptionAs shows the proposal: what the stack is, and the problems with it, the blocking ones marked.
+// A proposal blocked by missing access offers to set it up; params is the input it is requested with again.
+func (m *Model) showAdoptionAs(res control.AdoptResult, params control.AdoptParams, note adoptNote) {
 	const width = 54
 	blocked := adoptBlocked(res)
+	offer := canOfferAccess(res, note)
 	pj := res.Project
 	line := func(label, value string) string {
 		if value == "" {
@@ -171,19 +179,36 @@ func (m *Model) showAdoption(res control.AdoptResult) {
 			style, mark = styles.fail, "✗"
 		}
 		lines = append(lines, wrapIndented(style, "  "+mark+" ", oneLine(pr.Message), width)...)
-		if pr.Hint != "" {
+		// The hint of missing access is a command to type; the interface sets the access up instead.
+		switch {
+		case pr.Code == adopt.CodeMissingAccess && offer:
+			lines = append(lines, wrapIndented(styles.hint, "    ", tr(tPrjAccessOffer), width)...)
+		case pr.Code == adopt.CodeMissingAccess:
+		case pr.Hint != "":
 			lines = append(lines, wrapIndented(styles.hint, "    ", oneLine(pr.Hint), width)...)
 		}
 		for _, a := range pr.Access {
 			lines = append(lines, wrapIndented(styles.fail, "    ", tr(accessText(a.Right), a.Path), width)...)
 		}
 	}
+	if note.text != "" {
+		style := styles.hint
+		if note.bad {
+			style = styles.warning
+		}
+		lines = append(lines, "")
+		lines = append(lines, wrapIndented(style, "  ", oneLine(note.text), width)...)
+	}
 	q := question{title: tr(tPrjAdoptTitle, oneLine(pj.Name)), consequence: tr(tPrjAdoptOK), details: lines,
 		keys: "enter take over · {back} back"}
 	if blocked {
 		q.consequence, q.warn, q.keys = tr(tPrjAdoptBlock), true, "{back} close"
 	}
-	m.openProjectDialog(&projectDialog{kind: projDlgAdopt, name: pj.Name, adopt: &res, blocked: blocked}, q)
+	d := &projectDialog{kind: projDlgAdopt, name: pj.Name, adopt: &res, blocked: blocked}
+	if blocked && offer {
+		d.access, q.keys = &accessOffer{res: res, params: params}, "y set up access · {back} close"
+	}
+	m.openProjectDialog(d, q)
 }
 
 // accessText is the catalog text for a missing right; it takes the path.

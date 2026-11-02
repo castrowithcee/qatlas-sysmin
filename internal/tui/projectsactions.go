@@ -20,6 +20,7 @@ const (
 	projDlgRestore
 	projDlgPick
 	projDlgAdopt
+	projDlgAccess
 )
 
 // projectDialog is the question or result over the area; it is shown through m.ask.
@@ -32,6 +33,8 @@ type projectDialog struct {
 	// adopt is the proposal of a projDlgAdopt; blocked says it cannot be taken over.
 	adopt   *control.AdoptResult
 	blocked bool
+	// access is the setup of access offered by a blocked proposal (projDlgAdopt) or asked about (projDlgAccess).
+	access *accessOffer
 }
 
 // projectControlOps maps the commands that steer a project to the operations of the service.
@@ -108,8 +111,20 @@ func (m *Model) updateProjectDialog(key tea.KeyPressMsg) tea.Cmd {
 			res := *d.adopt
 			m.closeProjectDialog()
 			return m.projectFlowShow(flowDraftOf(projectOfAdoption(res)), "")
+		case keyIs(key, actYes) && d.access != nil:
+			m.closeProjectDialog()
+			return m.askAccessSetup(d.access)
 		case keyIs(key, actBack):
 			m.closeProjectDialog()
+		}
+	case projDlgAccess:
+		switch {
+		case keyIs(key, actYes):
+			m.closeProjectDialog()
+			return m.applyAccess(d.access)
+		case keyIs(key, actBack), keyIs(key, actNo):
+			m.closeProjectDialog()
+			m.showAdoptionAs(d.access.res, d.access.params, adoptNote{})
 		}
 	case projDlgRestore:
 		switch {
