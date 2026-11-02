@@ -86,7 +86,7 @@ func noSecretInRequests(t *testing.T, f *fakeSudo) {
 func TestCreateBuildsTheActionAndPassesPasswordAndKeyOnStandardInputOnly(t *testing.T) {
 	m, f, host, _ := userModel(t, 120, 40)
 	line, fp := demoKey(t, "demo-new@laptop")
-	send(m, "n")
+	send(m, "n", "tab")
 	typed(m, "demo-new")
 	send(m, "tab")
 	typed(m, inputMarker)
@@ -139,6 +139,85 @@ func TestCreateBuildsTheActionAndPassesPasswordAndKeyOnStandardInputOnly(t *test
 	}
 }
 
+func TestServiceAccountAsksNeitherPasswordNorKeyAndSendsItsOwnAction(t *testing.T) {
+	m, f, host, _ := userModel(t, 120, 40)
+	send(m, "n")
+	typed(m, "x") // the kind row is focused first; typing changes nothing
+	send(m, "right")
+	view := plain(m)
+	for _, gone := range []string{"Password:", "Repeat password:", "SSH key:", "Admin:"} {
+		if strings.Contains(view, gone) {
+			t.Errorf("a service account form still shows %q:\n%s", gone, view)
+		}
+	}
+	for _, want := range []string{"Kind", "Service account", "Home", "Docker", "Further groups"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("a service account form lacks %q:\n%s", want, view)
+		}
+	}
+	send(m, "tab")
+	typed(m, "demo-svc")
+	send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter")
+	save(m)
+	view = flat(m)
+	for _, want := range []string{"service account demo-svc without login", "the home", "useradd --system --create-home", "practically everything", "files of the account outside its home stay"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("confirmation lacks %q:\n%s", want, plain(m))
+		}
+	}
+	if strings.Contains(view, "chpasswd") || strings.Contains(view, "<password>") {
+		t.Errorf("a service account has no password step:\n%s", plain(m))
+	}
+	if m.ask == nil || len(f.reqs) != 0 {
+		t.Fatalf("nothing runs before y: ask %+v calls %v", m.ask, f.reqs)
+	}
+	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
+	reads := host.users
+	send(m, "y")
+	want := []string{"apply", "--yes", "--output", "json", "--", "user.create-service", "demo-svc", "home", "docker", "group=demo-ops"}
+	if len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) || len(f.reqs[0].Secret) != 0 || len(f.stdins) != 0 {
+		t.Errorf("requests %+v stdins %q, want args %q", f.reqs, f.stdins, want)
+	}
+	if host.users != reads+1 {
+		t.Errorf("users were not read again: %d -> %d", reads, host.users)
+	}
+}
+
+func TestServiceAccountWithoutHomeAndSwitchingKindForgetsThePerson(t *testing.T) {
+	m, f, _, _ := userModel(t, 120, 40)
+	send(m, "n", "tab")
+	typed(m, "demo-svc")
+	send(m, "tab")
+	typed(m, inputMarker)
+	send(m, "shift+tab", "shift+tab", "right")
+	send(m, "tab")
+	if got := m.form.row("password").raw(); got != "" {
+		t.Errorf("the password survived the switch to a service account: %q", got)
+	}
+	save(m)
+	if !strings.Contains(flat(m), "service account demo-svc") || !strings.Contains(flat(m), "--no-create-home") {
+		t.Errorf("the default is no home:\n%s", plain(m))
+	}
+	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
+	send(m, "y")
+	if want := []string{"apply", "--yes", "--output", "json", "--", "user.create-service", "demo-svc"}; len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) {
+		t.Errorf("requests %+v, want %q", f.reqs, want)
+	}
+	seeNoInput(t, m, "the result")
+}
+
+func TestServiceAccountFormChecksTheName(t *testing.T) {
+	for name, want := range map[string]string{"": "Enter a name.", "demo-user": "exists already"} {
+		m, f, _, _ := userModel(t, 120, 40)
+		send(m, "n", "right", "tab")
+		typed(m, name)
+		save(m)
+		if m.form == nil || len(f.reqs) != 0 || !strings.Contains(flat(m), want) {
+			t.Errorf("%q: form open %v, calls %v\n%s", name, m.form != nil, f.reqs, plain(m))
+		}
+	}
+}
+
 func TestCreateFormChecksBeforeAnythingLeavesIt(t *testing.T) {
 	cases := []struct {
 		name, pw, again, key, want string
@@ -151,7 +230,7 @@ func TestCreateFormChecksBeforeAnythingLeavesIt(t *testing.T) {
 	}
 	for _, tc := range cases {
 		m, f, _, _ := userModel(t, 120, 40)
-		send(m, "n")
+		send(m, "n", "tab")
 		typed(m, tc.name)
 		send(m, "tab")
 		typed(m, tc.pw)
@@ -170,7 +249,7 @@ func TestCancellingTheCreateConfirmChangesNothing(t *testing.T) {
 	for _, key := range []string{"n", "esc"} {
 		m, f, host, _ := userModel(t, 120, 40)
 		reads := host.users
-		send(m, "n")
+		send(m, "n", "tab")
 		typed(m, "demo-new")
 		send(m, "tab")
 		typed(m, inputMarker)
@@ -187,7 +266,7 @@ func TestCancellingTheCreateConfirmChangesNothing(t *testing.T) {
 
 func TestAWrongSudoPasswordStopsBeforeTheChangeRuns(t *testing.T) {
 	m, f, host, _ := userModel(t, 120, 40)
-	send(m, "n")
+	send(m, "n", "tab")
 	typed(m, "demo-new")
 	send(m, "tab")
 	typed(m, inputMarker)
@@ -210,7 +289,7 @@ func TestAWrongSudoPasswordStopsBeforeTheChangeRuns(t *testing.T) {
 
 func TestWithoutACachedCredentialTheChangeIsRefusedAndNothingChanges(t *testing.T) {
 	m, f, host, _ := userModel(t, 120, 40)
-	send(m, "n")
+	send(m, "n", "tab")
 	typed(m, "demo-new")
 	send(m, "tab")
 	typed(m, inputMarker)
@@ -233,7 +312,7 @@ func TestWithoutACachedCredentialTheChangeIsRefusedAndNothingChanges(t *testing.
 
 func TestARefusalOfTheHostIsShownWithoutTheSecret(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
-	send(m, "n")
+	send(m, "n", "tab")
 	typed(m, "demo-new")
 	send(m, "tab")
 	typed(m, inputMarker)

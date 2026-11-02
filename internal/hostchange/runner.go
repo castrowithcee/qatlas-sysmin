@@ -173,6 +173,15 @@ func (r *Runner) runLocked(ctx context.Context, j job) (Result, error) {
 	}
 
 	problem, failed := r.runCommands(ctx, j.plan.Commands, scrub)
+	if j.plan.Seal != nil && (problem == "" || failed > 0) {
+		if sealed, serr := j.plan.Seal(ctx); serr != nil {
+			if problem == "" {
+				problem, failed = "record the resulting state: "+scrub(serr.Error()), len(j.plan.Commands)
+			}
+		} else {
+			prev, e.Previous = sealed, sealed
+		}
+	}
 	if problem == "" && j.plan.Check != nil {
 		if cerr := j.plan.Check(ctx); cerr != nil {
 			e.Check, e.CheckError = CheckFailed, scrub(cerr.Error())

@@ -31,7 +31,10 @@ type userWorld struct {
 	calls  []string
 	stdins map[string]string // displayed command -> standard input
 	failOn string            // displayed command that fails and echoes its standard input
-	host   UserHost
+	shells map[string]string // login shell by user; a missing one is /bin/bash
+	// useraddShell, when set, replaces the shell a useradd call asks for.
+	useraddShell string
+	host         UserHost
 }
 
 type worldUser struct {
@@ -50,7 +53,7 @@ type worldGroup struct {
 func newUserWorld(t *testing.T) *userWorld {
 	t.Helper()
 	dir := t.TempDir()
-	w := &userWorld{t: t, dir: dir, stdins: map[string]string{}}
+	w := &userWorld{t: t, dir: dir, stdins: map[string]string{}, shells: map[string]string{}}
 	home := func(n string) string { return filepath.Join(dir, "home", n) }
 	w.users = []worldUser{
 		{"root", 0, 0, "/root", "$6$demo-root", "19000"},
@@ -100,7 +103,11 @@ func newUserWorld(t *testing.T) *userWorld {
 func (w *userWorld) flush() {
 	var pw, gr, sh strings.Builder
 	for _, u := range w.users {
-		fmt.Fprintf(&pw, "%s:x:%d:%d::%s:/bin/bash\n", u.name, u.uid, u.gid, u.home)
+		shell := w.shells[u.name]
+		if shell == "" {
+			shell = "/bin/bash"
+		}
+		fmt.Fprintf(&pw, "%s:x:%d:%d::%s:%s\n", u.name, u.uid, u.gid, u.home, shell)
 		fmt.Fprintf(&sh, "%s:%s:%s:0:99999:7:::\n", u.name, u.hash, u.lastchg)
 	}
 	for _, g := range w.groups {
@@ -129,6 +136,11 @@ func (w *userWorld) group(name string) *worldGroup {
 		}
 	}
 	return nil
+}
+
+func (w *userWorld) uidTaken(id int) bool {
+	return slices.ContainsFunc(w.users, func(u worldUser) bool { return u.uid == id }) ||
+		slices.ContainsFunc(w.groups, func(g worldGroup) bool { return g.gid == id })
 }
 
 func (w *userWorld) member(user, group string) bool {
@@ -167,7 +179,23 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 				uid = u.uid + 1
 			}
 		}
-		home := a[slices.Index(a, "-d")+1]
+		if slices.Contains(a, "--system") {
+			uid = 997
+			for w.uidTaken(uid) {
+				uid--
+			}
+		}
+		homeFlag := slices.Index(a, "-d")
+		if homeFlag < 0 {
+			homeFlag = slices.Index(a, "--home-dir")
+		}
+		home := a[homeFlag+1]
+		if i := slices.Index(a, "--shell"); i > 0 {
+			w.shells[name] = a[i+1]
+		}
+		if w.useraddShell != "" {
+			w.shells[name] = w.useraddShell
+		}
 		w.users = append(w.users, worldUser{name, uid, uid, home, "!", "20000"})
 		w.groups = append(w.groups, worldGroup{name, uid, nil})
 		if i := slices.Index(a, "-G"); i > 0 {
@@ -175,8 +203,10 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 				w.group(g).members = append(w.group(g).members, name)
 			}
 		}
-		if err := os.Mkdir(home, 0o755); err != nil {
-			return nil, err
+		if slices.Contains(a, "-m") || slices.Contains(a, "--create-home") {
+			if err := os.Mkdir(home, 0o755); err != nil {
+				return nil, err
+			}
 		}
 	case "chpasswd":
 		name, value, _ := strings.Cut(strings.TrimSuffix(string(c.Secret), "\n"), ":")
@@ -208,10 +238,12 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 		}
 		g.members = slices.DeleteFunc(g.members, func(m string) bool { return m == a[2] })
 	case "userdel":
-		name := a[2]
+		name := a[len(a)-1]
 		u := w.user(name)
-		if err := os.RemoveAll(u.home); err != nil {
-			return nil, err
+		if slices.Contains(a, "-r") {
+			if err := os.RemoveAll(u.home); err != nil {
+				return nil, err
+			}
 		}
 		w.users = slices.DeleteFunc(w.users, func(x worldUser) bool { return x.name == name })
 		w.groups = slices.DeleteFunc(w.groups, func(g worldGroup) bool { return g.name == name })

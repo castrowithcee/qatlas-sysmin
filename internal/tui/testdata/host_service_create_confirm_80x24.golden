@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+  [Users]  Groups   Folders   Changes                                           
+────────╔══════════════════════════════════════════════════════════════╗────────
+Users (3║ ⚠ Create the service account demo-svc without login, with    ║     1/2
+╔═══════║   the home /home/demo-svc, with access to Docker, in the     ║═══════╗
+║   Name║   group demo-team.                                           ║System ║
+║   ▾ Us║                                                              ║       ║
+║ > demo║     Admin and Docker rights allow practically everything on  ║       ║
+║   demo║     this host. You can undo this under Host > Changes.       ║       ║
+║   ▸ Sy║     Undoing it deletes the account and a home sysmin         ║       ║
+╚═══════║     created; files of the account outside its home stay.     ║═══════╝
+        ║                                                              ║        
+        ║   $ useradd --system --create-home --home-dir                ║        
+        ║     /home/demo-svc --user-group --shell                      ║        
+        ║     /usr/sbin/nologin -G docker,demo-team demo-svc           ║        
+        ║                                                              ║        
+        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║                                                              ║        
+        ║ y apply · n/esc cancel                                       ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+? help                                                                          
