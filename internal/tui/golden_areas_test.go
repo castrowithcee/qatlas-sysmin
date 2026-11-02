@@ -268,6 +268,32 @@ func TestGoldenAreas(t *testing.T) {
 			save(m)
 			return m
 		}},
+		{"host_folder_form", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			openFolderForm(t, m, "/srv/demo-stack", fixedCount(42))
+			return m
+		}},
+		{"host_folder_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			openFolderForm(t, m, "/srv/demo-stack", fixedCount(42))
+			send(m, "tab", "tab", "tab", "tab", "tab", "right")
+			save(m)
+			return m
+		}},
+		{"host_folder_confirm_system", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			openFolderForm(t, m, "/etc", fixedCount(1))
+			save(m)
+			return m
+		}},
+		{"host_folder_restored", func(t *testing.T, w, h int) *Model {
+			m, f := goldenHostUsers(t, w, h)
+			openFolderForm(t, m, "/srv/demo-stack", fixedCount(1))
+			save(m)
+			f.answer = func(HostRequest) (string, error) { return restoredFolderReport, exitError(t, "exit 1") }
+			send(m, "y")
+			return m
+		}},
 		{"host_user_lock_confirm", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
 			chooseChange(t, m, "demo-user", chgLock)

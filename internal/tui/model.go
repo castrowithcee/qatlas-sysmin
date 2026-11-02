@@ -103,7 +103,9 @@ type Model struct {
 	hostIn, hostOut *os.File
 	// hostBg runs a command that needs no terminal (exec.Cmd.Run unless a test stands in).
 	hostBg func(*exec.Cmd) error
-	set    settingsState
+	// folderCount counts the entries a folder change touches (hostchange.CountFolderEntries unless a test stands in).
+	folderCount func(path string, recursive bool) (int, error)
+	set         settingsState
 	// prj is the state of the Projects area; see projects.go.
 	prj *projectsState
 	pop *popup
