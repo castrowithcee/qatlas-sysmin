@@ -28,6 +28,7 @@ type fakeContainer struct {
 	Running    bool
 	Restarting bool
 	Health     string
+	NoHealth   bool // omits the health field from the output
 	EnvFiles   string
 	Mounts     []fakeMount
 }
@@ -37,10 +38,14 @@ func healthy(id, name string) fakeContainer {
 }
 
 func (c fakeContainer) line() string {
-	b, _ := json.Marshal(map[string]any{
+	m := map[string]any{
 		"id": c.ID, "name": c.Name, "restarts": c.Restarts, "status": c.Status, "running": c.Running,
 		"restarting": c.Restarting, "health": c.Health, "envfiles": c.EnvFiles, "mounts": c.Mounts,
-	})
+	}
+	if c.NoHealth {
+		delete(m, "health")
+	}
+	b, _ := json.Marshal(m)
 	return string(b) + "\n"
 }
 
@@ -141,6 +146,25 @@ func TestWatchHealthyPasses(t *testing.T) {
 	}
 	if time.Since(start) < c.Window || f.inspects < 3 {
 		t.Errorf("observed %v with %d looks, want the whole window", time.Since(start), f.inspects)
+	}
+}
+
+func TestContainerWithoutHealthcheckIsNotUnhealthy(t *testing.T) {
+	for name, ct := range map[string]fakeContainer{
+		"empty":   healthy(idWeb, "demo-web-1"),
+		"missing": {ID: idWeb, Name: "/demo-web-1", Status: "running", Running: true, NoHealth: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := &fakeDocker{stacks: stackRow(idWeb, "demo", "/srv/demo-stack", ""), states: [][]fakeContainer{{ct}}}
+			c := newCheck(f)
+			affected, err := c.Affected(context.Background(), "/srv/demo-stack")
+			if err != nil || len(affected) != 1 {
+				t.Fatalf("%v %v", affected, err)
+			}
+			if err := c.Watch(context.Background(), affected); err != nil {
+				t.Fatalf("got %v", err)
+			}
+		})
 	}
 }
 
