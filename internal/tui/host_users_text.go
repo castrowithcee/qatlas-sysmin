@@ -43,7 +43,9 @@ const (
 	tHostChgKeyHint      textID = "HostChgKeyHint"
 	tHostSelfAdmin       textID = "HostSelfAdmin"
 	tHostLastAdmin       textID = "HostLastAdmin"
-	tHostSystemReadOnly  textID = "HostSystemReadOnly"
+	tHostRiskRoot        textID = "HostRiskRoot"
+	tHostRiskAccount     textID = "HostRiskAccount"
+	tHostRiskGroup       textID = "HostRiskGroup"
 )
 
 func init() {
@@ -87,7 +89,9 @@ func init() {
 		tHostChgKeyHint:      "Paste one public key line (authorized_keys format, without options).",
 		tHostSelfAdmin:       "You cannot take admin rights from yourself.",
 		tHostLastAdmin:       "%s is the last admin with sysmin access.",
-		tHostSystemReadOnly:  "%s is a system account or root and cannot be changed here.",
+		tHostRiskRoot:        "root is the account with all rights on this host.",
+		tHostRiskAccount:     "Packages or services may depend on this system account.",
+		tHostRiskGroup:       "Packages or services may depend on this system group.",
 	})
 	maps.Copy(textDE, map[textID]string{
 		tHostNewTitle:        "Neuer Benutzer",
@@ -129,6 +133,8 @@ func init() {
 		tHostChgKeyHint:      "Füge eine Zeile mit einem öffentlichen Schlüssel ein (Format authorized_keys, ohne Optionen).",
 		tHostSelfAdmin:       "Du kannst dir die Adminrechte nicht selbst nehmen.",
 		tHostLastAdmin:       "%s ist der letzte Admin mit sysmin-Zugang.",
-		tHostSystemReadOnly:  "%s ist ein Systemkonto oder root und lässt sich hier nicht ändern.",
+		tHostRiskRoot:        "root ist das Konto mit allen Rechten auf diesem Host.",
+		tHostRiskAccount:     "Pakete oder Dienste können von diesem Systemkonto abhängen.",
+		tHostRiskGroup:       "Pakete oder Dienste können von dieser Systemgruppe abhängen.",
 	})
 }

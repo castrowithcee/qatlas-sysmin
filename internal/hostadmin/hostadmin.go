@@ -14,11 +14,20 @@ import (
 
 // Group names that carry a meaning for sysmin.
 const (
-	GroupAdmin    = "sudo"
-	GroupDocker   = "docker"
-	GroupSysmin   = "sysmin"
-	systemIDBelow = 1000
+	GroupAdmin  = "sudo"
+	GroupDocker = "docker"
+	GroupSysmin = "sysmin"
 )
+
+// Regular accounts and groups have an ID from RegularIDMin to RegularIDMax, the usual range of a Debian
+// login.defs. Every other ID, root and nobody (65534) included, belongs to a system account or group.
+const (
+	RegularIDMin = 1000
+	RegularIDMax = 60000
+)
+
+// Regular reports whether the UID or GID lies in the regular range.
+func Regular(id int) bool { return id >= RegularIDMin && id <= RegularIDMax }
 
 // ErrNotFound marks a user, group or path that does not exist.
 var ErrNotFound = errors.New("not found")
@@ -218,7 +227,7 @@ func (d *db) userGroups(u passwdEntry) []string {
 func (h *Host) buildUser(d *db, p passwdEntry, shadow map[string]shadowEntry) User {
 	u := User{
 		Name: p.name, UID: p.uid, PrimaryGroup: d.groupName(p.gid), Groups: d.userGroups(p), Home: p.home,
-		System:  p.uid < systemIDBelow,
+		System:  !Regular(p.uid),
 		Admin:   d.memberOf(p, GroupAdmin),
 		Docker:  d.memberOf(p, GroupDocker),
 		Enabled: d.memberOf(p, GroupSysmin),
@@ -296,7 +305,7 @@ func (d *db) buildGroup(g groupEntry) Group {
 		}
 	}
 	sort.Strings(members)
-	return Group{Name: g.name, GID: g.gid, Members: members, System: g.gid < systemIDBelow}
+	return Group{Name: g.name, GID: g.gid, Members: members, System: !Regular(g.gid)}
 }
 
 // Groups returns all local groups in the order of the group file.

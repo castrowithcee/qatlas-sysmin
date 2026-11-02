@@ -377,6 +377,9 @@ type hostAsk struct {
 	secret []byte
 	mask   [][]byte
 	power  bool
+	// risk is the sentence that makes the confirmation red: the change touches root, a system account or a
+	// system group.
+	risk string
 }
 
 // hostPlanned is a change the registry accepted, ready to be confirmed.
@@ -414,6 +417,10 @@ func (m *Model) confirmHost(p hostPlanned) {
 	if a.power {
 		q.warn = true
 		q.consequence = tr(tHostPowerWarn) + " " + q.consequence
+	}
+	if a.risk != "" {
+		q.warn, q.danger = true, true
+		q.consequence = a.risk + " " + q.consequence
 	}
 	argv := append([]string{"apply", "--yes", "--output", "json", "--", a.id}, a.args...)
 	m.askConfirm(q, func() tea.Cmd {

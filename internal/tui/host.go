@@ -302,7 +302,7 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 	case tabOverview:
 		lines := factLines([][2]string{
 			{tr(tColName), m.diffText(u.Name)},
-			{tr(tColType), hostKindText(u.System)},
+			{tr(tColType), userKindText(u.System)},
 			{tr(tHostColAdmin), admin},
 			{tr(tHostColDocker), shownHost(hostYesNo(u.Docker))},
 			{tr(tHostLblEnabled), shownHost(hostYesNo(u.Enabled))},

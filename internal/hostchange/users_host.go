@@ -37,14 +37,8 @@ func DefaultUserHost() UserHost {
 	}
 }
 
-// Regular users have a UID from UID_MIN to UID_MAX of a Debian login.defs; everything else, including
-// nobody (65534), counts as a system user and is never changed.
-const (
-	regularUIDMin = 1000
-	regularUIDMax = 60000
-)
-
-func regularUID(id int) bool { return id >= regularUIDMin && id <= regularUIDMax }
+// anyUID asks target for no match of the UID. It is not 0, because that is the UID of root.
+const anyUID = -1
 
 // accountName is the Debian NAME_REGEX without the trailing "$" of machine accounts, at most 32 characters.
 var accountName = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
@@ -58,12 +52,9 @@ func checkName(kind, name string) error {
 	return nil
 }
 
-// target reads the user an action changes and refuses root, system users and anyone outside the local
-// passwd file. A non-zero uid also refuses a different user that took over the name since the change.
+// target reads the user an action changes and refuses anyone outside the local passwd file. A uid other than
+// anyUID also refuses a different user that took over the name since the change.
 func (u userActions) target(name string, uid int) (hostadmin.User, error) {
-	if name == "root" {
-		return hostadmin.User{}, Refusef("root is not changeable")
-	}
 	usr, err := u.h.Accounts.User(name)
 	if errors.Is(err, hostadmin.ErrNotFound) {
 		return hostadmin.User{}, Refusef("there is no local user %s", name)
@@ -71,20 +62,15 @@ func (u userActions) target(name string, uid int) (hostadmin.User, error) {
 	if err != nil {
 		return hostadmin.User{}, err
 	}
-	switch {
-	case usr.UID == 0:
-		return hostadmin.User{}, Refusef("%s has UID 0 and is not changeable", name)
-	case !regularUID(usr.UID):
-		return hostadmin.User{}, Refusef("%s is a system user (UID %d) and is not changeable", name, usr.UID)
-	case uid != 0 && usr.UID != uid:
+	if uid != anyUID && usr.UID != uid {
 		return hostadmin.User{}, Refusef("%s now has UID %d instead of %d; it is not the user of the change", name, usr.UID, uid)
 	}
 	return usr, nil
 }
 
 // guardRevoke keeps the administrators: nobody takes administrator rights or access to sysmin from
-// themselves, and someone else keeps both. The narrower reading counts only regular users that are in sudo
-// and in sysmin, so that sysmin itself stays usable.
+// themselves, and someone else keeps both. Every account in sudo and in sysmin counts, whatever its UID,
+// because each of them can operate sysmin.
 func (u userActions) guardRevoke(ctx context.Context, usr hostadmin.User) error {
 	if !usr.Admin {
 		return nil
@@ -97,7 +83,7 @@ func (u userActions) guardRevoke(ctx context.Context, usr hostadmin.User) error 
 		return err
 	}
 	for _, o := range users {
-		if o.Name != usr.Name && o.UID != usr.UID && regularUID(o.UID) && o.Admin && o.Enabled {
+		if o.Name != usr.Name && o.UID != usr.UID && o.Admin && o.Enabled {
 			return nil
 		}
 	}

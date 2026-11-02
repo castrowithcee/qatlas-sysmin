@@ -73,6 +73,9 @@ func RegisterUserActions(r *Registry, h UserHost) error {
 	return nil
 }
 
+// validUID accepts every UID a journal state may hold, root's 0 included; a negative one would read as anyUID.
+func validUID(id int) bool { return id >= 0 }
+
 func decodeState(prev json.RawMessage, v any) error {
 	dec := json.NewDecoder(bytes.NewReader(prev))
 	dec.DisallowUnknownFields()
@@ -329,7 +332,7 @@ func (u userActions) planCreate(args []string, secret []byte) (Plan, error) {
 			if err != nil {
 				return err
 			}
-			if !regularUID(usr.UID) || usr.Home != home {
+			if !hostadmin.Regular(usr.UID) || usr.Home != home {
 				return fmt.Errorf("%s got UID %d and the home %s", req.name, usr.UID, usr.Home)
 			}
 			for _, g := range req.groups() {
@@ -354,15 +357,15 @@ func (u userActions) planCreate(args []string, secret []byte) (Plan, error) {
 	}, nil
 }
 
-// checkGroup requires the group to exist; a further group must also have a regular GID, because system
-// groups are only readable.
-func checkGroup(groups []hostadmin.Group, name string, further bool) error {
+// checkGroup requires the group to exist. A new user gets only regular further groups; changing an existing
+// user may use any group.
+func checkGroup(groups []hostadmin.Group, name string, regularOnly bool) error {
 	i := slices.IndexFunc(groups, func(g hostadmin.Group) bool { return g.Name == name })
 	if i < 0 {
 		return Refusef("there is no group %s", name)
 	}
-	if further && !regularUID(groups[i].GID) {
-		return Refusef("%s is a system group (GID %d) and is not changeable", name, groups[i].GID)
+	if regularOnly && !hostadmin.Regular(groups[i].GID) {
+		return Refusef("%s is a system group (GID %d) and cannot be given to a new user", name, groups[i].GID)
 	}
 	return nil
 }
@@ -379,9 +382,13 @@ func (u userActions) inverseCreate(prev json.RawMessage) (Plan, error) {
 		Sentence: fmt.Sprintf("Delete the user %s and its home %s, which is possible only while %s has never logged in.", st.Name, st.Home, st.Name),
 		Commands: []Command{{Argv: []string{"userdel", "-r", st.Name}}},
 		Capture: func(ctx context.Context) (json.RawMessage, error) {
-			usr, err := u.target(st.Name, 0)
+			usr, err := u.target(st.Name, anyUID)
 			if err != nil {
 				return nil, err
+			}
+			// Deleting an account stays a matter of regular accounts; only a created one is ever undone this way.
+			if !hostadmin.Regular(usr.UID) {
+				return nil, Refusef("%s is a system user (UID %d) and is not deleted here", st.Name, usr.UID)
 			}
 			if usr.Home != st.Home {
 				return nil, Refusef("%s now has the home %s instead of %s", st.Name, usr.Home, st.Home)
@@ -460,7 +467,7 @@ func (u userActions) planPassword(args []string, secret []byte) (Plan, error) {
 		Commands: cmds,
 		Redact:   [][]byte{secret},
 		Capture: func(context.Context) (json.RawMessage, error) {
-			usr, err := u.target(name, 0)
+			usr, err := u.target(name, anyUID)
 			if err != nil {
 				return nil, err
 			}
@@ -519,7 +526,7 @@ func (u userActions) inversePassword(prev json.RawMessage) (Plan, error) {
 	if err := decodeState(prev, &st); err != nil {
 		return Plan{}, err
 	}
-	if err := checkName("user", st.Name); err != nil || !regularUID(st.UID) || !validDay(st.Lastchg) {
+	if err := checkName("user", st.Name); err != nil || !validUID(st.UID) || !validDay(st.Lastchg) {
 		return Plan{}, errors.New("the recorded password cannot be restored")
 	}
 	if !validHash(st.Hash) {
@@ -567,10 +574,10 @@ type membershipState struct {
 
 type membershipChange struct {
 	name     string
-	uid      int // non-zero: the user must still have this UID
+	uid      int  // the UID the user must still have, where pinned
+	pinned   bool // the user must still have uid; a forward change takes whoever has the name
 	groups   []string
 	add      bool
-	further  bool // the groups are further groups: no system group
 	enable   bool // only for an administrator
 	sentence string
 }
@@ -592,7 +599,11 @@ func (u userActions) membershipPlan(m membershipChange) Plan {
 		Sentence: m.sentence,
 		Commands: cmds,
 		Capture: func(ctx context.Context) (json.RawMessage, error) {
-			usr, err := u.target(m.name, m.uid)
+			want := anyUID
+			if m.pinned {
+				want = m.uid
+			}
+			usr, err := u.target(m.name, want)
 			if err != nil {
 				return nil, err
 			}
@@ -606,7 +617,7 @@ func (u userActions) membershipPlan(m membershipChange) Plan {
 			before := map[string]bool{}
 			changes := false
 			for _, g := range m.groups {
-				if err := checkGroup(groups, g, m.further); err != nil {
+				if err := checkGroup(groups, g, false); err != nil {
 					return nil, err
 				}
 				if !m.add && usr.PrimaryGroup == g {
@@ -726,7 +737,7 @@ func (u userActions) planGroups(add bool) func([]string, []byte) (Plan, error) {
 		if len(slices.Compact(slices.Clone(groups))) != len(groups) {
 			return Plan{}, Argf("a group is given twice")
 		}
-		m := membershipChange{name: args[0], groups: groups, add: add, further: true}
+		m := membershipChange{name: args[0], groups: groups, add: add}
 		m.sentence = "Add " + args[0] + " to " + groupWords(groups) + "."
 		if !add {
 			m.sentence = "Remove " + args[0] + " from " + groupWords(groups) + "."
@@ -741,7 +752,7 @@ func (u userActions) inverseMembership(prev json.RawMessage) (Plan, error) {
 	if err := decodeState(prev, &st); err != nil {
 		return Plan{}, err
 	}
-	if err := checkName("user", st.Name); err != nil || !regularUID(st.UID) {
+	if err := checkName("user", st.Name); err != nil || !validUID(st.UID) {
 		return Plan{}, errors.New("the recorded user cannot be undone")
 	}
 	var back []string
@@ -756,7 +767,7 @@ func (u userActions) inverseMembership(prev json.RawMessage) (Plan, error) {
 	if len(back) == 0 {
 		return Plan{}, errors.New("the change altered no group")
 	}
-	m := membershipChange{name: st.Name, uid: st.UID, groups: back, add: !st.Add}
+	m := membershipChange{name: st.Name, uid: st.UID, pinned: true, groups: back, add: !st.Add}
 	m.sentence = "Add " + st.Name + " to " + groupWords(back) + " again."
 	if st.Add {
 		m.sentence = "Remove " + st.Name + " from " + groupWords(back) + " again."
@@ -789,7 +800,7 @@ func (u userActions) planAddKey(args []string, secret []byte) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	return u.addKeyPlan(name, 0, []string{k.line}, k.fingerprint,
+	return u.addKeyPlan(name, anyUID, []string{k.line}, k.fingerprint,
 		"Add the SSH key "+k.fingerprint+" to "+name+"."), nil
 }
 
@@ -831,7 +842,7 @@ func (u userActions) inverseAddKey(prev json.RawMessage) (Plan, error) {
 	if err := decodeState(prev, &st); err != nil {
 		return Plan{}, err
 	}
-	if err := checkName("user", st.Name); err != nil || !regularUID(st.UID) || !keyFingerprint.MatchString(st.Fingerprint) {
+	if err := checkName("user", st.Name); err != nil || !validUID(st.UID) || !keyFingerprint.MatchString(st.Fingerprint) {
 		return Plan{}, errors.New("the recorded key cannot be undone")
 	}
 	return u.removeKeyPlan(st.Name, st.UID, st.Fingerprint, "Remove the SSH key "+st.Fingerprint+" from "+st.Name+" again."), nil
@@ -848,7 +859,7 @@ func (u userActions) planRemoveKey(args []string, _ []byte) (Plan, error) {
 	if !keyFingerprint.MatchString(args[1]) {
 		return Plan{}, Argf("%q is not a SHA256 key fingerprint", args[1])
 	}
-	return u.removeKeyPlan(args[0], 0, args[1], "Remove the SSH key "+args[1]+" from "+args[0]+"."), nil
+	return u.removeKeyPlan(args[0], anyUID, args[1], "Remove the SSH key "+args[1]+" from "+args[0]+"."), nil
 }
 
 func (u userActions) removeKeyPlan(name string, uid int, fp, sentence string) Plan {
@@ -885,7 +896,7 @@ func (u userActions) inverseRemoveKey(prev json.RawMessage) (Plan, error) {
 	if err := decodeState(prev, &st); err != nil {
 		return Plan{}, err
 	}
-	if err := checkName("user", st.Name); err != nil || !regularUID(st.UID) || !keyFingerprint.MatchString(st.Fingerprint) || len(st.Lines) == 0 {
+	if err := checkName("user", st.Name); err != nil || !validUID(st.UID) || !keyFingerprint.MatchString(st.Fingerprint) || len(st.Lines) == 0 {
 		return Plan{}, errors.New("the recorded key cannot be restored")
 	}
 	for _, line := range st.Lines {

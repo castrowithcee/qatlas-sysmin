@@ -426,3 +426,11 @@ func TestDefaultProtectedRoots(t *testing.T) {
 		}
 	}
 }
+
+func TestRegularRangeBoundaries(t *testing.T) {
+	for id, want := range map[int]bool{0: false, 999: false, 1000: true, 60000: true, 60001: false, 65534: false} {
+		if got := Regular(id); got != want {
+			t.Errorf("Regular(%d) = %v, want %v", id, got, want)
+		}
+	}
+}

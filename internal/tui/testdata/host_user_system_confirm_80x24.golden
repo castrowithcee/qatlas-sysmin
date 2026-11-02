@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+  [Users]  Groups   Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                                    3/3
+╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
+║   Name║ ⚠ Give svc-demo access to Docker (group docker).             ║System ║
+║   ▾ Us║                                                              ║       ║
+║   demo║     Packages or services may depend on this system account.  ║       ║
+║   demo║     Admin and Docker rights allow practically everything on  ║       ║
+║   ▾ Sy║     this host. You can undo this under Host > Changes.       ║       ║
+║ > svc-║                                                              ║system ║
+╚═══════║   $ usermod -aG docker svc-demo                              ║═══════╝
+        ║                                                              ║        
+        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║                                                              ║        
+        ║ y apply · n/esc cancel                                       ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          
