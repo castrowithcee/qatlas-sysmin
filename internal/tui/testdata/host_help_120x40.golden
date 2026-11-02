@@ -2,38 +2,38 @@ sysmin  ● vault open  ● admin off                                           
    1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                         1/2 ╭─ demo-admin ───────────────────────────────────╮
-╔═══════════════════════════╔══════════════════════════════════════════════════════════════╗  Raw                      │
-║   Name        Admin       ║ Help                                                         ║                           │
-║   ▾ Users (2)             ║                                                              ║mo-admin                   │
-║ > demo-admin  yes         ║  secrets   channels   templates   audit-log   runs  [host]   ║gular                      │
-║   demo-user   yes · not en║                                                              ║s                          │
-║   ▸ System accounts (1)   ║ Host shows the users, groups and folder permissions of this  ║s                          │
-╚═══════════════════════════║ machine. Admin means sudo rights, Docker is practically      ║s                          │
-                            ║ root, and enabled means membership of the group sysmin. Grey ║mo-admin, sudo, docker,    │
-                            ║ rows are system accounts and groups, whose ID lies outside   ║smin                       │
-                            ║ 1000 to 60000; they sit in their own section, which starts   ║ome/demo-admin             │
-                            ║ collapsed. enter or space on a heading collapses or expands  ║known                      │
-                            ║ it. e changes root and system accounts like any other        ║                           │
-                            ║ account, and the confirmation is then red, because packages  ║ the fields only root can  │
-                            ║ or services may depend on them; only taking admin from       ║                           │
-                            ║ yourself or from the last admin is refused. Folders reads    ║───────────────────────────╯
-                            ║ one path at a time: type it, tab completes, enter reads. A   ║                            
+Users (3)                   ╔══════════════════════════════════════════════════════════════╗───────────────────────────╮
+╔═══════════════════════════║ Help                                                         ║  Raw                      │
+║   Name        Admin       ║                                                              ║                           │
+║   ▾ Users (2)             ║  secrets   channels   templates   audit-log   runs  [host]   ║mo-admin                   │
+║ > demo-admin  yes         ║                                                              ║gular                      │
+║   demo-user   yes · not en║ Host shows the users, groups and folder permissions of this  ║s                          │
+║   ▸ System accounts (1)   ║ machine. Admin means sudo rights, Docker is practically      ║s                          │
+╚═══════════════════════════║ root, and enabled means membership of the group sysmin. Grey ║s                          │
+                            ║ rows are system accounts and groups, whose ID lies outside   ║mo-admin, sudo, docker,    │
+                            ║ 1000 to 60000; they sit in their own section, which starts   ║smin                       │
+                            ║ collapsed. enter or space on a heading collapses or expands  ║ome/demo-admin             │
+                            ║ it. e changes root and system accounts like any other        ║known                      │
+                            ║ account, and the confirmation is then red, because packages  ║                           │
+                            ║ or services may depend on them; only taking admin from or    ║ the fields only root can  │
+                            ║ locking yourself or the last admin is refused. Folders reads ║                           │
+                            ║ one path at a time: type it, tab completes, enter reads. A   ║───────────────────────────╯
                             ║ path marked protected is a system path. n creates a person,  ║                            
                             ║ whose initial password must be changed at the first login,   ║                            
                             ║ or a service account without login (no password, no shell,   ║                            
                             ║ no SSH keys, a home only on request); e changes the marked   ║                            
-                            ║ one (groups, Admin, Docker, password, SSH keys), one change  ║                            
-                            ║ at a time. Changes lists the latest changes made through     ║                            
-                            ║ sysmin and undoes one with enter. What only root can read,   ║                            
-                            ║ such as the locked state and SSH keys of a user or the list  ║                            
-                            ║ of changes, is read through sudo when you press ctrl+r; sudo ║                            
-                            ║ asks for the password, sysmin never sees it.                 ║                            
+                            ║ one (groups, Admin, Docker, password, SSH keys, lock), one   ║                            
+                            ║ change at a time. Lock is the normal way to stop someone: it ║                            
+                            ║ blocks every login, also by SSH key, while running sessions  ║                            
+                            ║ stay open; Unlock releases the password and removes the end  ║                            
+                            ║ of the account. Changes lists the latest changes made        ║                            
+                            ║ through sysmin and undoes one with enter. What only root can ║                            
+                            ║ read, such as the locked state and SSH keys of a user or the ║                            
+                            ║ list of changes, is read through sudo when you press ctrl+r; ║                            
+                            ║ sudo asks for the password, sysmin never sees it.            ║                            
                             ║                                                              ║                            
                             ║ ↑/↓ scroll · ←/→ topic · esc close                           ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

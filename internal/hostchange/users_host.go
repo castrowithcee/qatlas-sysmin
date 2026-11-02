@@ -83,12 +83,16 @@ func (u userActions) guardRevoke(ctx context.Context, usr hostadmin.User) error 
 		return err
 	}
 	for _, o := range users {
-		if o.Name != usr.Name && o.UID != usr.UID && o.Admin && o.Enabled {
+		if o.Name != usr.Name && o.UID != usr.UID && o.Admin && o.Enabled && !lockedOut(o) {
 			return nil
 		}
 	}
 	return Refusef("%s is the last administrator with access to sysmin and stays one", usr.Name)
 }
+
+// lockedOut reports an account that cannot log in at all: one that has ended, which is what a lock adds. A
+// locked password alone does not count, because a key login still works and many accounts have no password.
+func lockedOut(usr hostadmin.User) bool { return usr.Expired != nil && *usr.Expired }
 
 func (u userActions) account(name string) (hostadmin.Account, error) {
 	if u.h.lookup != nil {
@@ -104,6 +108,8 @@ func memberOf(usr hostadmin.User, group string) bool {
 // shadowFields are the fields of a shadow entry that chpasswd and chage change.
 type shadowFields struct {
 	Hash, Lastchg string
+	// Expire is the day an account ends; empty means never.
+	Expire string
 }
 
 func (u userActions) shadow(name string) (shadowFields, error) {
@@ -114,7 +120,11 @@ func (u userActions) shadow(name string) (shadowFields, error) {
 	for _, line := range strings.Split(string(data), "\n") {
 		f := strings.Split(strings.TrimSpace(line), ":")
 		if len(f) >= 3 && f[0] == name {
-			return shadowFields{Hash: f[1], Lastchg: f[2]}, nil
+			sf := shadowFields{Hash: f[1], Lastchg: f[2]}
+			if len(f) > 7 {
+				sf.Expire = f[7]
+			}
+			return sf, nil
 		}
 	}
 	return shadowFields{}, Refusef("%s has no entry in the shadow file", name)

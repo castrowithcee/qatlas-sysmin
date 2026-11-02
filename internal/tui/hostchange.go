@@ -421,6 +421,9 @@ func (m *Model) confirmHost(p hostPlanned) {
 	if a.id == hostchange.ActionUserCreateService {
 		q.consequence += " " + tr(tHostServiceKeepFiles)
 	}
+	if a.id == hostchange.ActionUserLock {
+		q.consequence += " " + tr(tHostLockStays)
+	}
 	if a.risk != "" {
 		q.warn, q.danger = true, true
 		q.consequence = a.risk + " " + q.consequence

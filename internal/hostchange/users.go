@@ -28,6 +28,8 @@ const (
 	ActionUserSetAdmin      = "user.set-admin"
 	ActionUserSetDocker     = "user.set-docker"
 	ActionUserEnable        = "user.enable"
+	ActionUserLock          = "user.lock"
+	ActionUserUnlock        = "user.unlock"
 	ActionUserAddGroups     = "user.add-groups"
 	ActionUserRemoveGroups  = "user.remove-groups"
 	ActionUserAddKey        = "user.add-key"
@@ -66,6 +68,8 @@ func RegisterUserActions(r *Registry, h UserHost) error {
 		{ID: ActionUserSetAdmin, Plan: u.planAdmin, Inverse: u.inverseMembership},
 		{ID: ActionUserSetDocker, Plan: u.planDocker, Inverse: u.inverseMembership},
 		{ID: ActionUserEnable, Plan: u.planEnable, Inverse: u.inverseMembership},
+		{ID: ActionUserLock, Plan: u.planLock, Inverse: u.inverseLock},
+		{ID: ActionUserUnlock, Plan: u.planUnlock, Inverse: u.inverseLock},
 		{ID: ActionUserAddGroups, Plan: u.planGroups(true), Inverse: u.inverseMembership},
 		{ID: ActionUserRemoveGroups, Plan: u.planGroups(false), Inverse: u.inverseMembership},
 		{ID: ActionUserAddKey, WantsSecret: true, Plan: u.planAddKey, Inverse: u.inverseAddKey},
