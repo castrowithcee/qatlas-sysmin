@@ -191,7 +191,7 @@ tui_approve_all() {
 	tui_keys Escape 4
 	tui_wait 'Approvals (' || return 1
 	! tui_has 'No open approvals.' || return 1
-	tui_keys a
+	tui_keys A
 	tui_wait 'Approve all' || return 1
 	tui_keys y
 	sleep 1
@@ -286,8 +286,10 @@ s01_vault_setup() {
 		return 1
 	fi
 	tui_save overview
-	tui_has 'not set up' || deviation 'the overview does not say that the vault is not set up'
-	tui_keys Enter
+	tui_has 'no vault' || deviation 'the overview does not say that the vault is not set up'
+	# The overview starts with the focus on the tab line; down enters the cards, tab moves to the next steps,
+	# where "Set up vault" is the first entry.
+	tui_keys Down Tab Enter
 	if ! tui_wait 'Set up vault'; then
 		tui_save no-setup
 		failed 'enter on the overview did not open the vault setup'
@@ -1074,10 +1076,10 @@ warning: $(kv "$out" warning)"
 	[ "$(kv "$out" vault)" = unlocked ] && [ "$(kv "$out" unlock)" = host ] ||
 		failed 'the vault is not unlocked with the host key after the restart'
 	poll 30 all_running || failed "not every container runs again after the restart: $(stacks)"
-	if tui_start && tui_wait 'automatic (host key)'; then
+	if tui_start && tui_wait 'Review auto-unlock'; then
 		tui_save overview
-		evidence "overview: $(tui_screen | grep -E 'Vault|Unlock' | sed 's/^ *> *//; s/  */ /g' | tr '\n' ';')"
-		tui_screen | grep -q '⚠ Unlock' || failed 'the overview shows no warning for the automatic unlock'
+		evidence "overview: $(tui_screen | grep -E 'auto-unlock' | sed 's/^ *> *//; s/  */ /g' | tr '\n' ';')"
+		tui_screen | grep -q '⚠ Review auto-unlock' || failed 'the overview shows no warning for the automatic unlock'
 	else
 		tui_save no-warning
 		failed 'the overview does not show the automatic unlock'
