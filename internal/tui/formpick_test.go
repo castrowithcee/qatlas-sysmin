@@ -18,7 +18,7 @@ func pickModel(t *testing.T, w, h int, extra ...string) *Model {
 	for i, name := range extra {
 		host.groups = append(host.groups, hostadmin.Group{Name: name, GID: 2000 + i})
 	}
-	send(m, "n", "tab", "tab", "tab", "tab", "tab")
+	send(m, "n", "tab", "tab", "tab", "tab", "tab", "tab")
 	if m.form == nil || m.form.rows[m.form.focus].key != "groups" {
 		t.Fatalf("the groups row is not focused:\n%s", plain(m))
 	}

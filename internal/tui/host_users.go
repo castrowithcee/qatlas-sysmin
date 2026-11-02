@@ -185,19 +185,27 @@ func (k *keyList) summary() string {
 
 // --- create ---
 
+// The kinds of account the create form offers, by the id of the choice.
+const (
+	kindPerson  = "person"
+	kindService = "service"
+)
+
 type createForm struct{ keyList }
 
-// openUserCreate opens the form for a new user.
+// openUserCreate opens the form for a new person or service account.
 func (m *Model) openUserCreate() tea.Cmd {
 	st := &createForm{}
-	f := &formDlg{title: tr(tHostNewTitle), hint: tr(tHostNewHint), saveText: "{save} save"}
+	f := &formDlg{title: tr(tHostNewTitle), saveText: "{save} save"}
 	yesNo := []string{hostNo, hostYes}
 	shown := []string{tr(tHostNo), tr(tHostYes)}
 	f.rows = []formRow{
+		choiceRow("kind", tr(tHostFormKind), []string{kindPerson, kindService}, []string{tr(tHostKindPerson), tr(tHostKindService)}, 0),
 		textRow("name", tr(tColName), ""),
 		maskedRow("password", tr(tHostFormPassword)),
 		maskedRow("again", tr(tHostFormPassword2)),
 		choiceRow("admin", tr(tHostColAdmin), yesNo, shown, 0),
+		choiceRow("home", tr(tHostFormHome), yesNo, shown, 0),
 		choiceRow("docker", tr(tHostColDocker), yesNo, shown, 0),
 		pickRow("groups", tr(tHostFormFurther), m.furtherGroups(false), nil),
 		textRow("key", tr(tHostFormKey), ""),
@@ -211,9 +219,34 @@ func (m *Model) openUserCreate() tea.Cmd {
 		}
 		return true
 	}
+	f.changed = func(_ *Model, f *formDlg, row int) {
+		if f.rows[row].key == "kind" {
+			st.arrange(f)
+		}
+	}
 	f.submit = st.submit
+	st.arrange(f)
 	m.openForm(f)
 	return nil
+}
+
+func serviceKind(f *formDlg) bool { return f.row("kind").value() == kindService }
+
+// arrange shows the rows of the kind chosen. A service account has no password, Admin or key; what a person
+// typed there is forgotten when the kind changes.
+func (st *createForm) arrange(f *formDlg) {
+	service := serviceKind(f)
+	for _, k := range []string{"password", "again", "admin", "key"} {
+		f.row(k).hidden = service
+	}
+	f.row("home").hidden = !service
+	f.hint = tr(tHostNewHint)
+	if service {
+		wipe(f, "password", "again")
+		f.row("key").in.SetValue("")
+		st.keys = nil
+		f.hint = tr(tHostNewServiceHint)
+	}
 }
 
 func (st *createForm) submit(m *Model, f *formDlg) tea.Cmd {
@@ -225,25 +258,41 @@ func (st *createForm) submit(m *Model, f *formDlg) tea.Cmd {
 		f.row("name").problem = tr(tHostFormNameTaken)
 	}
 	bad := f.row("name").problem != ""
-	if passwordProblem(f, "password", "again") {
-		bad = true
-	}
-	if f.row("key").value() != "" && !st.add(f.row("key")) {
-		bad = true
+	service := serviceKind(f)
+	if !service {
+		if passwordProblem(f, "password", "again") {
+			bad = true
+		}
+		if f.row("key").value() != "" && !st.add(f.row("key")) {
+			bad = true
+		}
 	}
 	if bad {
 		return nil
 	}
 	args := []string{name}
-	admin, docker := f.row("admin").value() == hostYes, f.row("docker").value() == hostYes
+	admin, docker := !service && f.row("admin").value() == hostYes, f.row("docker").value() == hostYes
 	if admin {
 		args = append(args, "admin")
+	}
+	if service && f.row("home").value() == hostYes {
+		args = append(args, "home")
 	}
 	if docker {
 		args = append(args, "docker")
 	}
 	for _, g := range f.row("groups").picked() {
 		args = append(args, "group="+g)
+	}
+	if service {
+		p, refusal := m.planHost(hostAsk{id: hostchange.ActionUserCreateService, args: args, power: docker})
+		if refusal != "" {
+			f.notice = refusal
+			return nil
+		}
+		m.closeForm()
+		m.confirmHost(p)
+		return nil
 	}
 	input := hostchange.CreateInput{Password: f.row("password").raw()}
 	for _, k := range st.keys {

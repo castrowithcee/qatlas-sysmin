@@ -206,7 +206,7 @@ func TestGoldenAreas(t *testing.T) {
 		}},
 		{"host_user_create_form", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
-			send(m, "n")
+			send(m, "n", "tab")
 			typed(m, "demo-new")
 			send(m, "tab")
 			typed(m, "abcdefgh")
@@ -215,9 +215,24 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "tab", "right", "tab", "tab", "enter", "space", "enter")
 			return m
 		}},
+		{"host_service_create_form", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			send(m, "n", "right", "tab")
+			typed(m, "demo-svc")
+			send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter")
+			return m
+		}},
+		{"host_service_create_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			send(m, "n", "right", "tab")
+			typed(m, "demo-svc")
+			send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter")
+			save(m)
+			return m
+		}},
 		{"host_user_create_pick", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
-			send(m, "n", "tab", "tab", "tab", "tab", "tab", "enter", "space")
+			send(m, "n", "tab", "tab", "tab", "tab", "tab", "tab", "enter", "space")
 			return m
 		}},
 		{"host_user_edit_pick_system", func(t *testing.T, w, h int) *Model {
@@ -230,7 +245,7 @@ func TestGoldenAreas(t *testing.T) {
 		}},
 		{"host_user_create_confirm", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
-			send(m, "n")
+			send(m, "n", "tab")
 			typed(m, "demo-new")
 			send(m, "tab")
 			typed(m, "abcdefgh")
