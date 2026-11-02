@@ -31,9 +31,9 @@ Users (3)                   ║  secrets   channels   templates   audit-log   ru
                             ║ keeping the home is the default and can be undone, which     ║                            
                             ║ creates the account again with the same UID, groups and      ║                            
                             ║ password; deleting the home and mail spool cannot be undone. ║                            
-                            ║ A user with running processes is not deleted. Changes lists  ║                            
-                            ║ the latest changes made through sysmin and undoes one with   ║                            
-                            ║ lines 1-31 of 35                                             ║                            
+                            ║ A user with running processes is not deleted. On Groups, n   ║                            
+                            ║ creates a group, r renames the marked one and d deletes it,  ║                            
+                            ║ lines 1-31 of 43                                             ║                            
                             ║                                                              ║                            
                             ║ ↑/↓ scroll · ←/→ topic · esc close                           ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            

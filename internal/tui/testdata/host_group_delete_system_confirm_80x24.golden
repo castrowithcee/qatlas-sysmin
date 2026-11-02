@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+   Users  [Groups]  Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Groups (╔══════════════════════════════════════════════════════════════╗     3/4
+╔═══════║ ⚠ Delete the group docker; its members keep their accounts,  ║═══════╗
+║   Name║   and files of the group keep its group number.              ║       ║
+║   ▾ Gr║                                                              ║       ║
+║   demo║     Members of the group docker use Docker, which is         ║       ║
+║   ▾ Sy║     practically root. Packages or services may depend on     ║       ║
+║   sudo║     this system group. You can undo this under Host >        ║       ║
+║ > dock║     Changes.                                                 ║       ║
+║   sysm║                                                              ║       ║
+╚═══════║   $ groupdel docker                                          ║═══════╝
+        ║                                                              ║        
+        ║ [ Delete ]  [ Cancel ]                                       ║        
+        ║                                                              ║        
+        ║ y delete · n/esc cancel                                      ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

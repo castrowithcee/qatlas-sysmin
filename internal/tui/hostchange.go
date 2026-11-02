@@ -416,7 +416,7 @@ func (m *Model) planHost(a hostAsk) (hostPlanned, string) {
 func (m *Model) confirmHost(p hostPlanned) {
 	a := p.ask
 	verb := "apply"
-	if a.id == hostchange.ActionUserDelete {
+	if a.id == hostchange.ActionUserDelete || a.id == hostchange.ActionGroupDelete {
 		verb = "delete"
 	}
 	q := planQuestion(p.plan.Sentence, p.commands, p.plan.NotReversible, verb)

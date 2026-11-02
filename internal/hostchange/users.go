@@ -77,6 +77,9 @@ func RegisterUserActions(r *Registry, h UserHost) error {
 		{ID: ActionUserRemoveGroups, Plan: u.planGroups(false), Inverse: u.inverseMembership},
 		{ID: ActionUserAddKey, WantsSecret: true, Plan: u.planAddKey, Inverse: u.inverseAddKey},
 		{ID: ActionUserRemoveKey, Plan: u.planRemoveKey, Inverse: u.inverseRemoveKey},
+		{ID: ActionGroupCreate, Plan: u.planGroupCreate, Inverse: u.inverseGroupCreate},
+		{ID: ActionGroupDelete, Plan: u.planGroupDelete, Inverse: u.inverseGroupDelete},
+		{ID: ActionGroupRename, Plan: u.planGroupRename, Inverse: u.inverseGroupRename},
 	} {
 		if err := r.Register(d); err != nil {
 			return err
