@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
+  [Users]  Groups   Folders   Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                         3/3 ╭─ svc-demo ─────────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Name        Admin              Docker  Groups            System ║ │                                                │
+║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Name              svc-demo                     │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Type              system                       │
+║ > svc-demo    no                 no      svc-demo          system ║ │ Admin             no                           │
+╚═══════════════════════════════════════════════════════════════════╝ │ Docker            no                           │
+                                                                      │ Enabled (sysmin)  no                           │
+                                                                      │ Groups            svc-demo                     │
+                            ╔══════════════════════════════════════════════════════════════╗ar/lib/svc-demo            │
+                            ║ ⚠ Give svc-demo access to Docker (group docker).             ║known                      │
+                            ║                                                              ║                           │
+                            ║     Packages or services may depend on this system account.  ║ the fields only root can  │
+                            ║     Admin and Docker rights allow practically everything on  ║                           │
+                            ║     this host. You can undo this under Host > Changes.       ║───────────────────────────╯
+                            ║                                                              ║                            
+                            ║   $ usermod -aG docker svc-demo                              ║                            
+                            ║                                                              ║                            
+                            ║ [ Apply ]  [ Cancel ]                                        ║                            
+                            ║                                                              ║                            
+                            ║ y apply · n/esc cancel                                       ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

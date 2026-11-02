@@ -361,19 +361,68 @@ func TestOffersFollowTheUser(t *testing.T) {
 	}
 }
 
-func TestRootAndSystemUsersAreReadOnly(t *testing.T) {
-	m, f, _, _ := userModel(t, 120, 40)
-	selectUser(m, "svc-demo")
-	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "n new") || strings.Contains(keys, "e edit") {
-		t.Errorf("keys %q", keys)
-	}
+// chooseChange opens the form of name and moves to the change id.
+func chooseChange(t *testing.T, m *Model, name, id string) {
+	t.Helper()
+	selectUser(m, name)
 	send(m, "e")
-	if m.form != nil || len(f.reqs) != 0 || !strings.Contains(m.status, "cannot be changed") {
-		t.Errorf("form %v status %q", m.form != nil, m.status)
+	if m.form == nil {
+		t.Fatalf("no form for %s:\n%s", name, plain(m))
 	}
-	selectUser(m, "demo-user")
-	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "e edit") {
-		t.Errorf("keys %q", keys)
+	for i := 0; m.form.row("what").value() != id; i++ {
+		if i > 12 {
+			t.Fatalf("%s is not offered for %s", id, name)
+		}
+		send(m, "right")
+	}
+}
+
+func TestRootAndSystemUsersAreChangeableWithARedConfirmation(t *testing.T) {
+	m, f, host, _ := userModel(t, 120, 40)
+	host.groups = append(host.groups, hostadmin.Group{Name: "demo-sys", GID: 65534, System: true})
+	m.hst.users.all = append(m.hst.users.all, hostadmin.User{Name: "root", UID: 0, PrimaryGroup: "root", Groups: []string{"root"}, Home: "/root", System: true})
+	m.fillHostUsers()
+	for _, tc := range []struct {
+		user, change string
+		pick         bool
+		red          bool
+		says         []string
+	}{
+		{"svc-demo", chgDockerOn, false, true, []string{"Packages or services may depend on this system account."}},
+		{"root", chgDockerOn, false, true, []string{"root is the account with all rights", "may depend on this system account"}},
+		{"demo-user", chgDockerOn, false, false, nil},
+		{"demo-user", chgAddGroups, true, true, []string{"may depend on this system group"}},
+		{"svc-demo", chgAddGroups, true, true, []string{"may depend on this system account", "may depend on this system group"}},
+	} {
+		chooseChange(t, m, tc.user, tc.change)
+		if tc.pick {
+			send(m, "tab", "right", "space") // demo-sys, the second of the groups to choose from
+		}
+		save(m)
+		if m.ask == nil || m.ask.danger != tc.red || len(f.reqs) != 0 {
+			t.Fatalf("%s %s: ask %+v\n%s", tc.user, tc.change, m.ask, plain(m))
+		}
+		for _, want := range tc.says {
+			if !strings.Contains(flat(m), want) {
+				t.Errorf("%s %s lacks %q:\n%s", tc.user, tc.change, want, plain(m))
+			}
+		}
+		send(m, "n")
+	}
+}
+
+func TestEveryAccountOffersTheChangeForm(t *testing.T) {
+	m, f, _, _ := userModel(t, 120, 40)
+	for _, name := range []string{"svc-demo", "demo-user"} {
+		selectUser(m, name)
+		if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "e edit") {
+			t.Errorf("%s: keys %q", name, keys)
+		}
+		send(m, "e")
+		if m.form == nil || len(f.reqs) != 0 {
+			t.Errorf("%s: no form", name)
+		}
+		send(m, "esc")
 	}
 }
 

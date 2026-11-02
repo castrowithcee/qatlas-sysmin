@@ -163,7 +163,7 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 		name := a[len(a)-1]
 		uid := 1000
 		for _, u := range w.users {
-			if regularUID(u.uid) && u.uid >= uid {
+			if hostadmin.Regular(u.uid) && u.uid >= uid {
 				uid = u.uid + 1
 			}
 		}

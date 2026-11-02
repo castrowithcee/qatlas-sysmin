@@ -92,7 +92,7 @@ Commands:
 
 Only root and members of the group sudo may use them. Everyone else gets one line and exit code 1.
 
-A user is a system user below UID 1000, an admin in the group sudo, a docker user in the group docker, and enabled in the group sysmin. A group lists the users whose primary group it is as members.
+A user or group is a system user or group when its ID lies outside 1000 to 60000, so root and nobody count as system accounts. A user is an admin in the group sudo, a docker user in the group docker, and enabled in the group sysmin. A group lists the users whose primary group it is as members.
 
 Whether an account is locked or expired and which SSH keys it has are only readable as root. Otherwise they are unknown: null in JSON and 'unknown' in the other formats. Keys are shown as type, comment and SHA256 fingerprint, never as the key itself.
 

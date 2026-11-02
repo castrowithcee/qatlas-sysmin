@@ -5,32 +5,32 @@ sysmin  ● vault open  ● admin off                                           
 Users (3)                                                         1/3 ╭─ demo-admin ───────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Name              demo-admin                   │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Type              regular                      │
-║   svc-demo    no          ╔══════════════════════════════════════════════════════════════╗s                          │
-╚═══════════════════════════║ Help                                                         ║s                          │
+║ > demo-admin  yes         ╔══════════════════════════════════════════════════════════════╗mo-admin                   │
+║   demo-user   yes · not en║ Help                                                         ║gular                      │
+║   svc-demo    no          ║                                                              ║s                          │
+╚═══════════════════════════║  secrets   channels   templates   audit-log   runs  [host]   ║s                          │
                             ║                                                              ║s                          │
-                            ║  secrets   channels   templates   audit-log   runs  [host]   ║mo-admin, sudo, docker,    │
-                            ║                                                              ║smin                       │
-                            ║ Host shows the users, groups and folder permissions of this  ║ome/demo-admin             │
-                            ║ machine. Admin means sudo rights, Docker is practically      ║known                      │
-                            ║ root, and enabled means membership of the group sysmin. Grey ║                           │
-                            ║ rows are system accounts; space hides them. Folders reads    ║ the fields only root can  │
-                            ║ one path at a time: type it, tab completes, enter reads. A   ║                           │
-                            ║ path marked protected is a system path. n creates a user     ║───────────────────────────╯
-                            ║ whose initial password must be changed at the first login; e ║                            
-                            ║ changes the marked one (groups, Admin, Docker, password, SSH ║                            
-                            ║ keys), one change at a time. Changes lists the latest        ║                            
-                            ║ changes made through sysmin and undoes one with enter. What  ║                            
-                            ║ only root can read, such as the locked state and SSH keys of ║                            
-                            ║ a user or the list of changes, is read through sudo when you ║                            
-                            ║ press ctrl+r; sudo asks for the password, sysmin never sees  ║                            
-                            ║ it.                                                          ║                            
+                            ║ Host shows the users, groups and folder permissions of this  ║mo-admin, sudo, docker,    │
+                            ║ machine. Admin means sudo rights, Docker is practically      ║smin                       │
+                            ║ root, and enabled means membership of the group sysmin. Grey ║ome/demo-admin             │
+                            ║ rows are system accounts and groups, whose ID lies outside   ║known                      │
+                            ║ 1000 to 60000; space hides them. e changes root and system   ║                           │
+                            ║ accounts like any other account, and the confirmation is     ║ the fields only root can  │
+                            ║ then red, because packages or services may depend on them;   ║                           │
+                            ║ only taking admin from yourself or from the last admin is    ║───────────────────────────╯
+                            ║ refused. Folders reads one path at a time: type it, tab      ║                            
+                            ║ completes, enter reads. A path marked protected is a system  ║                            
+                            ║ path. n creates a user whose initial password must be        ║                            
+                            ║ changed at the first login; e changes the marked one         ║                            
+                            ║ (groups, Admin, Docker, password, SSH keys), one change at a ║                            
+                            ║ time. Changes lists the latest changes made through sysmin   ║                            
+                            ║ and undoes one with enter. What only root can read, such as  ║                            
+                            ║ the locked state and SSH keys of a user or the list of       ║                            
+                            ║ changes, is read through sudo when you press ctrl+r; sudo    ║                            
+                            ║ asks for the password, sysmin never sees it.                 ║                            
                             ║                                                              ║                            
                             ║ ↑/↓ scroll · ←/→ topic · esc close                           ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

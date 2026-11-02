@@ -36,16 +36,9 @@ var builtinSteps = map[string]bool{stepKeysAdd: true, stepKeysRemove: true}
 // accountLookup resolves the user a built-in step works for.
 type accountLookup func(name string) (hostadmin.Account, error)
 
-// systemAccount resolves a user of the local passwd file; only a regular account is accepted.
+// systemAccount resolves a user of the local passwd file.
 func systemAccount(name string) (hostadmin.Account, error) {
-	acc, err := hostadmin.NewHost(false).Account(name)
-	if err != nil {
-		return hostadmin.Account{}, err
-	}
-	if !regularUID(acc.UID) {
-		return hostadmin.Account{}, fmt.Errorf("%s is not a regular user", name)
-	}
-	return acc, nil
+	return hostadmin.NewHost(false).Account(name)
 }
 
 func runBuiltin(c Command, lookup accountLookup) error {

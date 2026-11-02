@@ -28,17 +28,23 @@ const (
 	maxFormKeys     = 16
 )
 
-// editable reports whether a user can be created, changed or shown a form for: not root, not a system user.
-func editable(u hostadmin.User) bool { return !u.System && u.UID != 0 && u.Name != "root" }
+// userKindText is the type of a user in the details: system accounts can be changed like others.
+func userKindText(system bool) string {
+	if system {
+		return tr(tHostSystem)
+	}
+	return tr(tHostRegular)
+}
 
 // fixedGroup is a group with a switch of its own, never one of the further groups.
 func fixedGroup(name string) bool {
 	return name == hostadmin.GroupAdmin || name == hostadmin.GroupDocker || name == hostadmin.GroupSysmin
 }
 
-// furtherGroups are the groups a person may be put into besides the switches: existing, not system, not fixed.
-// A source that cannot be read offers none.
-func (m *Model) furtherGroups() []string {
+// furtherGroups are the groups a person may be put into besides the switches: existing and not fixed. A new
+// user gets only regular groups; an existing one may also get system groups. A source that cannot be read
+// offers none.
+func (m *Model) furtherGroups(withSystem bool) []string {
 	if m.hostSrc == nil {
 		return nil
 	}
@@ -48,7 +54,7 @@ func (m *Model) furtherGroups() []string {
 	}
 	var names []string
 	for _, g := range list {
-		if !g.System && !fixedGroup(g.Name) {
+		if (withSystem || !g.System) && !fixedGroup(g.Name) {
 			names = append(names, g.Name)
 		}
 	}
@@ -182,7 +188,7 @@ func (m *Model) openUserCreate() tea.Cmd {
 		maskedRow("again", tr(tHostFormPassword2)),
 		choiceRow("admin", tr(tHostColAdmin), yesNo, shown, 0),
 		choiceRow("docker", tr(tHostColDocker), yesNo, shown, 0),
-		multiRow("groups", tr(tHostFormFurther), m.furtherGroups()),
+		multiRow("groups", tr(tHostFormFurther), m.furtherGroups(false)),
 		textRow("key", tr(tHostFormKey), ""),
 	}
 	f.enter = func(_ *Model, f *formDlg, row int) bool {
@@ -287,13 +293,13 @@ func changeText(id string) string {
 
 // editFor are the groups a user may be added to and taken out of.
 func (m *Model) editGroups(u hostadmin.User) (add, remove []string) {
-	for _, g := range m.furtherGroups() {
+	for _, g := range m.furtherGroups(true) {
 		if g != u.PrimaryGroup && !slices.Contains(u.Groups, g) {
 			add = append(add, g)
 		}
 	}
 	for _, g := range u.Groups {
-		if g != u.PrimaryGroup && !fixedGroup(g) && !m.isSystemGroup(g) {
+		if g != u.PrimaryGroup && !fixedGroup(g) {
 			remove = append(remove, g)
 		}
 	}
@@ -309,10 +315,6 @@ func (m *Model) openUserEdit() tea.Cmd {
 	}
 	u, ok := m.hst.users.items[name]
 	if !ok {
-		return nil
-	}
-	if !editable(u) {
-		m.status = tr(tHostSystemReadOnly, m.diffText(name))
 		return nil
 	}
 	add, remove := m.editGroups(u)
@@ -416,7 +418,7 @@ func (m *Model) guardRevoke(u hostadmin.User) string {
 		return tr(tHostSelfAdmin)
 	}
 	for _, o := range m.hst.users.all {
-		if o.Name != u.Name && editable(o) && o.Admin && o.Enabled {
+		if o.Name != u.Name && o.Admin && o.Enabled {
 			return ""
 		}
 	}
@@ -426,6 +428,7 @@ func (m *Model) guardRevoke(u hostadmin.User) string {
 func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 	name := st.u.Name
 	ask := hostAsk{args: []string{name}}
+	var chosen []string // the further groups of the change; the groups of the Admin and Docker switches do not count
 	switch f.row("what").value() {
 	case chgAddGroups, chgRemoveGroups:
 		key, id := "add", hostchange.ActionUserAddGroups
@@ -437,7 +440,7 @@ func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 			f.row(key).problem = tr(tHostFormTickOne)
 			return nil
 		}
-		ask.id, ask.args = id, append(ask.args, picked...)
+		ask.id, ask.args, chosen = id, append(ask.args, picked...), picked
 	case chgAdminOn, chgDockerOn:
 		ask.id, ask.args, ask.power = hostchange.ActionUserSetAdmin, append(ask.args, "on"), true
 		if f.row("what").value() == chgDockerOn {
@@ -478,6 +481,7 @@ func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 		}
 		ask.id, ask.args = hostchange.ActionUserRemoveKey, append(ask.args, f.row("fp").value())
 	}
+	ask.risk = m.riskOf(st.u, chosen)
 	p, refusal := m.planHost(ask)
 	if refusal != "" {
 		zero(ask.secret)
@@ -501,8 +505,28 @@ func (m *Model) hostUsersKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// canEditCurrent reports whether the marked user is one e can change.
+// canEditCurrent reports whether a user is marked that e can change.
 func (m *Model) canEditCurrent() bool {
 	name, ok := m.hst.users.page.current()
-	return ok && editable(m.hst.users.items[name])
+	_, known := m.hst.users.items[name]
+	return ok && known
+}
+
+// riskOf names why a change on the user and the groups it involves needs a red confirmation: root, a system
+// account or a system group. It is empty for a change that touches only regular accounts and groups.
+func (m *Model) riskOf(u hostadmin.User, groups []string) string {
+	var parts []string
+	if u.UID == 0 || u.Name == "root" {
+		parts = append(parts, tr(tHostRiskRoot))
+	}
+	if u.System {
+		parts = append(parts, tr(tHostRiskAccount))
+	}
+	for _, g := range groups {
+		if m.isSystemGroup(g) {
+			parts = append(parts, tr(tHostRiskGroup))
+			break
+		}
+	}
+	return strings.Join(parts, " ")
 }
