@@ -62,6 +62,7 @@ const (
 	actTest       action = "test"
 	actUpdate     action = "update"
 	actSelfUpdate action = "selfupdate"
+	actSetup      action = "setup"
 
 	actRemoveField action = "removefield"
 	actSuggestPrev action = "suggestprev"
@@ -117,6 +118,7 @@ var keyDefs = []struct {
 	{actTest, levelLetter, []string{"t"}, tKeyHelpTest},
 	{actUpdate, levelLetter, []string{"u"}, tKeyHelpUpdate},
 	{actSelfUpdate, levelLetter, []string{"U"}, tKeyHelpSelfUpdate},
+	{actSetup, levelLetter, []string{"s"}, tKeyHelpSetup},
 
 	// The control keys of text lines and of the target picker. None can be rebound to a global action.
 	{actRemoveField, levelCtrl, []string{"f8"}, tKeyHelpRemoveField},

@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
+   Users   Groups  [Folders]  Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Folders                                                                                                                 
+                                                                                                                        
+Path: /srv/demo-stack                                                                                                   
+                                                                                                                        
+Type          folder        ╔══════════════════════════════════════════════════════════════╗                            
+Owner root    read and write║ ⚠ Set up the stack folder /srv/demo-stack for the service?   ║                            
+Group sysmin  read          ║                                                              ║                            
+Others        nothing       ║     Other users except root have no access to these folders  ║                            
+Mode          2750          ║     and files afterwards. You can undo this under Host >     ║                            
+ACL           set: further r║     Changes.                                                 ║                            
+Special       setgid: new en║                                                              ║                            
+                            ║   /srv/demo-stack: root:sysmin 0750 (was                     ║                            
+                            ║   demo-user:demo-user 0755)                                  ║                            
+                            ║   web (running): folder root:sysmin 0750 (was                ║                            
+                            ║   demo-user:demo-user 0755), compose.yaml 0640 (was          ║                            
+                            ║   0644), .env 0660 (was 0644)                                ║                            
+                            ║     Stays: nginx.conf (a container mounts it and the         ║                            
+                            ║     service must not change who owns it)                     ║                            
+                            ║   api: folder root:sysmin 0750 (was demo-user:demo-user      ║                            
+                            ║   0755), compose.yaml 0640 (was 0644)                        ║                            
+                            ║   $ chown root:sysmin /srv/demo-stack                        ║                            
+                            ║   $ chmod 0750 /srv/demo-stack                               ║                            
+                            ║   $ chmod 0640 /srv/demo-stack/web/compose.yaml              ║                            
+                            ║                                                              ║                            
+                            ║ [ Apply ]  [ Cancel ]                                        ║                            
+                            ║                                                              ║                            
+                            ║ y apply · n/esc cancel                                       ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

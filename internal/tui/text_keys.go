@@ -50,6 +50,7 @@ const (
 	tKeyHelpDuplicate           textID = "keyhelp.duplicate"
 	tKeyHelpTest                textID = "keyhelp.test"
 	tKeyHelpUpdate              textID = "keyhelp.update"
+	tKeyHelpSetup               textID = "keyhelp.setup"
 	tKeyHelpSelfUpdate          textID = "keyhelp.selfupdate"
 	tKeyHelpRemoveField         textID = "keyhelp.removefield"
 	tKeyHelpSuggestPrev         textID = "keyhelp.suggestprev"

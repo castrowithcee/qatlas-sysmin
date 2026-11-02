@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+   Users   Groups  [Folders]  Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Folders ╔══════════════════════════════════════════════════════════════╗        
+        ║ ⚠ Failed, previous state restored: Set up the stack folder   ║        
+Path: /s║   /srv/demo-stack for the service (2 stacks: web, api).      ║        
+        ║                                                              ║        
+Type    ║     The change or its check failed and the previous state is ║        
+Owner ro║     back.                                                    ║        
+Group sy║                                                              ║        
+Others  ║   check failed                                               ║        
+Mode    ║   Check failed: stack web: the service cannot read           ║        
+ACL     ║   /srv/demo-stack/web/compose.yaml: permission denied        ║w       
+Special ║                                                              ║        
+        ║ [ Close ]                                                    ║        
+        ║                                                              ║        
+        ║ esc close                                                    ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

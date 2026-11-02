@@ -19,21 +19,21 @@ Users (3)                   ║  secrets   channels   templates   audit-log   ru
                             ║ path. e changes the folder shown, after a confirmation that  ║                           │
                             ║ names the number of entries and, for a system path, the      ║───────────────────────────╯
                             ║ risk; if a stack stops being healthy, the change is taken    ║                            
-                            ║ back. n creates a person, whose initial password must be     ║                            
-                            ║ changed at the first login, or a service account without     ║                            
-                            ║ login (no password, no shell, no SSH keys, a home only on    ║                            
-                            ║ request); e changes the marked one (groups, Admin, Docker,   ║                            
-                            ║ password, SSH keys, lock), one change at a time. Lock is the ║                            
-                            ║ normal way to stop someone: it blocks every login, also by   ║                            
-                            ║ SSH key, while running sessions stay open; Unlock releases   ║                            
-                            ║ the password and removes the end of the account. d deletes   ║                            
-                            ║ the marked user after asking whether its home goes too:      ║                            
-                            ║ keeping the home is the default and can be undone, which     ║                            
-                            ║ creates the account again with the same UID, groups and      ║                            
-                            ║ password; deleting the home and mail spool cannot be undone. ║                            
-                            ║ A user with running processes is not deleted. On Groups, n   ║                            
-                            ║ creates a group, e adds and removes members of the marked    ║                            
-                            ║ lines 1-31 of 47                                             ║                            
+                            ║ back. s sets up the stack folder shown for the service. n    ║                            
+                            ║ creates a person, whose initial password must be changed at  ║                            
+                            ║ the first login, or a service account without login (no      ║                            
+                            ║ password, no shell, no SSH keys, a home only on request); e  ║                            
+                            ║ changes the marked one (groups, Admin, Docker, password, SSH ║                            
+                            ║ keys, lock), one change at a time. Lock is the normal way to ║                            
+                            ║ stop someone: it blocks every login, also by SSH key, while  ║                            
+                            ║ running sessions stay open; Unlock releases the password and ║                            
+                            ║ removes the end of the account. d deletes the marked user    ║                            
+                            ║ after asking whether its home goes too: keeping the home is  ║                            
+                            ║ the default and can be undone, which creates the account     ║                            
+                            ║ again with the same UID, groups and password; deleting the   ║                            
+                            ║ home and mail spool cannot be undone. A user with running    ║                            
+                            ║ processes is not deleted. On Groups, n creates a group, e    ║                            
+                            ║ lines 1-31 of 48                                             ║                            
                             ║                                                              ║                            
                             ║ ↑/↓ scroll · ←/→ topic · esc close                           ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            

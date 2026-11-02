@@ -295,6 +295,25 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "y")
 			return m
 		}},
+		{"host_stacks_confirm", func(t *testing.T, w, h int) *Model {
+			m, f := goldenHostUsers(t, w, h)
+			stackAnswer(f, stackPreviewJSON, reportApplied)
+			openStackConfirm(t, m, "/srv/demo-stack")
+			return m
+		}},
+		{"host_stacks_nothing", func(t *testing.T, w, h int) *Model {
+			m, f := goldenHostUsers(t, w, h)
+			stackAnswer(f, stackNothingJSON, "")
+			openStackConfirm(t, m, "/srv/demo-stack")
+			return m
+		}},
+		{"host_stacks_restored", func(t *testing.T, w, h int) *Model {
+			m, f := goldenHostUsers(t, w, h)
+			stackAnswer(f, stackPreviewJSON, stackRestoredReport)
+			openStackConfirm(t, m, "/srv/demo-stack")
+			send(m, "y")
+			return m
+		}},
 		{"host_user_lock_confirm", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
 			chooseChange(t, m, "demo-user", chgLock)
