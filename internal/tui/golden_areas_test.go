@@ -268,6 +268,12 @@ func TestGoldenAreas(t *testing.T) {
 			save(m)
 			return m
 		}},
+		{"host_user_lock_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			chooseChange(t, m, "demo-user", chgLock)
+			save(m)
+			return m
+		}},
 		{"host_user_system_confirm", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
 			chooseChange(t, m, "svc-demo", chgDockerOn)

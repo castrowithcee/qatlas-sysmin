@@ -47,6 +47,10 @@ const (
 	tHostChgEnable        textID = "HostChgEnable"
 	tHostChgEnableHint    textID = "HostChgEnableHint"
 	tHostChgKeyHint       textID = "HostChgKeyHint"
+	tHostChgLock          textID = "HostChgLock"
+	tHostChgUnlock        textID = "HostChgUnlock"
+	tHostLockStays        textID = "HostLockStays"
+	tHostSelfLock         textID = "HostSelfLock"
 	tHostSelfAdmin        textID = "HostSelfAdmin"
 	tHostLastAdmin        textID = "HostLastAdmin"
 	tHostRiskRoot         textID = "HostRiskRoot"
@@ -99,6 +103,10 @@ func init() {
 		tHostChgEnable:        "Enable for sysmin",
 		tHostChgEnableHint:    "This admin is not in the group sysmin yet and cannot use sysmin. Saving adds the membership.",
 		tHostChgKeyHint:       "Paste one public key line (authorized_keys format, without options).",
+		tHostChgLock:          "Lock",
+		tHostChgUnlock:        "Unlock",
+		tHostLockStays:        "Running sessions stay open until they end.",
+		tHostSelfLock:         "You cannot lock yourself.",
 		tHostSelfAdmin:        "You cannot take admin rights from yourself.",
 		tHostLastAdmin:        "%s is the last admin with sysmin access.",
 		tHostRiskRoot:         "root is the account with all rights on this host.",
@@ -149,6 +157,10 @@ func init() {
 		tHostChgEnable:        "Für sysmin freischalten",
 		tHostChgEnableHint:    "Dieser Admin ist noch nicht in der Gruppe sysmin und kann sysmin nicht nutzen. Speichern fügt die Mitgliedschaft hinzu.",
 		tHostChgKeyHint:       "Füge eine Zeile mit einem öffentlichen Schlüssel ein (Format authorized_keys, ohne Optionen).",
+		tHostChgLock:          "Sperren",
+		tHostChgUnlock:        "Entsperren",
+		tHostLockStays:        "Laufende Sitzungen bleiben offen, bis sie enden.",
+		tHostSelfLock:         "Du kannst dich nicht selbst sperren.",
 		tHostSelfAdmin:        "Du kannst dir die Adminrechte nicht selbst nehmen.",
 		tHostLastAdmin:        "%s ist der letzte Admin mit sysmin-Zugang.",
 		tHostRiskRoot:         "root ist das Konto mit allen Rechten auf diesem Host.",

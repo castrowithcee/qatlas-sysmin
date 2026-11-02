@@ -329,7 +329,7 @@ func TestARefusalOfTheHostIsShownWithoutTheSecret(t *testing.T) {
 }
 
 // demoUserChanges are the changes offered for demo-user: an admin who is not enabled, with a key.
-var demoUserChanges = []string{chgEnable, chgAddGroups, chgRemoveGroups, chgAdminOff, chgDockerOn, chgPassword, chgAddKey, chgRemoveKey}
+var demoUserChanges = []string{chgEnable, chgAddGroups, chgRemoveGroups, chgAdminOff, chgDockerOn, chgPassword, chgAddKey, chgRemoveKey, chgLock}
 
 // openChange opens the change form of name on the change id.
 func openChange(t *testing.T, m *Model, name, id string) {
@@ -369,6 +369,7 @@ func TestEachChangeRunsItsOwnActionWithItsOwnConfirm(t *testing.T) {
 			typed(m, line)
 		}, []string{"user.add-key", "demo-user"}, line, false},
 		{chgRemoveKey, func(*Model, string) {}, nil, "", false},
+		{chgLock, func(*Model, string) {}, []string{"user.lock", "demo-user"}, "", false},
 	}
 	for _, tc := range cases {
 		m, f, host, fp := userModel(t, 120, 40)
@@ -427,7 +428,7 @@ func TestOffersFollowTheUser(t *testing.T) {
 	if strings.Contains(view, "Enable for sysmin") {
 		t.Error("an enabled admin is not offered Enable for sysmin")
 	}
-	want := []string{chgAddGroups, chgAdminOff, chgDockerOff, chgPassword, chgAddKey, chgRemoveKey}
+	want := []string{chgAddGroups, chgAdminOff, chgDockerOff, chgPassword, chgAddKey, chgRemoveKey, chgLock, chgUnlock}
 	if got := m.form.row("what").values; !slices.Equal(got, want) {
 		t.Errorf("offers %v, want %v", got, want)
 	}
@@ -479,6 +480,9 @@ func TestRootAndSystemUsersAreChangeableWithARedConfirmation(t *testing.T) {
 		{"svc-demo", chgDockerOn, false, true, []string{"Packages or services may depend on this system account."}},
 		{"root", chgDockerOn, false, true, []string{"root is the account with all rights", "may depend on this system account"}},
 		{"demo-user", chgDockerOn, false, false, nil},
+		{"svc-demo", chgLock, false, true, []string{"may depend on this system account", "Running sessions"}},
+		{"root", chgLock, false, true, []string{"root is the account with all rights"}},
+		{"demo-user", chgLock, false, false, []string{"Running sessions"}},
 		{"demo-user", chgAddGroups, true, true, []string{"may depend on this system group"}},
 		{"svc-demo", chgAddGroups, true, true, []string{"may depend on this system account", "may depend on this system group"}},
 	} {
@@ -620,5 +624,79 @@ func TestARunWithoutReportUsesTheStandardErrorAsTheReasonUnlessSudoFailed(t *tes
 		if !strings.Contains(view, tc.want) || strings.Contains(view, tc.not) {
 			t.Errorf("%q:\n%s", tc.stderr, plain(m))
 		}
+	}
+}
+
+func TestLockStateDecidesWhichOfLockAndUnlockIsOffered(t *testing.T) {
+	yes, no := true, false
+	for _, tc := range []struct {
+		name            string
+		locked, expired *bool
+		want            []string
+	}{
+		{"unlocked", &no, &no, []string{chgLock}},
+		{"unlocked, expiry unread", &no, nil, []string{chgLock}},
+		{"locked", &yes, &yes, []string{chgUnlock}},
+		{"password lock only", &yes, &no, []string{chgLock, chgUnlock}},
+		{"account ended", &no, &yes, []string{chgLock, chgUnlock}},
+		{"unknown", nil, nil, []string{chgLock, chgUnlock}},
+	} {
+		m, _, _, _ := userModel(t, 120, 40)
+		for i := range m.hst.users.all {
+			if m.hst.users.all[i].Name == "demo-user" {
+				m.hst.users.all[i].Locked, m.hst.users.all[i].Expired = tc.locked, tc.expired
+			}
+		}
+		m.fillHostUsers()
+		selectUser(m, "demo-user")
+		send(m, "e")
+		var got []string
+		for _, v := range m.form.row("what").values {
+			if v == chgLock || v == chgUnlock {
+				got = append(got, v)
+			}
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("%s: offers %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestLockIsRefusedEarlyForYourselfAndTheLastAdmin(t *testing.T) {
+	m, f, _, _ := userModel(t, 120, 40)
+	hostUID = func() int { return 1000 }
+	chooseChange(t, m, "demo-admin", chgLock)
+	save(m)
+	if m.form == nil || !strings.Contains(flat(m), "lock yourself") || len(f.reqs) != 0 {
+		t.Errorf("own lock:\n%s", plain(m))
+	}
+	send(m, "esc")
+	hostUID = func() int { return 4242 }
+	chooseChange(t, m, "demo-admin", chgLock)
+	save(m)
+	if m.form == nil || !strings.Contains(flat(m), "last admin") || len(f.reqs) != 0 {
+		t.Errorf("last admin:\n%s", plain(m))
+	}
+}
+
+func TestUnlockIsOfferedAndAcceptedForALockedAccount(t *testing.T) {
+	yes := true
+	m, f, _, _ := userModel(t, 120, 40)
+	for i := range m.hst.users.all {
+		if m.hst.users.all[i].Name == "demo-user" {
+			m.hst.users.all[i].Locked, m.hst.users.all[i].Expired = &yes, &yes
+		}
+	}
+	m.fillHostUsers()
+	chooseChange(t, m, "demo-user", chgUnlock)
+	save(m)
+	if m.ask == nil || len(f.reqs) != 0 || !strings.Contains(flat(m), "usermod -U -e -1 demo-user") {
+		t.Fatalf("no confirmation:\n%s", plain(m))
+	}
+	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
+	send(m, "y")
+	want := []string{"apply", "--yes", "--output", "json", "--", "user.unlock", "demo-user"}
+	if len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) {
+		t.Errorf("calls %+v", f.reqs)
 	}
 }

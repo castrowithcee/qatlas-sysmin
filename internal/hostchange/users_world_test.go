@@ -24,14 +24,15 @@ import (
 // chage and userdel to an in-memory model and writes passwd, group and shadow files from it, and runs the
 // built-in steps for real inside a temporary home. Every account maps to the test's own UID on disk.
 type userWorld struct {
-	t      *testing.T
-	dir    string
-	users  []worldUser
-	groups []worldGroup
-	calls  []string
-	stdins map[string]string // displayed command -> standard input
-	failOn string            // displayed command that fails and echoes its standard input
-	shells map[string]string // login shell by user; a missing one is /bin/bash
+	t       *testing.T
+	dir     string
+	users   []worldUser
+	groups  []worldGroup
+	calls   []string
+	stdins  map[string]string // displayed command -> standard input
+	failOn  string            // displayed command that fails and echoes its standard input
+	shells  map[string]string // login shell by user; a missing one is /bin/bash
+	expires map[string]string // expiry day by user; a missing one is none
 	// useraddShell, when set, replaces the shell a useradd call asks for.
 	useraddShell string
 	host         UserHost
@@ -53,7 +54,7 @@ type worldGroup struct {
 func newUserWorld(t *testing.T) *userWorld {
 	t.Helper()
 	dir := t.TempDir()
-	w := &userWorld{t: t, dir: dir, stdins: map[string]string{}, shells: map[string]string{}}
+	w := &userWorld{t: t, dir: dir, stdins: map[string]string{}, shells: map[string]string{}, expires: map[string]string{}}
 	home := func(n string) string { return filepath.Join(dir, "home", n) }
 	w.users = []worldUser{
 		{"root", 0, 0, "/root", "$6$demo-root", "19000"},
@@ -108,7 +109,7 @@ func (w *userWorld) flush() {
 			shell = "/bin/bash"
 		}
 		fmt.Fprintf(&pw, "%s:x:%d:%d::%s:%s\n", u.name, u.uid, u.gid, u.home, shell)
-		fmt.Fprintf(&sh, "%s:%s:%s:0:99999:7:::\n", u.name, u.hash, u.lastchg)
+		fmt.Fprintf(&sh, "%s:%s:%s:0:99999:7::%s:\n", u.name, u.hash, u.lastchg, w.expires[u.name])
 	}
 	for _, g := range w.groups {
 		fmt.Fprintf(&gr, "%s:x:%d:%s\n", g.name, g.gid, strings.Join(g.members, ","))
@@ -224,7 +225,24 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 			day = ""
 		}
 		w.user(a[3]).lastchg = day
-	case "usermod": // -aG list name
+	case "usermod":
+		if a[1] == "-e" { // -e day name
+			a = []string{a[0], "-", a[1], a[2], a[3]}
+		}
+		if a[1] == "-L" || a[1] == "-U" || a[1] == "-" { // -L|-U -e day name, where -L adds a "!" only to a hash without one and -U leaves a lone "!"; -e -1 clears the expiry like the real one
+			u := w.user(a[4])
+			switch {
+			case a[1] == "-L" && !strings.HasPrefix(u.hash, "!"):
+				u.hash = "!" + u.hash
+			case a[1] == "-U" && strings.HasPrefix(u.hash, "!") && len(u.hash) > 1:
+				u.hash = u.hash[1:]
+			}
+			w.expires[u.name] = a[3]
+			if a[3] == "-1" {
+				delete(w.expires, u.name)
+			}
+			break
+		}
 		name := a[3]
 		for _, gname := range strings.Split(a[2], ",") {
 			if g := w.group(gname); !slices.Contains(g.members, name) {

@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
+  [Users]  Groups   Folders   Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                         2/2 ╭─ demo-user ────────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Name        Admin              Docker  Groups            System ║ │                                                │
+║   ▾ Users (2)                                                     ║ │ Name              demo-user                    │
+║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              regular                      │
+║ > demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             yes · not enabled            │
+║   ▸ System accounts (1)                                           ║ │ Docker            no                           │
+╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (sysmin)  no                           │
+                                                                      │ Groups            demo-user, sudo, demo-team   │
+                            ╔══════════════════════════════════════════════════════════════╗ome/demo-user              │
+                            ║ ⚠ Lock demo-user: no login is possible any more, with a      ║                           │
+                            ║   password or an SSH key.                                    ║───────────────────────────╯
+                            ║                                                              ║                            
+                            ║     You can undo this under Host > Changes. Running sessions ║                            
+                            ║     stay open until they end.                                ║                            
+                            ║                                                              ║                            
+                            ║   $ usermod -L -e 1 demo-user                                ║                            
+                            ║                                                              ║                            
+                            ║ [ Apply ]  [ Cancel ]                                        ║                            
+                            ║                                                              ║                            
+                            ║ y apply · n/esc cancel                                       ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

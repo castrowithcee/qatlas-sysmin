@@ -341,6 +341,8 @@ const (
 	chgAddKey       = "add-key"
 	chgRemoveKey    = "remove-key"
 	chgEnable       = "enable"
+	chgLock         = "lock"
+	chgUnlock       = "unlock"
 )
 
 func changeText(id string) string {
@@ -348,6 +350,7 @@ func changeText(id string) string {
 		chgAddGroups: tHostChgAddGroups, chgRemoveGroups: tHostChgRemoveGroups, chgAdminOn: tHostChgAdminOn,
 		chgAdminOff: tHostChgAdminOff, chgDockerOn: tHostChgDockerOn, chgDockerOff: tHostChgDockerOff,
 		chgPassword: tHostChgPassword, chgAddKey: tHostChgAddKey, chgRemoveKey: tHostChgRemoveKey, chgEnable: tHostChgEnable,
+		chgLock: tHostChgLock, chgUnlock: tHostChgUnlock,
 	}[id])
 }
 
@@ -398,6 +401,16 @@ func (m *Model) openUserEdit() tea.Cmd {
 	ids = append(ids, chgPassword, chgAddKey)
 	if u.SSHKeys == nil || len(u.SSHKeys) > 0 {
 		ids = append(ids, chgRemoveKey)
+	}
+	// An unread lock state offers both; a password lock without the end of the account offers both, too, so
+	// that it can be completed or released.
+	fullyLocked := u.Locked != nil && *u.Locked && u.Expired != nil && *u.Expired
+	clean := u.Locked != nil && !*u.Locked && (u.Expired == nil || !*u.Expired)
+	if !fullyLocked {
+		ids = append(ids, chgLock)
+	}
+	if !clean {
+		ids = append(ids, chgUnlock)
 	}
 	if u.Admin && !u.Enabled {
 		ids = append([]string{chgEnable}, ids...)
@@ -470,15 +483,26 @@ func (st *editForm) arrange(f *formDlg) {
 }
 
 // guardRevoke gives the early message of the rules the root action enforces for taking admin away.
-func (m *Model) guardRevoke(u hostadmin.User) string {
+func (m *Model) guardRevoke(u hostadmin.User) string { return m.guardAdmin(u, tHostSelfAdmin) }
+
+// guardLock gives the early message of the rules the root action enforces for locking.
+func (m *Model) guardLock(u hostadmin.User) string {
+	if uid := hostUID(); uid != 0 && uid == u.UID {
+		return tr(tHostSelfLock)
+	}
+	return m.guardAdmin(u, tHostSelfAdmin)
+}
+
+// guardAdmin refuses the last admin; an admin whose account has ended does not remain.
+func (m *Model) guardAdmin(u hostadmin.User, self textID) string {
 	if !u.Admin {
 		return ""
 	}
 	if uid := hostUID(); uid != 0 && uid == u.UID {
-		return tr(tHostSelfAdmin)
+		return tr(self)
 	}
 	for _, o := range m.hst.users.all {
-		if o.Name != u.Name && o.Admin && o.Enabled {
+		if o.Name != u.Name && o.Admin && o.Enabled && (o.Expired == nil || !*o.Expired) {
 			return ""
 		}
 	}
@@ -519,6 +543,14 @@ func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 		ask.id, ask.args = hostchange.ActionUserSetDocker, append(ask.args, "off")
 	case chgEnable:
 		ask.id = hostchange.ActionUserEnable
+	case chgLock:
+		if msg := m.guardLock(st.u); msg != "" {
+			f.notice = msg
+			return nil
+		}
+		ask.id = hostchange.ActionUserLock
+	case chgUnlock:
+		ask.id = hostchange.ActionUserUnlock
 	case chgPassword:
 		if passwordProblem(f, "password", "again") {
 			return nil
