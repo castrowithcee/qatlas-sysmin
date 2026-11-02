@@ -411,7 +411,11 @@ func (m *Model) hostBody() string {
 // hostKeys is the key line of Host.
 func (m *Model) hostKeys() []string {
 	if m.hst.sub == hostFolders {
-		return []string{"enter edit path"}
+		keys := []string{"enter edit path"}
+		if _, ok := m.changeableFolder(); ok {
+			keys = append(keys, "e change")
+		}
+		return keys
 	}
 	if p := m.currentPage(); p != nil && m.detailFocus(p) {
 		keys := []string{"←/→ tab", "↑/↓ scroll", "{back} back"}
@@ -460,6 +464,9 @@ func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 			f.editing = true
 			f.in.Focus()
 			return nil, true
+		}
+		if keyIs(key, actEdit) {
+			return m.openFolderChange(), true
 		}
 		return nil, false
 	}
