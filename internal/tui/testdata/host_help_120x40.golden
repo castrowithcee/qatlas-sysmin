@@ -16,8 +16,11 @@ Users (3)                   ║  secrets   channels   templates   audit-log   ru
                             ║ from, locking or deleting yourself or the last admin is      ║known                      │
                             ║ refused. Folders reads one path at a time: type it, tab      ║                           │
                             ║ completes, enter reads. A path marked protected is a system  ║ the fields only root can  │
-                            ║ path. n creates a person, whose initial password must be     ║                           │
-                            ║ changed at the first login, or a service account without     ║───────────────────────────╯
+                            ║ path. e changes the folder shown, after a confirmation that  ║                           │
+                            ║ names the number of entries and, for a system path, the      ║───────────────────────────╯
+                            ║ risk; if a stack stops being healthy, the change is taken    ║                            
+                            ║ back. n creates a person, whose initial password must be     ║                            
+                            ║ changed at the first login, or a service account without     ║                            
                             ║ login (no password, no shell, no SSH keys, a home only on    ║                            
                             ║ request); e changes the marked one (groups, Admin, Docker,   ║                            
                             ║ password, SSH keys, lock), one change at a time. Lock is the ║                            
@@ -30,10 +33,7 @@ Users (3)                   ║  secrets   channels   templates   audit-log   ru
                             ║ password; deleting the home and mail spool cannot be undone. ║                            
                             ║ A user with running processes is not deleted. Changes lists  ║                            
                             ║ the latest changes made through sysmin and undoes one with   ║                            
-                            ║ enter. What only root can read, such as the locked state and ║                            
-                            ║ SSH keys of a user or the list of changes, is read through   ║                            
-                            ║ sudo when you press ctrl+r; sudo asks for the password,      ║                            
-                            ║ sysmin never sees it.                                        ║                            
+                            ║ lines 1-31 of 35                                             ║                            
                             ║                                                              ║                            
                             ║ ↑/↓ scroll · ←/→ topic · esc close                           ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            

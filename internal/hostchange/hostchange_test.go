@@ -391,3 +391,38 @@ func TestRegistryValidates(t *testing.T) {
 		t.Error("unknown action")
 	}
 }
+
+func TestFailedFirstCommandRestoresOnlyForPartialSteps(t *testing.T) {
+	for _, partial := range []bool{false, true} {
+		f := newFixture(t, false)
+		reg := NewRegistry()
+		if err := reg.Register(Definition{
+			ID: "demo.partial",
+			Plan: func([]string, []byte) (Plan, error) {
+				return Plan{
+					Sentence: "Set alpha.", PartialSteps: partial,
+					Commands: []Command{{Argv: []string{"demo-set", "alpha", "new"}}},
+				}, nil
+			},
+			Inverse: func(json.RawMessage) (Plan, error) {
+				return Plan{Sentence: "Put alpha back.", Commands: []Command{{Argv: []string{"demo-set", "alpha", "old"}}}}, nil
+			},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		f.runner.Registry = reg
+		f.w.failOn = "demo-set alpha new"
+		res, err := f.runner.Apply(context.Background(), "demo.partial", nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		e := res.Entry
+		if partial {
+			if e.Result != ResultRestored || !e.Restored || strings.Contains(e.Error, "nothing was taken back") || f.w.calls[len(f.w.calls)-1] != "demo-set alpha old" {
+				t.Errorf("partial: %+v calls %q", e, f.w.calls)
+			}
+		} else if e.Result != ResultFailed || e.Restored || !strings.Contains(e.Error, "nothing was taken back") || len(f.w.calls) != 1 {
+			t.Errorf("plain: %+v calls %q", e, f.w.calls)
+		}
+	}
+}

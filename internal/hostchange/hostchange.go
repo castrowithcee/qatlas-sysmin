@@ -1,7 +1,7 @@
 // Package hostchange is the framework for changes to the host that run as root: an action describes itself
 // in plain words and exact commands, the runner records the previous state in a root-only journal before it
 // changes anything, checks the result, and restores the previous state when the change or its check fails.
-// Default registers the production actions, which are the user actions of users.go.
+// Default registers the production actions: the user actions of users.go and the folder action of folder.go.
 package hostchange
 
 import (
@@ -85,6 +85,10 @@ type Plan struct {
 	Check func(ctx context.Context) error
 	// NotReversible is the reason the change cannot be undone; empty means the definition's Inverse applies.
 	NotReversible string
+	// PartialSteps says that a command can fail after it changed part of the host and that the inverse is
+	// safe on any intermediate state, so the runner restores also when the first command failed. Without it
+	// a failed first command counts as having changed nothing.
+	PartialSteps bool
 	// Redact lists further values that must never appear in an error text, beyond the command secrets: a
 	// password inside a larger standard input, for example.
 	Redact [][]byte
@@ -188,6 +192,9 @@ func (r *Registry) Describe(id string, args []string, secret []byte) (Plan, erro
 func Default() *Registry {
 	r := NewRegistry()
 	if err := RegisterUserActions(r, DefaultUserHost()); err != nil {
+		panic(err)
+	}
+	if err := RegisterFolderActions(r, DefaultFolderHost()); err != nil {
 		panic(err)
 	}
 	return r

@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+   Users   Groups  [Folders]  Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Folders                                                                         
+        ╔══════════════════════════════════════════════════════════════╗        
+Path: /s║ Change /srv/demo-stack                                       ║        
+        ║                                                              ║        
+Type    ║ > Owner:                < root >                             ║        
+Owner ro║   Group:                sysmin                               ║        
+Group sy║   Owner may:            read and write                       ║        
+Others  ║   Group may:            read                                 ║        
+Mode    ║   Others may:           nothing                              ║        
+ACL     ║   Everything below it:  no                                   ║w       
+Special ║                                                              ║        
+        ║ [ Save ]  [ Cancel ]                                         ║        
+        ║                                                              ║        
+        ║ ←/→ choose · tab next · F2 save · esc cancel                 ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

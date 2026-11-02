@@ -192,7 +192,7 @@ func (r *Runner) runLocked(ctx context.Context, j job) (Result, error) {
 	}
 	e.Result = ResultApplied
 	switch {
-	case problem != "" && failed == 0:
+	case problem != "" && failed == 0 && !j.plan.PartialSteps:
 		// No step of this plan stood, so there is nothing of this run to take back. Restoring anyway could
 		// act on a state this run did not make, such as an account of the same name that appeared since
 		// the previous state was recorded.

@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
+   Users   Groups  [Folders]  Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Folders                                                                                                                 
+                                                                                                                        
+Path: /etc                                                                                                              
+                                                                                                                        
+Type        folder                                                                                                      
+Owner root  read and write                                                                                              
+Group root  read                                                                                                        
+Others      read                                                                                                        
+Mode        0755            ╔══════════════════════════════════════════════════════════════╗                            
+Protected   a system path; s║ ⚠ Change /etc: owner root, group root; the owner gets read   ║                            
+                            ║   and write, the group read, everyone else read. This is a   ║                            
+                            ║   system path.                                               ║                            
+                            ║                                                              ║                            
+                            ║     This is a system path: wrong owners or permissions here  ║                            
+                            ║     can stop services and block logins on this host. You can ║                            
+                            ║     undo this under Host > Changes.                          ║                            
+                            ║                                                              ║                            
+                            ║   $ chown -- root:root /etc                                  ║                            
+                            ║   $ chmod -- u=rwX,g=rX,o=rX /etc                            ║                            
+                            ║                                                              ║                            
+                            ║ [ Apply ]  [ Cancel ]                                        ║                            
+                            ║                                                              ║                            
+                            ║ y apply · n/esc cancel                                       ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

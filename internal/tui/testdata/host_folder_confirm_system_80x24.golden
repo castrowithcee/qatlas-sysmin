@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+   Users   Groups  [Folders]  Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Folders ╔══════════════════════════════════════════════════════════════╗        
+        ║ ⚠ Change /etc: owner root, group root; the owner gets read   ║        
+Path: /e║   and write, the group read, everyone else read. This is a   ║        
+        ║   system path.                                               ║        
+Type    ║                                                              ║        
+Owner ro║     This is a system path: wrong owners or permissions here  ║        
+Group ro║     can stop services and block logins on this host. You can ║        
+Others  ║     undo this under Host > Changes.                          ║        
+Mode    ║                                                              ║        
+Protecte║   $ chown -- root:root /etc                                  ║        
+        ║   $ chmod -- u=rwX,g=rX,o=rX /etc                            ║        
+        ║                                                              ║        
+        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║                                                              ║        
+        ║ y apply · n/esc cancel                                       ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

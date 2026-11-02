@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+   Users   Groups  [Folders]  Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Folders ╔══════════════════════════════════════════════════════════════╗        
+        ║ ⚠ Change /srv/demo-stack and everything below it: owner      ║        
+Path: /s║   root, group sysmin; the owner gets read and write, the     ║        
+        ║   group read, everyone else no access.                       ║        
+Type    ║                                                              ║        
+Owner ro║     42 entries are changed: the folder and everything below  ║        
+Group sy║     it. You can undo this under Host > Changes.              ║        
+Others  ║                                                              ║        
+Mode    ║   $ chown -R -h -- root:sysmin /srv/demo-stack               ║        
+ACL     ║   $ chmod -R -- u=rwX,g=rX,o= /srv/demo-stack                ║w       
+Special ║                                                              ║        
+        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║                                                              ║        
+        ║ y apply · n/esc cancel                                       ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

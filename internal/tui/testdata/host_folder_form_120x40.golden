@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
+   Users   Groups  [Folders]  Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Folders                                                                                                                 
+                                                                                                                        
+Path: /srv/demo-stack                                                                                                   
+                                                                                                                        
+Type          folder                                                                                                    
+Owner root    read and write                                                                                            
+Group sysmin  read                                                                                                      
+Others        nothing                                                                                                   
+Mode          2750                                                                                                      
+ACL           set: further r╔══════════════════════════════════════════════════════════════╗                            
+Special       setgid: new en║ Change /srv/demo-stack                                       ║                            
+                            ║                                                              ║                            
+                            ║ > Owner:                < root >                             ║                            
+                            ║   Group:                sysmin                               ║                            
+                            ║   Owner may:            read and write                       ║                            
+                            ║   Group may:            read                                 ║                            
+                            ║   Others may:           nothing                              ║                            
+                            ║   Everything below it:  no                                   ║                            
+                            ║                                                              ║                            
+                            ║ [ Save ]  [ Cancel ]                                         ║                            
+                            ║                                                              ║                            
+                            ║ ←/→ choose · tab next · F2 save · esc cancel                 ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  
