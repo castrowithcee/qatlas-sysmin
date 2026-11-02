@@ -435,7 +435,7 @@ func (m *Model) hostKeys() []string {
 	if m.hst.sub == hostUsers {
 		keys = append(keys, "n new")
 		if m.canEditCurrent() {
-			keys = append(keys, "e edit")
+			keys = append(keys, "e edit", "d delete")
 		}
 	}
 	return append(keys, "/ filter")

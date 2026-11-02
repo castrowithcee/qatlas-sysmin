@@ -2,18 +2,18 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
    1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    1/2
-╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
-║   Name║ Info                                                         ║System ║
-║   ▾ Us║                                                              ║       ║
-║ > demo║ Users                                                        ║       ║
-║   demo║                                                              ║       ║
-║   ▸ Sy║ Admin: the user may become root with sudo. Docker: the user  ║       ║
-╚═══════║ may use Docker, which is practically root on this host.      ║═══════╝
-        ║ Enabled: the user is a member of the group sysmin; an admin  ║        
+Users (3╔══════════════════════════════════════════════════════════════╗     1/2
+╔═══════║ Info                                                         ║═══════╗
+║   Name║                                                              ║System ║
+║   ▾ Us║ Users                                                        ║       ║
+║ > demo║                                                              ║       ║
+║   demo║ Admin: the user may become root with sudo. Docker: the user  ║       ║
+║   ▸ Sy║ may use Docker, which is practically root on this host.      ║       ║
+╚═══════║ Enabled: the user is a member of the group sysmin; an admin  ║═══════╝
         ║ who is also enabled may use sysmin. n creates a user, e      ║        
-        ║ changes the marked one; every change asks first, runs        ║        
-        ║ through sudo and can be undone under Changes.                ║        
+        ║ changes the marked one, d deletes it; every change asks      ║        
+        ║ first, runs through sudo and can be undone under Changes,    ║        
+        ║ except deleting a home.                                      ║        
         ║                                                              ║        
         ║ esc close                                                    ║        
         ╚══════════════════════════════════════════════════════════════╝        

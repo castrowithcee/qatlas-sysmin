@@ -177,6 +177,9 @@ func listXattrs(path string) ([]string, error) {
 	return names, nil
 }
 
+// Protected reports whether path is a system path: one of the protected roots or below one.
+func (h *Host) Protected(path string) bool { return h.protected(path) }
+
 // protected reports whether path is one of the protected roots or below one. The root directory protects
 // only itself. The roots are compared both as
 // written and with their links resolved.

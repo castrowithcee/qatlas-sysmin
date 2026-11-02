@@ -51,6 +51,20 @@ const (
 	tHostChgUnlock        textID = "HostChgUnlock"
 	tHostLockStays        textID = "HostLockStays"
 	tHostSelfLock         textID = "HostSelfLock"
+	tHostSelfDelete       textID = "HostSelfDelete"
+	tHostDeleteTitle      textID = "HostDeleteTitle"
+	tHostHomeKeep         textID = "HostHomeKeep"
+	tHostHomeDelete       textID = "HostHomeDelete"
+	tHostDeleteHint       textID = "HostDeleteHint"
+	tHostDeleteHomeHint   textID = "HostDeleteHomeHint"
+	tHostDeleteKeeps      textID = "HostDeleteKeeps"
+	tHostDeleteFinal      textID = "HostDeleteFinal"
+	tHostHomeSystem       textID = "HostHomeSystem"
+	tHostHomeHolds        textID = "HostHomeHolds"
+	tHostHomeLink         textID = "HostHomeLink"
+	tHostHomeNotDir       textID = "HostHomeNotDir"
+	tHostHomeOwner        textID = "HostHomeOwner"
+	tHostHomeUnread       textID = "HostHomeUnread"
 	tHostSelfAdmin        textID = "HostSelfAdmin"
 	tHostLastAdmin        textID = "HostLastAdmin"
 	tHostRiskRoot         textID = "HostRiskRoot"
@@ -107,6 +121,20 @@ func init() {
 		tHostChgUnlock:        "Unlock",
 		tHostLockStays:        "Running sessions stay open until they end.",
 		tHostSelfLock:         "You cannot lock yourself.",
+		tHostSelfDelete:       "You cannot delete yourself.",
+		tHostDeleteTitle:      "Delete %s",
+		tHostHomeKeep:         "Keep",
+		tHostHomeDelete:       "Delete too",
+		tHostDeleteHint:       "The account goes; its home and files stay, and the delete can be undone. Lock is the normal way to stop someone.",
+		tHostDeleteHomeHint:   "The home and the mail spool are deleted with the account. This cannot be undone.",
+		tHostDeleteKeeps:      "A user with running processes is not deleted.",
+		tHostDeleteFinal:      "This cannot be undone: the home %s and the mail spool are deleted with all their files.",
+		tHostHomeSystem:       "%s is a system path.",
+		tHostHomeHolds:        "%s holds the home of %s.",
+		tHostHomeLink:         "%s is a link.",
+		tHostHomeNotDir:       "%s is not a directory.",
+		tHostHomeOwner:        "%s belongs to %s.",
+		tHostHomeUnread:       "What else %s holds could not be checked: %s.",
 		tHostSelfAdmin:        "You cannot take admin rights from yourself.",
 		tHostLastAdmin:        "%s is the last admin with sysmin access.",
 		tHostRiskRoot:         "root is the account with all rights on this host.",
@@ -161,6 +189,20 @@ func init() {
 		tHostChgUnlock:        "Entsperren",
 		tHostLockStays:        "Laufende Sitzungen bleiben offen, bis sie enden.",
 		tHostSelfLock:         "Du kannst dich nicht selbst sperren.",
+		tHostSelfDelete:       "Du kannst dich nicht selbst löschen.",
+		tHostDeleteTitle:      "%s löschen",
+		tHostHomeKeep:         "Behalten",
+		tHostHomeDelete:       "Auch löschen",
+		tHostDeleteHint:       "Das Konto geht; Home und Dateien bleiben, und das Löschen lässt sich rückgängig machen. Sperren ist der Normalfall, wenn jemand geht.",
+		tHostDeleteHomeHint:   "Home und Mail-Spool werden mit dem Konto gelöscht. Das lässt sich nicht rückgängig machen.",
+		tHostDeleteKeeps:      "Ein Benutzer mit laufenden Prozessen wird nicht gelöscht.",
+		tHostDeleteFinal:      "Das lässt sich nicht rückgängig machen: Das Home %s und der Mail-Spool werden mit allen Dateien gelöscht.",
+		tHostHomeSystem:       "%s ist ein Systempfad.",
+		tHostHomeHolds:        "%s enthält das Home von %s.",
+		tHostHomeLink:         "%s ist ein Link.",
+		tHostHomeNotDir:       "%s ist kein Verzeichnis.",
+		tHostHomeOwner:        "%s gehört %s.",
+		tHostHomeUnread:       "Was %s sonst enthält, ließ sich nicht prüfen: %s.",
 		tHostSelfAdmin:        "Du kannst dir die Adminrechte nicht selbst nehmen.",
 		tHostLastAdmin:        "%s ist der letzte Admin mit sysmin-Zugang.",
 		tHostRiskRoot:         "root ist das Konto mit allen Rechten auf diesem Host.",

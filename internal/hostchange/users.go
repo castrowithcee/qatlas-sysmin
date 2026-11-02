@@ -30,6 +30,7 @@ const (
 	ActionUserEnable        = "user.enable"
 	ActionUserLock          = "user.lock"
 	ActionUserUnlock        = "user.unlock"
+	ActionUserDelete        = "user.delete"
 	ActionUserAddGroups     = "user.add-groups"
 	ActionUserRemoveGroups  = "user.remove-groups"
 	ActionUserAddKey        = "user.add-key"
@@ -51,6 +52,7 @@ const (
 	optionDocker        = "docker"
 	optionHome          = "home"
 	optionGroupPrefix   = "group="
+	optionWithHome      = "with-home"
 )
 
 // fixedGroups have switches of their own; the further groups never include them.
@@ -70,6 +72,7 @@ func RegisterUserActions(r *Registry, h UserHost) error {
 		{ID: ActionUserEnable, Plan: u.planEnable, Inverse: u.inverseMembership},
 		{ID: ActionUserLock, Plan: u.planLock, Inverse: u.inverseLock},
 		{ID: ActionUserUnlock, Plan: u.planUnlock, Inverse: u.inverseLock},
+		{ID: ActionUserDelete, Plan: u.planDelete, Inverse: u.inverseDelete},
 		{ID: ActionUserAddGroups, Plan: u.planGroups(true), Inverse: u.inverseMembership},
 		{ID: ActionUserRemoveGroups, Plan: u.planGroups(false), Inverse: u.inverseMembership},
 		{ID: ActionUserAddKey, WantsSecret: true, Plan: u.planAddKey, Inverse: u.inverseAddKey},

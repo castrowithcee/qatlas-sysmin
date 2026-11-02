@@ -32,7 +32,7 @@ func sameList(t *testing.T, what string, got, want []string) {
 
 func TestDefaultRegistersTheUserActions(t *testing.T) {
 	sameList(t, "ids", Default().IDs(), []string{
-		"user.add-groups", "user.add-key", "user.create", "user.create-service", "user.enable", "user.lock", "user.remove-groups", "user.remove-key",
+		"user.add-groups", "user.add-key", "user.create", "user.create-service", "user.delete", "user.enable", "user.lock", "user.remove-groups", "user.remove-key",
 		"user.set-admin", "user.set-docker", "user.set-password", "user.unlock",
 	})
 }

@@ -380,6 +380,8 @@ type hostAsk struct {
 	// risk is the sentence that makes the confirmation red: the change touches root, a system account or a
 	// system group.
 	risk string
+	// final replaces the consequence of a change that cannot be undone with one that names exactly what goes.
+	final string
 }
 
 // hostPlanned is a change the registry accepted, ready to be confirmed.
@@ -413,7 +415,11 @@ func (m *Model) planHost(a hostAsk) (hostPlanned, string) {
 // confirmHost shows the confirmation of a planned change; y runs it.
 func (m *Model) confirmHost(p hostPlanned) {
 	a := p.ask
-	q := planQuestion(p.plan.Sentence, p.commands, p.plan.NotReversible, "apply")
+	verb := "apply"
+	if a.id == hostchange.ActionUserDelete {
+		verb = "delete"
+	}
+	q := planQuestion(p.plan.Sentence, p.commands, p.plan.NotReversible, verb)
 	if a.power {
 		q.warn = true
 		q.consequence = tr(tHostPowerWarn) + " " + q.consequence
@@ -423,6 +429,14 @@ func (m *Model) confirmHost(p hostPlanned) {
 	}
 	if a.id == hostchange.ActionUserLock {
 		q.consequence += " " + tr(tHostLockStays)
+	}
+	if a.id == hostchange.ActionUserDelete {
+		q.warn, q.danger = true, true
+		if p.plan.NotReversible != "" && a.final != "" {
+			q.consequence = a.final
+		} else if p.plan.NotReversible == "" {
+			q.consequence = tr(tHostDeleteKeeps) + " " + q.consequence
+		}
 	}
 	if a.risk != "" {
 		q.warn, q.danger = true, true
