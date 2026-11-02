@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -280,9 +281,6 @@ func TestSetPasswordRefusals(t *testing.T) {
 		input  string
 		reason string
 	}{
-		{[]string{"root"}, marker, "root is not changeable"},
-		{[]string{"svc-demo"}, marker, "system user"},
-		{[]string{"nobody"}, marker, "system user"},
 		{[]string{"demo-ghost"}, marker, "no local user"},
 		{[]string{"demo-user", "later"}, marker, "unknown option"},
 		{[]string{"demo-user"}, "", "standard input"},
@@ -418,10 +416,6 @@ func TestProtectionRulesRefuseBeforeAnythingRuns(t *testing.T) {
 		args   []string
 		reason string
 	}{
-		{"root", 1000, nil, ActionUserSetDocker, []string{"root", "on"}, "root is not changeable"},
-		{"system user", 1000, nil, ActionUserSetAdmin, []string{"svc-demo", "on"}, "system user"},
-		{"nobody", 1000, nil, ActionUserAddGroups, []string{"nobody", "projects"}, "system user"},
-		{"uid 0 alias", 1000, func(f *userFixture) { f.user("demo-user").uid = 0; f.flush() }, ActionUserSetDocker, []string{"demo-user", "on"}, "UID 0"},
 		{"own admin", 1000, nil, ActionUserSetAdmin, []string{"demo-admin", "off"}, "from yourself"},
 		{"last admin", 0, onlyOneAdmin, ActionUserSetAdmin, []string{"demo-admin", "off"}, "last administrator"},
 		{"last admin who is in sudo only besides", 1001, onlyOneAdmin, ActionUserSetAdmin, []string{"demo-admin", "off"}, "last administrator"},
@@ -429,9 +423,6 @@ func TestProtectionRulesRefuseBeforeAnythingRuns(t *testing.T) {
 		{"invalid user name", 1000, nil, ActionUserSetDocker, []string{"demo;x", "on"}, "not a valid user name"},
 		{"invalid on/off", 1000, nil, ActionUserSetDocker, []string{"demo-user", "yes"}, "on or off"},
 		{"unknown group", 1000, nil, ActionUserAddGroups, []string{"demo-user", "nothere"}, "no group nothere"},
-		{"system group", 1000, nil, ActionUserAddGroups, []string{"demo-user", "adm"}, "system group"},
-		{"system group removal", 1000, nil, ActionUserRemoveGroups, []string{"demo-user", "adm"}, "system group"},
-		{"high system group", 1000, nil, ActionUserAddGroups, []string{"demo-user", "nogroup"}, "system group"},
 		{"sudo as further group", 1000, nil, ActionUserAddGroups, []string{"demo-user", "sudo"}, "own switch"},
 		{"sysmin removal as further group", 1000, nil, ActionUserRemoveGroups, []string{"demo-admin", "sysmin"}, "own switch"},
 		{"primary group", 1000, nil, ActionUserRemoveGroups, []string{"demo-user", "demo-user"}, "primary group"},
@@ -522,7 +513,6 @@ func TestKeyActionsAndTheirUndo(t *testing.T) {
 		{ActionUserAddKey, []string{"demo-user"}, k.line, "already"},
 		{ActionUserRemoveKey, []string{"demo-user", newDemoKey(t, "").fp}, "", "no SSH key"},
 		{ActionUserRemoveKey, []string{"demo-user", "MD5:aa"}, "", "not a SHA256"},
-		{ActionUserAddKey, []string{"root"}, k.line, "root is not changeable"},
 		{ActionUserAddKey, []string{"demo-user"}, "", "standard input"},
 	} {
 		f.calls = nil
@@ -602,4 +592,105 @@ func TestSecretsStayOutOfArgvDisplaysJournalAndAudit(t *testing.T) {
 func auditText(a []AuditEntry) string {
 	b, _ := json.Marshal(a)
 	return string(b)
+}
+
+// bounds are the IDs around the edges of the regular range.
+var bounds = []struct {
+	id     int
+	system bool
+}{{0, true}, {999, true}, {1000, false}, {60000, false}, {60001, true}, {65534, true}}
+
+func TestSystemAndRootAccountsAreChangeable(t *testing.T) {
+	k := newDemoKey(t, "")
+	for _, b := range bounds {
+		t.Run(fmt.Sprint(b.id), func(t *testing.T) {
+			f := newUserFixture(t, 1002)
+			home := filepath.Join(f.host.HomeBase, "demo-edge")
+			if err := os.MkdirAll(home, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			f.users = append(f.users, worldUser{"demo-edge", b.id, 1500, home, "$6$demo-e", "19000"})
+			f.groups = append(f.groups, worldGroup{"demo-edge", 1500, nil})
+			f.flush()
+			if usr, err := f.host.Accounts.User("demo-edge"); err != nil || usr.System != b.system {
+				t.Fatalf("user %+v err %v, want system %v", usr, err, b.system)
+			}
+			for _, step := range []struct {
+				id    string
+				args  []string
+				input string
+			}{
+				{ActionUserSetDocker, []string{"demo-edge", "on"}, ""},
+				{ActionUserSetAdmin, []string{"demo-edge", "on"}, ""},
+				{ActionUserAddGroups, []string{"demo-edge", "adm", "nogroup"}, ""},
+				{ActionUserSetPassword, []string{"demo-edge"}, marker},
+				{ActionUserAddKey, []string{"demo-edge"}, k.line},
+			} {
+				var in []byte
+				if step.input != "" {
+					in = []byte(step.input)
+				}
+				res, err := f.runner.Apply(context.Background(), step.id, step.args, in)
+				if err != nil {
+					t.Fatalf("%s: %v", step.id, err)
+				}
+				if res.Entry.Result != ResultApplied {
+					t.Fatalf("%s: %+v", step.id, res.Entry)
+				}
+				if _, err := f.runner.Undo(context.Background(), res.Entry.ID); err != nil {
+					t.Fatalf("undo of %s: %v", step.id, err)
+				}
+			}
+		})
+	}
+}
+
+func TestSystemAccountsKeepTheLockoutRules(t *testing.T) {
+	// The only administrators are system accounts; none of them may take it from themselves or leave the host without one.
+	setup := func(f *userFixture) {
+		f.users = append(f.users, worldUser{"demo-svc", 999, 999, "/nonexistent", "*", "19000"})
+		f.groups = append(f.groups, worldGroup{"demo-svc", 999, nil})
+		for _, g := range []string{"sudo", "sysmin"} {
+			f.group(g).members = []string{"demo-svc"}
+		}
+		f.flush()
+	}
+	f := newUserFixture(t, 999)
+	setup(f)
+	if _, err := f.runner.Apply(context.Background(), ActionUserSetAdmin, []string{"demo-svc", "off"}, nil); err == nil || !strings.Contains(err.Error(), "from yourself") {
+		t.Fatalf("own admin: %v", err)
+	}
+	f = newUserFixture(t, 0)
+	setup(f)
+	if _, err := f.runner.Apply(context.Background(), ActionUserSetAdmin, []string{"demo-svc", "off"}, nil); err == nil || !strings.Contains(err.Error(), "last administrator") {
+		t.Fatalf("last admin: %v", err)
+	}
+	// A system administrator counts as the remaining one.
+	f = newUserFixture(t, 0)
+	f.group("sudo").members = []string{"demo-admin", "root"}
+	f.group("sysmin").members = []string{"demo-admin", "root"}
+	f.flush()
+	if _, err := f.runner.Apply(context.Background(), ActionUserSetAdmin, []string{"demo-admin", "off"}, nil); err != nil {
+		t.Fatalf("another administrator exists: %v", err)
+	}
+}
+
+func TestInversesRefuseANegativeRecordedUID(t *testing.T) {
+	f := newUserFixture(t, 1000)
+	fp := newDemoKey(t, "").fp
+	line := `ssh-ed25519 AAAA demo`
+	for id, state := range map[string]string{
+		ActionUserSetPassword: `{"name":"demo-user","uid":-1,"hash":"$6$x","lastchg":"20000"}`,
+		ActionUserSetDocker:   `{"name":"demo-user","uid":-1,"add":true,"groups":["docker"],"before":{"docker":false}}`,
+		ActionUserAddKey:      `{"name":"demo-user","uid":-1,"fingerprint":"` + fp + `"}`,
+		ActionUserRemoveKey:   `{"name":"demo-user","uid":-1,"fingerprint":"` + fp + `","lines":["` + line + `"]}`,
+	} {
+		def, ok := f.runner.Registry.Lookup(id)
+		if !ok {
+			t.Fatalf("no action %s", id)
+		}
+		if _, err := def.Inverse(json.RawMessage(state)); err == nil || !strings.Contains(err.Error(), "recorded") || strings.Contains(err.Error(), "cannot be read") {
+			t.Errorf("%s: err %v, want a refusal of the recorded state", id, err)
+		}
+	}
 }

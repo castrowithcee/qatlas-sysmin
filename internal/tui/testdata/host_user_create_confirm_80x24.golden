@@ -2,14 +2,14 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
    1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
   [Users]  Groups   Folders   Changes                                           
 ────────╔══════════════════════════════════════════════════════════════╗────────
-Users (3║ ⚠ Create the user demo-new with the home /home/demo-new and  ║     1/3
+Users (3║ ⚠ Create the user demo-new with the home /home/demo-new and  ║     1/2
 ╔═══════║   an initial password that must be changed at the first      ║═══════╗
 ║   Name║   login, as an administrator with access to sysmin, with     ║System ║
-║ > demo║   access to Docker, in the group demo-team.                  ║       ║
-║   demo║                                                              ║       ║
-║   svc-║     Admin and Docker rights allow practically everything on  ║system ║
-╚═══════║     this host. You can undo this under Host > Changes.       ║═══════╝
-        ║                                                              ║        
+║   ▾ Us║   access to Docker, in the group demo-team.                  ║       ║
+║ > demo║                                                              ║       ║
+║   demo║     Admin and Docker rights allow practically everything on  ║       ║
+║   ▸ Sy║     this host. You can undo this under Host > Changes.       ║       ║
+╚═══════║                                                              ║═══════╝
         ║   $ useradd -m -d /home/demo-new -U -s /bin/bash -G          ║        
         ║     sudo,sysmin,docker,demo-team demo-new                    ║        
         ║   $ chpasswd < <password>                                    ║        

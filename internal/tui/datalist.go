@@ -33,6 +33,8 @@ type dataPage struct {
 	tab    int
 	open   bool
 	scroll int
+	// sec is the fold state of a page with sections; see datasections.go.
+	sec sectionState
 }
 
 // dataSpec is what a page brings to the drawing: its title, its empty text, and the lines of a tab for a
@@ -69,8 +71,11 @@ func (m *Model) wheelRows(p *dataPage, up bool) tea.Cmd {
 	})
 }
 
-// current is the name of the marked row.
-func (p *dataPage) current() (string, bool) { return p.list.selected() }
+// current is the name of the marked row; a heading of a section is no row and has none.
+func (p *dataPage) current() (string, bool) {
+	name, ok := p.list.selected()
+	return name, ok && !isSectionRow(name)
+}
 
 // filtering reports whether the filter takes the typed keys.
 func (p *dataPage) filtering() bool { return p != nil && p.list.editing }
@@ -97,12 +102,16 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	if !have {
 		p.open = false
 	}
-	total, shown := len(p.list.all), len(p.list.matches)
+	total := p.entries()
+	at, shown := p.list.cursor+1, len(p.list.matches)
+	if p.sectioned() {
+		at, shown = p.sectionPosition()
+	}
 	position := ""
 	if total > 0 {
-		position = fmt.Sprintf("%d/%d", p.list.cursor+1, shown)
-		if shown != total {
-			position = fmt.Sprintf("%d/%d (%d total)", p.list.cursor+1, shown, total)
+		position = fmt.Sprintf("%d/%d", at, shown)
+		if shown != total && (!p.sectioned() || p.list.query() != "") {
+			position = fmt.Sprintf("%d/%d (%d total)", at, shown, total)
 		}
 	}
 	if !m.backdrop {
@@ -111,7 +120,9 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	if p.open {
 		return m.detailScreen(p, v, name, avail, width, top)
 	}
-	wide := width >= wideDetailMin && have
+	// A heading has no detail, but the panel stays so the table does not jump while the mark moves over it.
+	marked, hasMark := p.list.selected()
+	wide := width >= wideDetailMin && hasMark && (have || isSectionRow(marked))
 	tableWidth := width
 	detailWidth := 0
 	if wide {
@@ -128,12 +139,24 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	}
 	inner := detailWidth - 4
 	strip, spans := tabStripLine(p, inner, detailFocus)
-	content := v.lines(name, p.tab, inner)
+	title := name
+	var content []string
+	if have {
+		content = v.lines(name, p.tab, inner)
+	} else {
+		sec, _ := p.section(marked)
+		title = tr(sec.title)
+		content = wrapIndented(styles.hint, "", tr(tSectionHint), inner)
+		strip, spans = "", nil
+	}
 	height := min(max(len(content)+2, len(left)-2), avail-2)
 	room := max(height-2, 1)
 	p.scroll = min(max(p.scroll, 0), max(len(content)-room, 0))
 	body := append([]string{strip, ""}, content[p.scroll:min(p.scroll+room, len(content))]...)
-	right := panel(truncateCells(name, inner-2), body, inner, height, panelOpts{focused: detailFocus})
+	if !have {
+		body = content[:min(room, len(content))]
+	}
+	right := panel(truncateCells(title, inner-2), body, inner, height, panelOpts{focused: detailFocus})
 	left0 := tableWidth + 1
 	m.addZone(0, top, tableWidth, top+len(left), zoneContent)
 	m.addWheel(0, top, tableWidth, top+len(left), rowsWheel)
@@ -172,7 +195,7 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 		}
 		return panelSide(text, room, focused)
 	}
-	total, shown := len(p.list.all), len(p.list.matches)
+	total, shown := p.entries(), len(p.list.matches)
 	lines := []string{titleLine(fmt.Sprintf("%s (%d)", v.title, total), position, width)}
 	if framed {
 		lines = append(lines, panelTop("", "", room, focused))
@@ -199,8 +222,23 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 	start, end := p.list.window(max(avail-len(lines)-foot, 1), func(int) int { return 1 })
 	for i := start; i < end; i++ {
 		i := i
-		row := m.listRowIn(room, i == p.list.cursor, t.line(p.rows[p.list.matches[i]], layout))
+		name := p.list.matches[i]
+		heading := isSectionRow(name)
+		text := ""
+		if heading {
+			text = p.headingLine(name)
+		} else {
+			text = t.line(p.rows[name], layout)
+		}
+		row := m.listRowIn(room, i == p.list.cursor, text)
 		m.addHit(0, top+len(lines), width, top+len(lines)+1, func() tea.Cmd {
+			if heading {
+				// A click on a heading folds it at once, which is harmless and undone by the next click.
+				m.focusRows()
+				p.list.cursor = i
+				p.toggleHeading()
+				return nil
+			}
 			fromDetail := m.focusRows()
 			if p.list.cursor != i {
 				p.list.cursor, p.scroll = i, 0
@@ -306,6 +344,7 @@ func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 		p.list.move(1)
 	case keyIs(key, actPageUp), keyIs(key, actPageDown), keyIs(key, actHome), keyIs(key, actEnd):
 		p.list.page(key, 0, 10)
+	case p.headingKey(key):
 	case keyIs(key, actEnter):
 		if _, ok := p.current(); ok {
 			p.scroll = 0

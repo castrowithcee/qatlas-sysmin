@@ -39,15 +39,13 @@ type HostSource interface {
 
 var errNoHostSource = errors.New("no host source")
 
-// hostState is the Host area: the page shown and the state of each page. System rows are shown unless
-// hideSystem is set; the setting holds for both tables.
+// hostState is the Host area: the page shown and the state of each page.
 type hostState struct {
-	sub        int
-	hideSystem bool
-	users      hostUsersState
-	groups     hostGroupsState
-	fold       hostFoldersState
-	chg        hostChangesState
+	sub    int
+	users  hostUsersState
+	groups hostGroupsState
+	fold   hostFoldersState
+	chg    hostChangesState
 }
 
 type hostUsersState struct {
@@ -197,48 +195,51 @@ func (m *Model) hostGroupColumns() []column {
 	}
 }
 
-// fillHostUsers rebuilds the rows of Users from what was read, without the system users where they are hidden.
+// fillHostUsers rebuilds the rows of Users from what was read: the users, and the system accounts in a section
+// of their own that starts folded.
 func (m *Model) fillHostUsers() {
 	u := &m.hst.users
 	u.items = map[string]hostadmin.User{}
 	rows := map[string][]string{}
-	var names []string
+	regular := dataSection{key: "users", title: tSubUsers}
+	system := dataSection{key: "system", title: tHostSysAccounts, collapsed: true}
 	for _, user := range u.all {
-		if user.System && m.hst.hideSystem {
-			continue
-		}
 		u.items[user.Name] = user
-		names = append(names, user.Name)
-		system := ""
 		if user.System {
-			system = hostSystem
+			system.names = append(system.names, user.Name)
+		} else {
+			regular.names = append(regular.names, user.Name)
+		}
+		mark := ""
+		if user.System {
+			mark = hostSystem
 		}
 		rows[user.Name] = []string{m.diffText(user.Name), adminText(user), hostYesNo(user.Docker),
-			m.diffText(strings.Join(user.Groups, ", ")), system}
+			m.diffText(strings.Join(user.Groups, ", ")), mark}
 	}
 	u.page.cols = m.hostUserColumns()
-	u.page.setRows(names, rows)
+	u.page.setSections([]dataSection{regular, system}, rows)
 }
 
 func (m *Model) fillHostGroups() {
 	g := &m.hst.groups
 	g.items = map[string]hostadmin.Group{}
 	rows := map[string][]string{}
-	var names []string
+	regular := dataSection{key: "groups", title: tSubGroups}
+	system := dataSection{key: "system", title: tHostSysGroups, collapsed: true}
 	for _, group := range g.all {
-		if group.System && m.hst.hideSystem {
-			continue
-		}
 		g.items[group.Name] = group
-		names = append(names, group.Name)
-		system := ""
+		mark := ""
 		if group.System {
-			system = hostSystem
+			mark = hostSystem
+			system.names = append(system.names, group.Name)
+		} else {
+			regular.names = append(regular.names, group.Name)
 		}
-		rows[group.Name] = []string{m.diffText(group.Name), strconv.Itoa(len(group.Members)), system}
+		rows[group.Name] = []string{m.diffText(group.Name), strconv.Itoa(len(group.Members)), mark}
 	}
 	g.page.cols = m.hostGroupColumns()
-	g.page.setRows(names, rows)
+	g.page.setSections([]dataSection{regular, system}, rows)
 }
 
 func hostYesNo(b bool) string {
@@ -301,7 +302,7 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 	case tabOverview:
 		lines := factLines([][2]string{
 			{tr(tColName), m.diffText(u.Name)},
-			{tr(tColType), hostKindText(u.System)},
+			{tr(tColType), userKindText(u.System)},
 			{tr(tHostColAdmin), admin},
 			{tr(tHostColDocker), shownHost(hostYesNo(u.Docker))},
 			{tr(tHostLblEnabled), shownHost(hostYesNo(u.Enabled))},
@@ -427,21 +428,24 @@ func (m *Model) hostKeys() []string {
 	if m.hst.sub == hostChanges {
 		return []string{"↑/↓ move", "enter undo", "ctrl+r read as root", "/ filter"}
 	}
-	toggle := "space hide system"
-	if m.hst.hideSystem {
-		toggle = "space show system"
+	enter := "enter details"
+	if p := m.currentPage(); p != nil && p.onHeading() {
+		enter = "enter collapse"
+		if p.headingFolded() {
+			enter = "enter expand"
+		}
 	}
-	keys := []string{"↑/↓ move", "enter details"}
+	keys := []string{"↑/↓ move", enter}
 	if m.hst.sub == hostUsers {
 		keys = append(keys, "n new")
 		if m.canEditCurrent() {
 			keys = append(keys, "e edit")
 		}
 	}
-	return append(keys, toggle, "/ filter")
+	return append(keys, "/ filter")
 }
 
-// hostKey handles the keys of Host that the page does not: space hides or shows the system accounts.
+// hostKey handles the keys of Host that the page does not.
 func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	if m.hst.sub == hostChanges {
 		return nil, false
@@ -470,11 +474,5 @@ func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		return nil, false
 	}
-	if !keyIs(key, actSpace) {
-		return nil, false
-	}
-	m.hst.hideSystem = !m.hst.hideSystem
-	m.fillHostUsers()
-	m.fillHostGroups()
-	return nil, true
+	return nil, false
 }
