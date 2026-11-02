@@ -125,6 +125,10 @@ type FolderHost struct {
 	Stacks   StackCheck
 	// rootUID is the owner the stack folder setup writes; tests that cannot own files as root change it.
 	rootUID int
+	// service says who the service user is; nil asks the host. Tests set it.
+	service func() (serviceIdentity, error)
+	// readACL reads the access ACL of a parent folder; nil reads the host. Tests set it.
+	readACL func(path string) ([]byte, error)
 }
 
 // DefaultFolderHost is the real host.
@@ -138,7 +142,10 @@ func RegisterFolderActions(r *Registry, h FolderHost) error {
 	if err := r.Register(Definition{ID: ActionFolderSetPermissions, Plan: f.planSetPermissions, Inverse: f.inverseSetPermissions}); err != nil {
 		return err
 	}
-	return r.Register(Definition{ID: ActionFolderSetupStacks, Plan: f.planSetupStacks, Inverse: f.inverseSetupStacks, Preview: f.previewSetupStacks})
+	if err := r.Register(Definition{ID: ActionFolderSetupStacks, Plan: f.planSetupStacks, Inverse: f.inverseSetupStacks, Preview: f.previewSetupStacks}); err != nil {
+		return err
+	}
+	return r.Register(Definition{ID: ActionStackSetupAccess, Plan: f.planStackAccess, Inverse: f.inverseStackAccess, Preview: f.previewStackAccess})
 }
 
 type folderActions struct{ h FolderHost }

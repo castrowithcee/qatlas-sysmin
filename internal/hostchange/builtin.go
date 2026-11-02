@@ -17,7 +17,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
-// Built-in steps change a user's ~/.ssh/authorized_keys. sysmin runs them itself because no standard tool
+// The key steps change a user's ~/.ssh/authorized_keys. sysmin runs them itself because no standard tool
 // writes below a directory the user controls without following a link the user may have planted there: each
 // step opens the home, .ssh and the file relative to one another and refuses a link at the last two levels.
 const (
@@ -31,7 +31,7 @@ const (
 	maxKeysFile   = 1 << 20
 )
 
-var builtinSteps = map[string]bool{stepKeysAdd: true, stepKeysRemove: true}
+var builtinSteps = map[string]bool{stepKeysAdd: true, stepKeysRemove: true, stepACLGrant: true, stepACLRestore: true}
 
 // accountLookup resolves the user a built-in step works for.
 type accountLookup func(name string) (hostadmin.Account, error)
@@ -43,6 +43,8 @@ func systemAccount(name string) (hostadmin.Account, error) {
 
 func runBuiltin(c Command, lookup accountLookup) error {
 	switch {
+	case c.Argv[0] == stepACLGrant || c.Argv[0] == stepACLRestore:
+		return runACLStep(c)
 	case c.Argv[0] == stepKeysAdd && len(c.Argv) == 2:
 		acc, err := lookup(c.Argv[1])
 		if err != nil {

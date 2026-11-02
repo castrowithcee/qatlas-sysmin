@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/adopt"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
@@ -192,46 +193,61 @@ func (h FolderHost) namer() (user, group func(id int) string) {
 	return pick(users), pick(groups)
 }
 
-func (h FolderHost) planStackFolder(ctx context.Context, path string) (*stackFolderWork, error) {
+// resolveFolder refuses a path that is not the real, existing, non-system folder the setup works on.
+func resolveFolder(path string) error {
 	if err := checkFolderPath(path); err != nil {
-		return nil, err
+		return err
 	}
 	if IsSystemPath(path) {
-		return nil, Refusef("%s is a system path; a stack folder there is not set up", path)
+		return Refusef("%s is a system path; a stack folder there is not set up", path)
 	}
 	real, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil, Refusef("%s does not exist", path)
+			return Refusef("%s does not exist", path)
 		}
-		return nil, err
+		return err
 	}
 	if real != path {
-		return nil, Refusef("%s is or lies behind a link to %s; give the real folder instead", path, real)
+		return Refusef("%s is or lies behind a link to %s; give the real folder instead", path, real)
 	}
-	gid, err := h.serviceGroupGID()
-	if err != nil {
-		return nil, err
-	}
-	rootInfo, err := os.Lstat(path)
-	if err != nil {
-		return nil, Refusef("%s cannot be read: %v", path, err)
-	}
-	rootEntry, err := entryOf(path, rootInfo)
-	if err != nil {
-		return nil, err
-	}
-	if rootEntry.Kind != "dir" {
-		return nil, Refusef("%s is not a folder", path)
-	}
-	if rootEntry.Mode&0o7000 != 0 {
-		return nil, Refusef("%s has a special bit (setuid, setgid or sticky) that this change would drop; special bits stay unchanged", path)
-	}
-	dirents, err := os.ReadDir(path)
-	if err != nil {
-		return nil, Refusef("%s cannot be read: %v", path, err)
-	}
+	return nil
+}
 
+// folderRoot reads the folder itself and refuses one the setup could not restore.
+func folderRoot(path string) (folderEntry, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return folderEntry{}, Refusef("%s cannot be read: %v", path, err)
+	}
+	e, err := entryOf(path, info)
+	if err != nil {
+		return folderEntry{}, err
+	}
+	if e.Kind != "dir" {
+		return folderEntry{}, Refusef("%s is not a folder", path)
+	}
+	if e.Mode&0o7000 != 0 {
+		return folderEntry{}, Refusef("%s has a special bit (setuid, setgid or sticky) that this change would drop; special bits stay unchanged", path)
+	}
+	return e, nil
+}
+
+// stackScan is what planning one or more stacks reads once and collects: the running containers, the files
+// they mount, and the entries to change.
+type stackScan struct {
+	gid                 int
+	rootUID             int
+	rootDev             uint64
+	running             []adopt.Stack
+	details             map[string]inspected
+	mounted             map[string]bool
+	userName, groupName func(int) string
+	targets             []stackTarget
+	total               int
+}
+
+func (h FolderHost) newStackScan(ctx context.Context, gid int, rootDev uint64) (*stackScan, error) {
 	running, details, err := h.Stacks.listRunning(ctx)
 	if err != nil {
 		return nil, Refusef("the running stacks cannot be checked, so nothing was changed: %v", err)
@@ -245,30 +261,166 @@ func (h FolderHost) planStackFolder(ctx context.Context, path string) (*stackFol
 			}
 		}
 	}
+	s := &stackScan{gid: gid, rootUID: h.rootUID, rootDev: rootDev, running: running, details: details, mounted: mounted, total: 1}
+	s.userName, s.groupName = h.namer()
+	return s, nil
+}
 
-	userName, groupName := h.namer()
-	access := func(e folderEntry) EntryAccess {
-		return EntryAccess{Owner: userName(e.UID), Group: groupName(e.GID), Mode: e.Mode}
+func (s *stackScan) access(e folderEntry) EntryAccess {
+	return EntryAccess{Owner: s.userName(e.UID), Group: s.groupName(e.GID), Mode: e.Mode}
+}
+
+func serviceAccess(mode uint32) EntryAccess {
+	return EntryAccess{Owner: "root", Group: control.ServiceGroup, Mode: mode}
+}
+
+// add plans one entry: its change, or why it stays as it is.
+func (s *stackScan) add(e folderEntry, role string, mode uint32) (*StackFolderChange, *StackFolderKept) {
+	if e.UID == s.rootUID && e.GID == s.gid && e.Mode == mode {
+		return nil, &StackFolderKept{e.Path, fmt.Sprintf("already %s", serviceAccess(mode))}
 	}
-	serviceAccess := func(mode uint32) EntryAccess {
-		return EntryAccess{Owner: "root", Group: control.ServiceGroup, Mode: mode}
+	s.targets = append(s.targets, stackTarget{e, role, mode})
+	return &StackFolderChange{Path: e.Path, Role: role, Before: s.access(e), After: serviceAccess(mode)}, nil
+}
+
+// stack plans the stack folder dir, whose compose files are composes, and its compose and env files.
+// limitPath names the folder in the message when there are too many entries.
+func (s *stackScan) stack(name, dir string, dirEntry folderEntry, composes []string, limitPath string) (StackFolderStack, stackFiles, error) {
+	st := StackFolderStack{Name: name, Path: dir}
+	files := stackFiles{name: name}
+	fileEntry := func(p string) (folderEntry, string) {
+		info, err := os.Lstat(p)
+		if err != nil {
+			return folderEntry{}, "cannot be read: " + err.Error()
+		}
+		e, err := entryOf(p, info)
+		switch {
+		case err != nil:
+			return folderEntry{}, err.Error()
+		case e.Kind == "link":
+			return folderEntry{}, "is a link; links are not followed and stay unchanged"
+		case e.Kind != "file":
+			return folderEntry{}, "is not a regular file"
+		case e.dev != s.rootDev:
+			return folderEntry{}, "lies on another file system or mount"
+		case e.Mode&0o7000 != 0:
+			return folderEntry{}, "has a special bit (setuid, setgid or sticky) that a change would drop"
+		}
+		if r, err := filepath.EvalSymlinks(p); err != nil || r != p {
+			return folderEntry{}, "lies behind a link"
+		}
+		return e, ""
 	}
-	set := func(e folderEntry, mode uint32) bool { return e.UID == h.rootUID && e.GID == gid && e.Mode == mode }
+	manage := func(p, role string, mode uint32) bool {
+		e, why := fileEntry(p)
+		if why == "" && (s.mounted[p]) {
+			why = "is mounted into a container and stays unchanged"
+		}
+		if why != "" {
+			st.Kept = append(st.Kept, StackFolderKept{p, why})
+			return false
+		}
+		ch, kept := s.add(e, role, mode)
+		if ch != nil {
+			st.Changes = append(st.Changes, *ch)
+		} else {
+			st.Kept = append(st.Kept, *kept)
+		}
+		return true
+	}
+
+	if ch, kept := s.add(dirEntry, RoleStackFolder, modeStackFolder); ch != nil {
+		st.Changes = append(st.Changes, *ch)
+	} else {
+		st.Kept = append(st.Kept, *kept)
+	}
+	for _, c := range composes {
+		manage(c, RoleComposeFile, modeComposeFile)
+		files.compose = append(files.compose, c)
+	}
+	envs := []string{filepath.Join(dir, ".env")}
+	for _, r := range s.running {
+		if filepath.Clean(r.Dir) != dir {
+			continue
+		}
+		st.Running = true
+		for _, id := range r.ContainerIDs {
+			for _, f := range splitPaths(s.details[id].EnvFiles) {
+				if lexicallyUnder(dir, f) {
+					envs = appendOnce(envs, f)
+				} else {
+					st.Kept = append(st.Kept, StackFolderKept{f, "is an env file outside the stack folder and stays unchanged"})
+				}
+			}
+		}
+	}
+	for _, p := range envs {
+		if _, err := os.Lstat(p); errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if manage(p, RoleEnvFile, modeEnvFile) {
+			files.env = append(files.env, p)
+		}
+	}
+	if s.total += 1 + len(composes) + len(envs); s.total > MaxFolderEntries {
+		return st, files, Refusef("%s has more than %d entries to set up; use a smaller folder", limitPath, MaxFolderEntries)
+	}
+	return st, files, nil
+}
+
+// commands are the chown and chmod calls for the planned entries and the entries as they are now.
+func (s *stackScan) commands() ([]Command, []folderEntry) {
+	var cmds []Command
+	var entries []folderEntry
+	var chownPaths []string
+	chmodPaths := map[uint32][]string{}
+	for _, t := range s.targets {
+		entries = append(entries, t.entry)
+		if t.entry.UID != s.rootUID || t.entry.GID != s.gid {
+			chownPaths = append(chownPaths, t.entry.Path)
+		}
+		if t.entry.Mode != t.mode {
+			chmodPaths[t.mode] = append(chmodPaths[t.mode], t.entry.Path)
+		}
+	}
+	sort.Strings(chownPaths)
+	for _, chunk := range chunkPaths(chownPaths) {
+		cmds = append(cmds, Command{Argv: append([]string{"chown", "-h", "--", "root:" + control.ServiceGroup}, chunk...)})
+	}
+	for _, m := range []uint32{modeStackFolder, modeComposeFile, modeEnvFile} {
+		sort.Strings(chmodPaths[m])
+		for _, chunk := range chunkPaths(chmodPaths[m]) {
+			cmds = append(cmds, Command{Argv: append([]string{"chmod", "--", fmt.Sprintf("%04o", m)}, chunk...)})
+		}
+	}
+	return cmds, entries
+}
+
+func (h FolderHost) planStackFolder(ctx context.Context, path string) (*stackFolderWork, error) {
+	if err := resolveFolder(path); err != nil {
+		return nil, err
+	}
+	gid, err := h.serviceGroupGID()
+	if err != nil {
+		return nil, err
+	}
+	rootEntry, err := folderRoot(path)
+	if err != nil {
+		return nil, err
+	}
+	dirents, err := os.ReadDir(path)
+	if err != nil {
+		return nil, Refusef("%s cannot be read: %v", path, err)
+	}
+	scan, err := h.newStackScan(ctx, gid, rootEntry.dev)
+	if err != nil {
+		return nil, err
+	}
 
 	w := &stackFolderWork{preview: StackFolderPreview{Path: path, OthersLoseAccess: true}}
-	var targets []stackTarget
-	total := 1
-	add := func(e folderEntry, role string, mode uint32) (*StackFolderChange, *StackFolderKept) {
-		if set(e, mode) {
-			return nil, &StackFolderKept{e.Path, fmt.Sprintf("already %s", serviceAccess(mode))}
-		}
-		targets = append(targets, stackTarget{e, role, mode})
-		return &StackFolderChange{Path: e.Path, Role: role, Before: access(e), After: serviceAccess(mode)}, nil
-	}
-	if ch, _ := add(rootEntry, RoleFolder, modeStackFolder); ch != nil {
+	if ch, _ := scan.add(rootEntry, RoleFolder, modeStackFolder); ch != nil {
 		w.preview.Folder = ch
 	}
-
 	for _, d := range dirents {
 		dir := filepath.Join(path, d.Name())
 		info, err := os.Lstat(dir)
@@ -299,85 +451,9 @@ func (h FolderHost) planStackFolder(ctx context.Context, path string) (*stackFol
 		case dirEntry.Mode&0o7000 != 0:
 			return nil, Refusef("%s has a special bit (setuid, setgid or sticky) that this change would drop; special bits stay unchanged", dir)
 		}
-
-		st := StackFolderStack{Name: d.Name(), Path: dir}
-		files := stackFiles{name: d.Name()}
-		fileEntry := func(p string) (folderEntry, string) {
-			info, err := os.Lstat(p)
-			if err != nil {
-				return folderEntry{}, "cannot be read: " + err.Error()
-			}
-			e, err := entryOf(p, info)
-			switch {
-			case err != nil:
-				return folderEntry{}, err.Error()
-			case e.Kind == "link":
-				return folderEntry{}, "is a link; links are not followed and stay unchanged"
-			case e.Kind != "file":
-				return folderEntry{}, "is not a regular file"
-			case e.dev != rootEntry.dev:
-				return folderEntry{}, "lies on another file system or mount"
-			case e.Mode&0o7000 != 0:
-				return folderEntry{}, "has a special bit (setuid, setgid or sticky) that a change would drop"
-			}
-			if r, err := filepath.EvalSymlinks(p); err != nil || r != p {
-				return folderEntry{}, "lies behind a link"
-			}
-			return e, ""
-		}
-		manage := func(p, role string, mode uint32) bool {
-			e, why := fileEntry(p)
-			if why == "" && (mounted[p]) {
-				why = "is mounted into a container and stays unchanged"
-			}
-			if why != "" {
-				st.Kept = append(st.Kept, StackFolderKept{p, why})
-				return false
-			}
-			ch, kept := add(e, role, mode)
-			if ch != nil {
-				st.Changes = append(st.Changes, *ch)
-			} else {
-				st.Kept = append(st.Kept, *kept)
-			}
-			return true
-		}
-
-		if ch, kept := add(dirEntry, RoleStackFolder, modeStackFolder); ch != nil {
-			st.Changes = append(st.Changes, *ch)
-		} else {
-			st.Kept = append(st.Kept, *kept)
-		}
-		for _, c := range composes {
-			manage(c, RoleComposeFile, modeComposeFile)
-			files.compose = append(files.compose, c)
-		}
-		envs := []string{filepath.Join(dir, ".env")}
-		for _, r := range running {
-			if filepath.Clean(r.Dir) != dir {
-				continue
-			}
-			st.Running = true
-			for _, id := range r.ContainerIDs {
-				for _, f := range splitPaths(details[id].EnvFiles) {
-					if lexicallyUnder(dir, f) {
-						envs = appendOnce(envs, f)
-					} else {
-						st.Kept = append(st.Kept, StackFolderKept{f, "is an env file outside the stack folder and stays unchanged"})
-					}
-				}
-			}
-		}
-		for _, p := range envs {
-			if _, err := os.Lstat(p); errors.Is(err, fs.ErrNotExist) {
-				continue
-			}
-			if manage(p, RoleEnvFile, modeEnvFile) {
-				files.env = append(files.env, p)
-			}
-		}
-		if total += 1 + len(composes) + len(envs); total > MaxFolderEntries {
-			return nil, Refusef("%s has more than %d entries to set up; use a smaller folder", path, MaxFolderEntries)
+		st, files, err := scan.stack(d.Name(), dir, dirEntry, composes, path)
+		if err != nil {
+			return nil, err
 		}
 		w.preview.Stacks = append(w.preview.Stacks, st)
 		w.stacks = append(w.stacks, files)
@@ -385,28 +461,7 @@ func (h FolderHost) planStackFolder(ctx context.Context, path string) (*stackFol
 	if len(w.preview.Stacks) == 0 {
 		return nil, Refusef("%s holds no stack: no direct subfolder has a compose file (%s)", path, strings.Join(ComposeFileNames, ", "))
 	}
-
-	var chownPaths []string
-	chmodPaths := map[uint32][]string{}
-	for _, t := range targets {
-		w.entries = append(w.entries, t.entry)
-		if t.entry.UID != h.rootUID || t.entry.GID != gid {
-			chownPaths = append(chownPaths, t.entry.Path)
-		}
-		if t.entry.Mode != t.mode {
-			chmodPaths[t.mode] = append(chmodPaths[t.mode], t.entry.Path)
-		}
-	}
-	sort.Strings(chownPaths)
-	for _, chunk := range chunkPaths(chownPaths) {
-		w.commands = append(w.commands, Command{Argv: append([]string{"chown", "-h", "--", "root:" + control.ServiceGroup}, chunk...)})
-	}
-	for _, m := range []uint32{modeStackFolder, modeComposeFile, modeEnvFile} {
-		sort.Strings(chmodPaths[m])
-		for _, chunk := range chunkPaths(chmodPaths[m]) {
-			w.commands = append(w.commands, Command{Argv: append([]string{"chmod", "--", fmt.Sprintf("%04o", m)}, chunk...)})
-		}
-	}
+	w.commands, w.entries = scan.commands()
 	w.preview.NothingToDo = len(w.commands) == 0
 	return w, nil
 }
