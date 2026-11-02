@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+  [Users]  Groups   Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                                    2/2
+╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
+║   Name║ ⚠ Lock demo-user: no login is possible any more, with a      ║System ║
+║   ▾ Us║   password or an SSH key.                                    ║       ║
+║   demo║                                                              ║       ║
+║ > demo║     You can undo this under Host > Changes. Running sessions ║       ║
+║   ▸ Sy║     stay open until they end.                                ║       ║
+╚═══════║                                                              ║═══════╝
+        ║   $ usermod -L -e 1 demo-user                                ║        
+        ║                                                              ║        
+        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║                                                              ║        
+        ║ y apply · n/esc cancel                                       ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

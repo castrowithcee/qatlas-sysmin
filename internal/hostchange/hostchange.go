@@ -77,6 +77,10 @@ type Plan struct {
 	// Capture reads the previous state of everything the change touches. The result is journaled before the
 	// first command runs and is the only input of the inverse. It may hold sensitive data.
 	Capture func(ctx context.Context) (json.RawMessage, error)
+	// Seal, when set, runs after the commands that ran, whether or not they all succeeded, and returns the state
+	// that replaces the captured one: it holds what is known only now, such as the UID the system assigned. An
+	// error counts as a failed change.
+	Seal func(ctx context.Context) (json.RawMessage, error)
 	// Check runs after the commands; an error means the change is not acceptable and is taken back.
 	Check func(ctx context.Context) error
 	// NotReversible is the reason the change cannot be undone; empty means the definition's Inverse applies.

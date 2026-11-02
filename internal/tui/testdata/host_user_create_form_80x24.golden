@@ -4,21 +4,21 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
 ────────╔══════════════════════════════════════════════════════════════╗────────
 Users (3║ New user                                                     ║     1/2
 ╔═══════║                                                              ║═══════╗
-║   Name║   Name:            demo-new                                  ║System ║
-║   ▾ Us║   Password:        ********                                  ║       ║
-║ > demo║   Repeat password: ********                                  ║       ║
-║   demo║   Admin:            yes                                      ║       ║
-║   ▸ Sy║   Docker:           no                                       ║       ║
-╚═══════║ > Further groups:   < [x] demo-team  (1 of 1 chosen) >       ║═══════╝
+║   Name║   Kind:             Person                                   ║System ║
+║   ▾ Us║   Name:            demo-new                                  ║       ║
+║ > demo║   Password:        ********                                  ║       ║
+║   demo║   Repeat password: ********                                  ║       ║
+║   ▸ Sy║   Admin:            yes                                      ║       ║
+╚═══════║   Docker:           no                                       ║═══════╝
+        ║ > Further groups:   demo-team                                ║        
         ║   SSH key:                                                   ║        
         ║     The user must change the initial password at the first   ║        
         ║     login. Enter in the SSH key field adds the key.          ║        
         ║                                                              ║        
-        ║ [ Save ]  [ Cancel ]                                         ║        
+        ║ > Choose <  [ Save ]  [ Cancel ]                             ║        
         ║                                                              ║        
-        ║ ←/→ choose · space tick · tab next · F2 save · esc cancel    ║        
+        ║ enter choose · tab next · F2 save · esc cancel               ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
 ? help                                                                          

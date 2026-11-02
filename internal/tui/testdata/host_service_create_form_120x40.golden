@@ -1,0 +1,40 @@
+sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
+   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings                                    
+  [Users]  Groups   Folders   Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                         1/2 ╭─ demo-admin ───────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║   Name        Admin              Docker  Groups            System ║ │                                                │
+║   ▾ Users (2)                                                     ║ │ Name              demo-admin                   │
+║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              regular                      │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             yes                          │
+║   ▸ System accounts (1)                                           ║ │ Docker            yes                          │
+╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (sysmin)  yes                          │
+                            ╔══════════════════════════════════════════════════════════════╗mo-admin, sudo, docker,    │
+                            ║ New user                                                     ║smin                       │
+                            ║                                                              ║ome/demo-admin             │
+                            ║   Kind:            Service account                           ║known                      │
+                            ║   Name:           demo-svc                                   ║                           │
+                            ║   Home:            yes                                       ║ the fields only root can  │
+                            ║   Docker:          yes                                       ║                           │
+                            ║ > Further groups:  demo-team                                 ║───────────────────────────╯
+                            ║     A service account has no login: no password, no shell,   ║                            
+                            ║     no SSH keys. Use it for a service or container with an   ║                            
+                            ║     identity of its own.                                     ║                            
+                            ║                                                              ║                            
+                            ║ > Choose <  [ Save ]  [ Cancel ]                             ║                            
+                            ║                                                              ║                            
+                            ║ enter choose · tab next · F2 save · esc cancel               ║                            
+                            ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+? help                                                                                                                  

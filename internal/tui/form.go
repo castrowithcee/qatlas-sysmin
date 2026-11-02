@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
@@ -31,6 +32,10 @@ type formRow struct {
 	// cursor sel. ticked has one entry per value.
 	multi  bool
 	ticked []bool
+	// pick makes the choice a set chosen in a list over the form (see pickRow); ticked and values work as for
+	// multi, and notes, when set, has one short word per value.
+	pick  bool
+	notes []string
 }
 
 // formDlg is the form over the screen, drawn as the prompt of screenPrompt.
@@ -49,6 +54,9 @@ type formDlg struct {
 	saveText string
 	// enter, when set, runs first on the enter key; true says it took the key.
 	enter func(m *Model, f *formDlg, row int) bool
+	// pick is the list a pick row opened over the form; hits are the click targets of what was drawn last.
+	pick *pickDlg
+	hits []textHit
 }
 
 func textRow(key, label, value string) formRow {
@@ -178,6 +186,8 @@ func (m *Model) hitFormWheel(x0, y0, x1, y1 int) {
 		scroll = m.prj.prompt.wheelRow
 	case m.cred != nil:
 		scroll = m.cred.wheelRow
+	case m.form != nil && m.form.pick != nil:
+		scroll = m.form.pick.wheel
 	case m.form != nil:
 		scroll = m.form.wheelRow
 	default:
@@ -216,6 +226,9 @@ func (m *Model) reopenForm(f *formDlg) {
 func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 	f := m.form
 	f.notice = ""
+	if f.pick != nil {
+		return m.pickKey(f, key)
+	}
 	r := &f.rows[f.focus]
 	switch {
 	case keyIs(key, actBack):
@@ -226,11 +239,17 @@ func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 		return f.submit(m, f)
 	case keyIs(key, actEnter) && f.enter != nil && f.enter(m, f, f.focus):
 		return nil
+	case keyIs(key, actEnter) && r.pick && len(r.values) > 0:
+		m.openPick(f, f.focus)
+		return nil
 	case keyIs(key, actEnter), keyIs(key, actNext), keyIs(key, actDown):
 		f.step(1)
 		return nil
 	case keyIs(key, actPrev), keyIs(key, actUp):
 		f.step(-1)
+		return nil
+	}
+	if r.pick {
 		return nil
 	}
 	if r.multi {
@@ -276,6 +295,10 @@ func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 // formDialog is the form as the dialog the modal draws.
 func (m *Model) formDialog() promptDialog {
 	f := m.form
+	if f.pick != nil {
+		return m.pickDialog(f)
+	}
+	f.hits = nil
 	width := m.usable(0)
 	var labels []string
 	for _, r := range f.rows {
@@ -296,11 +319,24 @@ func (m *Model) formDialog() promptDialog {
 			if r.multi {
 				shown = r.multiText()
 			}
+			if r.pick {
+				shown = r.pickText()
+			}
 			text := truncateCells(shown, max(room-6, 1))
-			if f.focus == i {
+			if f.focus == i && !r.pick {
 				text = "< " + text + " >"
 			}
 			rows = append(rows, prefix+fieldStyle(f.focus == i).Render(" "+text+" "))
+			if r.pick {
+				row := i
+				f.hits = append(f.hits, textHit{plain: ansi.Strip(rows[len(rows)-1]), act: func() tea.Cmd {
+					if m.form == f && f.pick == nil && len(f.rows[row].values) > 0 {
+						f.focusRow(row)
+						m.openPick(f, row)
+					}
+					return nil
+				}})
+			}
 		} else {
 			rows = append(rows, prefix+inputView(fitInput(r.in, room)))
 		}
@@ -309,7 +345,9 @@ func (m *Model) formDialog() promptDialog {
 		}
 	}
 	keys := "enter next · tab next · " + f.saveText + " · {back} cancel"
-	if f.rows[f.focus].multi {
+	if f.rows[f.focus].pick {
+		keys = "enter choose · tab next · " + f.saveText + " · {back} cancel"
+	} else if f.rows[f.focus].multi {
 		keys = "←/→ choose · space tick · tab next · " + f.saveText + " · {back} cancel"
 	} else if f.rows[f.focus].choice {
 		keys = "←/→ choose · tab next · " + f.saveText + " · {back} cancel"

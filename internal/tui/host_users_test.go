@@ -86,14 +86,14 @@ func noSecretInRequests(t *testing.T, f *fakeSudo) {
 func TestCreateBuildsTheActionAndPassesPasswordAndKeyOnStandardInputOnly(t *testing.T) {
 	m, f, host, _ := userModel(t, 120, 40)
 	line, fp := demoKey(t, "demo-new@laptop")
-	send(m, "n")
+	send(m, "n", "tab")
 	typed(m, "demo-new")
 	send(m, "tab")
 	typed(m, inputMarker)
 	seeNoInput(t, m, "the password field")
 	send(m, "tab")
 	typed(m, inputMarker)
-	send(m, "tab", "right", "tab", "right", "tab", "space", "tab")
+	send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter", "tab")
 	typed(m, line)
 	send(m, "enter")
 	if !strings.Contains(plain(m), fp) {
@@ -139,6 +139,85 @@ func TestCreateBuildsTheActionAndPassesPasswordAndKeyOnStandardInputOnly(t *test
 	}
 }
 
+func TestServiceAccountAsksNeitherPasswordNorKeyAndSendsItsOwnAction(t *testing.T) {
+	m, f, host, _ := userModel(t, 120, 40)
+	send(m, "n")
+	typed(m, "x") // the kind row is focused first; typing changes nothing
+	send(m, "right")
+	view := plain(m)
+	for _, gone := range []string{"Password:", "Repeat password:", "SSH key:", "Admin:"} {
+		if strings.Contains(view, gone) {
+			t.Errorf("a service account form still shows %q:\n%s", gone, view)
+		}
+	}
+	for _, want := range []string{"Kind", "Service account", "Home", "Docker", "Further groups"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("a service account form lacks %q:\n%s", want, view)
+		}
+	}
+	send(m, "tab")
+	typed(m, "demo-svc")
+	send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter")
+	save(m)
+	view = flat(m)
+	for _, want := range []string{"service account demo-svc without login", "the home", "useradd --system --create-home", "practically everything", "files of the account outside its home stay"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("confirmation lacks %q:\n%s", want, plain(m))
+		}
+	}
+	if strings.Contains(view, "chpasswd") || strings.Contains(view, "<password>") {
+		t.Errorf("a service account has no password step:\n%s", plain(m))
+	}
+	if m.ask == nil || len(f.reqs) != 0 {
+		t.Fatalf("nothing runs before y: ask %+v calls %v", m.ask, f.reqs)
+	}
+	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
+	reads := host.users
+	send(m, "y")
+	want := []string{"apply", "--yes", "--output", "json", "--", "user.create-service", "demo-svc", "home", "docker", "group=demo-ops"}
+	if len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) || len(f.reqs[0].Secret) != 0 || len(f.stdins) != 0 {
+		t.Errorf("requests %+v stdins %q, want args %q", f.reqs, f.stdins, want)
+	}
+	if host.users != reads+1 {
+		t.Errorf("users were not read again: %d -> %d", reads, host.users)
+	}
+}
+
+func TestServiceAccountWithoutHomeAndSwitchingKindForgetsThePerson(t *testing.T) {
+	m, f, _, _ := userModel(t, 120, 40)
+	send(m, "n", "tab")
+	typed(m, "demo-svc")
+	send(m, "tab")
+	typed(m, inputMarker)
+	send(m, "shift+tab", "shift+tab", "right")
+	send(m, "tab")
+	if got := m.form.row("password").raw(); got != "" {
+		t.Errorf("the password survived the switch to a service account: %q", got)
+	}
+	save(m)
+	if !strings.Contains(flat(m), "service account demo-svc") || !strings.Contains(flat(m), "--no-create-home") {
+		t.Errorf("the default is no home:\n%s", plain(m))
+	}
+	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
+	send(m, "y")
+	if want := []string{"apply", "--yes", "--output", "json", "--", "user.create-service", "demo-svc"}; len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) {
+		t.Errorf("requests %+v, want %q", f.reqs, want)
+	}
+	seeNoInput(t, m, "the result")
+}
+
+func TestServiceAccountFormChecksTheName(t *testing.T) {
+	for name, want := range map[string]string{"": "Enter a name.", "demo-user": "exists already"} {
+		m, f, _, _ := userModel(t, 120, 40)
+		send(m, "n", "right", "tab")
+		typed(m, name)
+		save(m)
+		if m.form == nil || len(f.reqs) != 0 || !strings.Contains(flat(m), want) {
+			t.Errorf("%q: form open %v, calls %v\n%s", name, m.form != nil, f.reqs, plain(m))
+		}
+	}
+}
+
 func TestCreateFormChecksBeforeAnythingLeavesIt(t *testing.T) {
 	cases := []struct {
 		name, pw, again, key, want string
@@ -151,7 +230,7 @@ func TestCreateFormChecksBeforeAnythingLeavesIt(t *testing.T) {
 	}
 	for _, tc := range cases {
 		m, f, _, _ := userModel(t, 120, 40)
-		send(m, "n")
+		send(m, "n", "tab")
 		typed(m, tc.name)
 		send(m, "tab")
 		typed(m, tc.pw)
@@ -170,7 +249,7 @@ func TestCancellingTheCreateConfirmChangesNothing(t *testing.T) {
 	for _, key := range []string{"n", "esc"} {
 		m, f, host, _ := userModel(t, 120, 40)
 		reads := host.users
-		send(m, "n")
+		send(m, "n", "tab")
 		typed(m, "demo-new")
 		send(m, "tab")
 		typed(m, inputMarker)
@@ -187,7 +266,7 @@ func TestCancellingTheCreateConfirmChangesNothing(t *testing.T) {
 
 func TestAWrongSudoPasswordStopsBeforeTheChangeRuns(t *testing.T) {
 	m, f, host, _ := userModel(t, 120, 40)
-	send(m, "n")
+	send(m, "n", "tab")
 	typed(m, "demo-new")
 	send(m, "tab")
 	typed(m, inputMarker)
@@ -210,7 +289,7 @@ func TestAWrongSudoPasswordStopsBeforeTheChangeRuns(t *testing.T) {
 
 func TestWithoutACachedCredentialTheChangeIsRefusedAndNothingChanges(t *testing.T) {
 	m, f, host, _ := userModel(t, 120, 40)
-	send(m, "n")
+	send(m, "n", "tab")
 	typed(m, "demo-new")
 	send(m, "tab")
 	typed(m, inputMarker)
@@ -233,7 +312,7 @@ func TestWithoutACachedCredentialTheChangeIsRefusedAndNothingChanges(t *testing.
 
 func TestARefusalOfTheHostIsShownWithoutTheSecret(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
-	send(m, "n")
+	send(m, "n", "tab")
 	typed(m, "demo-new")
 	send(m, "tab")
 	typed(m, inputMarker)
@@ -250,7 +329,7 @@ func TestARefusalOfTheHostIsShownWithoutTheSecret(t *testing.T) {
 }
 
 // demoUserChanges are the changes offered for demo-user: an admin who is not enabled, with a key.
-var demoUserChanges = []string{chgEnable, chgAddGroups, chgRemoveGroups, chgAdminOff, chgDockerOn, chgPassword, chgAddKey, chgRemoveKey}
+var demoUserChanges = []string{chgEnable, chgAddGroups, chgRemoveGroups, chgAdminOff, chgDockerOn, chgPassword, chgAddKey, chgRemoveKey, chgLock}
 
 // openChange opens the change form of name on the change id.
 func openChange(t *testing.T, m *Model, name, id string) {
@@ -275,8 +354,8 @@ func TestEachChangeRunsItsOwnActionWithItsOwnConfirm(t *testing.T) {
 		power bool
 	}{
 		{chgEnable, func(*Model, string) {}, []string{"user.enable", "demo-user"}, "", false},
-		{chgAddGroups, func(m *Model, _ string) { send(m, "tab", "space") }, []string{"user.add-groups", "demo-user", "demo-ops"}, "", false},
-		{chgRemoveGroups, func(m *Model, _ string) { send(m, "tab", "space") }, []string{"user.remove-groups", "demo-user", "demo-team"}, "", false},
+		{chgAddGroups, func(m *Model, _ string) { send(m, "tab", "enter", "space", "enter") }, []string{"user.add-groups", "demo-user", "demo-ops"}, "", false},
+		{chgRemoveGroups, func(m *Model, _ string) { send(m, "tab", "enter", "space", "enter") }, []string{"user.remove-groups", "demo-user", "demo-team"}, "", false},
 		{chgAdminOff, func(*Model, string) {}, []string{"user.set-admin", "demo-user", "off", "without-sysmin"}, "", false},
 		{chgDockerOn, func(*Model, string) {}, []string{"user.set-docker", "demo-user", "on"}, "", true},
 		{chgPassword, func(m *Model, _ string) {
@@ -290,6 +369,7 @@ func TestEachChangeRunsItsOwnActionWithItsOwnConfirm(t *testing.T) {
 			typed(m, line)
 		}, []string{"user.add-key", "demo-user"}, line, false},
 		{chgRemoveKey, func(*Model, string) {}, nil, "", false},
+		{chgLock, func(*Model, string) {}, []string{"user.lock", "demo-user"}, "", false},
 	}
 	for _, tc := range cases {
 		m, f, host, fp := userModel(t, 120, 40)
@@ -348,7 +428,7 @@ func TestOffersFollowTheUser(t *testing.T) {
 	if strings.Contains(view, "Enable for sysmin") {
 		t.Error("an enabled admin is not offered Enable for sysmin")
 	}
-	want := []string{chgAddGroups, chgAdminOff, chgDockerOff, chgPassword, chgAddKey, chgRemoveKey}
+	want := []string{chgAddGroups, chgAdminOff, chgDockerOff, chgPassword, chgAddKey, chgRemoveKey, chgLock, chgUnlock}
 	if got := m.form.row("what").values; !slices.Equal(got, want) {
 		t.Errorf("offers %v, want %v", got, want)
 	}
@@ -400,12 +480,15 @@ func TestRootAndSystemUsersAreChangeableWithARedConfirmation(t *testing.T) {
 		{"svc-demo", chgDockerOn, false, true, []string{"Packages or services may depend on this system account."}},
 		{"root", chgDockerOn, false, true, []string{"root is the account with all rights", "may depend on this system account"}},
 		{"demo-user", chgDockerOn, false, false, nil},
+		{"svc-demo", chgLock, false, true, []string{"may depend on this system account", "Running sessions"}},
+		{"root", chgLock, false, true, []string{"root is the account with all rights"}},
+		{"demo-user", chgLock, false, false, []string{"Running sessions"}},
 		{"demo-user", chgAddGroups, true, true, []string{"may depend on this system group"}},
 		{"svc-demo", chgAddGroups, true, true, []string{"may depend on this system account", "may depend on this system group"}},
 	} {
 		chooseChange(t, m, tc.user, tc.change)
 		if tc.pick {
-			send(m, "tab", "right", "space") // demo-sys, the second of the groups to choose from
+			send(m, "tab", "enter", "down", "space", "enter") // demo-sys, the second of the groups to choose from
 		}
 		save(m)
 		if m.ask == nil || m.ask.danger != tc.red || len(f.reqs) != 0 {
@@ -541,5 +624,79 @@ func TestARunWithoutReportUsesTheStandardErrorAsTheReasonUnlessSudoFailed(t *tes
 		if !strings.Contains(view, tc.want) || strings.Contains(view, tc.not) {
 			t.Errorf("%q:\n%s", tc.stderr, plain(m))
 		}
+	}
+}
+
+func TestLockStateDecidesWhichOfLockAndUnlockIsOffered(t *testing.T) {
+	yes, no := true, false
+	for _, tc := range []struct {
+		name            string
+		locked, expired *bool
+		want            []string
+	}{
+		{"unlocked", &no, &no, []string{chgLock}},
+		{"unlocked, expiry unread", &no, nil, []string{chgLock}},
+		{"locked", &yes, &yes, []string{chgUnlock}},
+		{"password lock only", &yes, &no, []string{chgLock, chgUnlock}},
+		{"account ended", &no, &yes, []string{chgLock, chgUnlock}},
+		{"unknown", nil, nil, []string{chgLock, chgUnlock}},
+	} {
+		m, _, _, _ := userModel(t, 120, 40)
+		for i := range m.hst.users.all {
+			if m.hst.users.all[i].Name == "demo-user" {
+				m.hst.users.all[i].Locked, m.hst.users.all[i].Expired = tc.locked, tc.expired
+			}
+		}
+		m.fillHostUsers()
+		selectUser(m, "demo-user")
+		send(m, "e")
+		var got []string
+		for _, v := range m.form.row("what").values {
+			if v == chgLock || v == chgUnlock {
+				got = append(got, v)
+			}
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("%s: offers %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestLockIsRefusedEarlyForYourselfAndTheLastAdmin(t *testing.T) {
+	m, f, _, _ := userModel(t, 120, 40)
+	hostUID = func() int { return 1000 }
+	chooseChange(t, m, "demo-admin", chgLock)
+	save(m)
+	if m.form == nil || !strings.Contains(flat(m), "lock yourself") || len(f.reqs) != 0 {
+		t.Errorf("own lock:\n%s", plain(m))
+	}
+	send(m, "esc")
+	hostUID = func() int { return 4242 }
+	chooseChange(t, m, "demo-admin", chgLock)
+	save(m)
+	if m.form == nil || !strings.Contains(flat(m), "last admin") || len(f.reqs) != 0 {
+		t.Errorf("last admin:\n%s", plain(m))
+	}
+}
+
+func TestUnlockIsOfferedAndAcceptedForALockedAccount(t *testing.T) {
+	yes := true
+	m, f, _, _ := userModel(t, 120, 40)
+	for i := range m.hst.users.all {
+		if m.hst.users.all[i].Name == "demo-user" {
+			m.hst.users.all[i].Locked, m.hst.users.all[i].Expired = &yes, &yes
+		}
+	}
+	m.fillHostUsers()
+	chooseChange(t, m, "demo-user", chgUnlock)
+	save(m)
+	if m.ask == nil || len(f.reqs) != 0 || !strings.Contains(flat(m), "usermod -U -e -1 demo-user") {
+		t.Fatalf("no confirmation:\n%s", plain(m))
+	}
+	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
+	send(m, "y")
+	want := []string{"apply", "--yes", "--output", "json", "--", "user.unlock", "demo-user"}
+	if len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) {
+		t.Errorf("calls %+v", f.reqs)
 	}
 }

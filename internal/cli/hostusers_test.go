@@ -205,4 +205,12 @@ func TestHostApplyUserRefusalChangesNothing(t *testing.T) {
 	if code != 2 {
 		t.Errorf("an invalid name is a usage error: %d", code)
 	}
+	code, _, _ = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.create-service", "demo-bot", "admin")
+	if code != 2 {
+		t.Errorf("a service account is never an admin: %d", code)
+	}
+	code, out, _ = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.create-service", "demo-user")
+	if code != 1 || !strings.Contains(out, "exists already") || len(w.argv) != 0 {
+		t.Errorf("an existing name is refused: code %d out %q argv %q", code, out, w.argv)
+	}
 }

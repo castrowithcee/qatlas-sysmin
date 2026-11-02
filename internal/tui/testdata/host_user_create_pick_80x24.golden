@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+  [Users]  Groups   Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                                    1/2
+╔══════════════════════════════════════════════════════════════════════════════╗
+║   Name╔══════════════════════════════════════════════════════════════╗System ║
+║   ▾ Us║ Further groups                                               ║       ║
+║ > demo║                                                              ║       ║
+║   demo║   / Type to search                                           ║       ║
+║   ▸ Sy║   > [x] demo-team                                            ║       ║
+╚═══════║     1/1                                                      ║═══════╝
+        ║                                                              ║        
+        ║ > Keep <  [ Discard ]                                        ║        
+        ║                                                              ║        
+        ║ ↑/↓ move · space tick · enter keep · esc discard             ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

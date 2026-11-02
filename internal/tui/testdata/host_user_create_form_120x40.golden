@@ -12,21 +12,21 @@ Users (3)                                                         1/2 ╭─ dem
 ╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗s                          │
                             ║ New user                                                     ║mo-admin, sudo, docker,    │
                             ║                                                              ║smin                       │
-                            ║   Name:            demo-new                                  ║ome/demo-admin             │
-                            ║   Password:        ********                                  ║known                      │
-                            ║   Repeat password: ********                                  ║                           │
-                            ║   Admin:            yes                                      ║ the fields only root can  │
-                            ║   Docker:           no                                       ║                           │
-                            ║ > Further groups:   < [x] demo-team  (1 of 1 chosen) >       ║───────────────────────────╯
+                            ║   Kind:             Person                                   ║ome/demo-admin             │
+                            ║   Name:            demo-new                                  ║known                      │
+                            ║   Password:        ********                                  ║                           │
+                            ║   Repeat password: ********                                  ║ the fields only root can  │
+                            ║   Admin:            yes                                      ║                           │
+                            ║   Docker:           no                                       ║───────────────────────────╯
+                            ║ > Further groups:   demo-team                                ║                            
                             ║   SSH key:                                                   ║                            
                             ║     The user must change the initial password at the first   ║                            
                             ║     login. Enter in the SSH key field adds the key.          ║                            
                             ║                                                              ║                            
-                            ║ [ Save ]  [ Cancel ]                                         ║                            
+                            ║ > Choose <  [ Save ]  [ Cancel ]                             ║                            
                             ║                                                              ║                            
-                            ║ ←/→ choose · space tick · tab next · F2 save · esc cancel    ║                            
+                            ║ enter choose · tab next · F2 save · esc cancel               ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

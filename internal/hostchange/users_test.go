@@ -32,8 +32,8 @@ func sameList(t *testing.T, what string, got, want []string) {
 
 func TestDefaultRegistersTheUserActions(t *testing.T) {
 	sameList(t, "ids", Default().IDs(), []string{
-		"folder.set-permissions", "user.add-groups", "user.add-key", "user.create", "user.enable", "user.remove-groups", "user.remove-key",
-		"user.set-admin", "user.set-docker", "user.set-password",
+		"folder.set-permissions", "user.add-groups", "user.add-key", "user.create", "user.create-service", "user.enable", "user.lock", "user.remove-groups", "user.remove-key",
+		"user.set-admin", "user.set-docker", "user.set-password", "user.unlock",
 	})
 }
 

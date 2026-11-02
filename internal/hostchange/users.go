@@ -22,19 +22,24 @@ import (
 // The user actions. Plan checks only the syntax; Capture runs as root before anything changes and enforces
 // the protection rules, so a refusal means nothing was changed.
 const (
-	ActionUserCreate       = "user.create"
-	ActionUserSetPassword  = "user.set-password"
-	ActionUserSetAdmin     = "user.set-admin"
-	ActionUserSetDocker    = "user.set-docker"
-	ActionUserEnable       = "user.enable"
-	ActionUserAddGroups    = "user.add-groups"
-	ActionUserRemoveGroups = "user.remove-groups"
-	ActionUserAddKey       = "user.add-key"
-	ActionUserRemoveKey    = "user.remove-key"
+	ActionUserCreate        = "user.create"
+	ActionUserCreateService = "user.create-service"
+	ActionUserSetPassword   = "user.set-password"
+	ActionUserSetAdmin      = "user.set-admin"
+	ActionUserSetDocker     = "user.set-docker"
+	ActionUserEnable        = "user.enable"
+	ActionUserLock          = "user.lock"
+	ActionUserUnlock        = "user.unlock"
+	ActionUserAddGroups     = "user.add-groups"
+	ActionUserRemoveGroups  = "user.remove-groups"
+	ActionUserAddKey        = "user.add-key"
+	ActionUserRemoveKey     = "user.remove-key"
 )
 
 const (
 	loginShell          = "/bin/bash"
+	noLoginShell        = "/usr/sbin/nologin"
+	noHome              = "/nonexistent"
 	passwordLabel       = "<password>"
 	previousHashLabel   = "<previous password hash>"
 	maxPasswordBytes    = 256
@@ -44,6 +49,7 @@ const (
 	optionWithoutSysmin = "without-sysmin"
 	optionAdmin         = "admin"
 	optionDocker        = "docker"
+	optionHome          = "home"
 	optionGroupPrefix   = "group="
 )
 
@@ -57,10 +63,13 @@ func RegisterUserActions(r *Registry, h UserHost) error {
 	u := userActions{h}
 	for _, d := range []Definition{
 		{ID: ActionUserCreate, WantsSecret: true, Plan: u.planCreate, Inverse: u.inverseCreate},
+		{ID: ActionUserCreateService, Plan: u.planCreateService, Inverse: u.inverseCreateService},
 		{ID: ActionUserSetPassword, WantsSecret: true, Plan: u.planPassword, Inverse: u.inversePassword},
 		{ID: ActionUserSetAdmin, Plan: u.planAdmin, Inverse: u.inverseMembership},
 		{ID: ActionUserSetDocker, Plan: u.planDocker, Inverse: u.inverseMembership},
 		{ID: ActionUserEnable, Plan: u.planEnable, Inverse: u.inverseMembership},
+		{ID: ActionUserLock, Plan: u.planLock, Inverse: u.inverseLock},
+		{ID: ActionUserUnlock, Plan: u.planUnlock, Inverse: u.inverseLock},
 		{ID: ActionUserAddGroups, Plan: u.planGroups(true), Inverse: u.inverseMembership},
 		{ID: ActionUserRemoveGroups, Plan: u.planGroups(false), Inverse: u.inverseMembership},
 		{ID: ActionUserAddKey, WantsSecret: true, Plan: u.planAddKey, Inverse: u.inverseAddKey},
@@ -144,9 +153,9 @@ type CreateInput struct {
 }
 
 type createRequest struct {
-	name          string
-	admin, docker bool
-	further       []string
+	name                string
+	admin, docker, home bool
+	further             []string
 }
 
 // groups is the supplementary group list of the new user, in a fixed order.
@@ -161,10 +170,15 @@ func (c createRequest) groups() []string {
 	return append(gs, c.further...)
 }
 
-// parseCreateArgs reads "<name> [admin] [docker] [group=<name>]...".
-func parseCreateArgs(args []string) (createRequest, error) {
+// parseCreateArgs reads "<name> [admin] [docker] [group=<name>]..." for a person and
+// "<name> [home] [docker] [group=<name>]..." for a service account, which is never an administrator.
+func parseCreateArgs(args []string, service bool) (createRequest, error) {
+	id, options := ActionUserCreate, "admin, docker, group=<name>"
+	if service {
+		id, options = ActionUserCreateService, "home, docker, group=<name>"
+	}
 	if len(args) == 0 {
-		return createRequest{}, Argf("user.create needs a user name")
+		return createRequest{}, Argf("%s needs a user name", id)
 	}
 	req := createRequest{name: args[0]}
 	if err := checkName("user", req.name); err != nil {
@@ -180,8 +194,10 @@ func parseCreateArgs(args []string) (createRequest, error) {
 		}
 		seen[a] = true
 		switch g, isGroup := strings.CutPrefix(a, optionGroupPrefix); {
-		case a == optionAdmin:
+		case a == optionAdmin && !service:
 			req.admin = true
+		case a == optionHome && service:
+			req.home = true
 		case a == optionDocker:
 			req.docker = true
 		case isGroup:
@@ -193,7 +209,7 @@ func parseCreateArgs(args []string) (createRequest, error) {
 			}
 			req.further = append(req.further, g)
 		default:
-			return createRequest{}, Argf("unknown option %q for user.create (admin, docker, group=<name>)", a)
+			return createRequest{}, Argf("unknown option %q for %s (%s)", a, id, options)
 		}
 	}
 	if len(req.further) > maxFurtherGroups {
@@ -256,7 +272,7 @@ type createState struct {
 func (u userActions) home(name string) string { return filepath.Join(u.h.HomeBase, name) }
 
 func (u userActions) planCreate(args []string, secret []byte) (Plan, error) {
-	req, err := parseCreateArgs(args)
+	req, err := parseCreateArgs(args, false)
 	if err != nil {
 		return Plan{}, err
 	}

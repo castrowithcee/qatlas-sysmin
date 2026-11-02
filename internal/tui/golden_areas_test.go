@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
 // goldenApp is the service interface of the given size as it is drawn with NO_COLOR set, so the files hold the
@@ -205,24 +206,52 @@ func TestGoldenAreas(t *testing.T) {
 		}},
 		{"host_user_create_form", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
-			send(m, "n")
+			send(m, "n", "tab")
 			typed(m, "demo-new")
 			send(m, "tab")
 			typed(m, "abcdefgh")
 			send(m, "tab")
 			typed(m, "abcdefgh")
-			send(m, "tab", "right", "tab", "tab", "space")
+			send(m, "tab", "right", "tab", "tab", "enter", "space", "enter")
+			return m
+		}},
+		{"host_service_create_form", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			send(m, "n", "right", "tab")
+			typed(m, "demo-svc")
+			send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter")
+			return m
+		}},
+		{"host_service_create_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			send(m, "n", "right", "tab")
+			typed(m, "demo-svc")
+			send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter")
+			save(m)
+			return m
+		}},
+		{"host_user_create_pick", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			send(m, "n", "tab", "tab", "tab", "tab", "tab", "tab", "enter", "space")
+			return m
+		}},
+		{"host_user_edit_pick_system", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			src := m.hostSrc.(*fixtureHost)
+			src.groups = append(src.groups, hostadmin.Group{Name: "demo-sys", GID: 65534, System: true})
+			selectAccount(m, "svc-demo")
+			send(m, "e", "tab", "enter", "down", "space")
 			return m
 		}},
 		{"host_user_create_confirm", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
-			send(m, "n")
+			send(m, "n", "tab")
 			typed(m, "demo-new")
 			send(m, "tab")
 			typed(m, "abcdefgh")
 			send(m, "tab")
 			typed(m, "abcdefgh")
-			send(m, "tab", "right", "tab", "right", "tab", "space")
+			send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter")
 			save(m)
 			return m
 		}},
@@ -263,6 +292,12 @@ func TestGoldenAreas(t *testing.T) {
 			save(m)
 			f.answer = func(HostRequest) (string, error) { return restoredFolderReport, exitError(t, "exit 1") }
 			send(m, "y")
+			return m
+		}},
+		{"host_user_lock_confirm", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			chooseChange(t, m, "demo-user", chgLock)
+			save(m)
 			return m
 		}},
 		{"host_user_system_confirm", func(t *testing.T, w, h int) *Model {
