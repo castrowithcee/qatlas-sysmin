@@ -445,7 +445,7 @@ func (m *Model) hostKeys() []string {
 	if m.hst.sub == hostGroups {
 		keys = append(keys, "n new")
 		if _, ok := m.currentGroup(); ok {
-			keys = append(keys, "r rename", "d delete")
+			keys = append(keys, "e members", "r rename", "d delete")
 		}
 	}
 	return append(keys, "/ filter")

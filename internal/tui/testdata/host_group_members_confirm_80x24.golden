@@ -1,0 +1,24 @@
+sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+   1 Overview  2 Projects  3 Activity  4 Access  5 Library [6 Host] 7 Settings  
+   Users  [Groups]  Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Groups (4)                                                                   1/1
+╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
+║   Name║ ⚠ Add demo-admin and svc-demo to the group demo-team and     ║       ║
+║   ▾ Gr║   remove demo-user from the group demo-team.                 ║       ║
+║ > demo║                                                              ║       ║
+║   ▸ Sy║     You can undo this under Host > Changes.                  ║       ║
+╚═══════║                                                              ║═══════╝
+        ║   $ gpasswd -a demo-admin demo-team                          ║        
+        ║   $ gpasswd -a svc-demo demo-team                            ║        
+        ║   $ gpasswd -d demo-user demo-team                           ║        
+        ║                                                              ║        
+        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║                                                              ║        
+        ║ y apply · n/esc cancel                                       ║        
+        ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+? help                                                                          

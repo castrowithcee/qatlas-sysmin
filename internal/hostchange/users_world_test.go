@@ -391,7 +391,20 @@ func (w *userWorld) Run(_ context.Context, c Command) ([]byte, error) {
 				g.members = append(g.members, name)
 			}
 		}
-	case "gpasswd": // -d name group, which fails for a non-member like the real one, or -M a,b group
+	case "gpasswd": // -a or -d name group, which fail for an unknown user (-a) or a non-member (-d) like the real one, or -M a,b group
+		if a[1] == "-a" {
+			g := w.group(a[3])
+			switch {
+			case w.user(a[2]) == nil:
+				return []byte("gpasswd: user '" + a[2] + "' does not exist"), errors.New("exit status 3")
+			case g == nil:
+				return []byte("gpasswd: group '" + a[3] + "' does not exist"), errors.New("exit status 3")
+			}
+			if !slices.Contains(g.members, a[2]) {
+				g.members = append(g.members, a[2])
+			}
+			break
+		}
 		if a[1] == "-M" {
 			var members []string
 			for _, m := range strings.Split(a[2], ",") {
