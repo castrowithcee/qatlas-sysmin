@@ -6,13 +6,6 @@ import (
 	"time"
 )
 
-// The kinds of marker entry (see Entry.Kind), as opposed to the empty Kind of an action entry. KindCut
-// marks a retention-cut marker, KindDamage a damaged-line marker.
-const (
-	KindCut    = "retention-cut"
-	KindDamage = "damaged-line"
-)
-
 // The two results an entry records.
 const (
 	ResultSuccess = "success"
@@ -49,47 +42,25 @@ func (h Host) Validate() error {
 	return nil
 }
 
-// Cut documents a retention deletion. Append writes it as the entry right after the deletion, naming the
-// sequence number of the last entry the deletion removed, so Verify never mistakes a documented cut for a
-// corrupted, undocumented gap.
-type Cut struct {
-	ThroughSeq uint64 `json:"through_seq"`
-}
-
-// Damage documents a line that does not parse as an entry, such as one torn by a crash while it was
-// written. Append writes it as the entry right after that line, naming the SHA-256 of the line's exact
-// bytes without its newline, so Verify can tell the damage it documents from a line changed afterwards. It
-// never holds the bytes themselves.
-type Damage struct {
-	LineHash string `json:"line_hash"`
-}
-
-// Entry is one line of a log file, in the field order it is written. Kind is empty for an action, KindCut
-// for a retention-cut marker, which carries only Cut beside the chain fields, and KindDamage for a
-// damaged-line marker, which carries only Damage beside them. MAC is the signature of an entry that an
-// earlier version wrote; it is read, never written. No field ever holds an argument, a result payload, or a
-// secret. The hash covers the stored bytes, so a line with a field this struct no longer has, or an action qsysmin no longer writes, still
-// reads and verifies.
+// Entry is the part of a log line that qsysmin owns, in the order it is written. No field ever holds an
+// argument, a result payload, or a secret. A stored line may carry members this struct no longer has or an
+// action qsysmin no longer writes; it still reads and verifies, since the hash covers the stored bytes.
 type Entry struct {
-	Seq  uint64    `json:"seq"`
-	Time time.Time `json:"time"`
-	Kind string    `json:"kind,omitempty"`
 	// ClientUID is the Unix user ID of the client that triggered the action; a pointer because 0 is root.
 	ClientUID  *uint32 `json:"client_uid,omitempty"`
 	Action     string  `json:"action,omitempty"`
 	Result     string  `json:"result,omitempty"`
 	ErrorCode  string  `json:"error_code,omitempty"`
 	DurationMS int64   `json:"duration_ms,omitempty"`
-	Cut        *Cut    `json:"cut,omitempty"`
-	Damage     *Damage `json:"damage,omitempty"`
 	// Host is set on the entries of OperationHostChange that name a change.
-	Host     *Host  `json:"host,omitempty"`
-	PrevHash string `json:"prev_hash"`
-	// MAC is the signature of an entry that an earlier version wrote.
+	Host *Host `json:"host,omitempty"`
+	// MAC is the signature of a line that an earlier version wrote. It is read, never written: Validate
+	// refuses an entry that sets it.
 	MAC string `json:"mac,omitempty"`
 }
 
-// Fields is what a caller supplies for one completed action; Append computes Seq, Time, and PrevHash.
+// Fields is what a caller supplies for one completed action; the log adds the sequence number, the time and
+// the chain.
 type Fields struct {
 	ClientUID uint32
 	// Action is one of the Operation constants.
@@ -103,40 +74,58 @@ type Fields struct {
 	Host *Host
 }
 
-const maxTextLength = 256
+func (f Fields) entry() Entry {
+	uid := f.ClientUID
+	return Entry{
+		ClientUID: &uid, Action: f.Action, Result: f.Result, ErrorCode: f.ErrorCode,
+		DurationMS: f.Duration.Milliseconds(), Host: f.Host,
+	}
+}
 
 // MaxDuration is the longest duration Validate accepts for one action.
 const MaxDuration = 30 * 24 * time.Hour
 
-// errorCodePattern is the form of Fields.ErrorCode: a lowercase word with dashes.
+// errorCodePattern is the form of Entry.ErrorCode: a lowercase word with dashes.
 var errorCodePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 
-// Validate reports whether f is something qsysmin could log: a known action, a result with a matching error
-// code, a non-negative bounded duration, and a host action that fits the action. The error names the field, never its value.
+// Validate reports whether f is something qsysmin could log; see Entry.Validate.
 func (f Fields) Validate() error {
-	if !knownOperations[f.Action] {
+	if f.Duration < 0 || f.Duration > MaxDuration {
+		return errors.New("duration is out of range")
+	}
+	return f.entry().Validate()
+}
+
+// Validate reports whether e is something qsysmin could log: a known action, a result with a matching error
+// code, a non-negative bounded duration, a host action that fits the action, and no signature. The error
+// names the field, never its value.
+func (e Entry) Validate() error {
+	if !knownOperations[e.Action] {
 		return errors.New("action is not a known operation")
 	}
 	switch {
-	case f.Result == ResultSuccess && f.ErrorCode != "":
+	case e.Result == ResultSuccess && e.ErrorCode != "":
 		return errors.New("a successful result has no error code")
-	case f.Result == ResultFailure && !errorCodePattern.MatchString(f.ErrorCode):
+	case e.Result == ResultFailure && !errorCodePattern.MatchString(e.ErrorCode):
 		return errors.New("a failed result needs an error code of lowercase words with dashes")
-	case f.Result != ResultSuccess && f.Result != ResultFailure:
+	case e.Result != ResultSuccess && e.Result != ResultFailure:
 		return errors.New("result must be success or failure")
 	}
 	switch {
-	case f.Host != nil && f.Action != OperationHostChange:
+	case e.Host != nil && e.Action != OperationHostChange:
 		return errors.New("only a host change names a host action")
-	case f.Host == nil && f.Action == OperationHostChange && f.Result == ResultSuccess:
+	case e.Host == nil && e.Action == OperationHostChange && e.Result == ResultSuccess:
 		return errors.New("a successful host change names its action")
-	case f.Host != nil:
-		if err := f.Host.Validate(); err != nil {
+	case e.Host != nil:
+		if err := e.Host.Validate(); err != nil {
 			return err
 		}
 	}
-	if f.Duration < 0 || f.Duration > MaxDuration {
+	if e.DurationMS < 0 || e.DurationMS > MaxDuration.Milliseconds() {
 		return errors.New("duration is out of range")
+	}
+	if e.MAC != "" {
+		return errors.New("an entry is not signed")
 	}
 	return nil
 }

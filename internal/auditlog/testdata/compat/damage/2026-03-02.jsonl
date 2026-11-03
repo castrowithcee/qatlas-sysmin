@@ -1,0 +1,2 @@
+{"seq":5,"time":"2026-03-02T09:00:00Z","kind":"damaged-line","damage":{"line_hash":"69cd0695b07b9eb71e9d31fea9db0bb8d7217c2d4715bce04f128f573c9f1b55"},"prev_hash":"7fa14700553a12b324da8702b9736e60099858c57731f798323a0c8434fffa81"}
+{"seq":6,"time":"2026-03-02T09:00:00Z","client_uid":1000,"action":"config.read","result":"success","duration_ms":5,"prev_hash":"e9008e4da12a237be36e88cae0e21ca8cafa199b9892db350db27647e264cbf7"}

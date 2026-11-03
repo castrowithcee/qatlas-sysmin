@@ -1,0 +1,2 @@
+{"seq":4,"time":"2026-03-05T08:00:00Z","client_uid":1000,"action":"host.change","result":"success","duration_ms":40,"host":{"action_id":"demo.set","journal_id":"20260305T030405.000000Z-0a1b2c"},"prev_hash":"fec9f4d3dc18325df3fbdeb722e9e300bec2ee5537276e5efeb0da87b91e4799"}
+{"seq":5,"time":"2026-03-05T09:00:00Z","client_uid":1000,"action":"control.refuse","result":"failure","error_code":"not-root","prev_hash":"b50648c53890417faea95a2ec48c47e87ed1afc7a871148cde78cb0b5ff7fef5"}

@@ -15,7 +15,10 @@ import (
 // of an earlier version, an invented value that nothing checks; the entries after it chain from that line.
 func seedLog(t *testing.T, dir string, signed bool, actions ...string) string {
 	t.Helper()
-	logger := auditlog.New(dir, auditlog.DefaultRetentionDays)
+	logger, err := auditlog.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i, action := range actions {
 		err := logger.Append(auditlog.Fields{ClientUID: 1000, Action: action,
 			Result: auditlog.ResultSuccess})

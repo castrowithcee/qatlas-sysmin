@@ -60,7 +60,11 @@ func Open(cfg Config) (*Service, error) {
 	if cfg.SocketPath == "" {
 		cfg.SocketPath = control.DefaultSocketPath
 	}
-	s := &Service{cfg: cfg, log: auditlog.New(filepath.Join(cfg.StateDir, "logs"), auditlog.DefaultRetentionDays)}
+	log, err := auditlog.Open(filepath.Join(cfg.StateDir, "logs"))
+	if err != nil {
+		return nil, err
+	}
+	s := &Service{cfg: cfg, log: log}
 
 	srv, err := daemon.New(daemon.Config{
 		Logger:      s.log,

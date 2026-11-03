@@ -1,21 +1,7 @@
-// Package auditlog appends one entry per action qsysmin takes to a daily file and links the entries with a
-// SHA-256 hash chain that spans day boundaries: the first entry of a day carries the hash of the last entry
-// of the last day that has one, so the chain keeps going across a day nothing happened on and a day file
-// never has to exist just to carry the link.
+// Package auditlog is qsysmin's part of the action log: the entry type, the actions it can record, and the
+// validation of both. Appending, the hash chain, the lock, retention, torn-line markers, reading and
+// checking are the kit's auditlog package; this package fixes how qsysmin uses it.
 //
-// A day file is DIR/YYYY-MM-DD.jsonl, named by its UTC date; every entry it holds is one JSON object per
-// line. Append takes an exclusive lock on the directory for its whole read-compute-write, so concurrent
-// writers, goroutines or processes, never race the chain. A failed Append is reported to the caller, never
-// written silently.
-//
-// Append writes each line with a write of its own, so a crash while it writes can leave the last line
-// torn. The next Append does not fail on such a line: it writes a KindDamage marker right after it that
-// names the SHA-256 of exactly its bytes, never the bytes themselves, and chains from the last line before
-// it that parses. Verify accepts a line that does not parse only when such a marker follows it and holds
-// as an entry, chain and check value included, and counts it as documented damage; any other such line
-// breaks the chain. Only the last line of the newest day file is ever bridged this way.
-//
-// Entries carry no signature. An entry that an earlier version signed keeps its mac field, which is not
-// checked: Verify counts such an entry as signed, and the chain over the stored bytes covers it like any
-// other, so signed and unsigned entries chain alike.
+// Entries carry no signature. A signature that an earlier version wrote in the mac member of an entry is
+// not checked: the entry counts as signed but unchecked, and the chain over its stored bytes covers it.
 package auditlog

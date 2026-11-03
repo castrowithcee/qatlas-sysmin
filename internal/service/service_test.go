@@ -125,8 +125,10 @@ func TestAuditEntriesCarryNoSignature(t *testing.T) {
 	files, _ := filepath.Glob(filepath.Join(logDir, "*.jsonl"))
 	for _, f := range files {
 		data, _ := os.ReadFile(f)
-		if strings.Contains(string(data), `"mac"`) {
-			t.Errorf("%s carries a mac field", f)
+		for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+			if strings.Count(line, `"mac"`) != 1 || !strings.HasSuffix(line, `,"mac":""}`) {
+				t.Errorf("%s has a line that is signed or lacks the empty mac member: %s", f, line)
+			}
 		}
 	}
 	rep, err := auditlog.Verify(logDir)

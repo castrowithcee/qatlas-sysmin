@@ -88,10 +88,11 @@ func (s *Service) handleLogList(_ context.Context, _ *daemon.Conn, params json.R
 		}
 		return nil, internalError("cannot read the action log", err)
 	}
-	out := control.LogListResult{Entries: make([]control.LogEntry, len(page.Entries)), Next: page.Next}
-	for i, e := range page.Entries {
+	out := control.LogListResult{Entries: make([]control.LogEntry, len(page.Records)), Next: page.Next}
+	for i, r := range page.Records {
+		e := r.Entry
 		out.Entries[i] = control.LogEntry{
-			Seq: e.Seq, Time: e.Time, ClientUID: e.ClientUID, Action: e.Action,
+			Seq: r.Seq, Time: r.Time, ClientUID: e.ClientUID, Action: e.Action,
 			Result: e.Result, ErrorCode: e.ErrorCode, DurationMS: e.DurationMS, Signed: e.MAC != "",
 		}
 		if e.Host != nil {
@@ -111,7 +112,7 @@ func (s *Service) handleLogVerify(context.Context, *daemon.Conn, json.RawMessage
 	out := control.LogVerifyResult{Intact: !report.Broken, Days: make([]control.LogDay, 0, len(report.Days))}
 	for _, d := range report.Days {
 		day := control.LogDay{Date: d.Date, Entries: d.Entries, Intact: d.Problem == "", Damaged: d.Damaged}
-		if d.Signed > 0 {
+		if d.Unchecked > 0 {
 			day.Signatures = control.LogSignaturesNotChecked
 		}
 		out.Days = append(out.Days, day)
@@ -122,7 +123,7 @@ func (s *Service) handleLogVerify(context.Context, *daemon.Conn, json.RawMessage
 			out.MoreProblems = true
 			continue
 		}
-		out.Problems = append(out.Problems, control.LogProblem{Date: d.Date, Seq: d.ProblemSeq, Line: d.ProblemLine, Code: d.ProblemCode})
+		out.Problems = append(out.Problems, control.LogProblem{Date: d.Date, Seq: d.ProblemSeq, Line: d.ProblemLine, Code: string(d.Problem)})
 	}
 	return out, nil
 }

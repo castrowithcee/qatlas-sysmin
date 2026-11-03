@@ -1,0 +1,2 @@
+{"seq":4,"time":"2026-04-10T10:00:00Z","kind":"retention-cut","cut":{"through_seq":2},"prev_hash":"9621490792eb021b2ca2cc01948102e6263ad45e4cc03138edb7c7aada5a42a1"}
+{"seq":5,"time":"2026-04-10T10:00:00Z","client_uid":1000,"action":"config.read","result":"success","duration_ms":5,"prev_hash":"32d10a9493fc37bc6f28b3e333459ba9053ef8754e6836c6f238081c5dafb623"}

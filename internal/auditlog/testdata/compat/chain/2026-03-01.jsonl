@@ -1,0 +1,2 @@
+{"seq":1,"time":"2026-03-01T10:00:00Z","client_uid":1000,"action":"config.read","result":"success","duration_ms":5,"prev_hash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+{"seq":2,"time":"2026-03-01T10:00:00Z","client_uid":1000,"action":"config.apply","result":"failure","error_code":"invalid","duration_ms":12,"prev_hash":"b57b2138f3fe6f31ab66f4366c760882efd6890741367eaadf19827d34902f7b"}

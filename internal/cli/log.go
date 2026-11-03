@@ -52,10 +52,10 @@ func newLogVerifyCommand(opts *Options) *cobra.Command {
 				}
 				chain, detail, signatures := "intact", "", ""
 				if d.Problem != "" {
-					chain, detail = "broken", d.Problem
+					chain, detail = "broken", auditlog.ProblemDetail(d)
 					broken = true
 				}
-				if d.Signed > 0 {
+				if d.Unchecked > 0 {
 					signatures = "not checked"
 				}
 				result.Rows = append(result.Rows, output.Row{

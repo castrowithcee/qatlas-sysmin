@@ -42,7 +42,10 @@ func (e *env) logFile(t *testing.T) string {
 func TestLogListFiltersAndPages(t *testing.T) {
 	e, c := logEnv(t)
 	dir := filepath.Join(e.cfg.StateDir, "logs")
-	l := auditlog.New(dir, auditlog.DefaultRetentionDays)
+	l, err := auditlog.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for range 3 {
 		if err := l.Append(auditlog.Fields{ClientUID: 7, Action: auditlog.OperationConfigApply, Result: auditlog.ResultSuccess}); err != nil {
 			t.Fatal(err)
@@ -141,7 +144,10 @@ func TestLogListRejectsBadFilters(t *testing.T) {
 
 func TestLogListAnswerStaysSmall(t *testing.T) {
 	e, c := logEnv(t)
-	l := auditlog.New(filepath.Join(e.cfg.StateDir, "logs"), auditlog.DefaultRetentionDays)
+	l, err := auditlog.Open(filepath.Join(e.cfg.StateDir, "logs"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < control.LogMaxLimit+100; i++ {
 		if err := l.Append(auditlog.Fields{ClientUID: 4000000000, Action: auditlog.OperationConfigApply,
 			Result: auditlog.ResultFailure, ErrorCode: strings.Repeat("e", 64), Duration: auditlog.MaxDuration}); err != nil {

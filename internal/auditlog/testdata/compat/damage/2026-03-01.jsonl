@@ -1,0 +1,6 @@
+{"seq":1,"time":"2026-03-01T10:00:00Z","client_uid":1000,"action":"config.read","result":"success","duration_ms":5,"prev_hash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+{"seq":2,"time":"2026-03-01T10:00:00Z","client_uid":1000,"action":"config.read","result":"success","duration_ms":5,"prev_hash":"b57b2138f3fe6f31ab66f4366c760882efd6890741367eaadf19827d34902f7b"}
+{"seq":3,"time":"2026-03-01T10:00:00Z","client_u
+{"seq":3,"time":"2026-03-01T11:00:00Z","kind":"damaged-line","damage":{"line_hash":"69cd0695b07b9eb71e9d31fea9db0bb8d7217c2d4715bce04f128f573c9f1b55"},"prev_hash":"c56b278e1af35139be25b99b854961662b4014a7f204459462072ee2578ae8f4"}
+{"seq":4,"time":"2026-03-01T11:00:00Z","client_uid":1000,"action":"config.apply","result":"success","duration_ms":5,"prev_hash":"6ba8b9d54739dc43f5df6d70e76455fe85253975d318b0312de33a07ab70b79f"}
+{"seq":3,"time":"2026-03-01T10:00:00Z","client_u
