@@ -13,6 +13,7 @@ scenario_steps='
 s00_installation|The installation created the unit, user, group, program and socket under the new names
 s01_status_and_log|Status and the verified action log right after the installation
 s01b_tui_starts|The terminal interface starts and shows its screen
+s01c_channel_access|The control channel serves administrators and refuses everyone else, each refusal in the action log
 s02_folder_change_kept|A folder change with a running demo container that stays healthy is kept
 s03_folder_change_restored|A folder change that makes the demo container unhealthy is restored
 s04_folder_undo|The kept folder change is undone from the journal
@@ -89,6 +90,16 @@ poll() {
 	done
 }
 
+# action_log prints the entries of the action log of the service, read as root.
+action_log() {
+	docker exec "$host" sh -c 'cat /var/lib/qsysmin/logs/*.jsonl'
+}
+
+# log_has succeeds when the action log has an entry of this client uid, action and error code (empty: none).
+log_has() {
+	action_log | grep -E "\"client_uid\":$1,\"action\":\"$2\",\"result\":\"[a-z]+\"${3:+,\"error_code\":\"$3\"}"
+}
+
 # containers prints name, id and start time of the running containers on the host.
 containers() {
 	docker exec "$host" docker ps --no-trunc --format '{{.Names}} {{.ID}}' | sort | while read -r name id; do
@@ -152,6 +163,12 @@ $out"
 	sock=$(docker exec "$host" sh -c 'ls -l /run/qsysmin/qsysmin.sock' 2>&1)
 	evidence "socket: $sock"
 	case $sock in s*/run/qsysmin/qsysmin.sock) ;; *) failed 'the socket /run/qsysmin/qsysmin.sock does not exist' ;; esac
+	perms=$(docker exec "$host" stat -c '%n %U:%G %a %F' /run/qsysmin /run/qsysmin/qsysmin.sock /run/qsysmin/qsysmin.sock.lock 2>&1)
+	evidence "channel folder, socket and lock file:
+$perms"
+	[ "$perms" = '/run/qsysmin qsysmin:qsysmin 750 directory
+/run/qsysmin/qsysmin.sock qsysmin:qsysmin 660 socket
+/run/qsysmin/qsysmin.sock.lock qsysmin:qsysmin 600 regular empty file' ] || failed 'folder, socket or lock file have other owners, modes or types than expected'
 	out=$(hrun qsysmin version 2>&1) && rc=0 || rc=$?
 	evidence "qsysmin version: exit $rc: $out"
 	[ "$rc" = 0 ] && printf '%s\n' "$out" | grep -q v0.7.0 || failed "qsysmin version: $out"
@@ -179,6 +196,76 @@ $text"
 	printf '%s' "$text" | grep -q 'qsysmin' && printf '%s' "$text" | grep -q 'Overview' || failed 'the interface screen does not show qsysmin and the overview'
 }
 
+# The channel serves root and the administrators in the group qsysmin and refuses everyone else with a fixed code
+# and a log entry of the caller's uid. The two users are invented: demo-guest is in the group qsysmin but not an
+# administrator, demo-out is in neither and reaches the folder only through a capability that bypasses its modes.
+s01c_channel_access() {
+	admin_uid=$(docker exec "$host" id -u "$admin")
+	admin_gid=$(docker exec "$host" id -g "$admin")
+	hroot 'useradd --system --no-create-home --shell /usr/sbin/nologin -G qsysmin demo-guest
+useradd --system --no-create-home --shell /usr/sbin/nologin demo-out'
+	guest_uid=$(docker exec "$host" id -u demo-guest)
+	out_uid=$(docker exec "$host" id -u demo-out)
+	out_gid=$(docker exec "$host" id -g demo-out)
+	# the groups of the administrator with and without qsysmin, as numbers for setpriv
+	groups=$(docker exec "$host" id -G "$admin" | tr ' ' ',')
+	qgid=$(docker exec "$host" getent group qsysmin | cut -d: -f3)
+	nogroup=$(printf '%s\n' "$groups" | tr ',' '\n' | grep -vx "$qgid" | paste -sd, -)
+	evidence "demo-guest: $(docker exec "$host" id demo-guest); demo-out: $(docker exec "$host" id demo-out)"
+
+	# root
+	out=$(hrun sudo qsysmin status --output compact 2>&1) && rc=0 || rc=$?
+	evidence "sudo qsysmin status: exit $rc: version=$(kv "$out" version)"
+	[ "$rc" = 0 ] && [ -n "$(kv "$out" version)" ] || failed "status as root through sudo: $out"
+	log_has 0 control.status >/dev/null || failed 'no control.status entry of client uid 0'
+
+	# a session that started before the membership
+	out=$(hroot "setpriv --reuid=$admin_uid --regid=$admin_gid --groups=$nogroup qsysmin status" 2>&1) && rc=0 || rc=$?
+	evidence "session without the group qsysmin (setpriv drops it): exit $rc: $out"
+	[ "$rc" != 0 ] && printf '%s\n' "$out" | grep -qF 'sudo -g qsysmin' || failed 'the session without the group got no hint to use sudo -g qsysmin'
+	out=$(hroot "setpriv --reuid=$admin_uid --regid=$admin_gid --groups=$nogroup sudo -g qsysmin qsysmin status --output compact" 2>&1) && rc=0 || rc=$?
+	evidence "the same session with sudo -g qsysmin: exit $rc: version=$(kv "$out" version)"
+	[ "$rc" = 0 ] && [ -n "$(kv "$out" version)" ] || failed "sudo -g qsysmin qsysmin status: $out"
+
+	# a user in the group qsysmin who is no administrator
+	out=$(hroot "sudo -u demo-guest qsysmin status" 2>&1) && rc=0 || rc=$?
+	evidence "demo-guest (uid $guest_uid, group qsysmin, no sudo): exit $rc: $out"
+	[ "$rc" != 0 ] && printf '%s\n' "$out" | grep -qF 'qsysmin is reserved for administrators (sudo)' || failed 'demo-guest did not get the message for administrators'
+	entry=$(log_has "$guest_uid" control.refuse not-admin | tail -n 1)
+	evidence "action log: $entry"
+	[ -n "$entry" ] || failed "no control.refuse entry with error_code not-admin for uid $guest_uid"
+
+	# a peer outside the group that reaches the folder anyway
+	out=$(hroot "setpriv --reuid=$out_uid --regid=$out_gid --clear-groups --inh-caps=+dac_override --ambient-caps=+dac_override qsysmin status" 2>&1) && rc=0 || rc=$?
+	evidence "demo-out (uid $out_uid, no group, CAP_DAC_OVERRIDE): exit $rc: $out"
+	[ "$rc" != 0 ] || failed 'demo-out was served'
+	entry=$(log_has "$out_uid" control.refuse refused | tail -n 1)
+	evidence "action log: $entry"
+	[ -n "$entry" ] || failed "no control.refuse entry with error_code refused for uid $out_uid"
+	out=$(cli status --output compact 2>&1) && rc=0 || rc=$?
+	evidence "status as the administrator after the refusals: exit $rc: version=$(kv "$out" version)"
+	[ "$rc" = 0 ] && [ -n "$(kv "$out" version)" ] || failed "the service did not serve on after the refusals: $out"
+
+	# host.record is for root alone: an administrator who is not root gets not-root
+	cat >"$sc_dir/record.pl" <<'EOF'
+use IO::Socket::UNIX;
+my $s = IO::Socket::UNIX->new(Peer => "/run/qsysmin/qsysmin.sock") or die "$!\n";
+print $s qq({"v":1,"op":"host.record","params":{"action":"folder.set-permissions","result":"applied","sudo_uid":4242,"journal_id":"j-demo"}}\n);
+print scalar <$s>;
+EOF
+	sc_note "# docker cp record.pl (one raw host.record request on the socket) to $host:/tmp/record.pl"
+	docker cp "$sc_dir/record.pl" "$host:/tmp/record.pl"
+	out=$(hroot "setpriv --reuid=$admin_uid --regid=$admin_gid --groups=$groups perl /tmp/record.pl" 2>&1) || true
+	evidence "host.record from the administrator (uid $admin_uid, not root): $out"
+	printf '%s\n' "$out" | grep -qF '"error":"not-root"' || failed 'host.record of a non-root client was not answered not-root'
+	entry=$(log_has "$admin_uid" control.refuse not-root | tail -n 1)
+	evidence "action log: $entry"
+	[ -n "$entry" ] || failed "no control.refuse entry with error_code not-root for uid $admin_uid"
+	hroot 'rm -f /tmp/record.pl'
+
+	hroot 'userdel demo-guest; userdel demo-out'
+}
+
 s02_folder_change_kept() {
 	if ! demo_start; then
 		failed "the demo container did not become healthy: $(demo_health)"
@@ -190,6 +277,9 @@ s02_folder_change_kept() {
 	journal_kept=$(kv "$out" journal_id)
 	evidence "host apply (the folder stays readable for the container): exit $rc: result=$(kv "$out" result) check=$(kv "$out" check) restored=$(kv "$out" restored) reversible=$(kv "$out" reversible) journal_id=$journal_kept"
 	[ "$rc" = 0 ] && [ "$(kv "$out" result)" = applied ] || failed "the change was not applied: $out"
+	entry=$(action_log | grep -F "\"journal_id\":\"$journal_kept\"" | tail -n 1)
+	evidence "action log entry of the change made through sudo (client uid is the administrator's, $(docker exec "$host" id -u "$admin")): $entry"
+	printf '%s\n' "$entry" | grep -q "\"client_uid\":$(docker exec "$host" id -u "$admin"),\"action\":\"host.change\"" || failed 'no host.change entry of the administrator for the change'
 	after=$(stat_of)
 	evidence "demo folder after: $after; container: $(demo_health)"
 	[ "$after" = 'demo-user:demo-user 755' ] || failed "the folder is not demo-user:demo-user 755: $after"

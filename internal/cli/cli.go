@@ -13,7 +13,6 @@ import (
 	"github.com/castrowithcee/qatlas-kit/helptopics"
 	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-kit/redact"
-	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 )
 
 // version is overridden at build time with
@@ -31,8 +30,6 @@ type Options struct {
 	// Redactor removes secret values from anything the process prints.
 	Redactor *redact.Redactor
 
-	// resolver answers the service's peer check; nil means the system's groups. Tests set it.
-	resolver daemon.Resolver
 	// sys supplies the host access of update and uninstall; nil means the real host. Tests set it.
 	sys *system
 	// host supplies the caller and the databases of the host commands; nil means the real host. Tests set it.

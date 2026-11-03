@@ -3,30 +3,19 @@ package service
 import (
 	"encoding/json"
 	"errors"
-	"net"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 )
 
 const (
 	testJournalID = "20300102T030405.000000Z-0a1b2c"
 	testUndoID    = "20300102T030400.000000Z-ffeedd"
 )
-
-func asPeer(uid uint32) func(*Config) {
-	return func(cfg *Config) {
-		cfg.Credentials = func(net.Conn) (daemon.Peer, error) {
-			return daemon.Peer{PID: int32(os.Getpid()), UID: uid, GID: uint32(os.Getgid())}, nil
-		}
-	}
-}
 
 func hostEntries(t *testing.T, c *client.Client) []control.LogEntry {
 	t.Helper()
@@ -37,71 +26,37 @@ func hostEntries(t *testing.T, c *client.Client) []control.LogEntry {
 	return res.Entries
 }
 
-func TestHostRecordFromRootWritesAnEntryForTheHuman(t *testing.T) {
-	e := newEnv(t, asPeer(0))
-	e.start(t)
-	c := e.dial(t)
-	// Root needs no further proof: the sudo call is the proof.
-	err := c.RecordHostChange(control.HostRecordParams{
+func recordOf(t *testing.T, p control.HostRecordParams) (uint32, auditlog.Host, string, error) {
+	t.Helper()
+	params, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return hostRecord(params)
+}
+
+func TestHostRecordNamesTheHumanBehindSudo(t *testing.T) {
+	uid, host, code, err := recordOf(t, control.HostRecordParams{
 		Action: "demo.set", Result: control.HostResultApplied, SudoUID: 1000, JournalID: testJournalID, UndoOf: testUndoID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var got *control.LogEntry
-	for _, en := range hostEntries(t, c) {
-		if en.Action == auditlog.OperationHostChange {
-			got = &en
-			break
-		}
-	}
-	if got == nil || got.ClientUID == nil || *got.ClientUID != 1000 || got.Result != "success" ||
-		got.Signed || got.Host == nil || *got.Host != (control.LogHost{ActionID: "demo.set", JournalID: testJournalID, UndoOf: testUndoID}) {
-		t.Fatalf("entry = %+v", got)
-	}
-	raw, err := os.ReadFile(e.logFile(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, line := range strings.Split(string(raw), "\n") {
-		if strings.Contains(line, `"host.change"`) {
-			var en map[string]any
-			if err := json.Unmarshal([]byte(line), &en); err != nil {
-				t.Fatal(err)
-			}
-			for _, key := range []string{"sentence", "commands", "args", "secret"} {
-				if _, ok := en[key]; ok {
-					t.Fatalf("entry carries %q: %s", key, line)
-				}
-			}
-		}
+	if err != nil || uid != 1000 || code != "" ||
+		host != (auditlog.Host{ActionID: "demo.set", JournalID: testJournalID, UndoOf: testUndoID}) {
+		t.Fatalf("record = %d, %+v, %q, %v", uid, host, code, err)
 	}
 }
 
 func TestHostRecordOfAChangeThatDidNotStand(t *testing.T) {
-	e := newEnv(t, asPeer(0))
-	e.start(t)
-	c := e.dial(t)
-	for _, res := range []string{control.HostResultFailed, control.HostResultRestored} {
-		if err := c.RecordHostChange(control.HostRecordParams{Action: "demo.set", Result: res, JournalID: testJournalID}); err != nil {
-			t.Fatal(err)
+	for result, want := range map[string]string{
+		control.HostResultFailed:   "change-failed",
+		control.HostResultRestored: "change-restored",
+	} {
+		if _, _, code, err := recordOf(t, control.HostRecordParams{Action: "demo.set", Result: result, JournalID: testJournalID}); err != nil || code != want {
+			t.Errorf("%s: code = %q, %v", result, code, err)
 		}
-	}
-	var codes []string
-	for _, en := range hostEntries(t, c) {
-		if en.Action == auditlog.OperationHostChange && en.Result == "failure" && en.ClientUID != nil && *en.ClientUID == 0 {
-			codes = append(codes, en.ErrorCode)
-		}
-	}
-	if len(codes) != 2 || codes[0] != "change-restored" || codes[1] != "change-failed" {
-		t.Fatalf("codes = %v", codes)
 	}
 }
 
 func TestHostRecordRejectsAFreeFormRequest(t *testing.T) {
-	e := newEnv(t, asPeer(0))
-	e.start(t)
-	c := e.dial(t)
 	for _, p := range []control.HostRecordParams{
 		{Action: "Demo Set; rm", Result: "applied", JournalID: testJournalID},
 		{Action: "demo.set", Result: "pending", JournalID: testJournalID},
@@ -110,26 +65,24 @@ func TestHostRecordRejectsAFreeFormRequest(t *testing.T) {
 		{Action: strings.Repeat("a", 80) + ".b", Result: "applied", JournalID: testJournalID},
 	} {
 		var ce *control.Error
-		if err := c.RecordHostChange(p); !errors.As(err, &ce) || ce.Code != control.CodeBadRequest {
+		if _, _, _, err := recordOf(t, p); !errors.As(err, &ce) || ce.Code != control.CodeBadRequest {
 			t.Fatalf("%+v: err = %v", p, err)
 		}
 	}
-	for _, en := range hostEntries(t, c) {
-		if en.Host != nil {
-			t.Fatalf("a rejected request left a host entry: %+v", en)
-		}
+	if _, _, _, err := hostRecord(json.RawMessage(`[1]`)); err == nil {
+		t.Fatal("a request that is no object was accepted")
 	}
 }
 
 func TestHostRecordRefusesEveryPeerButRootAndLogsTheRefusal(t *testing.T) {
-	e := newEnv(t, asPeer(1000))
+	if os.Geteuid() == 0 {
+		t.Skip("the test process is root")
+	}
+	e := newEnv(t)
 	e.start(t)
 	c := e.dial(t)
 	err := c.RecordHostChange(control.HostRecordParams{Action: "demo.set", Result: "applied", SudoUID: 0, JournalID: testJournalID})
-	var ce *control.Error
-	if !errors.As(err, &ce) || ce.Code != control.CodeNotRoot {
-		t.Fatalf("err = %v", err)
-	}
+	wantCode(t, err, control.CodeNotRoot)
 	var refusal *control.LogEntry
 	for _, en := range hostEntries(t, c) {
 		if en.Action == auditlog.OperationHostChange || en.Host != nil {
@@ -139,11 +92,7 @@ func TestHostRecordRefusesEveryPeerButRootAndLogsTheRefusal(t *testing.T) {
 			refusal = &en
 		}
 	}
-	if refusal == nil || refusal.ClientUID == nil || *refusal.ClientUID != 1000 || refusal.Result != "failure" {
+	if refusal == nil || refusal.ClientUID == nil || *refusal.ClientUID != uint32(os.Getuid()) || refusal.Result != "failure" {
 		t.Fatalf("refusal = %+v", refusal)
-	}
-	files, _ := filepath.Glob(filepath.Join(e.cfg.StateDir, "logs", "*.jsonl"))
-	if len(files) == 0 {
-		t.Fatal("no log")
 	}
 }

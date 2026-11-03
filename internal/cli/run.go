@@ -31,7 +31,6 @@ func newRunCommand(opts *Options) *cobra.Command {
 			ctx, stop := signal.NotifyContext(c.Context(), syscall.SIGTERM, syscall.SIGINT)
 			defer stop()
 			cfg.Version = version
-			cfg.Resolver = opts.resolver
 			return runService(ctx, cfg)
 		},
 	}
