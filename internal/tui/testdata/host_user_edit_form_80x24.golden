@@ -2,13 +2,13 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    2/2
+Users (3)                                                                    2/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name        Admin              Docker  Groups                       System ║
-║   ▾ Us╔══════════════════════════════════════════════════════════════╗       ║
-║   demo║ Change demo-user                                             ║       ║
-║ > demo║                                                              ║       ║
-║   ▸ Sy║ > Change:       < Remove from groups >                       ║       ║
+║     NAME        ADMIN              DOCKER  GROUPS                     SYSTEM ║
+║   ▾ ■ ╔══════════════════════════════════════════════════════════════╗       ║
+║     de║ Change demo-user                                             ║       ║
+║ >   de║                                                              ║       ║
+║   ▸ ■ ║ > Change:       < Remove from groups >                       ║       ║
 ╚═══════║   Remove from:  none                                         ║═══════╝
         ║                                                              ║        
         ║ [ Save ]  [ Cancel ]                                         ║        

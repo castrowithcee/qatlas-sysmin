@@ -172,84 +172,78 @@ func (m *Model) shownHost(v string) string {
 	return v
 }
 
-func (m *Model) hostSystemTone(system func(name string) bool) func(string) lipgloss.Style {
-	return func(cell string) lipgloss.Style {
-		if system(cell) {
-			return m.ui.st(kittui.StyleHint)
+// systemTone dims the name of a system account or group, found by its cell in system.
+func systemTone(system map[string]bool) func(string) kittui.TextStyle {
+	return func(cell string) kittui.TextStyle {
+		if system[cell] {
+			return kittui.StyleHint
 		}
-		return m.ui.st(kittui.StyleText)
+		return kittui.StyleText
 	}
 }
 
-func (m *Model) hostUserColumns() []column {
-	warn := func(cell string) lipgloss.Style {
-		if cell == m.tr(tHostAdminOff) {
-			return m.ui.st(kittui.StyleWarn)
+func (m *Model) hostUserColumns(system map[string]bool) []kittui.Column {
+	off := m.tr(tHostAdminOff)
+	warn := func(cell string) kittui.TextStyle {
+		if cell == off {
+			return kittui.StyleWarn
 		}
-		return m.ui.st(kittui.StyleText)
+		return kittui.StyleText
 	}
-	return []column{
-		{title: m.tr(tColName), tone: m.hostSystemTone(func(n string) bool { return m.hst.users.items[n].System })},
-		{title: m.tr(tHostColAdmin), shown: m.shownHost, short: map[string]string{hostAdminOff: m.tr(tHostAdminOffShort)}, tone: warn},
-		{title: m.tr(tHostColDocker), shown: m.shownHost},
-		{title: m.tr(tHostColGroups), flex: true, optional: true, drop: 2},
-		{title: m.tr(tHostColSystem), shown: m.shownHost, optional: true, drop: 1, tone: m.ui.toneDim},
-	}
-}
-
-func (m *Model) hostGroupColumns() []column {
-	return []column{
-		{title: m.tr(tColName), tone: m.hostSystemTone(func(n string) bool { return m.hst.groups.items[n].System })},
-		{title: m.tr(tHostColMembers), right: true},
-		{title: m.tr(tHostColSystem), shown: m.shownHost, optional: true, tone: m.ui.toneDim},
+	return []kittui.Column{
+		{Title: tColName, Tone: systemTone(system)},
+		{Title: tHostColAdmin, Short: map[string]string{off: m.tr(tHostAdminOffShort)}, Tone: warn},
+		{Title: tHostColDocker},
+		{Title: tHostColGroups, Flex: true, Optional: true},
+		{Title: tHostColSystem, Optional: true, Dimmed: true},
 	}
 }
 
-// fillHostUsers rebuilds the rows of Users from what was read: the users, and the system accounts in a section
-// of their own that starts folded.
+func hostGroupColumns(system map[string]bool) []kittui.Column {
+	return []kittui.Column{
+		{Title: tColName, Tone: systemTone(system)},
+		{Title: tHostColMembers, Right: true},
+		{Title: tHostColSystem, Optional: true, Dimmed: true},
+	}
+}
+
+// fillHostUsers rebuilds the rows of Users from what was read: the users, and the system accounts in a group
+// of their own that starts folded. The system accounts are the group without key, which stands last.
 func (m *Model) fillHostUsers() {
 	u := &m.hst.users
 	u.items = map[string]hostadmin.User{}
-	rows := map[string][]string{}
-	regular := dataSection{key: "users", title: tSubUsers}
-	system := dataSection{key: "system", title: tHostSysAccounts, collapsed: true}
+	system := map[string]bool{}
+	var rows []dataRow
+	regular := m.tr(tSubUsers)
 	for _, user := range u.all {
 		u.items[user.Name] = user
+		name, group, mark := m.cellText(user.Name), regular, ""
 		if user.System {
-			system.names = append(system.names, user.Name)
-		} else {
-			regular.names = append(regular.names, user.Name)
+			system[name], group, mark = true, "", m.shownHost(hostSystem)
 		}
-		mark := ""
-		if user.System {
-			mark = hostSystem
-		}
-		rows[user.Name] = []string{m.diffText(user.Name), adminText(user), hostYesNo(user.Docker),
-			m.diffText(strings.Join(user.Groups, ", ")), mark}
+		rows = append(rows, dataRow{name: user.Name, group: group, cells: []string{name, m.shownHost(adminText(user)),
+			m.shownHost(hostYesNo(user.Docker)), m.cellText(strings.Join(user.Groups, ", ")), mark}})
 	}
-	u.page.cols = m.hostUserColumns()
-	u.page.setSections([]dataSection{regular, system}, rows)
+	u.page.fill(m.ui, listConfig{cols: m.hostUserColumns(system), empty: tHostNoUsers, grouped: true,
+		noGroup: tHostSysAccounts, folded: []string{""}}, rows)
 }
 
 func (m *Model) fillHostGroups() {
 	g := &m.hst.groups
 	g.items = map[string]hostadmin.Group{}
-	rows := map[string][]string{}
-	regular := dataSection{key: "groups", title: tSubGroups}
-	system := dataSection{key: "system", title: tHostSysGroups, collapsed: true}
+	system := map[string]bool{}
+	var rows []dataRow
+	regular := m.tr(tSubGroups)
 	for _, group := range g.all {
 		g.items[group.Name] = group
-		mark := ""
+		name, key, mark := m.cellText(group.Name), regular, ""
 		if group.System {
-			mark = hostSystem
-			system.names = append(system.names, group.Name)
-		} else {
-			regular.names = append(regular.names, group.Name)
+			system[name], key, mark = true, "", m.shownHost(hostSystem)
 		}
-		rows[group.Name] = []string{m.diffText(group.Name), strconv.Itoa(len(group.Members)), mark}
+		rows = append(rows, dataRow{name: group.Name, group: key, cells: []string{name, strconv.Itoa(len(group.Members)), mark}})
 	}
-	g.page.cols = m.hostGroupColumns()
-	g.page.setSections([]dataSection{regular, system}, rows)
+	g.page.fill(m.ui, listConfig{cols: hostGroupColumns(system), empty: tHostNoGroups, grouped: true,
+		noGroup: tHostSysGroups, folded: []string{""}}, rows)
 }
 
 func hostYesNo(b bool) string {
@@ -271,19 +265,11 @@ func hostKnownBool(ui *uiContext, b *bool) string {
 }
 
 func (m *Model) hostUsersSpec() dataSpec {
-	empty := m.tr(tHostNoUsers)
-	if m.hst.users.err != "" {
-		empty = m.hst.users.err
-	}
-	return dataSpec{title: m.tr(tSubUsers), empty: empty, lines: m.hostUserLines}
+	return dataSpec{title: m.tr(tSubUsers), note: m.hst.users.err, lines: m.hostUserLines}
 }
 
 func (m *Model) hostGroupsSpec() dataSpec {
-	empty := m.tr(tHostNoGroups)
-	if m.hst.groups.err != "" {
-		empty = m.hst.groups.err
-	}
-	return dataSpec{title: m.tr(tSubGroups), empty: empty, lines: m.hostGroupLines}
+	return dataSpec{title: m.tr(tSubGroups), note: m.hst.groups.err, lines: m.hostGroupLines}
 }
 
 func hostList(ui *uiContext, items []string) string {
@@ -407,15 +393,21 @@ func (m *Model) hostBody() string {
 	top := m.workspaceTop()
 	switch m.hst.sub {
 	case hostGroups:
-		m.hst.groups.page.cols = m.hostGroupColumns()
+		if m.hst.groups.page.stale(m.ui) {
+			m.fillHostGroups()
+		}
 		return m.dataBody(&m.hst.groups.page, m.hostGroupsSpec(), top)
 	case hostFolders:
 		return m.hostFoldersBody()
 	case hostChanges:
-		m.hst.chg.page.cols = m.hostChangeColumns()
+		if m.hst.chg.page.stale(m.ui) {
+			m.fillHostChanges()
+		}
 		return m.hostChangesView(top)
 	}
-	m.hst.users.page.cols = m.hostUserColumns()
+	if m.hst.users.page.stale(m.ui) {
+		m.fillHostUsers()
+	}
 	return m.dataBody(&m.hst.users.page, m.hostUsersSpec(), top)
 }
 
@@ -440,11 +432,8 @@ func (m *Model) hostKeys() []kittui.Hint {
 			hint(tHintFilter, actSearch))
 	}
 	enter := tHintDetails
-	if p := m.currentPage(); p != nil && p.onHeading() {
-		enter = tHintCollapse
-		if p.headingFolded() {
-			enter = tHintExpand
-		}
+	if p := m.currentPage(); p != nil && p.onGroup() {
+		enter = tHintFold
 	}
 	keys := keyLine(navHint(tHintMove, actUp, actDown), hint(enter, actEnter))
 	if m.hst.sub == hostUsers {

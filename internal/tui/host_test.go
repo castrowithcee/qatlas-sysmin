@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
+	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
 func hostModel(t *testing.T, w, h int) *Model {
@@ -91,16 +92,16 @@ func TestUserDetailShowsUnknownWhereOnlyRootCanRead(t *testing.T) {
 	}
 }
 
-// openSystem marks the heading of the system section of page p and presses key on it.
+// openSystem marks the row of the system group of page p, which stands last, and presses key on it.
 func openSystem(m *Model, p *dataPage, key string) {
-	p.list.selectName(sectionRow("system"))
+	markGroup(p, 1)
 	send(m, key)
 }
 
 func TestSystemSectionsStartCollapsedWithCountsAndMarks(t *testing.T) {
 	m := hostModel(t, 120, 40)
 	view := plain(m)
-	for _, want := range []string{"▾ Users (2)", "▸ System accounts (1)", "demo-admin", "demo-user"} {
+	for _, want := range []string{"▾ ■ Users (2)", "▸ ■ System accounts (1)", "demo-admin", "demo-user"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("Users lacks %q:\n%s", want, view)
 		}
@@ -110,7 +111,7 @@ func TestSystemSectionsStartCollapsedWithCountsAndMarks(t *testing.T) {
 	}
 	runCommand(m, "go host groups")
 	view = plain(m)
-	for _, want := range []string{"▾ Groups (1)", "▸ System groups (3)", "demo-team"} {
+	for _, want := range []string{"▾ ■ Groups (1)", "▸ ■ System groups (3)", "demo-team"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("Groups lacks %q:\n%s", want, view)
 		}
@@ -120,12 +121,12 @@ func TestSystemSectionsStartCollapsedWithCountsAndMarks(t *testing.T) {
 	}
 }
 
-func TestEnterAndSpaceOnAHeadingToggleItsSection(t *testing.T) {
-	for _, key := range []string{"enter", "space"} {
+func TestEnterOnAGroupRowTogglesItsGroup(t *testing.T) {
+	for _, key := range []string{"enter"} {
 		m := hostModel(t, 120, 40)
 		p := &m.hst.users.page
 		openSystem(m, p, key)
-		if view := plain(m); !strings.Contains(view, "▾ System accounts (1)") || !strings.Contains(view, "svc-demo") {
+		if view := plain(m); !strings.Contains(view, "▾ ■ System accounts (1)") || !strings.Contains(view, "svc-demo") {
 			t.Errorf("%s does not expand the section:\n%s", key, view)
 		}
 		if p.open || m.zoneNow() == zoneDetail {
@@ -135,7 +136,7 @@ func TestEnterAndSpaceOnAHeadingToggleItsSection(t *testing.T) {
 			t.Errorf("a heading shows a detail or lacks the hint:\n%s", view)
 		}
 		send(m, key)
-		if view := plain(m); !strings.Contains(view, "▸ System accounts (1)") || strings.Contains(view, "svc-demo") {
+		if view := plain(m); !strings.Contains(view, "▸ ■ System accounts (1)") || strings.Contains(view, "svc-demo") {
 			t.Errorf("%s does not collapse the section again:\n%s", key, view)
 		}
 	}
@@ -154,11 +155,11 @@ func TestClickOnAHeadingToggles(t *testing.T) {
 		t.Fatalf("no heading:\n%s", plain(m))
 	}
 	clickAt(m, 10, y)
-	if view := plain(m); !strings.Contains(view, "▾ System accounts (1)") || !strings.Contains(view, "svc-demo") {
+	if view := plain(m); !strings.Contains(view, "▾ ■ System accounts (1)") || !strings.Contains(view, "svc-demo") {
 		t.Errorf("a click does not expand the section:\n%s", view)
 	}
 	clickAt(m, 10, y)
-	if view := plain(m); !strings.Contains(view, "▸ System accounts (1)") {
+	if view := plain(m); !strings.Contains(view, "▸ ■ System accounts (1)") {
 		t.Errorf("a second click does not collapse it:\n%s", view)
 	}
 }
@@ -167,11 +168,11 @@ func TestCollapseStateHoldsPerTableAndAcrossVisits(t *testing.T) {
 	m := hostModel(t, 120, 40)
 	openSystem(m, &m.hst.users.page, "enter")
 	runCommand(m, "go host groups")
-	if view := plain(m); !strings.Contains(view, "▸ System groups (3)") {
+	if view := plain(m); !strings.Contains(view, "▸ ■ System groups (3)") {
 		t.Errorf("opening the system users opened the system groups:\n%s", view)
 	}
 	runCommand(m, "go host users")
-	if view := plain(m); !strings.Contains(view, "▾ System accounts (1)") || !strings.Contains(view, "svc-demo") {
+	if view := plain(m); !strings.Contains(view, "▾ ■ System accounts (1)") || !strings.Contains(view, "svc-demo") {
 		t.Errorf("the state is lost on a new visit:\n%s", view)
 	}
 }
@@ -181,39 +182,45 @@ func TestFilterFindsAndOpensAFoldedSection(t *testing.T) {
 	send(m, "/")
 	typed(m, "svc-demo")
 	view := plain(m)
-	if !strings.Contains(view, "▾ System accounts (1)") || !strings.Contains(view, "svc-demo") {
+	if !strings.Contains(view, "▾ ■ System accounts (1)") || !strings.Contains(view, "svc-demo") {
 		t.Errorf("the match inside the folded section is not shown:\n%s", view)
 	}
 	if strings.Contains(view, "demo-admin") || strings.Contains(view, "Users (2)") {
 		t.Errorf("a section without a match stays on view:\n%s", view)
 	}
+	// The filter opened the group only while it held a hit; clearing it shows the fold state as it was.
 	send(m, "esc")
-	if view := plain(m); !strings.Contains(view, "demo-admin") || !strings.Contains(view, "svc-demo") {
-		t.Errorf("clearing the filter loses rows:\n%s", view)
+	if view := plain(m); !strings.Contains(view, "demo-admin") || !strings.Contains(view, "▸ ■ System accounts (1)") {
+		t.Errorf("clearing the filter loses rows or the fold state:\n%s", view)
 	}
 }
 
-func TestMovementPassesOverHeadings(t *testing.T) {
+func TestMovementPassesOverGroupRows(t *testing.T) {
 	m := hostModel(t, 80, 24)
 	p := &m.hst.users.page
-	at := func() string { n, _ := p.list.selected(); return n }
+	at := func() string {
+		if n, ok := p.current(); ok {
+			return n
+		}
+		return "group " + p.list.Position()
+	}
 	if at() != "demo-admin" {
 		t.Fatalf("opens on %q", at())
 	}
 	send(m, "down", "down")
-	if at() != sectionRow("system") {
-		t.Errorf("down does not reach the heading: %q", at())
+	if at() != "group 2/3" {
+		t.Errorf("down does not reach the row of the system accounts: %q", at())
 	}
 	send(m, "up", "up", "up")
-	if at() != sectionRow("users") {
-		t.Errorf("up does not reach the first heading: %q", at())
+	if at() != "group 1/3" {
+		t.Errorf("up does not reach the first group row: %q", at())
 	}
 	send(m, "end")
-	if at() != sectionRow("system") {
+	if at() != "group 2/3" {
 		t.Errorf("end: %q", at())
 	}
 	send(m, "home")
-	if at() != sectionRow("users") {
+	if at() != "group 1/3" {
 		t.Errorf("home: %q", at())
 	}
 	// The wheel is a step of the mark, with the stop at both ends.
@@ -224,8 +231,21 @@ func TestMovementPassesOverHeadings(t *testing.T) {
 	}
 	_, cmd = m.Update(tea.MouseWheelMsg{X: 10, Y: 6, Button: tea.MouseWheelUp})
 	drain(m, cmd)
-	if at() != sectionRow("users") {
+	if at() != "group 1/3" {
 		t.Errorf("the wheel does not step up: %q", at())
+	}
+}
+
+// Left folds the group of the marked row and right opens a folded group from its row.
+func TestLeftAndRightFoldAndOpenAGroup(t *testing.T) {
+	m := hostModel(t, 80, 24)
+	send(m, "left")
+	if view := plain(m); !strings.Contains(view, "▸ ■ Users (2)") || strings.Contains(view, "demo-user") {
+		t.Errorf("left on an entry does not fold its group:\n%s", view)
+	}
+	send(m, "right")
+	if view := plain(m); !strings.Contains(view, "▾ ■ Users (2)") || !strings.Contains(view, "demo-user") {
+		t.Errorf("right on a folded group row does not open it:\n%s", view)
 	}
 }
 
@@ -237,7 +257,7 @@ func TestSpaceOnARowDoesNothingAndAHeadingHasNoDetail(t *testing.T) {
 		t.Errorf("space on a row changes the screen:\n%s", plain(m))
 	}
 	p := &m.hst.users.page
-	p.list.selectName(sectionRow("users"))
+	markGroup(p, 0)
 	if _, ok := p.current(); ok {
 		t.Errorf("a heading is a row")
 	}
@@ -254,7 +274,7 @@ func TestGroupsShowMemberCountsAndMembers(t *testing.T) {
 	m := hostModel(t, 120, 40)
 	runCommand(m, "go host groups")
 	openSystem(m, &m.hst.groups.page, "enter")
-	m.hst.groups.page.list.selectName("sudo")
+	markName(&m.hst.groups.page, "sudo")
 	view := plain(m)
 	for _, want := range []string{"sudo", "docker", "qsysmin", "demo-team", "Members", "system"} {
 		if !strings.Contains(view, want) {
@@ -389,4 +409,22 @@ func TestHostHelpTopicExists(t *testing.T) {
 		send(m, "right")
 	}
 	t.Error("no help topic host")
+}
+
+// A control character in a name shows escaped in the table: the escape sequence an invented user name holds
+// is drawn as text and never reaches the terminal, and the row stays the row of that very name.
+func TestControlCharactersInANameShowEscaped(t *testing.T) {
+	const name = "demo-\x1b[31muser"
+	m := hostModel(t, 120, 40)
+	m.takeHostUsers(hostUsersMsg{list: []hostadmin.User{{Name: name, UID: 1002, Home: "/home/demo-user"}}})
+	view := m.render()
+	if strings.Contains(view, "\x1b[31m") {
+		t.Fatalf("the escape sequence of the name reached the terminal:\n%q", view)
+	}
+	if !strings.Contains(view, `demo-\x1b[31muser`) {
+		t.Errorf("the name is not shown escaped:\n%s", view)
+	}
+	if got, ok := m.hst.users.page.current(); !ok || got != name {
+		t.Errorf("the marked row is %q (%v), want the name as read", got, ok)
+	}
 }

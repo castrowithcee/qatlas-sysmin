@@ -63,7 +63,7 @@ func save(m *Model) {
 	drain(m, cmd)
 }
 
-func selectUser(m *Model, name string) { m.hst.users.page.list.selectName(name) }
+func selectUser(m *Model, name string) { markName(&m.hst.users.page, name) }
 
 // seeNoInput fails when the secret is anywhere on the screen.
 func seeNoInput(t *testing.T, m *Model, where string) {
@@ -442,11 +442,7 @@ func TestOffersFollowTheUser(t *testing.T) {
 
 // selectAccount marks the user name and unfolds the system section when the user sits in it.
 func selectAccount(m *Model, name string) {
-	p := &m.hst.users.page
-	if !p.list.selectName(name) {
-		openSystem(m, p, "enter")
-		selectUser(m, name)
-	}
+	selectUser(m, name)
 }
 
 // chooseChange opens the form of name and moves to the change id.

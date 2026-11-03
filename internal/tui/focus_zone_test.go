@@ -180,23 +180,23 @@ func TestDigitsOpenTheAreaInItsContentButNotWhileTyping(t *testing.T) {
 	}
 	send(m, "/")
 	typed(m, "3")
-	if m.area != areaActivity || m.act.page.list.query() != "3" {
-		t.Errorf("a digit typed into the filter opens %v, filter %q", m.area, m.act.page.list.query())
+	if m.area != areaActivity || m.act.page.list.Query() != "3" {
+		t.Errorf("a digit typed into the filter opens %v, filter %q", m.area, m.act.page.list.Query())
 	}
 }
 
 func TestUpOnTheFirstRowLeadsToTheBarAndListsStopAtTheEnds(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
 	send(m, "3", "down", "down", "down")
-	if got := m.act.page.list.cursor; got != 1 {
+	if got := logRow(m); got != 1 {
 		t.Errorf("down past the last row reaches %d, want it to stay on 1", got)
 	}
 	send(m, "end", "pgdown")
-	if got := m.act.page.list.cursor; got != 1 {
+	if got := logRow(m); got != 1 {
 		t.Errorf("end and pgdown reach %d, want 1", got)
 	}
 	send(m, "home", "pgup")
-	if got := m.act.page.list.cursor; got != 0 || m.zoneNow() != zoneContent {
+	if got := logRow(m); got != 0 || m.zoneNow() != zoneContent {
 		t.Errorf("home and pgup reach %d on %v, want the first row in the content", got, m.zoneNow())
 	}
 	send(m, "up")
@@ -358,6 +358,10 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 		m.zone = zoneContent
 		before := c.tab(m)
 		send(m, "right", "left")
+		if c.subs {
+			// Left on a row of a grouped table folds its group; right opens it again from the group row.
+			send(m, "right", "down")
+		}
 		if c.tab(m) != before || m.zoneNow() != zoneContent {
 			t.Errorf("%s: the arrows on the rows turn the detail tab (%d, was %d) or leave the rows (%v)", c.name, c.tab(m), before, m.zoneNow())
 		}

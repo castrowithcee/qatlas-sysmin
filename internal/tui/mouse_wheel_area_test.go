@@ -97,7 +97,7 @@ func TestTheWheelStepsTheTableOfEveryDataPageWhateverHasTheFocus(t *testing.T) {
 			p.scroll = 4
 			x, y := wheelCell(t, m, leftArea)
 			name := fmt.Sprintf("%s %dx%d", c.name, size[0], size[1])
-			stepsOf(t, name, m, now, x, y, func() int { return p.list.cursor }, c.rows)
+			stepsOf(t, name, m, now, x, y, func() int { return logRow(m) }, c.rows)
 			if m.zoneNow() != zone {
 				t.Errorf("%s: the wheel moved the focus from %v to %v", name, zone, m.zoneNow())
 			}
@@ -116,8 +116,8 @@ func TestTheWheelNeverLeavesTheTableForTheBar(t *testing.T) {
 	for range 3 {
 		notch(m, now, x, y, true)
 	}
-	if m.zoneNow() != zoneContent || m.act.page.list.cursor != 0 {
-		t.Errorf("the wheel up on the first row left it: zone %v, row %d", m.zoneNow(), m.act.page.list.cursor)
+	if m.zoneNow() != zoneContent || logRow(m) != 0 {
+		t.Errorf("the wheel up on the first row left it: zone %v, row %d", m.zoneNow(), logRow(m))
 	}
 }
 
@@ -223,14 +223,14 @@ func TestTheWheelRestsWhileAFilterIsTypedAndBehindAQuestion(t *testing.T) {
 	now := wheelClock(m)
 	x, y := wheelCell(t, m, leftArea)
 	notch(m, now, x, y, false)
-	if m.act.page.list.cursor != 0 {
-		t.Errorf("the wheel moved the table while filtering: %d", m.act.page.list.cursor)
+	if logRow(m) != 0 {
+		t.Errorf("the wheel moved the table while filtering: %d", logRow(m))
 	}
 	send(m, "esc")
 	m.screen = screenConfirm
 	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
 	notch(m, now, x, y, false)
-	if m.act.page.list.cursor != 0 {
-		t.Errorf("the wheel moved the table behind a question: %d", m.act.page.list.cursor)
+	if logRow(m) != 0 {
+		t.Errorf("the wheel moved the table behind a question: %d", logRow(m))
 	}
 }

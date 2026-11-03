@@ -2,13 +2,13 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    1/2
+Users (3)                                                                    1/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name        Admin              Docker  Groups                       System ║
-║   ▾ Users (2)                                                                ║
-║ > demo╔═ Users ══════════════════════════════════════════════════════╗       ║
-║   demo║ Admin: the user may become root with sudo. Docker: the user  ║       ║
-║   ▸ Sy║ may use Docker, which is practically root on this host.      ║       ║
+║     NAME        ADMIN              DOCKER  GROUPS                     SYSTEM ║
+║   ▾ ■ Users (2)                                                              ║
+║ >   de╔═ Users ══════════════════════════════════════════════════════╗       ║
+║     de║ Admin: the user may become root with sudo. Docker: the user  ║       ║
+║   ▸ ■ ║ may use Docker, which is practically root on this host.      ║       ║
 ╚═══════║ Enabled: the user is a member of the group qsysmin; an admin ║═══════╝
         ║ who is also enabled may use qsysmin. n creates a user, e     ║        
         ║ changes the marked one, d deletes it; every change asks      ║        

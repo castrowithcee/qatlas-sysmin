@@ -27,7 +27,7 @@ func (m *Model) copySource() func() string {
 		}
 		return nil
 	}
-	if m.screen != screenList || m.list.editing || m.dd != nil {
+	if m.screen != screenList || m.base.filtering() || m.dd != nil {
 		return nil
 	}
 	name, ok := m.selected()

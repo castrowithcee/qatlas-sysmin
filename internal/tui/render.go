@@ -39,6 +39,12 @@ func (m *Model) boundKeepingKeys(view string, width, height int) string {
 	return m.boundTo(strings.Join(lines, "\n"), width, height)
 }
 
+// tableFramed reports whether a screen draws its table, or a dialog its panel, in a frame: below these sizes
+// the frame costs more room than the terminal has.
+func (m *Model) tableFramed() bool {
+	return m.usable(0) >= tableFrameMinWidth && m.height >= tableFrameMinHeight
+}
+
 // clipCells cuts text to width visible cells. Escape sequences count no cells and are never split; when
 // the cut leaves a style open, a reset ends it. Text without escapes stays a true prefix of its input.
 func clipCells(text string, width int) string {

@@ -48,8 +48,8 @@ func TestColonStaysTextWhereTextIsTyped(t *testing.T) {
 	m := appModel(t, overviewFake(), 100, 30)
 	send(m, "3", "/")
 	typed(m, ":a")
-	if m.pop != nil || m.currentPage().list.query() != ":a" {
-		t.Errorf(": in the filter: palette %v, query %q, want text", m.pop != nil, m.currentPage().list.query())
+	if m.pop != nil || m.currentPage().list.Query() != ":a" {
+		t.Errorf(": in the filter: palette %v, query %q, want text", m.pop != nil, m.currentPage().list.Query())
 	}
 }
 

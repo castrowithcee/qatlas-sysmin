@@ -79,11 +79,11 @@ func TestTheWheelBehindTheHelpMovesNothing(t *testing.T) {
 	send(m, "3")
 	send(m, "?")
 	now := wheelClock(m)
-	row := m.act.page.list.cursor
+	row := logRow(m)
 	notch(m, now, 1, m.workspaceTop()+3, false)
 	notch(m, now, 0, m.termHeight-1, false)
-	if m.act.page.list.cursor != row || m.pop == nil {
-		t.Errorf("the wheel behind the help moved the table to %d", m.act.page.list.cursor)
+	if logRow(m) != row || m.pop == nil {
+		t.Errorf("the wheel behind the help moved the table to %d", logRow(m))
 	}
 }
 

@@ -307,7 +307,7 @@ func (m *Model) toBar() {
 // zone of its own. Where it has the screen to itself it is an inner level of the content instead.
 func (m *Model) detailZoneAvailable() bool {
 	p := m.currentPage()
-	return p != nil && !p.open && m.usable(0) >= wideDetailMin && len(p.list.matches) > 0
+	return p != nil && m.screen == screenArea && !p.open && m.usable(0) >= wideDetailMin && p.entries() > 0
 }
 
 // zoneNow is the zone that takes the keys. An inner level of the content holds the focus whatever the zone

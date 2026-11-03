@@ -64,25 +64,6 @@ func barMarker(focused bool) string {
 	return "  "
 }
 
-// searchFieldMin is the narrowest search field worth drawing.
-const searchFieldMin = 14
-
-// searchFieldMax is the widest search field.
-const searchFieldMax = 30
-
-// searchField draws the search field of width cells: the placeholder, dimmed, while content is empty, else
-// content (the text after "/ ", or the input being typed, already drawn).
-func searchField(ui *uiContext, content string, width int) string {
-	if content == "" {
-		hint := ui.st(kittui.StyleHint)
-		if ui.palette().Surface != "" {
-			hint = hint.Background(lip(ui.palette().Surface))
-		}
-		return hint.Render(padLine(clipCells(" "+ui.tr(tSearchField), width), width))
-	}
-	return fieldStyle(ui, false).Render(padLine(clipCells(" "+content, width), width))
-}
-
 // dropdown is the open list of a field.
 type dropdown struct {
 	// id names the field the list belongs to; the drawing of the field says where it stands.
@@ -189,62 +170,4 @@ func (m *Model) overlayDropdown(view string) string {
 		m.addHit(x+1, y+1+i, x+w-1, y+2+i, func() tea.Cmd { return m.chooseDropdown(i) })
 	}
 	return strings.Join(rows, "\n")
-}
-
-// searchContent is what the search field of the lists shows: "/ " and the query, or the input being typed,
-// and nothing while the search is idle, which shows the placeholder.
-func searchContent(l *filterList, room int) string {
-	switch {
-	case l.editing:
-		return "/ " + inputView(fitInput(l.input, max(room-3, 1)))
-	case l.query() != "":
-		return "/ " + truncateCells(l.query(), max(room-3, 1))
-	}
-	return ""
-}
-
-// fieldRows sets styled fields, each led by its own two-cell marker column and two cells apart, into lines of width
-// cells, and the search field at the right end of the first line it fits (the last line otherwise). It returns
-// the lines and the plain search field.
-func fieldRows(ui *uiContext, fields []string, search func(room int) string, width int) ([]string, string) {
-	var lines []string
-	cur, used := "", 0
-	flush := func() {
-		lines = append(lines, cur)
-		cur, used = "", 0
-	}
-	for _, f := range fields {
-		w := lipgloss.Width(f)
-		if used > 0 && used+2+w > width {
-			flush()
-		}
-		if used > 0 {
-			cur += "  "
-			used += 2
-		}
-		cur += f
-		used += w
-	}
-	if used > 0 || len(lines) == 0 {
-		flush()
-	}
-	at := len(lines) - 1
-	for i, line := range lines {
-		if width-lipgloss.Width(line)-2 >= searchFieldMin {
-			at = i
-			break
-		}
-	}
-	room := min(searchFieldMax, width-lipgloss.Width(lines[at])-2)
-	if room < searchFieldMin {
-		lines = append(lines, "")
-		at = len(lines) - 1
-		room = min(searchFieldMax, width-2)
-	}
-	if room < 4 {
-		return lines, ""
-	}
-	field := searchField(ui, search(room), room)
-	lines[at] += strings.Repeat(" ", width-lipgloss.Width(lines[at])-room) + field
-	return lines, ansi.Strip(field)
 }

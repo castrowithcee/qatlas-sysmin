@@ -2,18 +2,21 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/castrowithcee/qatlas-kit/i18n"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // A data page is a table of an area with the detail of the marked row: beside the table from wideDetailMin
 // columns on, and as a screen of its own after enter below that. The detail has three tabs. The pages of
-// Activity and Host share this block; a page brings its columns, its rows and the lines of each tab.
+// Activity and Host share this block; a page brings its columns, its rows and the lines of each tab. The
+// table itself is the kit's list, which holds the selection, the filter, the groups and the scroll position.
 
 // wideDetailMin is the width from which the detail stands beside the table.
 const wideDetailMin = 120
@@ -28,33 +31,136 @@ const (
 
 // dataPage is the state of one table page. The rows are keyed by a name that is unique in the page.
 type dataPage struct {
-	list filterList
-	cols []column
-	rows map[string][]string
+	list *kittui.List
+	// lang, empty and cols are what the list was built with; the column titles and the empty sentence follow
+	// them.
+	lang  i18n.Lang
+	empty textID
+	cols  int
+	// ids finds the name of a row by its item ID, groups its group; rows holds the cells of each row by name.
+	ids    map[kittui.ItemID]string
+	groups map[kittui.ItemID]string
+	rows   map[string][]string
+	// folded are the groups that were given their first fold state.
+	folded map[string]bool
 	// tab is the detail tab; open says the detail has the screen; scroll is its first line.
 	tab    int
 	open   bool
 	scroll int
-	// sec is the fold state of a page with sections; see datasections.go.
-	sec sectionState
 }
 
-// dataSpec is what a page brings to the drawing: its title, its empty text, and the lines of a tab for a
-// row, wrapped into width cells.
+// dataRow is one row a page hands its table: the name it is known by, its cells and its group.
+type dataRow struct {
+	name  string
+	cells []string
+	group string
+}
+
+// listConfig is what the table of a page is built from. A grouped table titles the group without key with
+// noGroup; the groups in folded start folded the first time they show.
+type listConfig struct {
+	cols    []kittui.Column
+	empty   textID
+	grouped bool
+	noGroup textID
+	folded  []string
+}
+
+// dataSpec is what a page brings to the drawing: its title, and whether a gap stands under it where the
+// height allows, as under the titles of the other framed screens; a note that stands in place of the table
+// while it has no rows, such as an error or a load in progress; and the lines of a tab for a row, wrapped into
+// width cells.
 type dataSpec struct {
 	title string
-	empty string
+	gap   bool
+	note  string
 	lines func(name string, tab, width int) []string
 }
 
-// setRows replaces the rows of the page and keeps the filter and, where it can, the marked row.
-func (p *dataPage) setRows(names []string, rows map[string][]string) {
-	if p.list.text == nil {
-		p.list = newFilterList(func(name string) string { return strings.Join(p.rows[name], " ") })
-	}
-	p.rows = rows
-	p.list.setItems(names)
+// listKeys are the actions the tables read.
+func listKeys() kittui.ListKeys {
+	return kittui.ListKeys{Up: actUp, Down: actDown, PageUp: actPageUp, PageDown: actPageDown, First: actHome,
+		Last: actEnd, Left: actLeft, Right: actRight, Enter: actEnter, Search: actSearch, Back: actBack}
 }
+
+// rowID is the item ID of a row name. Quoting keeps every name, a control character included, apart from
+// every other, and the ID itself free of control characters.
+func rowID(name string) kittui.ItemID { return kittui.ItemID(strconv.Quote(name)) }
+
+// stale reports whether the table was built in another language than the one in force, or not at all.
+func (p *dataPage) stale(ui *uiContext) bool { return p.list == nil || p.lang != ui.lang }
+
+// fill replaces the rows of the page and keeps the filter and, where it still shows, the marked row. A name
+// listed twice keeps its first row. The columns are fixed in the code, so a table the kit refuses is a defect
+// of this package.
+func (p *dataPage) fill(ui *uiContext, cfg listConfig, rows []dataRow) {
+	old := p.list
+	if p.stale(ui) || p.empty != cfg.empty || p.cols != len(cfg.cols) {
+		l, err := kittui.NewList(kittui.ListSpec{Columns: cfg.cols, Keys: listKeys(), Empty: cfg.empty, NoGroup: cfg.noGroup},
+			ui.keys, ui.text)
+		if err != nil {
+			panic(fmt.Sprintf("the table is invalid: %v", err))
+		}
+		p.list, p.lang, p.empty, p.cols, p.folded = l, ui.lang, cfg.empty, len(cfg.cols), map[string]bool{}
+	}
+	p.list.SetGrouped(cfg.grouped)
+	p.ids, p.groups, p.rows = map[kittui.ItemID]string{}, map[kittui.ItemID]string{}, map[string][]string{}
+	items := make([]kittui.ListItem, 0, len(rows))
+	firstOf := map[string]kittui.ItemID{}
+	for _, r := range rows {
+		id := rowID(r.name)
+		if _, dup := p.ids[id]; dup {
+			continue
+		}
+		p.ids[id], p.groups[id], p.rows[r.name] = r.name, r.group, r.cells
+		items = append(items, kittui.ListItem{ID: id, Cells: r.cells, Group: r.group})
+		if _, ok := firstOf[r.group]; !ok {
+			firstOf[r.group] = id
+		}
+	}
+	if err := p.list.SetItems(items); err != nil {
+		panic(fmt.Sprintf("the rows do not fit the table: %v", err))
+	}
+	for _, g := range cfg.folded {
+		if first, ok := firstOf[g]; ok && !p.folded[g] {
+			p.folded[g] = true
+			p.foldGroupOf(first)
+		}
+	}
+	if old != nil && old != p.list {
+		p.list.SetFilter(old.Query())
+		if old.Searching() {
+			p.list.Act(actSearch)
+		}
+		if id, ok := old.Selected(); ok {
+			p.list.Select(id)
+		}
+	}
+}
+
+// foldGroupOf folds the group of the entry first, as left on it does, and keeps the mark where it was unless
+// it stood in that group.
+func (p *dataPage) foldGroupOf(first kittui.ItemID) {
+	marked, had := p.list.Selected()
+	p.list.Select(first)
+	p.list.Act(actLeft)
+	if had && p.groups[marked] != p.groups[first] {
+		p.list.Select(marked)
+	}
+}
+
+// toFirst marks the first row shown and scrolls to it; the filter stays.
+func (p *dataPage) toFirst() {
+	query, searching := p.list.Query(), p.list.Searching()
+	p.list.Reset()
+	p.list.SetFilter(query)
+	if searching {
+		p.list.Act(actSearch)
+	}
+}
+
+// entries is the number of rows of the page.
+func (p *dataPage) entries() int { return len(p.ids) }
 
 // wheelDetail scrolls the detail by the notches of the wheel.
 func (p *dataPage) wheelDetail(up bool) {
@@ -66,21 +172,68 @@ func (p *dataPage) wheelDetail(up bool) {
 }
 
 // wheelRows is a notch of the wheel over the table: the mark takes a step, with the consequences the key has.
+// It rests while a filter is typed.
 func (m *Model) wheelRows(p *dataPage, up bool) tea.Cmd {
-	return wheelList(&p.list, up, func() tea.Cmd {
-		p.scroll = 0
-		return m.dataWant()
-	})
+	if p.list == nil || p.list.Searching() {
+		return nil
+	}
+	steps := 1
+	if up {
+		steps = -1
+	}
+	return m.movedBy(p, func() { p.list.Wheel(steps) })
 }
 
-// current is the name of the marked row; a heading of a section is no row and has none.
+// movedBy runs move on the table of p; where the mark moved, the detail starts at its top and the page asks
+// for what the new row needs.
+func (m *Model) movedBy(p *dataPage, move func()) tea.Cmd {
+	before, _ := p.list.Selected()
+	move()
+	if after, _ := p.list.Selected(); after == before {
+		return nil
+	}
+	p.scroll = 0
+	return m.dataWant()
+}
+
+// current is the name of the marked row; a group row is no row and has none.
 func (p *dataPage) current() (string, bool) {
-	name, ok := p.list.selected()
-	return name, ok && !isSectionRow(name)
+	if p.list == nil {
+		return "", false
+	}
+	id, ok := p.list.Selected()
+	if !ok {
+		return "", false
+	}
+	name, ok := p.ids[id]
+	return name, ok
+}
+
+// onGroup reports whether the mark stands on a group row: the table has rows, none is marked and no filter
+// could have hidden them all.
+func (p *dataPage) onGroup() bool {
+	_, marked := p.current()
+	return p.list != nil && !marked && p.entries() > 0 && p.list.Query() == "" && !p.list.Searching()
 }
 
 // filtering reports whether the filter takes the typed keys.
-func (p *dataPage) filtering() bool { return p != nil && p.list.editing }
+func (p *dataPage) filtering() bool { return p != nil && p.list != nil && p.list.Searching() }
+
+// atLastRow reports whether the mark stands on the last row shown. It steps down and back, which moves
+// nothing that is drawn.
+func (p *dataPage) atLastRow() bool {
+	before, ok := p.list.Selected()
+	if !ok {
+		return false
+	}
+	p.list.Act(actDown)
+	after, _ := p.list.Selected()
+	if after == before {
+		return true
+	}
+	p.list.Act(actUp)
+	return false
+}
 
 func tabTitle(ui *uiContext, tab int) string {
 	return ui.tr([...]textID{tTabOverview, tTabDetails, tTabRaw}[tab])
@@ -104,17 +257,9 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	if !have {
 		p.open = false
 	}
-	total := p.entries()
-	at, shown := p.list.cursor+1, len(p.list.matches)
-	if p.sectioned() {
-		at, shown = p.sectionPosition()
-	}
 	position := ""
-	if total > 0 {
-		position = fmt.Sprintf("%d/%d", at, shown)
-		if shown != total && (!p.sectioned() || p.list.query() != "") {
-			position = fmt.Sprintf("%d/%d (%d total)", at, shown, total)
-		}
+	if p.list != nil {
+		position = p.list.Position()
 	}
 	if !m.backdrop {
 		m.screenPos = position
@@ -122,9 +267,8 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	if p.open {
 		return m.detailScreen(p, v, name, avail, width, top)
 	}
-	// A heading has no detail, but the panel stays so the table does not jump while the mark moves over it.
-	marked, hasMark := p.list.selected()
-	wide := width >= wideDetailMin && hasMark && (have || isSectionRow(marked))
+	// A group row has no detail, but the panel stays so the table does not jump while the mark moves over it.
+	wide := width >= wideDetailMin && p.entries() > 0
 	tableWidth := width
 	detailWidth := 0
 	if wide {
@@ -140,22 +284,20 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	}
 	inner := detailWidth - 4
 	strip, spans := tabStripLine(m.ui, p, inner, detailFocus)
-	title := name
+	title := m.diffText(name)
 	var content []string
-	if have {
+	switch {
+	case have:
 		content = v.lines(name, p.tab, inner)
-	} else {
-		sec, _ := p.section(marked)
-		title = m.tr(sec.title)
-		content = wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tSectionHint), inner)
-		strip, spans = "", nil
+	case p.onGroup():
+		content = wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tGroupRowHint), inner)
 	}
 	height := min(max(len(content)+2, len(left)-2), avail-2)
 	room := max(height-2, 1)
 	p.scroll = min(max(p.scroll, 0), max(len(content)-room, 0))
 	body := append([]string{strip, ""}, content[p.scroll:min(p.scroll+room, len(content))]...)
 	if !have {
-		body = content[:min(room, len(content))]
+		body, spans = content[:min(room, len(content))], nil
 	}
 	right := panel(m.ui, truncateCells(title, inner-2), body, inner, height, panelOpts{focused: detailFocus})
 	left0 := tableWidth + 1
@@ -181,12 +323,13 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	return strings.Join(out, "\n")
 }
 
-// tableBlock is the table of the page in width cells, at most avail lines.
+// tableBlock is the table of the page in width cells, at most avail lines: the title with the position, and
+// in a panel where there is room the list of the kit, or the note of the page while it has no rows.
 func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, position string, focused bool) []string {
 	framed := width >= tableFrameMinWidth && m.height >= tableFrameMinHeight
-	room := width
+	room, x0 := width, 0
 	if framed {
-		room = max(width-4, 1)
+		room, x0 = max(width-4, 1), 2
 	}
 	inside := func(text string) string {
 		if !framed {
@@ -194,66 +337,62 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 		}
 		return panelSide(m.ui, text, room, focused)
 	}
-	total, shown := p.entries(), len(p.list.matches)
-	lines := []string{m.ui.styles.TitleLine(fmt.Sprintf("%s (%d)", v.title, total), position, width)}
+	lines := []string{m.ui.styles.TitleLine(fmt.Sprintf("%s (%d)", v.title, p.entries()), position, width)}
+	if v.gap && m.titleBlank() {
+		lines = append(lines, "")
+	}
 	if framed {
 		lines = append(lines, panelTop(m.ui, "", "", room, focused))
-	}
-	if p.list.editing || p.list.query() != "" {
-		lines = append(lines, inside(m.searchLineIn(room, &p.list, m.tr(tFormFilter))))
-	}
-	t := table{columns: p.cols, rows: p.rows}
-	_, cells := m.fitIn(room, entryIndent)
-	layout := t.layout(cells)
-	if total > 0 {
-		lines = append(lines, inside(m.ui.st(kittui.StyleHint).Render(clipCells(entryIndent+t.header(layout), room))))
-	}
-	switch {
-	case total == 0:
-		lines = append(lines, inside(m.ui.st(kittui.StyleHint).Render(truncateCells(v.empty, room))))
-	case shown == 0:
-		lines = append(lines, inside(m.ui.st(kittui.StyleHint).Render(truncateCells(m.tr(tFormNoEntryMatchesPressEsc, p.list.query()), room))))
 	}
 	foot := 0
 	if framed {
 		foot = 1
 	}
-	start, end := p.list.window(max(avail-len(lines)-foot, 1), func(int) int { return 1 })
-	for i := start; i < end; i++ {
-		i := i
-		name := p.list.matches[i]
-		heading := isSectionRow(name)
-		text := ""
-		if heading {
-			text = p.headingLine(m.ui, name)
-		} else {
-			text = t.line(p.rows[name], layout)
+	if p.list == nil || (p.entries() == 0 && v.note != "") {
+		lines = append(lines, inside(m.ui.st(kittui.StyleHint).Render(truncateCells("  "+v.note, room))))
+	} else {
+		view, targets := p.list.View(m.ui.styles, room, max(avail-len(lines)-foot, 1))
+		body := strings.Split(view, "\n")
+		for len(body) > 1 && strings.TrimSpace(ansi.Strip(body[len(body)-1])) == "" {
+			body = body[:len(body)-1]
 		}
-		row := m.listRowIn(room, i == p.list.cursor, text)
-		m.addHit(0, top+len(lines), width, top+len(lines)+1, func() tea.Cmd {
-			if heading {
-				// A click on a heading folds it at once, which is harmless and undone by the next click.
-				m.focusRows()
-				p.list.cursor = i
-				p.toggleHeading()
-				return nil
-			}
-			fromDetail := m.focusRows()
-			if p.list.cursor != i {
-				p.list.cursor, p.scroll = i, 0
-				return m.dataWant()
-			}
-			if fromDetail {
-				return nil
-			}
-			return m.contentPress(actEnter)
-		})
-		lines = append(lines, inside(row))
+		m.addRowTargets(p, targets, x0, top+len(lines), len(body))
+		for _, line := range body {
+			lines = append(lines, inside(line))
+		}
 	}
 	if framed {
 		lines = append(lines, panelBottom(m.ui, room, focused))
 	}
 	return lines
+}
+
+// addRowTargets makes the rows and the search line the list drew clickable, from screen cell (x0, y0) on;
+// rows is how many of its lines were kept.
+func (m *Model) addRowTargets(p *dataPage, targets []kittui.Target, x0, y0, rows int) {
+	for _, t := range targets {
+		if (t.Item == "" && t.Action == "") || t.Rect.Y >= rows {
+			continue
+		}
+		r := t.Rect
+		m.addHit(x0+r.X, y0+r.Y, x0+r.X+r.Width, y0+r.Y+r.Height, func() tea.Cmd { return m.clickRow(p, t) })
+	}
+}
+
+// clickRow is a click on a target of a table. The kit marks the row, folds a group or starts the search; only
+// a click on the marked row while the rows had the focus opens it, which is the press of enter there, so a
+// click that meant to take the focus from the detail opens nothing.
+func (m *Model) clickRow(p *dataPage, t kittui.Target) tea.Cmd {
+	p.list.SetFocused(m.screen != screenArea || m.zoneNow() == zoneContent)
+	m.focusRows()
+	var open kittui.ItemID
+	cmd := m.movedBy(p, func() {
+		open, _ = p.list.Click(kittui.MouseResult{Handled: true, Zone: t.Zone, Action: t.Action, Item: t.Item})
+	})
+	if open != "" {
+		return m.contentPress(actEnter)
+	}
+	return cmd
 }
 
 // detailScreen is the detail of the marked row as a screen of its own, scrolled by the person.
@@ -268,7 +407,7 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 	}
 	strip, spans := tabStripLine(m.ui, p, inner, true)
 	body := append([]string{strip, ""}, content[p.scroll:min(p.scroll+room, len(content))]...)
-	head := m.ui.styles.TitleLine(v.title+" › "+truncateCells(name, max(width-lipgloss.Width(v.title)-4, 4)), note, width)
+	head := m.ui.styles.TitleLine(v.title+" › "+truncateCells(m.diffText(name), max(width-lipgloss.Width(v.title)-4, 4)), note, width)
 	for i, span := range spans {
 		m.addHit(2+span[0], top+2, 2+span[1], top+3, func() tea.Cmd { p.tab, p.scroll = i, 0; return nil })
 	}
@@ -276,117 +415,86 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 	return head + "\n" + strings.Join(panel(m.ui, "", body, inner, room+2, panelOpts{focused: true}), "\n")
 }
 
-// pageKey handles the keys that move through the table, and the keys of the open detail; up on the first row
-// goes to the bar above. It reports false for every other key.
+// pageKey handles the keys of the table, and the keys of the open detail; up on the first row goes to the bar
+// above. It reports false for every other key.
 func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
-	if p.open {
-		switch {
-		case m.keyIs(key, actBack):
-			p.open = false
-		case m.keyIs(key, actLeft), m.keyIs(key, actPrev):
-			p.tab, p.scroll = (p.tab+tabCount-1)%tabCount, 0
-		case m.keyIs(key, actRight), m.keyIs(key, actNext), m.keyIs(key, actEnter):
-			p.tab, p.scroll = (p.tab+1)%tabCount, 0
-		case m.keyIs(key, actUp):
-			p.scroll = max(p.scroll-1, 0)
-		case m.keyIs(key, actDown):
-			p.scroll++
-		case m.keyIs(key, actPageUp):
-			p.scroll = max(p.scroll-5, 0)
-		case m.keyIs(key, actPageDown):
-			p.scroll += 5
-		case m.keyIs(key, actHome):
-			p.scroll = 0
-		case m.keyIs(key, actEnd):
-			p.scroll = 1 << 30
-		default:
-			return nil, false
-		}
+	if p.open || m.zoneNow() == zoneDetail {
+		return nil, m.detailKey(p, key)
+	}
+	if p.list == nil {
+		return nil, false
+	}
+	if m.keyIs(key, actFilter) {
+		p.list.Act(actSearch)
 		return nil, true
 	}
-	if m.zoneNow() == zoneDetail {
-		switch {
-		case m.keyIs(key, actLeft):
-			p.tab, p.scroll = (p.tab+tabCount-1)%tabCount, 0
-		case m.keyIs(key, actRight):
-			p.tab, p.scroll = (p.tab+1)%tabCount, 0
-		case m.keyIs(key, actUp):
-			p.scroll = max(p.scroll-1, 0)
-		case m.keyIs(key, actDown):
-			p.scroll++
-		case m.keyIs(key, actPageUp):
-			p.scroll = max(p.scroll-5, 0)
-		case m.keyIs(key, actPageDown):
-			p.scroll += 5
-		case m.keyIs(key, actHome):
-			p.scroll = 0
-		case m.keyIs(key, actEnd):
-			p.scroll = 1 << 30
-		default:
-			return nil, false
-		}
-		return nil, true
-	}
-	cursor := p.list.cursor
-	defer func() {
-		if p.list.cursor != cursor {
-			p.scroll = 0
-		}
-	}()
+	var open kittui.ItemID
+	var handled bool
+	cmd := m.movedBy(p, func() { open, handled = p.list.Update(key) })
 	switch {
-	case m.keyIs(key, actUp) && p.list.cursor <= 0:
+	case open != "" && m.screen != screenArea:
+		// The bare list has no detail to open.
+	case open != "":
+		p.scroll = 0
+		if m.detailZoneAvailable() {
+			m.zone = zoneDetail
+		} else {
+			p.open = true
+		}
+	case handled:
+	case m.keyIs(key, actUp) && m.screen == screenArea:
 		m.toBar()
-		return nil, true
-	case m.keyIs(key, actUp):
-		p.list.move(-1)
-	case m.keyIs(key, actDown):
-		p.list.move(1)
-	case m.keyIs(key, actPageUp), m.keyIs(key, actPageDown), m.keyIs(key, actHome), m.keyIs(key, actEnd):
-		p.list.page(m.ui.keys, key, 0, 10)
-	case p.headingKey(m.ui.keys, key):
-	case m.keyIs(key, actEnter):
-		if _, ok := p.current(); ok {
-			p.scroll = 0
-			if m.detailZoneAvailable() {
-				m.zone = zoneDetail
-			} else {
-				p.open = true
-			}
-		}
-	case m.keyIs(key, actSearch), m.keyIs(key, actFilter):
-		p.list.startFilter()
-		return nil, true
-	case m.keyIs(key, actBack):
-		if p.list.query() == "" {
-			return nil, false
-		}
-		p.list.clearFilter()
 	default:
 		return nil, false
 	}
-	return m.dataWant(), true
+	return cmd, true
 }
 
-// filterKey handles a key while the filter is typed.
-func (m *Model) filterKey(p *dataPage, key tea.KeyPressMsg) tea.Cmd {
+// detailKey handles a key of the detail of p: the tabs and the scroll position, and esc where it has the
+// screen.
+func (m *Model) detailKey(p *dataPage, key tea.KeyPressMsg) bool {
 	switch {
-	case m.keyIs(key, actEnter):
-		p.list.stopFilter()
-	case m.keyIs(key, actBack):
-		p.list.clearFilter()
+	case p.open && m.keyIs(key, actBack):
+		p.open = false
+	case m.keyIs(key, actLeft), p.open && m.keyIs(key, actPrev):
+		p.tab, p.scroll = (p.tab+tabCount-1)%tabCount, 0
+	case m.keyIs(key, actRight), p.open && (m.keyIs(key, actNext) || m.keyIs(key, actEnter)):
+		p.tab, p.scroll = (p.tab+1)%tabCount, 0
 	case m.keyIs(key, actUp):
-		p.list.move(-1)
+		p.scroll = max(p.scroll-1, 0)
 	case m.keyIs(key, actDown):
-		p.list.move(1)
+		p.scroll++
+	case m.keyIs(key, actPageUp):
+		p.scroll = max(p.scroll-5, 0)
+	case m.keyIs(key, actPageDown):
+		p.scroll += 5
+	case m.keyIs(key, actHome):
+		p.scroll = 0
+	case m.keyIs(key, actEnd):
+		p.scroll = 1 << 30
 	default:
-		return tea.Batch(p.list.updateFilter(key), m.dataWant())
+		return false
 	}
-	return m.dataWant()
+	return true
 }
 
-// currentPage is the data page the area shows, nil where there is none.
+// filterKey handles a key while the filter is typed. It reaches the filter as it reaches every text field: a
+// paste as its text, and alt with a character as that character.
+func (m *Model) filterKey(p *dataPage, key tea.KeyPressMsg) tea.Cmd {
+	switch msg := inputMsg(key).(type) {
+	case tea.PasteMsg:
+		key = textKey(msg.Content)
+	case tea.KeyPressMsg:
+		key = msg
+	}
+	return m.movedBy(p, func() { p.list.Update(key) })
+}
+
+// currentPage is the data page the screen shows, nil where there is none.
 func (m *Model) currentPage() *dataPage {
 	switch {
+	case m.screen == screenList:
+		return &m.base
 	case m.area == areaActivity:
 		return &m.act.page
 	case m.area == areaHost && m.hst.sub == hostUsers:
@@ -402,7 +510,7 @@ func (m *Model) currentPage() *dataPage {
 // detailSeen reports whether the detail of the marked row is on the screen now.
 func (m *Model) detailSeen() bool {
 	p := m.currentPage()
-	return p != nil && (p.open || (m.usable(0) >= wideDetailMin && len(p.list.matches) > 0))
+	return p != nil && (p.open || (m.usable(0) >= wideDetailMin && p.entries() > 0))
 }
 
 // dataWant asks for what the marked row's detail needs and has not yet.
@@ -412,6 +520,16 @@ func (m *Model) dataWant() tea.Cmd {
 		return m.activityWant()
 	}
 	return nil
+}
+
+// cellText makes a value of the service fit for a cell of a table: invalid UTF-8 replaced and every
+// registered secret hidden. The table escapes control characters itself, so they show instead of acting.
+func (m *Model) cellText(s string) string {
+	s = strings.ToValidUTF8(s, "�")
+	if m.redactor != nil {
+		s = m.redactor.Apply(s)
+	}
+	return s
 }
 
 // diffText makes a value of the service safe to draw: no escape sequence, no registered secret, no control

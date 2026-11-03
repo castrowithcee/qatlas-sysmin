@@ -4,13 +4,13 @@ qsysmin                                                                         
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Groups (4)                                                        2/4 ╭─ sudo ─────────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
-║   Name       Members  System                                      ║ │                                                │
-║   ▾ Groups (1)                                                    ║ │ Name     sudo                                  │
-║   demo-team        1                                              ║ │ Type     system (read-only)                    │
-║   ▾ System groups (3)                                             ║ │ Members  2                                     │
-║ > sudo             2  system                                      ║ │                                                │
-║   docker           1  system                                      ║ │                                                │
-║   qsysmin          1  system                                      ║ │                                                │
+║     NAME       MEMBERS  SYSTEM                                    ║ │                                                │
+║   ▾ ■ Groups (1)                                                  ║ │ Name     sudo                                  │
+║     demo-team        1                                            ║ │ Type     system (read-only)                    │
+║   ▾ ■ System groups (3)                                           ║ │ Members  2                                     │
+║ >   sudo             2  system                                    ║ │                                                │
+║     docker           1  system                                    ║ │                                                │
+║     qsysmin          1  system                                    ║ │                                                │
 ╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
                                                                                                                         
                                                                                                                         

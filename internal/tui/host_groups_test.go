@@ -25,11 +25,7 @@ func groupsModel(t *testing.T, w, h int) (*Model, *fakeSudo, *countingHost) {
 }
 
 func selectGroup(m *Model, name string) {
-	p := &m.hst.groups.page
-	if !p.list.selectName(name) {
-		openSystem(m, p, "enter")
-		p.list.selectName(name)
-	}
+	markName(&m.hst.groups.page, name)
 }
 
 func TestGroupsPageOffersNewRenameAndDeleteInTheFooter(t *testing.T) {
@@ -42,7 +38,7 @@ func TestGroupsPageOffersNewRenameAndDeleteInTheFooter(t *testing.T) {
 		}
 	}
 	p := &m.hst.groups.page
-	p.list.selectName(sectionRow("groups"))
+	markGroup(p, 0)
 	if keys := m.hintText(m.hostKeys()); !strings.Contains(keys, "n new") || strings.Contains(keys, "rename") || strings.Contains(keys, "delete") {
 		t.Errorf("on a heading only n works: %q", keys)
 	}

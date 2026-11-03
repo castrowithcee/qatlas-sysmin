@@ -4,12 +4,12 @@ qsysmin                                            [esc] back  [?] help  [:] cmd
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    3/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name        Admin              Docker  Groups                       System ║
-║   ▾ Users (2)                                                                ║
-║   demo-admin  yes                yes     demo-admin, sudo, docker, …         ║
-║   demo-user   yes · not enabled  no      demo-user, sudo, demo-team          ║
-║   ▾ System accounts (1)                                                      ║
-║ > svc-demo    no                 no      svc-demo                     system ║
+║     NAME        ADMIN              DOCKER  GROUPS                     SYSTEM ║
+║   ▾ ■ Users (2)                                                              ║
+║     demo-admin  yes                yes     demo-admin, sudo, docker…         ║
+║     demo-user   yes · not enabled  no      demo-user, sudo, demo-te…         ║
+║   ▾ ■ System accounts (1)                                                    ║
+║ >   svc-demo    no                 no      svc-demo                   system ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
                                                                                 
                                                                                 

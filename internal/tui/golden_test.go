@@ -26,16 +26,12 @@ func goldenFrame(t *testing.T) *Model {
 	}
 	m := testModel(defaultPrefs(), nil)
 	m.title = "Services"
-	m.table = table{
-		columns: []column{{title: "Name"}, {title: "State"}, {title: "Note", flex: true}},
-		rows: map[string][]string{
-			"example-app": {"example-app", "running", "demo web service"},
-			"demo-db":     {"demo-db", "running", "demo database"},
-			"sample-job":  {"sample-job", "stopped", "demo nightly job"},
-			"test-proxy":  {"test-proxy", "failed", "demo reverse proxy"},
-		},
-	}
-	m.setEntries([]string{"example-app", "demo-db", "sample-job", "test-proxy"}, nil, nil)
+	fillBase(m, []kittui.Column{{Title: "Name"}, {Title: "State"}, {Title: "Note", Flex: true}}, map[string][]string{
+		"example-app": {"example-app", "running", "demo web service"},
+		"demo-db":     {"demo-db", "running", "demo database"},
+		"sample-job":  {"sample-job", "stopped", "demo nightly job"},
+		"test-proxy":  {"test-proxy", "failed", "demo reverse proxy"},
+	}, []string{"example-app", "demo-db", "sample-job", "test-proxy"}, nil)
 	sizedModel(m, 80, 24)
 	press(t, m, "down")
 	return m

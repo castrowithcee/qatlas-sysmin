@@ -61,7 +61,7 @@ const (
 	tInfoHostFolders     textID = "InfoHostFolders"
 	tHostSysAccounts     textID = "HostSysAccounts"
 	tHostSysGroups       textID = "HostSysGroups"
-	tSectionHint         textID = "SectionHint"
+	tGroupRowHint        textID = "GroupRowHint"
 )
 
 // hostTexts are the texts of the Host area, in English and German.
@@ -126,7 +126,7 @@ func hostTexts() (en, de map[textID]string) {
 
 		tHostSysAccounts: "System accounts",
 		tHostSysGroups:   "System groups",
-		tSectionHint:     "Press enter or space to collapse or expand this section.",
+		tGroupRowHint:    "Press {enter} to collapse or expand this group.",
 	}
 	de = map[textID]string{
 		tAreaHost:            "Host",
@@ -188,7 +188,7 @@ func hostTexts() (en, de map[textID]string) {
 
 		tHostSysAccounts: "Systemkonten",
 		tHostSysGroups:   "Systemgruppen",
-		tSectionHint:     "Enter oder space klappt diesen Abschnitt ein oder aus.",
+		tGroupRowHint:    "{enter} klappt diese Gruppe ein oder aus.",
 	}
 	return en, de
 }

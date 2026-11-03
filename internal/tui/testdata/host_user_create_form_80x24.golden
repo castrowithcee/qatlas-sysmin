@@ -2,13 +2,13 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────╔══════════════════════════════════════════════════════════════╗────────
-Users (3║ New user                                                     ║     1/2
+Users (3║ New user                                                     ║     1/3
 ╔═══════║                                                              ║═══════╗
-║   Name║   Kind:             Person                                   ║System ║
-║   ▾ Us║   Name:            demo-new                                  ║       ║
-║ > demo║   Password:        ********                                  ║       ║
-║   demo║   Repeat password: ********                                  ║       ║
-║   ▸ Sy║   Admin:            yes                                      ║       ║
+║     NA║   Kind:             Person                                   ║SYSTEM ║
+║   ▾ ■ ║   Name:            demo-new                                  ║       ║
+║ >   de║   Password:        ********                                  ║       ║
+║     de║   Repeat password: ********                                  ║       ║
+║   ▸ ■ ║   Admin:            yes                                      ║       ║
 ╚═══════║   Docker:           no                                       ║═══════╝
         ║ > Further groups:   demo-team                                ║        
         ║   SSH key:                                                   ║        

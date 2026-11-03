@@ -173,7 +173,7 @@ func TestGroupMembersLeaveOutPrimaryUsersAndHeadings(t *testing.T) {
 		t.Errorf("add offers the user whose primary group it is: %q", got)
 	}
 	send(m, "esc")
-	m.hst.groups.page.list.selectName(sectionRow("groups"))
+	markGroup(&m.hst.groups.page, 0)
 	send(m, "e")
 	if m.form != nil {
 		t.Error("e on a heading must do nothing")

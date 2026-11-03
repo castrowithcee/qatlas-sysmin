@@ -2,13 +2,13 @@ qsysmin                                                                         
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                         1/2 ╭─ demo-admin ───────────────────────────────────╮
+Users (3)                                                         1/3 ╭─ demo-admin ───────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
-║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name               demo-admin                  │
-║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               regular                     │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              yes                         │
-║   ▸ System accounts (1)                                           ║ │ Docker             yes                         │
+║     NAME        ADMIN              DOCKER  GROUPS          SYSTEM ║ │                                                │
+║   ▾ ■ Users (2)                                                   ║ │ Name               demo-admin                  │
+║ >   demo-admin  yes                yes     demo-admin, s…         ║ │ Type               regular                     │
+║     demo-user   yes · not enabled  no      demo-user, su…         ║ │ Admin              yes                         │
+║   ▸ ■ System accounts (1)                                         ║ │ Docker             yes                         │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
                                                                       │ Groups             demo-admin, sudo, docker,   │
                             ╔══════════════════════════════════════════════════════════════╗sysmin                     │

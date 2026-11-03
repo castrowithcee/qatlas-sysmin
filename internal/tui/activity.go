@@ -8,7 +8,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 
@@ -185,7 +184,6 @@ func (m *Model) takeLog(msg logMsg) tea.Cmd {
 	a.err, a.have = "", true
 	if msg.after == "" {
 		a.order, a.items = nil, map[string]control.LogEntry{}
-		a.page.list.cursor, a.page.list.offset = 0, 0
 	}
 	for _, e := range msg.res.Entries {
 		id := strconv.FormatUint(e.Seq, 10)
@@ -197,6 +195,9 @@ func (m *Model) takeLog(msg logMsg) tea.Cmd {
 	}
 	a.next = msg.res.Next
 	a.rebuild(m)
+	if msg.after == "" {
+		a.page.toFirst()
+	}
 	return m.dataWant()
 }
 
@@ -213,7 +214,7 @@ func (m *Model) takeVerify(msg verifyMsg) {
 
 // rebuild makes the rows of the table from the entries.
 func (a *activityState) rebuild(m *Model) {
-	rows := map[string][]string{}
+	rows := make([]dataRow, 0, len(a.order))
 	for _, id := range a.order {
 		e := a.items[id]
 		uid := "-"
@@ -224,11 +225,14 @@ func (a *activityState) rebuild(m *Model) {
 		if e.Signed {
 			signed = "✓"
 		}
-		rows[id] = []string{e.Time.Local().Format("2006-01-02 15:04:05"), m.actionText(e.Action),
-			m.diffText(e.Result), durationText(e.DurationMS), uid, signed}
+		rows = append(rows, dataRow{name: id, cells: []string{e.Time.Local().Format("2006-01-02 15:04:05"),
+			m.trOr(actionID(e.Action), m.cellText(e.Action)), m.cellText(e.Result), durationText(e.DurationMS), uid, signed}})
 	}
-	a.page.cols = logColumns(m.ui)
-	a.page.setRows(a.order, rows)
+	empty := tLogEmpty
+	if a.filter.active() {
+		empty = tLogEmptyFiltered
+	}
+	a.page.fill(m.ui, listConfig{cols: logColumns(), empty: empty}, rows)
 }
 
 func durationText(ms int64) string {
@@ -238,26 +242,26 @@ func durationText(ms int64) string {
 	return fmt.Sprintf("%d ms", ms)
 }
 
-func logColumns(ui *uiContext) []column {
-	return []column{
-		{title: ui.tr(tColTime)},
-		{title: ui.tr(tColAction)},
-		{title: ui.tr(tColResult), flex: true, tone: func(cell string) lipgloss.Style {
+func logColumns() []kittui.Column {
+	return []kittui.Column{
+		{Title: tColTime},
+		{Title: tColAction},
+		{Title: tColResult, Flex: true, Tone: func(cell string) kittui.TextStyle {
 			if cell == control.LogResultFailure {
-				return ui.st(kittui.StyleWarn)
+				return kittui.StyleWarn
 			}
-			return ui.st(kittui.StyleText)
+			return kittui.StyleText
 		}},
-		{title: ui.tr(tColDuration), right: true, optional: true},
-		{title: ui.tr(tColUID), right: true, optional: true},
-		{title: ui.tr(tColSigned), optional: true},
+		{Title: tColDuration, Right: true, Optional: true},
+		{Title: tColUID, Right: true, Optional: true},
+		{Title: tColSigned, Optional: true},
 	}
 }
 
 // activityWant asks for the next page where the marked entry is the last one shown.
 func (m *Model) activityWant() tea.Cmd {
 	a := &m.act
-	if a.sub != actLog || a.next == "" || a.loading || a.stalled || len(a.page.list.matches) == 0 || a.page.list.cursor < len(a.page.list.matches)-1 {
+	if a.sub != actLog || a.next == "" || a.loading || a.stalled || a.page.list == nil || !a.page.atLastRow() {
 		return nil
 	}
 	return m.logCmd(a.next)
@@ -281,17 +285,14 @@ func (a *activityState) titleText(ui *uiContext) string {
 
 func (m *Model) logSpec() dataSpec {
 	a := &m.act
-	empty := m.tr(tLogEmpty)
+	note := ""
 	switch {
 	case a.err != "":
-		empty = a.err
+		note = a.err
 	case a.loading:
-		empty = m.tr(tAccLoading)
-	case a.filter.active():
-		empty = m.tr(tLogEmptyFiltered)
+		note = m.tr(tAccLoading)
 	}
-	spec := dataSpec{title: a.titleText(m.ui), empty: empty, lines: m.logLines}
-	return spec
+	return dataSpec{title: a.titleText(m.ui), note: note, lines: m.logLines}
 }
 
 // logLines are the lines of one tab of a log entry.
@@ -414,6 +415,9 @@ func problemCodeText(ui *uiContext, code string) string {
 // activityBody is the page of Activity under the bars of the frame.
 func (m *Model) activityBody() string {
 	top := m.workspaceTop()
+	if m.act.page.stale(m.ui) {
+		m.act.rebuild(m)
+	}
 	lines := m.chainLines(m.usable(0))
 	return strings.Join(lines, "\n") + "\n" + m.dataBody(&m.act.page, m.logSpec(), top+len(lines))
 }

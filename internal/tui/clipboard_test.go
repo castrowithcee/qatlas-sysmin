@@ -42,7 +42,7 @@ func noControl(t *testing.T, where, text string) {
 
 func TestCopyHandsOverTheNameOfTheMarkedRow(t *testing.T) {
 	m := frameModel(t, 100, 30)
-	m.list.selectName("charlie")
+	markName(&m.base, "charlie")
 	got, ok := pressCopy(m)
 	if !ok || got != "charlie" {
 		t.Fatalf("c copied %q (%v), want the name of the marked row", got, ok)
@@ -80,12 +80,12 @@ func TestCopyKeyCopiesNothingWhereItIsATextKeyOrNothingIsMarked(t *testing.T) {
 	if text, ok := clipboardOf(cmd); ok {
 		t.Fatalf("c on the filter line copied %q", text)
 	}
-	if m.list.query() != "c" {
-		t.Errorf("the filter = %q, want c typed", m.list.query())
+	if q := m.base.list.Query(); q != "c" {
+		t.Errorf("the filter = %q, want c typed", q)
 	}
 
 	m = frameModel(t, 100, 30)
-	m.setEntries(nil, nil, nil)
+	fillBase(m, frameColumns(), nil, nil, nil)
 	if _, ok := pressCopy(m); ok || m.copyKeyShown() {
 		t.Error("an empty list copies or names the copy key")
 	}
@@ -141,7 +141,7 @@ func TestCopyCleanKeepsLineBreaksTrimsAndNeverCuts(t *testing.T) {
 // The name of a row that holds a registered secret is handed over redacted, never raw.
 func TestCopyRedactsASecretInTheNameOfTheRow(t *testing.T) {
 	m := frameModel(t, 100, 30)
-	m.setEntries([]string{"leaky-canary-demo-secret"}, nil, nil)
+	fillBase(m, frameColumns(), nil, []string{"leaky-canary-demo-secret"}, nil)
 	m.redactor.Add("canary-demo-secret")
 	got, ok := pressCopy(m)
 	if !ok || strings.Contains(got, "canary-demo-secret") {

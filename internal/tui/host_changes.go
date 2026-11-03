@@ -7,7 +7,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
@@ -61,15 +60,12 @@ func (m *Model) readChanges() tea.Cmd {
 func (m *Model) fillHostChanges() {
 	c := &m.hst.chg
 	c.items = map[string]hostChange{}
-	rows := map[string][]string{}
-	var ids []string
+	var rows []dataRow
 	for _, e := range c.all {
 		c.items[e.ID] = e
-		ids = append(ids, e.ID)
-		rows[e.ID] = []string{hostTime(e.Time), m.diffText(e.Sentence), e.Result}
+		rows = append(rows, dataRow{name: e.ID, cells: []string{hostTime(e.Time), m.cellText(e.Sentence), m.shownResult(e.Result)}})
 	}
-	c.page.cols = m.hostChangeColumns()
-	c.page.setRows(ids, rows)
+	c.page.fill(m.ui, listConfig{cols: m.hostChangeColumns(), empty: tHostChangesNone}, rows)
 }
 
 func hostTime(rfc3339 string) string {
@@ -94,26 +90,27 @@ func (m *Model) shownResult(v string) string {
 	return v
 }
 
-func (m *Model) hostChangeColumns() []column {
-	tone := func(cell string) lipgloss.Style {
-		if cell == m.tr(tHostResFailed) || cell == m.tr(tHostResRestored) {
-			return m.ui.st(kittui.StyleWarn)
+func (m *Model) hostChangeColumns() []kittui.Column {
+	failed, restored := m.tr(tHostResFailed), m.tr(tHostResRestored)
+	tone := func(cell string) kittui.TextStyle {
+		if cell == failed || cell == restored {
+			return kittui.StyleWarn
 		}
-		return m.ui.st(kittui.StyleText)
+		return kittui.StyleText
 	}
-	return []column{
-		{title: m.tr(tColTime)},
-		{title: m.tr(tHostColChange), flex: true},
-		{title: m.tr(tHostColResult), shown: m.shownResult, tone: tone},
+	return []kittui.Column{
+		{Title: tColTime},
+		{Title: tHostColChange, Flex: true},
+		{Title: tHostColResult, Tone: tone},
 	}
 }
 
 func (m *Model) hostChangesSpec() dataSpec {
-	empty := m.tr(tHostChangesHint, "ctrl+r")
-	if m.hst.chg.have {
-		empty = m.tr(tHostChangesNone)
+	note := ""
+	if !m.hst.chg.have {
+		note = m.tr(tHostChangesHint, "ctrl+r")
 	}
-	return dataSpec{title: m.tr(tSubChanges), empty: empty, lines: m.hostChangeLines}
+	return dataSpec{title: m.tr(tSubChanges), note: note, lines: m.hostChangeLines}
 }
 
 func (m *Model) hostChangeLines(id string, tab, width int) []string {

@@ -4,12 +4,12 @@ qsysmin                                                        [?] help  [:] cmd
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    3/3
 ╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
-║   Name║ ⚠ Give svc-demo access to Docker (group docker).             ║System ║
-║   ▾ Us║                                                              ║       ║
-║   demo║     Packages or services may depend on this system account.  ║       ║
-║   demo║     Admin and Docker rights allow practically everything on  ║       ║
-║   ▾ Sy║     this host. You can undo this under Host > Changes.       ║       ║
-║ > svc-║                                                              ║system ║
+║     NA║ ⚠ Give svc-demo access to Docker (group docker).             ║SYSTEM ║
+║   ▾ ■ ║                                                              ║       ║
+║     de║     Packages or services may depend on this system account.  ║       ║
+║     de║     Admin and Docker rights allow practically everything on  ║       ║
+║   ▾ ■ ║     this host. You can undo this under Host > Changes.       ║       ║
+║ >   sv║                                                              ║system ║
 ╚═══════║   $ usermod -aG docker svc-demo                              ║═══════╝
         ║                                                              ║        
         ║ [ Apply ]  [ Cancel ]                                        ║        

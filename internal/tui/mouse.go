@@ -96,35 +96,18 @@ func (m *Model) focusZone(z kittui.FocusZone) tea.Cmd {
 	return nil
 }
 
-// focusRows gives the rows the focus for a click on a row. It reports whether the detail had the focus, in
-// which case the click only moves the focus and opens nothing.
-func (m *Model) focusRows() bool {
+// focusRows gives the rows the focus for a click on a row; an inner level of the content keeps it.
+func (m *Model) focusRows() {
 	if m.screen != screenArea || m.innerLevel() {
-		return false
+		return
 	}
-	fromDetail := m.zoneNow() == zoneDetail
 	m.zone = zoneContent
-	return fromDetail
 }
 
-// endInput ends a filter being typed, as the first level of esc does, before a click leaves for a tab.
+// endInput ends a filter being typed and keeps it, as enter does, before a click leaves for a tab.
 func (m *Model) endInput() {
 	if p := m.currentPage(); p.filtering() {
-		p.list.stopFilter()
-	}
-}
-
-// hitTop is the screen row of the first line after header, a text the workspace starts with.
-func (m *Model) hitTop(header string) int { return m.workspaceTop() + strings.Count(header, "\n") }
-
-// hitRows makes the rows [start, end) of a windowed list clickable. The rows stand one under the other from
-// row top on, each as high as row draws it, in the first width cells.
-func (m *Model) hitRows(top, width, start, end int, row func(i int) string, act func(i int) tea.Cmd) {
-	y := top
-	for i := start; i < end; i++ {
-		height := strings.Count(row(i), "\n") + 1
-		m.addHit(0, y, width, y+height, func() tea.Cmd { return act(i) })
-		y += height
+		p.list.Act(actEnter)
 	}
 }
 
@@ -221,7 +204,7 @@ func (m *Model) timeNow() time.Time {
 
 // wheel scrolls the bare list: a notch is one press of up or down over its rows.
 func (m *Model) wheel(up bool) tea.Cmd {
-	if m.screen != screenList || m.list.editing {
+	if m.screen != screenList || m.base.filtering() {
 		return nil
 	}
 	key := rune(tea.KeyDown)
@@ -229,27 +212,6 @@ func (m *Model) wheel(up bool) tea.Cmd {
 		key = tea.KeyUp
 	}
 	return m.press(tea.KeyPressMsg{Code: key})
-}
-
-// wheelList is a notch of the wheel over the rows of a list: one step of the mark, as up and down take it, but
-// it stops at both ends (up on the first row never leaves for the bar) and rests while a filter is typed.
-// moved says what the key does after a step.
-func wheelList(l *filterList, up bool, moved func() tea.Cmd) tea.Cmd {
-	by := 1
-	if up {
-		by = -1
-	}
-	before := l.cursor
-	if !l.editing {
-		l.move(by)
-	}
-	if l.cursor == before {
-		return nil
-	}
-	if moved == nil {
-		return nil
-	}
-	return moved()
 }
 
 // wheelCursor is a notch of the wheel over a list of n entries kept as a bare cursor.
@@ -400,62 +362,5 @@ func (m *Model) backShown() bool {
 	if m.home == screenArea {
 		return m.screen != screenArea || m.zoneNow() != zoneTabs
 	}
-	return m.screen != screenList || m.list.editing || m.list.query() != ""
-}
-
-// markOrAct is the click on a row of a list: it marks the row, and only a click on the row that already was
-// marked, with the focus on the rows, does act. focused says the rows had the focus before the click.
-func markOrAct(cursor *int, i int, focused bool, act func() tea.Cmd) tea.Cmd {
-	if !focused || *cursor != i {
-		*cursor = i
-		return nil
-	}
-	return act()
-}
-
-// clickListRow is a click on a row of the list: it marks the row, and a click on the marked row does what enter
-// does there, which opens an entry. A group folds at the first click, which is harmless and undone by the next.
-// A filter being typed is only kept.
-func (m *Model) clickListRow(i int) tea.Cmd {
-	if i < 0 || i >= len(m.list.matches) || m.screen != screenList {
-		return nil
-	}
-	if m.list.editing {
-		m.list.cursor = i
-		m.list.stopFilter()
-		return nil
-	}
-	enter := func() tea.Cmd { return m.press(tea.KeyPressMsg{Code: tea.KeyEnter}) }
-	if isGroupRow(m.list.matches[i]) {
-		m.list.cursor = i
-		return enter()
-	}
-	return markOrAct(&m.list.cursor, i, true, enter)
-}
-
-// hitList makes the rows of the list screen clickable.
-func (m *Model) hitList(header string, start, end int, row func(i int) string) {
-	m.hitRows(m.hitTop(header), m.usable(0), start, end, row, m.clickListRow)
-}
-
-// hitTable makes the rows of a windowed list of a screen clickable: a click marks a row, and a click on the
-// marked row is a press of enter on it.
-func (m *Model) hitTable(l *filterList, on screen, header string, start, end int, row func(i int) string) {
-	m.hitRows(m.hitTop(header), m.usable(0), start, end, row, func(i int) tea.Cmd {
-		if m.screen != on || i >= len(l.matches) {
-			return nil
-		}
-		return markOrAct(&l.cursor, i, true, func() tea.Cmd { return m.press(tea.KeyPressMsg{Code: tea.KeyEnter}) })
-	})
-}
-
-// hitSelect makes the rows of a windowed list of a screen clickable by choosing the row only; what enter would
-// do on it is left to the key.
-func (m *Model) hitSelect(l *filterList, on screen, header string, start, end int, row func(i int) string) {
-	m.hitRows(m.hitTop(header), m.usable(0), start, end, row, func(i int) tea.Cmd {
-		if m.screen == on && i < len(l.matches) {
-			l.cursor = i
-		}
-		return nil
-	})
+	return m.screen != screenList || m.base.filtering() || (m.base.list != nil && m.base.list.Query() != "")
 }

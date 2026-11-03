@@ -60,6 +60,16 @@ func TestKeyNamesMapToKeysOnlyForKeysAClickCanPress(t *testing.T) {
 	}
 }
 
+// groupedModel is the frame over four invented entries in three groups: data, web, and none.
+func groupedModel(t *testing.T) *Model {
+	t.Helper()
+	m := frameModel(t, 100, 30)
+	fillBase(m, frameColumns(), nil, []string{"alpha", "bravo", "charlie", "delta"}, func(name string) string {
+		return map[string]string{"alpha": "web", "bravo": "web", "charlie": "data"}[name]
+	})
+	return m
+}
+
 func TestClickMarksARowAndAClickOnAGroupRowFoldsIt(t *testing.T) {
 	m := groupedModel(t)
 	m.render()
@@ -67,16 +77,16 @@ func TestClickMarksARowAndAClickOnAGroupRowFoldsIt(t *testing.T) {
 	if name, _ := m.selected(); name != "bravo" {
 		t.Fatalf("a click selected %q, want bravo", name)
 	}
-	if len(m.list.matches) != 7 {
-		t.Errorf("a first click on an entry changed the list: %q", m.list.matches)
+	if view := plain(m); !strings.Contains(view, "alpha") || !strings.Contains(view, "▾ ■ web (2)") {
+		t.Errorf("a first click on an entry changed the list:\n%s", view)
 	}
 	clickOn(t, m, "web (2)")
-	if name, _ := m.list.selected(); name != groupRow("web") || len(m.list.matches) != 5 {
-		t.Errorf("a click on a group row: cursor %q, shown %q", name, m.list.matches)
+	if view := plain(m); marked(&m.base) != "group" || !strings.Contains(view, "▸ ■ web (2)") || strings.Contains(view, "bravo") {
+		t.Errorf("a click on a group row does not mark and fold it:\n%s", view)
 	}
 	clickOn(t, m, "web (2)")
-	if len(m.list.matches) != 7 {
-		t.Errorf("a second click did not unfold the group: %q", m.list.matches)
+	if view := plain(m); !strings.Contains(view, "bravo") {
+		t.Errorf("a second click did not unfold the group:\n%s", view)
 	}
 }
 
@@ -86,8 +96,8 @@ func TestClickWhileFilteringKeepsTheFilterAndTypesNothing(t *testing.T) {
 	typeText(t, m, "a")
 	m.render()
 	clickOn(t, m, "charlie")
-	if m.list.editing || m.list.query() != "a" {
-		t.Errorf("editing %v, query %q after a click", m.list.editing, m.list.query())
+	if m.base.filtering() || m.base.list.Query() != "a" {
+		t.Errorf("editing %v, query %q after a click", m.base.filtering(), m.base.list.Query())
 	}
 	if name, _ := m.selected(); name != "charlie" {
 		t.Errorf("selected %q, want charlie", name)
@@ -132,8 +142,8 @@ func TestOneNotchIsOneStepWhateverTheTerminalReports(t *testing.T) {
 	}
 	filtered(5, 10, tea.MouseWheelDown)
 	filtered(5, 10, tea.MouseWheelDown)
-	if m.list.cursor != 1 {
-		t.Fatalf("a notch with its release moved the cursor to %d, want 1", m.list.cursor)
+	if baseRow(m) != 1 {
+		t.Fatalf("a notch with its release moved the cursor to %d, want 1", baseRow(m))
 	}
 	// Four queued events are two notches.
 	for range 2 {
@@ -141,17 +151,17 @@ func TestOneNotchIsOneStepWhateverTheTerminalReports(t *testing.T) {
 		filtered(5, 10, tea.MouseWheelDown)
 		filtered(5, 10, tea.MouseWheelDown)
 	}
-	if m.list.cursor != 3 {
-		t.Errorf("two more notches ended on %d, want 3", m.list.cursor)
+	if baseRow(m) != 3 {
+		t.Errorf("two more notches ended on %d, want 3", baseRow(m))
 	}
 	// Another direction or another cell is another notch, however close.
 	filtered(5, 10, tea.MouseWheelUp)
-	if m.list.cursor != 2 {
-		t.Errorf("the wheel up right after a wheel down ended on %d, want 2", m.list.cursor)
+	if baseRow(m) != 2 {
+		t.Errorf("the wheel up right after a wheel down ended on %d, want 2", baseRow(m))
 	}
 	filtered(6, 10, tea.MouseWheelUp)
-	if m.list.cursor != 1 {
-		t.Errorf("the wheel up in another cell ended on %d, want 1", m.list.cursor)
+	if baseRow(m) != 1 {
+		t.Errorf("the wheel up in another cell ended on %d, want 1", baseRow(m))
 	}
 }
 
@@ -163,18 +173,18 @@ func TestTheWheelAndTheKeysStopAtTheEnds(t *testing.T) {
 		wheel(m, 5, 10, b)
 	}
 	step(tea.MouseWheelUp)
-	if m.list.cursor != 0 {
-		t.Errorf("the wheel wrapped from the first row to %d", m.list.cursor)
+	if baseRow(m) != 0 {
+		t.Errorf("the wheel wrapped from the first row to %d", baseRow(m))
 	}
 	for range 10 {
 		step(tea.MouseWheelDown)
 	}
-	if m.list.cursor != 3 {
-		t.Errorf("the wheel ended on %d, want the last row 3", m.list.cursor)
+	if baseRow(m) != 3 {
+		t.Errorf("the wheel ended on %d, want the last row 3", baseRow(m))
 	}
 	press(t, m, "down")
-	if m.list.cursor != 3 {
-		t.Errorf("down on the last row went to %d, want it to stay on 3", m.list.cursor)
+	if baseRow(m) != 3 {
+		t.Errorf("down on the last row went to %d, want it to stay on 3", baseRow(m))
 	}
 }
 
@@ -184,16 +194,16 @@ func TestTheWheelDoesNothingOnADialogOrWhileFiltering(t *testing.T) {
 	press(t, m, "/")
 	*now = now.Add(time.Second)
 	wheel(m, 5, 10, tea.MouseWheelDown)
-	if m.list.cursor != 0 {
-		t.Errorf("the wheel moved the list while filtering: %d", m.list.cursor)
+	if baseRow(m) != 0 {
+		t.Errorf("the wheel moved the list while filtering: %d", baseRow(m))
 	}
 	press(t, m, "esc")
 	m.screen = screenConfirm
 	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
 	*now = now.Add(time.Second)
 	wheel(m, 5, 10, tea.MouseWheelDown)
-	if m.list.cursor != 0 {
-		t.Errorf("the wheel moved the list behind a question: %d", m.list.cursor)
+	if baseRow(m) != 0 {
+		t.Errorf("the wheel moved the list behind a question: %d", baseRow(m))
 	}
 }
 
@@ -209,8 +219,8 @@ func TestATooSmallTerminalIgnoresTheMouse(t *testing.T) {
 			wheel(m, x, row, tea.MouseWheelDown)
 		}
 	}
-	if m.list.cursor != 0 || m.quitting || m.render() != view {
-		t.Errorf("clicks on the size notice acted: cursor %d, quitting %v", m.list.cursor, m.quitting)
+	if baseRow(m) != 0 || m.quitting || m.render() != view {
+		t.Errorf("clicks on the size notice acted: cursor %d, quitting %v", baseRow(m), m.quitting)
 	}
 }
 
@@ -223,7 +233,7 @@ func TestSwitchedOffMouseAsksForNoMouseModeAndTakesNoWheel(t *testing.T) {
 	m.prefs.MouseEnabled = false
 	*now = now.Add(time.Second)
 	wheel(m, 5, 10, tea.MouseWheelDown)
-	if m.list.cursor != 0 {
+	if baseRow(m) != 0 {
 		t.Error("the wheel moved the list with the mouse off")
 	}
 	if mode := m.View().MouseMode; mode != tea.MouseModeNone {
@@ -245,11 +255,11 @@ func TestLetterButtonsAreNotTypedIntoAFilter(t *testing.T) {
 	press(t, m, "/")
 	m.pressAction(actYes)
 	m.pressAction(actDelete)
-	if m.list.query() != "" {
-		t.Errorf("a letter button reached the filter: %q", m.list.query())
+	if m.base.list.Query() != "" {
+		t.Errorf("a letter button reached the filter: %q", m.base.list.Query())
 	}
-	if cmd := m.pressAction(actEnter); cmd != nil || m.list.editing {
-		t.Errorf("the enter button did not end the filter: editing %v", m.list.editing)
+	if cmd := m.pressAction(actEnter); cmd != nil || m.base.filtering() {
+		t.Errorf("the enter button did not end the filter: editing %v", m.base.filtering())
 	}
 	if cmd := m.pressAction("nonsense"); cmd != nil {
 		t.Error("an unknown action returned a command")
@@ -271,8 +281,8 @@ func TestBackIsShownWhereEscLeadsOneLevelBack(t *testing.T) {
 		t.Errorf("a kept filter shows no back button:\n%s", plain(m))
 	}
 	clickOn(t, m, "[esc] back")
-	if m.list.query() != "" || len(m.list.matches) != 4 || m.backShown() {
-		t.Errorf("the back button did not clear the filter: query %q, shown %d", m.list.query(), len(m.list.matches))
+	if m.base.list.Query() != "" || !strings.HasSuffix(m.base.list.Position(), "/4") || m.backShown() {
+		t.Errorf("the back button did not clear the filter: query %q, position %q", m.base.list.Query(), m.base.list.Position())
 	}
 	m.screen = screenConfirm
 	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
@@ -309,22 +319,5 @@ func TestDialogOriginCentresAndNeverGoesNegative(t *testing.T) {
 	}
 	if top, left := dialogOrigin(dialog, 4, 2); top != 0 || left != 0 {
 		t.Errorf("a dialog larger than the screen starts at %d, %d", top, left)
-	}
-}
-
-func TestMarkOrActMarksFirstAndActsOnTheMarkedRow(t *testing.T) {
-	cursor, acted := 0, 0
-	act := func() tea.Cmd { acted++; return nil }
-	markOrAct(&cursor, 2, true, act)
-	if cursor != 2 || acted != 0 {
-		t.Fatalf("a click on another row: cursor %d, acted %d", cursor, acted)
-	}
-	markOrAct(&cursor, 2, true, act)
-	if acted != 1 {
-		t.Errorf("a click on the marked row did not act")
-	}
-	markOrAct(&cursor, 2, false, act)
-	if acted != 1 {
-		t.Error("a click without the focus on the rows acted")
 	}
 }

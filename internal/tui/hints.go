@@ -148,7 +148,7 @@ const (
 	tHintClearFilter  textID = "hint.clearfilter"
 	tHintClose        textID = "hint.close"
 	tHintCmds         textID = "hint.cmds"
-	tHintCollapse     textID = "hint.collapse"
+	tHintFold         textID = "hint.fold"
 	tHintComplete     textID = "hint.complete"
 	tHintContinue     textID = "hint.continue"
 	tHintCopy         textID = "hint.copy"
@@ -157,7 +157,6 @@ const (
 	tHintDiscard      textID = "hint.discard"
 	tHintEdit         textID = "hint.edit"
 	tHintEditPath     textID = "hint.editpath"
-	tHintExpand       textID = "hint.expand"
 	tHintFilter       textID = "hint.filter"
 	tHintHelp         textID = "hint.help"
 	tHintInfo         textID = "hint.info"
@@ -207,7 +206,7 @@ func hintTexts() (en, de map[textID]string) {
 		tHintClearFilter:  "clear filter",
 		tHintClose:        "close",
 		tHintCmds:         "cmds",
-		tHintCollapse:     "collapse",
+		tHintFold:         "collapse/expand",
 		tHintComplete:     "complete",
 		tHintContinue:     "continue",
 		tHintCopy:         "copy",
@@ -216,7 +215,6 @@ func hintTexts() (en, de map[textID]string) {
 		tHintDiscard:      "discard",
 		tHintEdit:         "edit",
 		tHintEditPath:     "edit path",
-		tHintExpand:       "expand",
 		tHintFilter:       "filter",
 		tHintHelp:         "help",
 		tHintInfo:         "info",
@@ -263,7 +261,7 @@ func hintTexts() (en, de map[textID]string) {
 		tHintClearFilter:  "Filter löschen",
 		tHintClose:        "schließen",
 		tHintCmds:         "Befehle",
-		tHintCollapse:     "einklappen",
+		tHintFold:         "ein-/ausklappen",
 		tHintComplete:     "ergänzen",
 		tHintContinue:     "fortfahren",
 		tHintCopy:         "kopieren",
@@ -272,7 +270,6 @@ func hintTexts() (en, de map[textID]string) {
 		tHintDiscard:      "verwerfen",
 		tHintEdit:         "bearbeiten",
 		tHintEditPath:     "Pfad ändern",
-		tHintExpand:       "ausklappen",
 		tHintFilter:       "Filter",
 		tHintHelp:         "Hilfe",
 		tHintInfo:         "Info",

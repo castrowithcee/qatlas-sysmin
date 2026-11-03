@@ -4,13 +4,13 @@ qsysmin                                            [esc] back  [?] help  [:] cmd
 ────────────────────────────────────────────────────────────────────────────────
 Groups (4)                                                                   2/4
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name       Members  System                                                 ║
-║   ▾ Groups (1)                                                               ║
-║   demo-team        1                                                         ║
-║   ▾ System groups (3)                                                        ║
-║ > sudo             2  system                                                 ║
-║   docker           1  system                                                 ║
-║   qsysmin          1  system                                                 ║
+║     NAME       MEMBERS  SYSTEM                                               ║
+║   ▾ ■ Groups (1)                                                             ║
+║     demo-team        1                                                       ║
+║   ▾ ■ System groups (3)                                                      ║
+║ >   sudo             2  system                                               ║
+║     docker           1  system                                               ║
+║     qsysmin          1  system                                               ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
                                                                                 
                                                                                 

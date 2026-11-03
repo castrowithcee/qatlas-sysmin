@@ -2,13 +2,13 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    1/2
+Users (3)                                                                    1/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name╔══════════════════════════════════════════════════════════════╗System ║
-║   ▾ Us║ ⚠ Wipe the demo folder.                                      ║       ║
-║ > demo║                                                              ║       ║
-║   demo║     This cannot be undone: the old content is not kept       ║       ║
-║   ▸ Sy║                                                              ║       ║
+║     NA╔══════════════════════════════════════════════════════════════╗SYSTEM ║
+║   ▾ ■ ║ ⚠ Wipe the demo folder.                                      ║       ║
+║ >   de║                                                              ║       ║
+║     de║     This cannot be undone: the old content is not kept       ║       ║
+║   ▸ ■ ║                                                              ║       ║
 ╚═══════║   $ demo-wipe '/srv/demo app'                                ║═══════╝
         ║                                                              ║        
         ║ [ Apply ]  [ Cancel ]                                        ║        

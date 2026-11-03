@@ -2,13 +2,13 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    2/2
+Users (3)                                                                    2/3
 ╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
-║   Name║ ⚠ Delete the user demo-user together with its home and mail  ║System ║
-║   ▾ Us║   spool.                                                     ║       ║
-║   demo║                                                              ║       ║
-║ > demo║     This cannot be undone: the home /home/demo-user and the  ║       ║
-║   ▸ Sy║     mail spool are deleted with all their files.             ║       ║
+║     NA║ ⚠ Delete the user demo-user together with its home and mail  ║SYSTEM ║
+║   ▾ ■ ║   spool.                                                     ║       ║
+║     de║                                                              ║       ║
+║ >   de║     This cannot be undone: the home /home/demo-user and the  ║       ║
+║   ▸ ■ ║     mail spool are deleted with all their files.             ║       ║
 ╚═══════║                                                              ║═══════╝
         ║   $ userdel -r demo-user                                     ║        
         ║                                                              ║        

@@ -116,3 +116,68 @@ func assertViewFits(t *testing.T, view string, width, height int) {
 		}
 	}
 }
+
+// fillBase fills the bare list with names in their order, each with its cells or, where cells has none, its
+// name alone, grouped by group where that is not nil.
+func fillBase(m *Model, cols []kittui.Column, cells map[string][]string, names []string, group func(string) string) {
+	rows := make([]dataRow, 0, len(names))
+	for _, n := range names {
+		c := cells[n]
+		if c == nil {
+			c = make([]string, len(cols))
+			c[0] = n
+		}
+		g := ""
+		if group != nil {
+			g = group(n)
+		}
+		rows = append(rows, dataRow{name: n, cells: c, group: g})
+	}
+	m.base.fill(m.ui, listConfig{cols: cols, empty: tListEmpty, grouped: group != nil}, rows)
+}
+
+// markName marks the row name of p and reports whether it shows; a folded group of it opens.
+func markName(p *dataPage, name string) bool { return p.list.Select(rowID(name)) }
+
+// markGroup marks the group row n of p, counted from 0 in the order they show.
+func markGroup(p *dataPage, n int) bool {
+	p.list.Act(actHome)
+	for range p.entries() + 16 {
+		if _, ok := p.current(); !ok {
+			if n == 0 {
+				return true
+			}
+			n--
+		}
+		p.list.Act(actDown)
+	}
+	return false
+}
+
+// marked is the name of the marked row of p, or "group" on a group row.
+func marked(p *dataPage) string {
+	if name, ok := p.current(); ok {
+		return name
+	}
+	return "group"
+}
+
+// logRow is the place of the marked entry among the entries of the log read, -1 where none is marked.
+func logRow(m *Model) int {
+	name, ok := m.act.page.current()
+	if !ok {
+		return -1
+	}
+	for i, id := range m.act.order {
+		if id == name {
+			return i
+		}
+	}
+	return -1
+}
+
+// baseRow is the place of the marked entry of the bare list among alpha, bravo, charlie and delta.
+func baseRow(m *Model) int {
+	name, _ := m.selected()
+	return map[string]int{"alpha": 0, "bravo": 1, "charlie": 2, "delta": 3}[name]
+}

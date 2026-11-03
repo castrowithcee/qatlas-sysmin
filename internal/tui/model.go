@@ -57,13 +57,9 @@ type Model struct {
 	ui *uiContext
 
 	screen screen
-	// title heads the list; table lays its entries out as columns.
+	// title heads the list of the bare frame, which base holds.
 	title string
-	table table
-	list  filterList
-	// groups is the grouping of list, nil while it is flat; folds keeps the fold state of each group.
-	groups *listGroups
-	folds  map[string]bool
+	base  dataPage
 	// ask is the question of screenConfirm, dialog the input dialog of screenPrompt.
 	ask    *question
 	dialog *promptDialog
@@ -169,7 +165,7 @@ func newModel(prefs kitprefs.Prefs, redactor *redact.Redactor, profile kittui.Co
 		prefs = kitprefs.Default(ui.prefsSchema())
 	}
 	m := &Model{prefs: prefs, redactor: redactor, ui: ui, hostUID: os.Getuid, tickEvery: tickEvery,
-		updateTimeout: updateTimeout, list: newFilterList(func(name string) string { return name })}
+		updateTimeout: updateTimeout}
 	m.ui.setLanguage(kitprefs.Language(prefs.Language))
 	m.ui.setTheme(prefs.Theme)
 	m.ovr.reset()
@@ -278,45 +274,18 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	}
-	if m.list.editing {
-		switch {
-		case m.keyIs(key, actEnter):
-			m.list.stopFilter()
-		case m.keyIs(key, actBack):
-			m.list.clearFilter()
-		case m.keyIs(key, actUp):
-			m.list.move(-1)
-		case m.keyIs(key, actDown):
-			m.list.move(1)
-		default:
-			return m.list.updateFilter(key)
-		}
-		return nil
+	p := &m.base
+	if p.filtering() {
+		return m.filterKey(p, key)
 	}
 	switch {
 	case m.keyIs(key, actQuit):
 		return m.quit()
-	case m.keyIs(key, actSearch) || m.keyIs(key, actFilter):
-		m.list.startFilter()
-	case m.keyIs(key, actBack):
-		m.list.clearFilter()
-	case m.keyIs(key, actUp):
-		m.list.move(-1)
-	case m.keyIs(key, actDown):
-		m.list.move(1)
-	case m.keyIs(key, actPageUp), m.keyIs(key, actPageDown):
-		start, end := m.listWindow()
-		m.list.page(m.ui.keys, key, start, end)
-	case m.keyIs(key, actHome):
-		m.list.jump(-len(m.list.matches))
-	case m.keyIs(key, actEnd):
-		m.list.jump(len(m.list.matches))
 	case m.keyIs(key, actCopy):
 		return m.copyCurrent()
-	default:
-		m.foldKey(key)
 	}
-	return nil
+	cmd, _ := m.pageKey(p, key)
+	return cmd
 }
 
 // quit ends the program.
@@ -342,14 +311,8 @@ func (m *Model) closeDialog() {
 // clearMessages forgets the status and the error of the last action.
 func (m *Model) clearMessages() { m.status, m.fail = "", "" }
 
-// selected is the name under the cursor of the list.
-func (m *Model) selected() (string, bool) {
-	name, ok := m.list.selected()
-	if !ok || isGroupRow(name) {
-		return "", false
-	}
-	return name, true
-}
+// selected is the name of the marked row of the bare list.
+func (m *Model) selected() (string, bool) { return m.base.current() }
 
 // View draws the frame on the alternate screen, so it stays a fixed window and the shell is left as it was.
 func (m *Model) View() tea.View {
@@ -429,6 +392,24 @@ func (m *Model) workspaceView() string {
 	return m.boundView(m.listView())
 }
 
+// listView draws the bare list: its title and its table.
+func (m *Model) listView() string {
+	p := &m.base
+	keys := keyLine(navHint(tHintMove, actUp, actDown), hint(tHintFilter, actSearch), hint(tHintQuit, actQuit))
+	if p.filtering() {
+		keys = keyLine(hint(tHintTypeToFilter), navHint(tHintMove, actUp, actDown), hint(tHintKeepFilter, actEnter),
+			hint(tHintClearFilter, actBack))
+	}
+	m.keyHint(keys)
+	position := ""
+	if p.list != nil {
+		position = p.list.Position()
+	}
+	m.screenPos = position
+	spec := dataSpec{title: m.title, gap: true, note: m.tr(tListEmpty)}
+	return strings.Join(m.tableBlock(p, spec, m.usable(0), m.height, m.workspaceTop(), position, true), "\n")
+}
+
 func (m *Model) terminalTooSmall() bool {
 	return m.termWidth < minimumWidth || m.termHeight < minimumHeight
 }
@@ -447,21 +428,6 @@ func (m *Model) resizeView() string {
 		m.ui.st(kittui.StyleHint).Render("  " + m.tr(tResizeNow, m.termWidth, m.termHeight)),
 	}
 	return m.boundTo(strings.Join(lines, "\n"), m.termWidth, m.termHeight)
-}
-
-// searchLine shows the filter of l behind the given label.
-func (m *Model) searchLine(l *filterList, label string) string {
-	return m.searchLineIn(m.usable(0), l, label)
-}
-
-// searchLineIn is searchLine within the first room cells of the workspace.
-func (m *Model) searchLineIn(room int, l *filterList, label string) string {
-	prefix, width := m.fitIn(room, label)
-	l.input.Placeholder = m.tr(tLogSearchPlaceholder)
-	if !l.editing {
-		return prefix + truncateCells(l.query(), width)
-	}
-	return prefix + inputView(fitInput(l.input, width))
 }
 
 // wrap is i taken into 0..n-1: past either end it comes round.

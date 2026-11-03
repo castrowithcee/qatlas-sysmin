@@ -4,13 +4,13 @@ qsysmin                                                                         
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Groups (4)                                                        3/4 ╭─ docker ───────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
-║   Name       Members  System                                      ║ │                                                │
-║   ▾ Groups (1)                                                    ║ │ Name     docker                                │
-║   demo-team        1                                              ║ │ Type     system (read-only)                    │
-║   ▾ System groups (3)                                             ║ │ Members  1                                     │
-║   sudo             2  system                                      ║ │                                                │
-║ > docker           1  system                                      ║ │                                                │
-║   qsysmin          1  syst╔══════════════════════════════════════════════════════════════╗                           │
+║     NAME       MEMBERS  SYSTEM                                    ║ │                                                │
+║   ▾ ■ Groups (1)                                                  ║ │ Name     docker                                │
+║     demo-team        1                                            ║ │ Type     system (read-only)                    │
+║   ▾ ■ System groups (3)                                           ║ │ Members  1                                     │
+║     sudo             2  system                                    ║ │                                                │
+║ >   docker           1  system                                    ║ │                                                │
+║     qsysmin          1  sy╔══════════════════════════════════════════════════════════════╗                           │
 ╚═══════════════════════════║ ⚠ Add demo-user to the group docker.                         ║───────────────────────────╯
                             ║                                                              ║                            
                             ║     Members of the group docker use Docker, which is         ║                            

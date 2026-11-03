@@ -2,12 +2,12 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users  [Groups]  Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Groups (4)                                                                   1/1
+Groups (4)                                                                   1/4
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name╔══════════════════════════════════════════════════════════════╗       ║
-║   ▾ Gr║ Members of demo-team                                         ║       ║
-║ > demo║                                                              ║       ║
-║   ▸ Sy║   Add:     demo-admin                                        ║       ║
+║     NA╔══════════════════════════════════════════════════════════════╗       ║
+║   ▾ ■ ║ Members of demo-team                                         ║       ║
+║ >   de║                                                              ║       ║
+║   ▸ ■ ║   Add:     demo-admin                                        ║       ║
 ╚═══════║ > Remove:  demo-user                                         ║═══════╝
         ║     One confirmation covers all changes. A user whose        ║        
         ║     primary group this is cannot be added or removed.        ║        

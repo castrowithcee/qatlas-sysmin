@@ -144,13 +144,13 @@ func filterWithText(t *testing.T) *Model {
 	m := frameModel(t, 120, 40)
 	press(t, m, "/")
 	typeText(t, m, "abc")
-	if !m.typing() || m.list.input.Value() != "abc" {
-		t.Fatalf("the filter does not read text: typing %v, value %q", m.typing(), m.list.input.Value())
+	if !m.typing() || m.base.list.Query() != "abc" {
+		t.Fatalf("the filter does not read text: typing %v, value %q", m.typing(), m.base.list.Query())
 	}
 	return m
 }
 
-func fieldValue(m *Model) string { return m.list.input.Value() }
+func fieldValue(m *Model) string { return m.base.list.Query() }
 
 // A report split between two reads, with a pause after which the input reader gives up waiting for its rest,
 // makes no text at any point of the split. A report cut right after its escape byte leaves a lone escape,
@@ -200,8 +200,8 @@ func TestMouseReportsSplitWithinTheEscapeWaitStayMouseEvents(t *testing.T) {
 // An escape without anything after it is a key: it clears the filter.
 func TestALoneEscapeStillLeavesTheFilter(t *testing.T) {
 	m := filterWithText(t)
-	if keys := runInput(t, m, "\x1b", pause); len(keys) != 1 || keys[0] != "esc" || m.list.editing || fieldValue(m) != "" {
-		t.Errorf("keys %q, editing %v, field %q, want esc and a cleared filter", keys, m.list.editing, fieldValue(m))
+	if keys := runInput(t, m, "\x1b", pause); len(keys) != 1 || keys[0] != "esc" || m.base.filtering() || fieldValue(m) != "" {
+		t.Errorf("keys %q, editing %v, field %q, want esc and a cleared filter", keys, m.base.filtering(), fieldValue(m))
 	}
 }
 
@@ -242,7 +242,7 @@ func TestTypedCharactersOfAReportReachTheField(t *testing.T) {
 func TestAPasteReachesTheFocusedField(t *testing.T) {
 	m := filterWithText(t)
 	runInput(t, m, "\x1b[200~ q enter\x1b[201~")
-	if got := fieldValue(m); got != "abc q enter" || m.quitting || !m.list.editing {
-		t.Errorf("after the paste the field holds %q, editing %v, quitting %v", got, m.list.editing, m.quitting)
+	if got := fieldValue(m); got != "abc q enter" || m.quitting || !m.base.filtering() {
+		t.Errorf("after the paste the field holds %q, editing %v, quitting %v", got, m.base.filtering(), m.quitting)
 	}
 }

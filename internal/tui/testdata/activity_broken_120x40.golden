@@ -5,7 +5,7 @@ qsysmin                                                                         
   signatures not checked                                                                                                
 Log (12)                                                         1/12 ╭─ 12 ───────────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
-║   Time                 Action          Result   Duration   UID    ║ │                                                │
+║   TIME                 ACTION          RESULT   DURATION   UID    ║ │                                                │
 ║ > 2026-10-28 12:00:00  Config read     success      3 ms     0    ║ │ Time    2026-10-28 12:00:00                    │
 ║   2026-10-28 11:59:00  Host change     success     10 ms  1000    ║ │ Action  Config read                            │
 ║   2026-10-28 11:58:00  Status read     success     17 ms  1000    ║ │ Result  success                                │

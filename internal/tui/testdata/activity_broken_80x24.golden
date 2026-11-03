@@ -5,7 +5,7 @@ qsysmin                                            [esc] back  [?] help  [:] cmd
   signatures not checked                                                        
 Log (12)                                                                    1/12
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Time                 Action          Result   Duration   UID  Signed       ║
+║   TIME                 ACTION          RESULT   DURATION   UID  SIGNED       ║
 ║ > 2026-10-28 12:00:00  Config read     success      3 ms     0  -            ║
 ║   2026-10-28 11:59:00  Host change     success     10 ms  1000  ✓            ║
 ║   2026-10-28 11:58:00  Status read     success     17 ms  1000  ✓            ║

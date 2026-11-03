@@ -4,13 +4,13 @@ qsysmin                                                        [?] help  [:] cmd
 ────────────────────────────────────────────────────────────────────────────────
 Groups (╔══════════════════════════════════════════════════════════════╗     3/4
 ╔═══════║ ⚠ Add demo-user to the group docker.                         ║═══════╗
-║   Name║                                                              ║       ║
-║   ▾ Gr║     Members of the group docker use Docker, which is         ║       ║
-║   demo║     practically root. Packages or services may depend on     ║       ║
-║   ▾ Sy║     this system group. Admin and Docker rights allow         ║       ║
-║   sudo║     practically everything on this host. You can undo this   ║       ║
-║ > dock║     under Host > Changes.                                    ║       ║
-║   qsys║                                                              ║       ║
+║     NA║                                                              ║       ║
+║   ▾ ■ ║     Members of the group docker use Docker, which is         ║       ║
+║     de║     practically root. Packages or services may depend on     ║       ║
+║   ▾ ■ ║     this system group. Admin and Docker rights allow         ║       ║
+║     su║     practically everything on this host. You can undo this   ║       ║
+║ >   do║     under Host > Changes.                                    ║       ║
+║     qs║                                                              ║       ║
 ╚═══════║   $ gpasswd -a demo-user docker                              ║═══════╝
         ║                                                              ║        
         ║ [ Apply ]  [ Cancel ]                                        ║        
