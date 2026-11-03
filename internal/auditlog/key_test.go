@@ -129,7 +129,7 @@ func TestSignedLineChangeWithoutKeyStillBreaksChain(t *testing.T) {
 	}
 	path := filepath.Join(logger.dir, "2026-03-01.jsonl")
 	lines := readLines(t, path)
-	lines[0] = bytes.Replace(lines[0], []byte(`"demo"`), []byte(`"demx"`), 1)
+	lines[0] = bytes.Replace(lines[0], []byte(`"config.apply"`), []byte(`"config.appli"`), 1)
 	writeLines(t, path, lines)
 	if report := verify(t, logger.dir, nil); !report.Broken {
 		t.Fatalf("report = %+v, want the chain to catch a change without a key", report)
@@ -200,7 +200,7 @@ func TestSignedCutMarkerIsChecked(t *testing.T) {
 func TestSignedLogHoldsNoKeyMaterial(t *testing.T) {
 	key := testKey(t, fakeVaultKey)
 	logger, _ := signedTestLogger(t, key, day(1))
-	mustAppend(t, logger, OperationCredentialUse)
+	mustAppend(t, logger, OperationVaultUnlock)
 	data, err := os.ReadFile(filepath.Join(logger.dir, "2026-03-01.jsonl"))
 	if err != nil {
 		t.Fatal(err)

@@ -17,7 +17,7 @@ func TestHostChangeFieldsAreValidated(t *testing.T) {
 	}
 	for name, f := range map[string]Fields{
 		"success without host":   {Action: OperationHostChange, Result: ResultSuccess},
-		"host on another action": {Action: OperationDeployRun, Result: ResultSuccess, Host: ok},
+		"host on another action": {Action: OperationConfigRead, Result: ResultSuccess, Host: ok},
 		"free text action":       {Action: OperationHostChange, Result: ResultSuccess, Host: &Host{ActionID: "set the password", JournalID: ok.JournalID}},
 		"long action":            {Action: OperationHostChange, Result: ResultSuccess, Host: &Host{ActionID: strings.Repeat("a", 70) + ".b", JournalID: ok.JournalID}},
 		"bad journal id":         {Action: OperationHostChange, Result: ResultSuccess, Host: &Host{ActionID: "demo.set", JournalID: "x"}},
@@ -33,11 +33,11 @@ func TestHostChangeEntryIsChainedAndSigned(t *testing.T) {
 	key := testKey(t, fakeVaultKey)
 	logger, _ := signedTestLogger(t, key, day(1))
 	host := &Host{ActionID: "demo.set", JournalID: "20300102T030405.000000Z-0a1b2c"}
-	mustAppend(t, logger, OperationDeployRun)
+	mustAppend(t, logger, OperationConfigRead)
 	if err := logger.Append(Fields{ClientUID: 1000, Action: OperationHostChange, Result: ResultSuccess, Host: host}); err != nil {
 		t.Fatal(err)
 	}
-	mustAppend(t, logger, OperationDeployRun)
+	mustAppend(t, logger, OperationConfigRead)
 	if report := verify(t, logger.dir, key); report.Broken {
 		t.Fatalf("report = %+v", report)
 	}
@@ -48,7 +48,7 @@ func TestHostChangeEntryIsChainedAndSigned(t *testing.T) {
 	var found bool
 	for _, e := range page.Entries {
 		if e.Action == OperationHostChange {
-			found = e.Host != nil && *e.Host == *host && e.MAC != "" && *e.ClientUID == 1000 && e.Project == ""
+			found = e.Host != nil && *e.Host == *host && e.MAC != "" && *e.ClientUID == 1000
 		}
 	}
 	if !found {

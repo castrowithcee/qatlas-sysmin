@@ -24,16 +24,15 @@ const (
 )
 
 // LogListParams are the parameters of OpLogList. Every field narrows the result; From and To are RFC 3339
-// times, both inclusive. Action is a known action word such as "config.read". Limit is 1 to LogMaxLimit,
+// times, both inclusive. Action is an action word such as "config.read". Limit is 1 to LogMaxLimit,
 // 0 meaning LogDefaultLimit. After is the Next of the previous answer.
 type LogListParams struct {
-	From    string `json:"from,omitempty"`
-	To      string `json:"to,omitempty"`
-	Project string `json:"project,omitempty"`
-	Action  string `json:"action,omitempty"`
-	Result  string `json:"result,omitempty"`
-	Limit   int    `json:"limit,omitempty"`
-	After   string `json:"after,omitempty"`
+	From   string `json:"from,omitempty"`
+	To     string `json:"to,omitempty"`
+	Action string `json:"action,omitempty"`
+	Result string `json:"result,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+	After  string `json:"after,omitempty"`
 }
 
 // LogEntry is one entry of the log as the parsed fields carry it. ClientUID is a pointer because 0 is
@@ -43,7 +42,6 @@ type LogEntry struct {
 	Time       time.Time `json:"time"`
 	ClientUID  *uint32   `json:"client_uid,omitempty"`
 	Action     string    `json:"action"`
-	Project    string    `json:"project,omitempty"`
 	Result     string    `json:"result"`
 	ErrorCode  string    `json:"error_code,omitempty"`
 	DurationMS int64     `json:"duration_ms,omitempty"`

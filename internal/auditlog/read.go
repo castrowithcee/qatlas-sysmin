@@ -15,7 +15,6 @@ import (
 type Query struct {
 	// From and To bound the entry time, both inclusive.
 	From, To time.Time
-	Project  string
 	Action   string
 	Result   string
 	Limit    int
@@ -118,7 +117,7 @@ func (q Query) matches(e Entry) bool {
 	switch {
 	case !q.From.IsZero() && e.Time.Before(q.From), !q.To.IsZero() && e.Time.After(q.To):
 		return false
-	case q.Project != "" && e.Project != q.Project, q.Action != "" && e.Action != q.Action:
+	case q.Action != "" && e.Action != q.Action:
 		return false
 	case q.Result != "" && e.Result != q.Result:
 		return false

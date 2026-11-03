@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 }
 
 func workerFields() Fields {
-	return Fields{ClientUID: 1000, Action: OperationDeployRun, Project: "demo", Result: ResultSuccess}
+	return Fields{ClientUID: 1000, Action: OperationConfigRead, Result: ResultSuccess}
 }
 
 // newTestLogger returns a logger in a temp dir whose clock is fixed at t until moveTo advances it.
@@ -47,7 +47,7 @@ func newTestLogger(t *testing.T, at time.Time, retentionDays int) (*Logger, func
 
 func mustAppend(t *testing.T, logger *Logger, action string) {
 	t.Helper()
-	err := logger.Append(Fields{ClientUID: 1000, Action: action, Project: "demo", Result: ResultSuccess,
+	err := logger.Append(Fields{ClientUID: 1000, Action: action, Result: ResultSuccess,
 		Duration: 5 * time.Millisecond})
 	if err != nil {
 		t.Fatalf("Append(%q) error = %v", action, err)
@@ -377,13 +377,11 @@ func assertSequence(t *testing.T, dir string, want int) {
 func TestAppendRefusesBadInput(t *testing.T) {
 	good := workerFields()
 	cases := map[string]func(*Fields){
-		"unknown action":          func(f *Fields) { f.Action = "made.up" },
-		"unknown result":          func(f *Fields) { f.Result = "maybe" },
-		"failure without code":    func(f *Fields) { f.Result = ResultFailure },
-		"success with code":       func(f *Fields) { f.ErrorCode = "denied" },
-		"negative duration":       func(f *Fields) { f.Duration = -1 },
-		"control char in project": func(f *Fields) { f.Project = "a\nb" },
-		"long project":            func(f *Fields) { f.Project = strings.Repeat("p", maxTextLength+1) },
+		"unknown action":       func(f *Fields) { f.Action = "made.up" },
+		"unknown result":       func(f *Fields) { f.Result = "maybe" },
+		"failure without code": func(f *Fields) { f.Result = ResultFailure },
+		"success with code":    func(f *Fields) { f.ErrorCode = "denied" },
+		"negative duration":    func(f *Fields) { f.Duration = -1 },
 	}
 	for name, mutate := range cases {
 		dir := t.TempDir()
@@ -411,7 +409,7 @@ func TestAppendRefusesBadInput(t *testing.T) {
 
 func TestEntryFieldsAndFileMode(t *testing.T) {
 	logger, _ := newTestLogger(t, day(1), 90)
-	if err := logger.Append(Fields{ClientUID: 0, Action: OperationApprovalDeny, Project: "demo",
+	if err := logger.Append(Fields{ClientUID: 0, Action: OperationVaultLock,
 		Result: ResultFailure, ErrorCode: "denied", Duration: 1500 * time.Millisecond}); err != nil {
 		t.Fatal(err)
 	}
@@ -421,7 +419,7 @@ func TestEntryFieldsAndFileMode(t *testing.T) {
 	if err := json.Unmarshal(line, &got); err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]any{"seq": 1.0, "client_uid": 0.0, "action": "approval.deny", "project": "demo",
+	want := map[string]any{"seq": 1.0, "client_uid": 0.0, "action": "vault.lock",
 		"result": "failure", "error_code": "denied", "duration_ms": 1500.0, "mac": "", "prev_hash": genesisHash,
 		"time": "2026-03-01T10:00:00Z"}
 	if len(got) != len(want) {

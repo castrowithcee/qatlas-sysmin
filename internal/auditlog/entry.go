@@ -2,12 +2,8 @@ package auditlog
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
-	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 )
 
 // The kinds of marker entry (see Entry.Kind), as opposed to the empty Kind of an action entry. KindCut
@@ -72,7 +68,9 @@ type Damage struct {
 // for a retention-cut marker, which carries only Cut beside the chain fields, and KindDamage for a
 // damaged-line marker, which carries only Damage beside them. MAC is the check
 // value of a signed entry and always the last field; it stays empty for an entry written without the log
-// key, which marks it unverified. No field ever holds an argument, a result payload, or a secret.
+// key, which marks it unverified. No field ever holds an argument, a result payload, or a secret. Hash and MAC cover the
+// stored bytes, so a line with a field this struct no longer has, or an action sysmin no longer writes, still
+// reads and verifies.
 type Entry struct {
 	Seq  uint64    `json:"seq"`
 	Time time.Time `json:"time"`
@@ -80,7 +78,6 @@ type Entry struct {
 	// ClientUID is the Unix user ID of the client that triggered the action; a pointer because 0 is root.
 	ClientUID  *uint32 `json:"client_uid,omitempty"`
 	Action     string  `json:"action,omitempty"`
-	Project    string  `json:"project,omitempty"`
 	Result     string  `json:"result,omitempty"`
 	ErrorCode  string  `json:"error_code,omitempty"`
 	DurationMS int64   `json:"duration_ms,omitempty"`
@@ -97,8 +94,7 @@ type Entry struct {
 type Fields struct {
 	ClientUID uint32
 	// Action is one of the Operation constants.
-	Action  string
-	Project string
+	Action string
 	// Result is ResultSuccess or ResultFailure.
 	Result string
 	// ErrorCode names the failure and is set exactly when Result is ResultFailure.
@@ -117,8 +113,7 @@ const MaxDuration = 30 * 24 * time.Hour
 var errorCodePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 
 // Validate reports whether f is something sysmin could log: a known action, a result with a matching error
-// code, a non-negative bounded duration, and a project of bounded length that is valid UTF-8 without a
-// control character. The error names the field, never its value.
+// code, a non-negative bounded duration, and a host action that fits the action. The error names the field, never its value.
 func (f Fields) Validate() error {
 	if !knownOperations[f.Action] {
 		return errors.New("action is not a known operation")
@@ -143,9 +138,6 @@ func (f Fields) Validate() error {
 	}
 	if f.Duration < 0 || f.Duration > MaxDuration {
 		return errors.New("duration is out of range")
-	}
-	if len(f.Project) > maxTextLength || !utf8.ValidString(f.Project) || strings.IndexFunc(f.Project, unicode.IsControl) >= 0 {
-		return fmt.Errorf("project must be at most %d bytes of text without control characters", maxTextLength)
 	}
 	return nil
 }

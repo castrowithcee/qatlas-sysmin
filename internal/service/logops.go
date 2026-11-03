@@ -16,8 +16,9 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
 )
 
-// maxLogProjectFilter is the longest project filter, the same bound the log applies to a project.
-const maxLogProjectFilter = 256
+// maxLogActionFilter is the longest action filter. The filter is only checked for its shape, not against the
+// known actions, so an action that older entries record and sysmin no longer writes finds them.
+const maxLogActionFilter = 64
 
 func (s *Service) registerLog() error {
 	for op, h := range map[string]daemon.Handler{
@@ -36,7 +37,7 @@ func (s *Service) logDir() string { return filepath.Join(s.cfg.StateDir, "logs")
 // logQuery validates the parameters of log.list; anything unknown or malformed is a bad request.
 func logQuery(p control.LogListParams) (auditlog.Query, error) {
 	bad := &control.Error{Code: control.CodeBadRequest}
-	q := auditlog.Query{Project: p.Project, Action: p.Action, Result: p.Result, After: p.After, Limit: p.Limit}
+	q := auditlog.Query{Action: p.Action, Result: p.Result, After: p.After, Limit: p.Limit}
 	for _, t := range []struct {
 		text string
 		dst  *time.Time
@@ -59,13 +60,10 @@ func logQuery(p control.LogListParams) (auditlog.Query, error) {
 	case q.Limit < 0 || q.Limit > control.LogMaxLimit:
 		return q, bad
 	}
-	if q.Action != "" && !auditlog.KnownOperation(q.Action) {
+	if len(q.Action) > maxLogActionFilter || !utf8.ValidString(q.Action) || strings.IndexFunc(q.Action, unicode.IsControl) >= 0 {
 		return q, bad
 	}
 	if q.Result != "" && q.Result != control.LogResultSuccess && q.Result != control.LogResultFailure {
-		return q, bad
-	}
-	if len(q.Project) > maxLogProjectFilter || !utf8.ValidString(q.Project) || strings.IndexFunc(q.Project, unicode.IsControl) >= 0 {
 		return q, bad
 	}
 	return q, nil
@@ -94,7 +92,7 @@ func (s *Service) handleLogList(_ context.Context, _ *daemon.Conn, params json.R
 	out := control.LogListResult{Entries: make([]control.LogEntry, len(page.Entries)), Next: page.Next}
 	for i, e := range page.Entries {
 		out.Entries[i] = control.LogEntry{
-			Seq: e.Seq, Time: e.Time, ClientUID: e.ClientUID, Action: e.Action, Project: e.Project,
+			Seq: e.Seq, Time: e.Time, ClientUID: e.ClientUID, Action: e.Action,
 			Result: e.Result, ErrorCode: e.ErrorCode, DurationMS: e.DurationMS, Signed: e.MAC != "",
 		}
 		if e.Host != nil {

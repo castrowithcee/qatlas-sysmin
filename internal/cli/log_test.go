@@ -23,7 +23,7 @@ func seedLog(t *testing.T, dir string, signed bool, actions ...string) string {
 		logger = logger.WithKey(key)
 	}
 	for _, action := range actions {
-		err := logger.Append(auditlog.Fields{ClientUID: 1000, Action: action, Project: "demo",
+		err := logger.Append(auditlog.Fields{ClientUID: 1000, Action: action,
 			Result: auditlog.ResultSuccess})
 		if err != nil {
 			t.Fatal(err)

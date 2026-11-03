@@ -1,6 +1,10 @@
 package service
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,8 +43,8 @@ func TestLogListFiltersAndPages(t *testing.T) {
 	e, c := logEnv(t)
 	dir := filepath.Join(e.cfg.StateDir, "logs")
 	l := auditlog.New(dir, auditlog.DefaultRetentionDays)
-	for _, project := range []string{"demo-x", "demo-y", "demo-x"} {
-		if err := l.Append(auditlog.Fields{ClientUID: 7, Action: auditlog.OperationDeployRun, Project: project, Result: auditlog.ResultSuccess}); err != nil {
+	for range 3 {
+		if err := l.Append(auditlog.Fields{ClientUID: 7, Action: auditlog.OperationConfigApply, Result: auditlog.ResultSuccess}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -54,7 +58,7 @@ func TestLogListFiltersAndPages(t *testing.T) {
 			t.Fatalf("not newest first: %+v", all.Entries)
 		}
 	}
-	if top := all.Entries[0]; top.Action != "deploy.run" || top.Result != "success" || top.ClientUID == nil || top.Time.IsZero() {
+	if top := all.Entries[0]; top.Action != "config.apply" || top.Result != "success" || top.ClientUID == nil || top.Time.IsZero() {
 		t.Fatalf("entry = %+v", top)
 	}
 	if last := all.Entries[len(all.Entries)-1]; last.Seq != 1 || !last.Signed {
@@ -85,13 +89,13 @@ func TestLogListFiltersAndPages(t *testing.T) {
 		}
 	}
 
-	byProject, err := c.LogEntries(control.LogListParams{Project: "demo-x"})
-	if err != nil || len(byProject.Entries) != 2 || byProject.Entries[0].Project != "demo-x" || byProject.Entries[0].Signed || byProject.Entries[0].ClientUID == nil || *byProject.Entries[0].ClientUID != 7 {
-		t.Fatalf("by project = %+v, %v", byProject, err)
-	}
-	byAction, err := c.LogEntries(control.LogListParams{Action: "deploy.run", Result: "success"})
-	if err != nil || len(byAction.Entries) != 3 {
+	byAction, err := c.LogEntries(control.LogListParams{Action: "config.apply", Result: "success"})
+	if err != nil || len(byAction.Entries) != 3 || byAction.Entries[0].Signed || byAction.Entries[0].ClientUID == nil || *byAction.Entries[0].ClientUID != 7 {
 		t.Fatalf("by action = %+v, %v", byAction, err)
+	}
+	removed, err := c.LogEntries(control.LogListParams{Action: "deploy.run"})
+	if err != nil || len(removed.Entries) != 0 {
+		t.Fatalf("by removed action = %+v, %v", removed, err)
 	}
 	failed, err := c.LogEntries(control.LogListParams{Result: "failure"})
 	if err != nil || len(failed.Entries) == 0 || failed.Entries[0].ErrorCode == "" {
@@ -117,13 +121,12 @@ func TestLogListRejectsBadFilters(t *testing.T) {
 		"from format":    {From: "2030-01-01"},
 		"to format":      {To: "yesterday"},
 		"from after to":  {From: "2030-02-01T00:00:00Z", To: "2030-01-01T00:00:00Z"},
-		"unknown action": {Action: "rm.rf"},
+		"long action":    {Action: strings.Repeat("a", 65)},
+		"action control": {Action: "a\nb"},
 		"unknown result": {Result: "maybe"},
 		"negative limit": {Limit: -1},
 		"limit too big":  {Limit: control.LogMaxLimit + 1},
 		"bad cursor":     {After: "../../etc/passwd/1"},
-		"long project":   {Project: strings.Repeat("a", 257)},
-		"control char":   {Project: "a\nb"},
 	} {
 		if _, err := c.LogEntries(p); err == nil {
 			t.Errorf("%s: accepted", name)
@@ -139,18 +142,17 @@ func TestLogListRejectsBadFilters(t *testing.T) {
 func TestLogListAnswerStaysSmall(t *testing.T) {
 	e, c := logEnv(t)
 	l := auditlog.New(filepath.Join(e.cfg.StateDir, "logs"), auditlog.DefaultRetentionDays)
-	long := strings.Repeat("p", 256)
 	for i := 0; i < control.LogMaxLimit+100; i++ {
-		if err := l.Append(auditlog.Fields{ClientUID: 4000000000, Action: auditlog.OperationConfigApply, Project: long,
+		if err := l.Append(auditlog.Fields{ClientUID: 4000000000, Action: auditlog.OperationConfigApply,
 			Result: auditlog.ResultFailure, ErrorCode: strings.Repeat("e", 64), Duration: auditlog.MaxDuration}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	page, err := c.LogEntries(control.LogListParams{Limit: control.LogMaxLimit, Project: long})
+	page, err := c.LogEntries(control.LogListParams{Limit: control.LogMaxLimit, Action: "config.apply"})
 	if err != nil || len(page.Entries) != control.LogMaxLimit || page.Next == "" {
 		t.Fatalf("page = %d entries, next %q, %v", len(page.Entries), page.Next, err)
 	}
-	rest, err := c.LogEntries(control.LogListParams{Limit: control.LogMaxLimit, Project: long, After: page.Next})
+	rest, err := c.LogEntries(control.LogListParams{Limit: control.LogMaxLimit, Action: "config.apply", After: page.Next})
 	if err != nil || len(rest.Entries) != 100 || rest.Next != "" {
 		t.Fatalf("rest = %d entries, next %q, %v", len(rest.Entries), rest.Next, err)
 	}
@@ -269,5 +271,43 @@ func TestLogVerifyEmptyLog(t *testing.T) {
 	got, err := e.dial(t).VerifyLog()
 	if err != nil || !got.Intact || got.Days == nil {
 		t.Fatalf("empty = %+v, %v", got, err)
+	}
+}
+
+// An entry of the removed deployment area, with the project field it carried, stays listed and keeps the
+// chain intact; the project is not shown and the removed action is still a valid filter.
+func TestLogListShowsOldDeploymentEntry(t *testing.T) {
+	e, c := logEnv(t)
+	path := e.logFile(t)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	last := lines[len(lines)-1]
+	var prev struct {
+		Seq  uint64 `json:"seq"`
+		Time string `json:"time"`
+	}
+	if err := json.Unmarshal([]byte(last), &prev); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte(last))
+	old := fmt.Sprintf(`{"seq":%d,"time":%q,"client_uid":1000,"action":"deploy.run","project":"demo-app","result":"success","prev_hash":%q,"mac":""}`,
+		prev.Seq+1, prev.Time, hex.EncodeToString(sum[:]))
+	if err := os.WriteFile(path, append(data, []byte(old+"\n")...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := c.LogEntries(control.LogListParams{Action: "deploy.run"})
+	if err != nil || len(got.Entries) != 1 || got.Entries[0].Seq != prev.Seq+1 {
+		t.Fatalf("old entry = %+v, %v", got, err)
+	}
+	raw, err := json.Marshal(got)
+	if err != nil || strings.Contains(string(raw), "project") || strings.Contains(string(raw), "demo-app") {
+		t.Fatalf("answer exposes a project: %s, %v", raw, err)
+	}
+	if v, err := c.VerifyLog(); err != nil || !v.Intact {
+		t.Fatalf("verify = %+v, %v", v, err)
 	}
 }

@@ -32,9 +32,6 @@ func testLogEntries(n int) []control.LogEntry {
 		}
 		e := control.LogEntry{Seq: uint64(n - i), Time: start.Add(-time.Duration(i) * time.Minute), ClientUID: &uid,
 			Action: actions[i%len(actions)], Result: control.LogResultSuccess, DurationMS: int64(3 + i*7), Signed: i%4 != 0}
-		if i%2 == 0 {
-			e.Project = "demo-app" // an old entry may still carry one; Activity does not show it
-		}
 		if i%5 == 4 {
 			e.Result, e.ErrorCode = control.LogResultFailure, "refused"
 		}

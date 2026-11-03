@@ -505,8 +505,7 @@ func TestLogKeySignsAuditEntries(t *testing.T) {
 	if !logger.Signs() {
 		t.Fatal("the logger does not sign with the vault's log key")
 	}
-	err := logger.Append(auditlog.Fields{ClientUID: 1000, Action: auditlog.OperationConfigApply,
-		Project: "demo", Result: auditlog.ResultSuccess})
+	err := logger.Append(auditlog.Fields{ClientUID: 1000, Action: auditlog.OperationConfigApply, Result: auditlog.ResultSuccess})
 	if err != nil {
 		t.Fatal(err)
 	}

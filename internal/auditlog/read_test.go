@@ -18,13 +18,13 @@ func readFixture(t *testing.T) string {
 		}
 	}
 	day := func(d, h int) time.Time { return time.Date(2030, 3, d, h, 0, 0, 0, time.UTC) }
-	add(day(1, 8), Fields{Action: OperationConfigRead, Project: "demo-a", Result: ResultSuccess})
-	add(day(1, 9), Fields{Action: OperationConfigApply, Project: "demo-a", Result: ResultFailure, ErrorCode: "invalid"})
-	add(day(1, 10), Fields{Action: OperationConfigRead, Project: "demo-b", Result: ResultSuccess})
-	add(day(2, 8), Fields{Action: OperationDeployRun, Project: "demo-b", Result: ResultSuccess})
-	add(day(2, 9), Fields{Action: OperationConfigRead, Project: "demo-a", Result: ResultSuccess})
-	add(day(3, 8), Fields{Action: OperationConfigRead, Project: "demo-a", Result: ResultSuccess})
-	add(day(3, 9), Fields{Action: OperationConfigApply, Project: "demo-b", Result: ResultFailure, ErrorCode: "locked"})
+	add(day(1, 8), Fields{Action: OperationConfigRead, Result: ResultSuccess})
+	add(day(1, 9), Fields{Action: OperationConfigApply, Result: ResultFailure, ErrorCode: "invalid"})
+	add(day(1, 10), Fields{Action: OperationConfigRead, Result: ResultSuccess})
+	add(day(2, 8), Fields{Action: OperationConfigRead, Result: ResultSuccess})
+	add(day(2, 9), Fields{Action: OperationConfigRead, Result: ResultSuccess})
+	add(day(3, 8), Fields{Action: OperationConfigRead, Result: ResultSuccess})
+	add(day(3, 9), Fields{Action: OperationConfigApply, Result: ResultFailure, ErrorCode: "locked"})
 	return l.dir
 }
 
@@ -57,14 +57,14 @@ func TestReadFilters(t *testing.T) {
 		want []uint64
 	}{
 		{"all, newest first", Query{Limit: 100}, []uint64{7, 6, 5, 4, 3, 2, 1}},
-		{"project", Query{Limit: 100, Project: "demo-b"}, []uint64{7, 4, 3}},
 		{"action", Query{Limit: 100, Action: OperationConfigApply}, []uint64{7, 2}},
 		{"result", Query{Limit: 100, Result: ResultFailure}, []uint64{7, 2}},
 		{"from inclusive", Query{Limit: 100, From: at(2, 9)}, []uint64{7, 6, 5}},
 		{"to inclusive", Query{Limit: 100, To: at(2, 8)}, []uint64{4, 3, 2, 1}},
 		{"range", Query{Limit: 100, From: at(1, 9), To: at(2, 8)}, []uint64{4, 3, 2}},
-		{"combined", Query{Limit: 100, Project: "demo-a", Result: ResultSuccess, From: at(2, 0)}, []uint64{6, 5}},
-		{"nothing matches", Query{Limit: 100, Project: "other"}, nil},
+		{"combined", Query{Limit: 100, Action: OperationConfigRead, Result: ResultSuccess, From: at(2, 0)}, []uint64{6, 5, 4}},
+		{"nothing matches", Query{Limit: 100, Action: "made.up"}, nil},
+		{"removed action", Query{Limit: 100, Action: "deploy.run"}, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -97,12 +97,12 @@ func TestReadPagesAcrossDayBoundaries(t *testing.T) {
 		t.Fatalf("pages = %d, seqs = %v", pages, got)
 	}
 	// A filtered page continues with the same filter.
-	page, err := Read(dir, Query{Limit: 1, Project: "demo-a"})
+	page, err := Read(dir, Query{Limit: 1, Action: OperationConfigRead})
 	if err != nil || !sameSeqs(seqs(page), []uint64{6}) || page.Next == "" {
 		t.Fatalf("first = %v, %q, %v", seqs(page), page.Next, err)
 	}
-	page, err = Read(dir, Query{Limit: 10, Project: "demo-a", After: page.Next})
-	if err != nil || !sameSeqs(seqs(page), []uint64{5, 2, 1}) || page.Next != "" {
+	page, err = Read(dir, Query{Limit: 10, Action: OperationConfigRead, After: page.Next})
+	if err != nil || !sameSeqs(seqs(page), []uint64{5, 4, 3, 1}) || page.Next != "" {
 		t.Fatalf("rest = %v, %q, %v", seqs(page), page.Next, err)
 	}
 }

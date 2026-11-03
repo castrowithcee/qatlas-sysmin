@@ -55,7 +55,7 @@ func TestHostRecordFromRootWritesASignedEntryForTheHuman(t *testing.T) {
 			break
 		}
 	}
-	if got == nil || got.ClientUID == nil || *got.ClientUID != 1000 || got.Result != "success" || got.Project != "" ||
+	if got == nil || got.ClientUID == nil || *got.ClientUID != 1000 || got.Result != "success" ||
 		!got.Signed || got.Host == nil || *got.Host != (control.LogHost{ActionID: "demo.set", JournalID: testJournalID, UndoOf: testUndoID}) {
 		t.Fatalf("entry = %+v", got)
 	}
