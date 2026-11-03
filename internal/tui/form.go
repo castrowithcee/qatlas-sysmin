@@ -1,348 +1,454 @@
 package tui
 
 import (
+	"slices"
 	"strings"
+	"unicode"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
-// A form is a short overlay of text fields and choices. A field with a known set of values is a choice that
-// the left and right keys step through, never free text. A row that holds a secret is masked and read with
-// raw: only the host user forms have one, and nothing of it is ever drawn or kept past the form.
-
-// formRow is one row of a form: a text field, or a choice among values.
-type formRow struct {
-	// key names the field of the service the row stands for; problems of that field are drawn under it.
-	key, label string
-	choice     bool
-	// values are what a choice stands for, shown what is drawn for each; shown may be nil.
-	values, shown []string
-	sel           int
-	in            textinput.Model
-	problem       string
-	// hidden rows are skipped by the focus and not drawn.
-	hidden bool
-	// multi makes the choice a set: left and right move through the values, space ticks the one under the
-	// cursor sel. ticked has one entry per value.
-	multi  bool
-	ticked []bool
-	// pick makes the choice a set chosen in a list over the form (see pickRow); ticked and values work as for
-	// multi, and notes, when set, has one short word per value.
-	pick  bool
-	notes []string
-}
+// A host form is a kit form in a short overlay. The form holds every field it can show; a field that the
+// current choice leaves out is hidden, and the kit form is built anew without it, keeping what was entered in
+// the other fields. A masked field holds a secret: it is never kept across a new build and never drawn, and
+// it is emptied when the form closes. A list field shows a summary; its editor is a pick list or the key
+// editor over the form.
 
 // formDlg is the form over the screen, drawn as the prompt of screenPrompt.
 type formDlg struct {
 	title, hint string
-	rows        []formRow
-	focus       int
-	// notice is a problem that belongs to no row.
-	notice string
-	// submit runs on the save key with the form already left; changed runs after a choice took another value.
+	// fields are every field the form can show, in their order; hidden are those left out now.
+	fields []kittui.FormField
+	hidden map[kittui.FieldID]bool
+	kit    *kittui.Form
+	// kept holds the values of the fields across a new build, masked fields never.
+	kept map[kittui.FieldID]kittui.FormValue
+	// rebuilt says a choice changed the fields, so the form holds a change Changed of the new build misses.
+	rebuilt bool
+	// submit runs on the save key and adds the problems it finds; changed runs after a field took another value.
 	submit  func(m *Model, f *formDlg) tea.Cmd
-	changed func(m *Model, f *formDlg, row int)
+	changed func(m *Model, f *formDlg, id kittui.FieldID)
 	// saveText is the hint of the save key, such as save or continue.
 	saveText []kittui.Hint
-	// enter, when set, runs first on the enter key; true says it took the key.
-	enter func(m *Model, f *formDlg, row int) bool
-	// pick is the list a pick row opened over the form; hits are the click targets of what was drawn last.
-	pick *pickDlg
-	hits []textHit
+	problems []kittui.FormProblem
+	// lists are the pick lists of the list fields; keys the key list of the key field.
+	lists map[kittui.FieldID]*pickList
+	keys  *keyList
+	// pick and keyEd are the editor open over the form.
+	pick  *pickDlg
+	keyEd *keyEditor
+	// drawn and targets are the lines and targets of the form as drawn last; origin is how many cells the
+	// lines a modal hands to hitFormLines stand right of the column it names, which is that of its frame.
+	drawn   []string
+	targets []kittui.Target
+	origin  int
 }
 
-func textRow(key, label, value string) formRow {
-	return formRow{key: key, label: label, in: keyInput(value)}
+func textField(id kittui.FieldID, label textID) kittui.FormField {
+	return kittui.FormField{ID: id, Kind: kittui.FieldText, Label: label}
 }
 
-func choiceRow(key, label string, values, shown []string, sel int) formRow {
-	return formRow{key: key, label: label, choice: true, values: values, shown: shown, sel: sel}
+func maskedField(id kittui.FieldID, label textID) kittui.FormField {
+	return kittui.FormField{ID: id, Kind: kittui.FieldMasked, Label: label}
 }
 
-func keyInput(value string) textinput.Model {
-	in := newTextInput()
-	in.Prompt = ""
-	in.SetValue(value)
-	return in
+// choiceField is a choice among values, on the value at sel.
+func choiceField(id kittui.FieldID, label textID, choices []kittui.Choice, sel int) kittui.FormField {
+	f := kittui.FormField{ID: id, Kind: kittui.FieldChoice, Label: label, Choices: choices}
+	if sel >= 0 && sel < len(choices) {
+		f.Value.Choice = choices[sel].ID
+	}
+	return f
 }
 
-func maskedInput() textinput.Model {
-	in := newTextInput()
-	in.Prompt = ""
-	in.EchoMode = textinput.EchoPassword
-	return in
-}
-
-// maskedRow is a text row whose text is drawn as dots.
-func maskedRow(key, label string) formRow {
-	r := formRow{key: key, label: label, in: maskedInput()}
-	return r
-}
-
-// multiRow is a choice of any number of values.
-func multiRow(key, label string, values []string) formRow {
-	return formRow{key: key, label: label, choice: true, multi: true, values: values, ticked: make([]bool, len(values))}
-}
-
-// raw is the text of a text row as typed, blanks included.
-func (r *formRow) raw() string { return r.in.Value() }
-
-// picked are the ticked values of a multi row, in order.
-func (r *formRow) picked() []string {
-	var out []string
-	for i, on := range r.ticked {
-		if on && i < len(r.values) {
-			out = append(out, r.values[i])
-		}
+// shownChoices are values with the texts drawn for them.
+func shownChoices(values []string, shown []textID) []kittui.Choice {
+	out := make([]kittui.Choice, len(values))
+	for i, v := range values {
+		out[i] = kittui.Choice{ID: kittui.ChoiceID(v), Label: shown[i]}
 	}
 	return out
 }
 
-// multiText is how a multi row is drawn: the value under the cursor with its box, and how many are ticked.
-func (r *formRow) multiText(ui *uiContext) string {
-	if len(r.values) == 0 {
-		return ui.tr(tHostFormNoGroups)
-	}
-	return tickBox(ui, r.ticked[r.sel]) + " " + r.values[r.sel] + "  (" + ui.tr(tHostFormTicked, len(r.picked()), len(r.values)) + ")"
+// yesNo are the choices no and yes, in that order.
+func yesNo() []kittui.Choice {
+	return shownChoices([]string{hostNo, hostYes}, []textID{tHostNo, tHostYes})
 }
 
-// value is the text of a text row, or the value a choice stands for.
-func (r *formRow) value() string {
-	if r.choice {
-		if r.sel < 0 || r.sel >= len(r.values) {
-			return ""
+func listField(id kittui.FieldID, label textID) kittui.FormField {
+	return kittui.FormField{ID: id, Kind: kittui.FieldList, Label: label}
+}
+
+// summaryText makes a summary fit for a list field: one line without control characters.
+func summaryText(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
 		}
-		return r.values[r.sel]
-	}
-	return strings.TrimSpace(r.in.Value())
+		return r
+	}, s)
 }
 
-func (r *formRow) shownValue() string {
-	if r.sel >= 0 && r.sel < len(r.shown) {
-		return r.shown[r.sel]
+// build makes the kit form of the fields not hidden, on the values entered so far and with the focus where it
+// was.
+func (f *formDlg) build(m *Model) error {
+	focus := kittui.FieldID("")
+	if f.kit != nil {
+		f.keep()
+		focus = f.kit.Focused()
+		f.rebuilt = true
 	}
-	return r.value()
-}
-
-func (f *formDlg) row(key string) *formRow {
-	for i := range f.rows {
-		if f.rows[i].key == key {
-			return &f.rows[i]
+	var shown []kittui.FormField
+	for _, field := range f.fields {
+		if f.hidden[field.ID] {
+			continue
 		}
+		if v, ok := f.kept[field.ID]; ok {
+			field.Value = v
+		}
+		if l := f.lists[field.ID]; l != nil {
+			field.Value = kittui.FormValue{Text: summaryText(l.summary(m.ui))}
+		}
+		if field.ID == fieldKeys && f.keys != nil {
+			field.Value = kittui.FormValue{Text: summaryText(f.keys.summary(m.ui))}
+		}
+		shown = append(shown, field)
+	}
+	kit, err := m.newForm(shown, nil)
+	if err != nil {
+		return err
+	}
+	f.kit = kit
+	if focus != "" {
+		kit.Focus(focus)
 	}
 	return nil
 }
 
-// focusRow moves the focus to row i.
-func (f *formDlg) focusRow(i int) {
-	for j := range f.rows {
-		f.rows[j].in.Blur()
+// keep takes the values of the form into kept, masked ones excepted.
+func (f *formDlg) keep() {
+	if f.kept == nil {
+		f.kept = map[kittui.FieldID]kittui.FormValue{}
 	}
-	f.focus = i
-	if !f.rows[i].choice {
-		f.rows[i].in.Focus()
+	values := f.kit.Values()
+	for _, field := range f.fields {
+		if v, ok := values[field.ID]; ok && field.Kind != kittui.FieldMasked {
+			f.kept[field.ID] = v
+		}
 	}
 }
 
-// step moves the focus by one visible row, round the ends.
-func (f *formDlg) step(by int) {
-	n := len(f.rows)
-	for i := 1; i <= n; i++ {
-		j := ((f.focus+by*i)%n + n) % n
-		if !f.rows[j].hidden {
-			f.focusRow(j)
+// show shows or hides the field id from the next build on.
+func (f *formDlg) show(id kittui.FieldID, on bool) {
+	if f.hidden == nil {
+		f.hidden = map[kittui.FieldID]bool{}
+	}
+	f.hidden[id] = !on
+}
+
+// rearrange builds the form anew where the shown fields differ from the built ones.
+func (f *formDlg) rearrange(m *Model) {
+	built := f.kit.Values()
+	for _, field := range f.fields {
+		if _, in := built[field.ID]; in == f.hidden[field.ID] {
+			if err := f.build(m); err != nil {
+				m.fail = err.Error()
+			}
 			return
 		}
 	}
 }
 
-// wheelRow moves the focus by one visible row and stops at the first and the last.
-func (f *formDlg) wheelRow(up bool) {
-	by := 1
-	if up {
-		by = -1
+// value is the trimmed text of a field or the value its choice stands for; raw is the text as typed.
+func (f *formDlg) value(id kittui.FieldID) string {
+	v, ok := f.kit.Values()[id]
+	if !ok {
+		v = f.kept[id]
 	}
-	for j := f.focus + by; j >= 0 && j < len(f.rows); j += by {
-		if !f.rows[j].hidden {
-			f.focusRow(j)
-			return
+	if v.Choice != "" {
+		return string(v.Choice)
+	}
+	return strings.TrimSpace(v.Text)
+}
+
+func (f *formDlg) raw(id kittui.FieldID) string { return f.kit.Values()[id].Text }
+
+// fail adds a problem under the field id; refuse adds one above the form.
+func (f *formDlg) fail(id kittui.FieldID, text string) {
+	f.problems = append(f.problems, kittui.FormProblem{Field: id, Cause: text})
+}
+
+func (f *formDlg) refuse(text string) { f.fail("", text) }
+
+func (f *formDlg) failed() bool { return len(f.problems) > 0 }
+
+// dirty reports input the form would lose if it closed now.
+func (f *formDlg) dirty() bool { return f.rebuilt || f.kit.Changed() }
+
+// wipe empties the masked fields.
+func (f *formDlg) wipe() {
+	for _, field := range f.fields {
+		if field.Kind == kittui.FieldMasked {
+			_ = f.kit.SetValue(field.ID, kittui.FormValue{})
 		}
 	}
 }
 
-// hitFormWheel makes the cells of the form that is open take the wheel, with
-// the same precedence prompt gives them.
+// hitFormWheel makes the cells of the form that is open take the wheel, with the same precedence prompt gives
+// them.
 func (m *Model) hitFormWheel(x0, y0, x1, y1 int) {
-	var scroll func(up bool)
-	switch {
-	case m.screen != screenPrompt:
-		return
-	case m.form != nil && m.form.pick != nil:
-		scroll = m.form.pick.wheel
-	case m.form != nil:
-		scroll = m.form.wheelRow
-	default:
+	f := m.form
+	if m.screen != screenPrompt || f == nil || f.keyEd != nil {
 		return
 	}
-	m.addWheel(x0, y0, x1, y1, kittui.ZoneForm, func(up bool) tea.Cmd { scroll(up); return nil })
+	m.addWheel(x0, y0, x1, y1, kittui.ZoneForm, func(up bool) tea.Cmd {
+		if f.pick != nil {
+			f.pick.wheel(up)
+			return nil
+		}
+		steps := 1
+		if up {
+			steps = -1
+		}
+		f.kit.Wheel(steps)
+		return nil
+	})
 }
 
-// openForm shows f over the screen with its first visible row focused.
+// openForm builds f and shows it over the screen with its first field focused. A form the kit refuses, which
+// only data of the host can cause, is not shown and its reason is.
 func (m *Model) openForm(f *formDlg) {
 	m.clearMessages()
-	m.form, m.screen = f, screenPrompt
-	first := 0
-	for first < len(f.rows)-1 && f.rows[first].hidden {
-		first++
+	if err := f.build(m); err != nil {
+		m.fail = err.Error()
+		return
 	}
-	f.focusRow(first)
+	f.rebuilt = false
+	m.form, m.screen = f, screenPrompt
 }
 
-// closeForm leaves the form.
+// closeForm leaves the form; its secrets are emptied first.
 func (m *Model) closeForm() {
+	if m.form != nil {
+		m.form.wipe()
+	}
 	m.form = nil
 	m.screen = m.home
 }
 
-// updateForm handles one key of the form.
+// cancelForm leaves the form without a change, as esc does.
+func (m *Model) cancelForm() tea.Cmd {
+	m.closeForm()
+	m.status = m.tr(tCancelled)
+	return nil
+}
+
+// updateForm handles one key of the form. Every key reaches the kit form first; esc asks first where the form
+// holds input.
 func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 	f := m.form
-	f.notice = ""
-	if f.pick != nil {
-		return m.pickKey(f, key)
-	}
-	r := &f.rows[f.focus]
 	switch {
-	case m.keyIs(key, actBack):
-		m.closeForm()
-		m.status = m.tr(tCancelled)
-		return nil
-	case m.keyIs(key, actSave):
-		return f.submit(m, f)
-	case m.keyIs(key, actEnter) && f.enter != nil && f.enter(m, f, f.focus):
-		return nil
-	case m.keyIs(key, actEnter) && r.pick && len(r.values) > 0:
-		m.openPick(f, f.focus)
-		return nil
-	case m.keyIs(key, actEnter), m.keyIs(key, actNext), m.keyIs(key, actDown):
-		f.step(1)
-		return nil
-	case m.keyIs(key, actPrev), m.keyIs(key, actUp):
-		f.step(-1)
+	case f.pick != nil:
+		return m.pickKey(f, key)
+	case f.keyEd != nil:
+		return m.keyEditKey(f, key)
+	}
+	if content, ok := pasted(key); ok {
+		f.kit.Paste(content)
 		return nil
 	}
-	if r.pick {
+	before := f.kit.Values()
+	act, handled := f.kit.Update(key)
+	if handled || act != "" {
+		return m.formAct(f, act, before)
+	}
+	if m.keyIs(key, actBack) {
+		return m.guarded(m.cancelForm)
+	}
+	return nil
+}
+
+// clickForm is a click on a target of the form: the kit focuses the field, opens a choice or takes a value.
+func (m *Model) clickForm(f *formDlg, res kittui.MouseResult) tea.Cmd {
+	if m.form != f || m.screen != screenPrompt || f.pick != nil || f.keyEd != nil {
 		return nil
 	}
-	if r.multi {
-		switch {
-		case m.keyIs(key, actSpace) && len(r.values) > 0:
-			r.ticked[r.sel] = !r.ticked[r.sel]
-		case m.keyIs(key, actRight) && len(r.values) > 0:
-			r.sel = (r.sel + 1) % len(r.values)
-		case m.keyIs(key, actLeft) && len(r.values) > 0:
-			r.sel = (r.sel + len(r.values) - 1) % len(r.values)
-		default:
-			return nil
-		}
-		r.problem = ""
-		if f.changed != nil {
-			f.changed(m, f, f.focus)
-		}
+	before := f.kit.Values()
+	act, _ := f.kit.Click(res)
+	return m.formAct(f, act, before)
+}
+
+// formAct runs what the form yields: the save key, enter on a list field, and a change of a value.
+func (m *Model) formAct(f *formDlg, act kittui.ActionID, before map[kittui.FieldID]kittui.FormValue) tea.Cmd {
+	switch act {
+	case actSave:
+		return m.submitForm(f)
+	case actEnter:
+		m.openListEditor(f, f.kit.Focused())
 		return nil
 	}
-	if r.choice {
-		by := 0
-		switch {
-		case m.keyIs(key, actRight), m.keyIs(key, actSpace):
-			by = 1
-		case m.keyIs(key, actLeft):
-			by = -1
-		}
-		if by != 0 && len(r.values) > 0 {
-			r.sel = (r.sel + by + len(r.values)) % len(r.values)
-			r.problem = ""
-			if f.changed != nil {
-				f.changed(m, f, f.focus)
-			}
-		}
-		return nil
+	m.noteChanges(f, before)
+	return nil
+}
+
+// noteChanges runs changed for every field whose value differs from before.
+func (m *Model) noteChanges(f *formDlg, before map[kittui.FieldID]kittui.FormValue) {
+	if f.changed == nil {
+		return
 	}
-	r.problem = ""
-	var cmd tea.Cmd
-	r.in, cmd = r.in.Update(inputMsg(key))
+	after := f.kit.Values()
+	for _, field := range f.fields {
+		if a, b := after[field.ID], before[field.ID]; a.Text != b.Text || a.Choice != b.Choice ||
+			!slices.Equal(a.Selected, b.Selected) {
+			f.changed(m, f, field.ID)
+		}
+	}
+}
+
+// submitForm runs the check of the form. A refused save leaves the form open with every value and shows each
+// problem under its field.
+func (m *Model) submitForm(f *formDlg) tea.Cmd {
+	m.clearMessages()
+	f.problems = nil
+	cmd := f.submit(m, f)
+	if f.failed() && m.form == f {
+		f.kit.SetProblems(f.problems)
+		m.status = m.tr(tFormProblems, len(f.problems))
+	}
+	f.problems = nil
 	return cmd
 }
 
-// formDialog is the form as the dialog the modal draws.
+// formHints are the keys of the form: those of the kit form, with the save key under the form's own word, and
+// cancel.
+func (m *Model) formHints(f *formDlg) []kittui.Hint {
+	var keys []kittui.Hint
+	for _, h := range f.kit.Hints() {
+		if h.Action != actSave {
+			keys = append(keys, h)
+		}
+	}
+	if f.kit.Open() {
+		return keys
+	}
+	return keyLine(keys, f.saveText, answer(tHintCancel, actBack))
+}
+
+// formDialog is the form as the dialog the modal draws. The kit form gets the rows the dialog leaves it, so it
+// chooses the richest layout that fits.
 func (m *Model) formDialog() promptDialog {
 	f := m.form
-	if f.pick != nil {
+	switch {
+	case f.pick != nil:
 		return m.pickDialog(f)
+	case f.keyEd != nil:
+		return m.keyEditDialog(f)
 	}
-	f.hits = nil
+	d := promptDialog{title: f.title, hint: f.hint, keys: m.formHints(f)}
 	width := m.usable(0)
-	var labels []string
-	for _, r := range f.rows {
-		if !r.hidden {
-			labels = append(labels, r.label)
-		}
+	if !m.inModal && m.tableFramed() {
+		// The workspace draws the dialog in a panel, which takes four cells.
+		width -= 4
 	}
-	lw := labelWidth(labels)
-	var rows []string
-	for i, r := range f.rows {
-		if r.hidden {
+	view, targets := f.kit.View(m.ui.styles, width, max(m.formRoom(d), 1))
+	lines := strings.Split(view, "\n")
+	for len(lines) > 1 && strings.TrimSpace(ansi.Strip(lines[len(lines)-1])) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	f.drawn, f.targets, f.origin = make([]string, len(lines)), targets, 0
+	for i, line := range lines {
+		f.drawn[i] = strings.TrimRight(ansi.Strip(line), " ")
+	}
+	if m.inModal {
+		f.origin = 1
+	}
+	d.input = strings.Join(lines, "\n")
+	return d
+}
+
+// formRoom is the rows a dialog leaves its form: what the modal or the workspace holds, less the rest of the
+// dialog drawn around a form of one row.
+func (m *Model) formRoom(d promptDialog) int {
+	d.input = "x"
+	if !m.inModal {
+		return m.height - strings.Count(strings.TrimRight(m.promptScreenText(d), "\n"), "\n")
+	}
+	log := m.footerLog
+	var scratch []footerLine
+	m.footerLog = &scratch
+	defer func() { m.footerLog = log }()
+	text := m.wrapped(m.ui.st(kittui.StyleTitle), d.title) + "\n\n" + m.promptText(d, false) + m.promptNotes()
+	return m.termHeight - 4 - strings.Count(strings.TrimRight(text, "\n"), "\n")
+}
+
+// hitFormLines makes the click targets of the open form or its pick list work. lines stand from screen row y0
+// and column x0 on; the form is found among them by the lines it drew.
+func (m *Model) hitFormLines(lines []string, y0, x0, x1 int) {
+	f := m.form
+	if m.screen != screenPrompt || f == nil {
+		return
+	}
+	if f.pick != nil {
+		m.hitPickLines(lines, y0, x0, x1)
+		return
+	}
+	if f.keyEd != nil || len(f.drawn) == 0 {
+		return
+	}
+	first := 0
+	for first < len(f.drawn)-1 && f.drawn[first] == "" {
+		first++
+	}
+	if f.drawn[first] == "" {
+		return
+	}
+	for i := 0; i+len(f.drawn) <= len(lines); i++ {
+		row := ansi.Strip(lines[i+first])
+		at := strings.Index(row, f.drawn[first])
+		if at < 0 || !f.drawnAt(lines[i:], at) {
 			continue
 		}
-		prefix := barMarker(f.focus == i) + padLine(r.label+":", lw+1) + " "
-		room := max(width-lipgloss.Width(prefix)-1, 1)
-		if r.choice {
-			shown := r.shownValue()
-			if r.multi {
-				shown = r.multiText(m.ui)
-			}
-			if r.pick {
-				shown = r.pickText(m.ui)
-			}
-			text := truncateCells(shown, max(room-6, 1))
-			if f.focus == i && !r.pick {
-				text = "< " + text + " >"
-			}
-			rows = append(rows, prefix+fieldStyle(m.ui, f.focus == i).Render(" "+text+" "))
-			if r.pick {
-				row := i
-				f.hits = append(f.hits, textHit{plain: ansi.Strip(rows[len(rows)-1]), act: func() tea.Cmd {
-					if m.form == f && f.pick == nil && len(f.rows[row].values) > 0 {
-						f.focusRow(row)
-						m.openPick(f, row)
-					}
-					return nil
-				}})
-			}
-		} else {
-			rows = append(rows, prefix+inputView(fitInput(r.in, room)))
-		}
-		if r.problem != "" {
-			rows = append(rows, "    "+m.ui.st(kittui.StyleFail).Render(truncateCells(warnMark+" "+r.problem, max(width-5, 1))))
+		x := x0 + f.origin + ansi.StringWidth(row[:at])
+		m.addFormTargets(f.targets, x, y0+i, "", func(res kittui.MouseResult) tea.Cmd { return m.clickForm(f, res) })
+		return
+	}
+}
+
+// drawnAt reports whether the lines of the form as drawn stand at the byte column at of lines.
+func (f *formDlg) drawnAt(lines []string, at int) bool {
+	for j, want := range f.drawn {
+		row := ansi.Strip(lines[j])
+		if want != "" && (len(row) < at || !strings.HasPrefix(row[at:], want)) {
+			return false
 		}
 	}
-	tail := keyLine(navHint(tHintNext, actNext), f.saveText, answer(tHintCancel, actBack))
-	keys := keyLine(answer(tHintNext, actEnter), tail)
-	if f.rows[f.focus].pick {
-		keys = keyLine(answer(tHintChoose, actEnter), tail)
-	} else if f.rows[f.focus].multi {
-		keys = keyLine(navHint(tHintChoose, actLeft, actRight), hint(tHintTick, actSpace), tail)
-	} else if f.rows[f.focus].choice {
-		keys = keyLine(navHint(tHintChoose, actLeft, actRight), tail)
+	return true
+}
+
+// openListEditor opens the editor of the list field id: the pick list of its values, or the key editor. A
+// list without values has nothing to open, and enter goes on as it does on other fields.
+func (m *Model) openListEditor(f *formDlg, id kittui.FieldID) {
+	if l := f.lists[id]; l != nil {
+		if len(l.values) == 0 {
+			f.kit.Act(actNext)
+			return
+		}
+		m.openPick(f, id)
+		return
 	}
-	d := promptDialog{title: f.title, input: strings.Join(rows, "\n"), hint: f.hint, keys: keys}
-	if f.notice != "" {
-		d.notice = m.ui.st(kittui.StyleFail).Render(warnMark + " " + f.notice)
+	if id == fieldKeys && f.keys != nil {
+		m.openKeyEditor(f)
 	}
-	return d
+}
+
+// setListValue shows the summary of the list field id after its editor closed.
+func (m *Model) setListValue(f *formDlg, id kittui.FieldID, summary string) {
+	before := f.kit.Values()
+	if err := f.kit.SetValue(id, kittui.FormValue{Text: summaryText(summary)}); err != nil {
+		m.fail = err.Error()
+	}
+	m.noteChanges(f, before)
 }

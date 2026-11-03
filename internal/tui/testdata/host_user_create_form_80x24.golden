@@ -1,23 +1,23 @@
 qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
-  [Users]  Groups   Folders   Changes                                           
-────────╔══════════════════════════════════════════════════════════════╗────────
-Users (3║ New user                                                     ║     1/3
-╔═══════║                                                              ║═══════╗
-║     NA║   Kind:             Person                                   ║SYSTEM ║
-║   ▾ ■ ║   Name:            demo-new                                  ║       ║
-║ >   de║   Password:        ********                                  ║       ║
-║     de║   Repeat password: ********                                  ║       ║
-║   ▸ ■ ║   Admin:            yes                                      ║       ║
-╚═══════║   Docker:           no                                       ║═══════╝
-        ║ > Further groups:   demo-team                                ║        
-        ║   SSH key:                                                   ║        
+  [Users╔══════════════════════════════════════════════════════════════╗        
+────────║ New user                                                     ║────────
+Users (3║                                                              ║     1/3
+╔═══════║   Kind            Person                                   ▾ ║═══════╗
+║     NA║   Name            demo-new                                   ║SYSTEM ║
+║   ▾ ■ ║   Password        (entered, hidden)                          ║       ║
+║ >   de║   Repeat password (entered, hidden)                          ║       ║
+║     de║   Admin           yes                                      ▾ ║       ║
+║   ▸ ■ ║   Docker          no                                       ▾ ║       ║
+╚═══════║ > Further groups  demo-team                                  ║═══════╝
+        ║   SSH keys        none                                       ║        
         ║     The user must change the initial password at the first   ║        
-        ║     login. Enter in the SSH key field adds the key.          ║        
+        ║     login.                                                   ║        
         ║                                                              ║        
-        ║ > Choose <  [ Save ]  [ Cancel ]                             ║        
+        ║ [ Save ]  [ Cancel ]                                         ║        
         ║                                                              ║        
-        ║ enter choose · tab next · F2 save · esc cancel               ║        
+        ║ enter edit · tab next zone or field                          ║        
+        ║ shift+tab previous zone or field · F2 save · esc cancel      ║        
         ╚══════════════════════════════════════════════════════════════╝        
                                                                                 
                                                                                 

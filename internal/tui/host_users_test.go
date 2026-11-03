@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"golang.org/x/crypto/ssh"
 
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
@@ -92,11 +93,15 @@ func TestCreateBuildsTheActionAndPassesPasswordAndKeyOnStandardInputOnly(t *test
 	seeNoInput(t, m, "the password field")
 	send(m, "tab")
 	typed(m, inputMarker)
-	send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter", "tab")
+	send(m, "tab", "right", "tab", "right", "tab", "enter", "space", "enter", "tab", "enter")
 	typed(m, line)
 	send(m, "enter")
 	if !strings.Contains(plain(m), fp) {
 		t.Errorf("the fingerprint of the added key is not listed:\n%s", plain(m))
+	}
+	send(m, "enter")
+	if m.form.keyEd != nil || !strings.Contains(m.form.value(fieldKeys), fp) {
+		t.Errorf("enter on the empty line does not keep the key: %q", m.form.value(fieldKeys))
 	}
 	save(m)
 	seeNoInput(t, m, "the confirmation")
@@ -144,8 +149,8 @@ func TestServiceAccountAsksNeitherPasswordNorKeyAndSendsItsOwnAction(t *testing.
 	typed(m, "x") // the kind row is focused first; typing changes nothing
 	send(m, "right")
 	view := plain(m)
-	for _, gone := range []string{"Password:", "Repeat password:", "SSH key:", "Admin:"} {
-		if strings.Contains(view, gone) {
+	for _, gone := range []kittui.FieldID{fieldPassword, fieldAgain, fieldKeys, fieldAdmin} {
+		if formShows(m, gone) {
 			t.Errorf("a service account form still shows %q:\n%s", gone, view)
 		}
 	}
@@ -189,10 +194,11 @@ func TestServiceAccountWithoutHomeAndSwitchingKindForgetsThePerson(t *testing.T)
 	send(m, "tab")
 	typed(m, inputMarker)
 	send(m, "shift+tab", "shift+tab", "right")
-	send(m, "tab")
-	if got := m.form.row("password").raw(); got != "" {
-		t.Errorf("the password survived the switch to a service account: %q", got)
+	send(m, "left")
+	if got := m.form.raw(fieldPassword); got != "" || formFocus(m) != fieldKind {
+		t.Errorf("the password survived the switch to a service account and back: %q", got)
 	}
+	send(m, "right", "tab")
 	save(m)
 	if !strings.Contains(flat(m), "service account demo-svc") || !strings.Contains(flat(m), "--no-create-home") {
 		t.Errorf("the default is no home:\n%s", plain(m))
@@ -236,8 +242,13 @@ func TestCreateFormChecksBeforeAnythingLeavesIt(t *testing.T) {
 		send(m, "tab")
 		typed(m, tc.again)
 		send(m, "tab", "tab", "tab", "tab")
-		typed(m, tc.key)
-		save(m)
+		if tc.key != "" {
+			send(m, "enter")
+			typed(m, tc.key)
+			send(m, "enter")
+		} else {
+			save(m)
+		}
 		if m.form == nil || len(f.reqs) != 0 || !strings.Contains(flat(m), tc.want) {
 			t.Errorf("%+v: form open %v, calls %v\n%s", tc, m.form != nil, f.reqs, plain(m))
 		}
@@ -428,14 +439,14 @@ func TestOffersFollowTheUser(t *testing.T) {
 		t.Error("an enabled admin is not offered Enable for qsysmin")
 	}
 	want := []string{chgAddGroups, chgAdminOff, chgDockerOff, chgPassword, chgAddKey, chgRemoveKey, chgLock, chgUnlock}
-	if got := m.form.row("what").values; !slices.Equal(got, want) {
+	if got := formChoices(m, fieldWhat); !slices.Equal(got, want) {
 		t.Errorf("offers %v, want %v", got, want)
 	}
 	send(m, "esc")
 
 	selectUser(m, "demo-user")
 	send(m, "e")
-	if got := m.form.row("what").values; !slices.Equal(got, demoUserChanges) {
+	if got := formChoices(m, fieldWhat); !slices.Equal(got, demoUserChanges) {
 		t.Errorf("offers %v, want %v", got, demoUserChanges)
 	}
 }
@@ -453,7 +464,7 @@ func chooseChange(t *testing.T, m *Model, name, id string) {
 	if m.form == nil {
 		t.Fatalf("no form for %s:\n%s", name, plain(m))
 	}
-	for i := 0; m.form.row("what").value() != id; i++ {
+	for i := 0; m.form.value(fieldWhat) != id; i++ {
 		if i > 12 {
 			t.Fatalf("%s is not offered for %s", id, name)
 		}
@@ -518,19 +529,19 @@ func TestTakingAdminAwayFromYourselfOrTheLastAdminIsRefusedEarly(t *testing.T) {
 	m.hostUID = func() int { return 1000 }
 	selectUser(m, "demo-admin")
 	send(m, "e")
-	for m.form.row("what").value() != chgAdminOff {
+	for m.form.value(fieldWhat) != chgAdminOff {
 		send(m, "right")
 	}
 	save(m)
 	if m.form == nil || !strings.Contains(flat(m), "from yourself") || len(f.reqs) != 0 {
 		t.Errorf("own admin:\n%s", plain(m))
 	}
-	send(m, "esc")
+	send(m, "esc", "d")
 
 	m.hostUID = func() int { return 4242 }
 	selectUser(m, "demo-admin")
 	send(m, "e")
-	for m.form.row("what").value() != chgAdminOff {
+	for m.form.value(fieldWhat) != chgAdminOff {
 		send(m, "right")
 	}
 	save(m)
@@ -646,7 +657,7 @@ func TestLockStateDecidesWhichOfLockAndUnlockIsOffered(t *testing.T) {
 		selectUser(m, "demo-user")
 		send(m, "e")
 		var got []string
-		for _, v := range m.form.row("what").values {
+		for _, v := range formChoices(m, fieldWhat) {
 			if v == chgLock || v == chgUnlock {
 				got = append(got, v)
 			}
@@ -719,7 +730,7 @@ func TestDeleteAsksForTheHomeAndSendsItsChoice(t *testing.T) {
 				t.Errorf("keys %q", keys)
 			}
 			send(m, "d")
-			if m.form == nil || m.form.row("home").value() != homeKeep || !strings.Contains(flat(m), "Delete demo-user") {
+			if m.form == nil || m.form.value(fieldHome) != homeKeep || !strings.Contains(flat(m), "Delete demo-user") {
 				t.Fatalf("no form keeping the home by default:\n%s", plain(m))
 			}
 			send(m, tc.keys...)

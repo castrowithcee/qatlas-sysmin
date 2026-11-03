@@ -53,12 +53,14 @@ func literalChoices(values ...string) []kittui.Choice {
 }
 
 // addFormTargets makes the targets a form drew clickable from screen cell (x0, y0) on: its free area gives
-// zone the focus, and a click on anything else reaches click.
+// zone the focus, where it names one, and a click on anything else reaches click.
 func (m *Model) addFormTargets(targets []kittui.Target, x0, y0 int, zone kittui.FocusZone, click func(kittui.MouseResult) tea.Cmd) {
 	for _, t := range targets {
 		r := t.Rect
 		if t.Item == "" && t.Action == "" {
-			m.addZone(x0+r.X, y0+r.Y, x0+r.X+r.Width, y0+r.Y+r.Height, zone)
+			if zone != "" {
+				m.addZone(x0+r.X, y0+r.Y, x0+r.X+r.Width, y0+r.Y+r.Height, zone)
+			}
 			continue
 		}
 		res := kittui.MouseResult{Handled: true, Zone: t.Zone, Action: t.Action, Item: t.Item}

@@ -41,10 +41,10 @@ func TestGroupMembersFormOffersTheRightUsersAndSendsOneActionForAllChanges(t *te
 	if m.form == nil || !strings.Contains(flatBoxes(m), "Members of demo-team") {
 		t.Fatalf("no form:\n%s", plain(m))
 	}
-	if got := m.form.row("add").values; !slices.Equal(got, []string{"demo-admin", "svc-demo"}) {
+	if got := listValues(m, fieldAdd); !slices.Equal(got, []string{"demo-admin", "svc-demo"}) {
 		t.Errorf("add offers %q: members and primary users do not belong", got)
 	}
-	if got := m.form.row("remove").values; !slices.Equal(got, []string{"demo-user"}) {
+	if got := listValues(m, fieldRemove); !slices.Equal(got, []string{"demo-user"}) {
 		t.Errorf("remove offers %q", got)
 	}
 	tickIn(m, 2)
@@ -82,7 +82,7 @@ func TestGroupMembersAskRedForSystemGroupsRootAndDockerAndWarnAsPower(t *testing
 			m, f, _ := groupsModel(t, 120, 40)
 			selectGroup(m, tc.group)
 			send(m, "e")
-			if m.form == nil || len(m.form.row("add").values) == 0 {
+			if m.form == nil || len(listValues(m, fieldAdd)) == 0 {
 				t.Fatalf("no users to add:\n%s", plain(m))
 			}
 			tickIn(m, 1)
@@ -139,15 +139,16 @@ func TestGroupMembersAreRefusedEarlyForSelfAndTheLastAdmin(t *testing.T) {
 	send(m, "e", "tab")
 	tickIn(m, 1) // demo-admin is the first member and the only one with access to qsysmin
 	save(m)
-	if m.form == nil || !strings.Contains(m.form.notice, "last admin") || m.ask != nil || len(f.reqs) != 0 {
-		t.Fatalf("notice %q ask %+v", m.form.notice, m.ask)
+	if m.form == nil || !strings.Contains(flat(m), "last admin") || m.ask != nil || len(f.reqs) != 0 {
+		t.Fatalf("no refusal, ask %+v:\n%s", m.ask, plain(m))
 	}
 	m.hostUID = func() int { return 1001 }
-	m.form.row("remove").ticked = make([]bool, len(m.form.row("remove").values))
-	m.form.row("remove").ticked[1] = true
+	remove := m.form.lists[fieldRemove]
+	remove.ticked = make([]bool, len(remove.values))
+	remove.ticked[1] = true
 	save(m)
-	if m.form == nil || !strings.Contains(m.form.notice, "cannot take admin rights from yourself") || m.ask != nil {
-		t.Fatalf("notice %q ask %+v", m.form.notice, m.ask)
+	if m.form == nil || !strings.Contains(flat(m), "cannot take admin rights from yourself") || m.ask != nil {
+		t.Fatalf("no refusal, ask %+v:\n%s", m.ask, plain(m))
 	}
 }
 
@@ -156,8 +157,8 @@ func TestGroupMembersNeedAtLeastOneChoice(t *testing.T) {
 	selectGroup(m, "demo-team")
 	send(m, "e")
 	save(m)
-	if m.form == nil || !strings.Contains(m.form.row("add").problem, "Choose at least one user.") || m.ask != nil || len(f.reqs) != 0 {
-		t.Fatalf("problem %q", m.form.row("add").problem)
+	if m.form == nil || !strings.Contains(flat(m), "[!] Choose at least one user.") || m.ask != nil || len(f.reqs) != 0 {
+		t.Fatalf("no problem:\n%s", plain(m))
 	}
 	send(m, "esc")
 	if m.form != nil || len(f.reqs) != 0 {
@@ -169,7 +170,7 @@ func TestGroupMembersLeaveOutPrimaryUsersAndHeadings(t *testing.T) {
 	m, _, _ := groupsModel(t, 120, 40)
 	selectGroup(m, "demo-user")
 	send(m, "e")
-	if got := m.form.row("add").values; slices.Contains(got, "demo-user") {
+	if got := listValues(m, fieldAdd); slices.Contains(got, "demo-user") {
 		t.Errorf("add offers the user whose primary group it is: %q", got)
 	}
 	send(m, "esc")

@@ -138,6 +138,7 @@ func withCopyKey(hints []kittui.Hint) []kittui.Hint {
 
 // The labels of the hints.
 const (
+	tHintAdd          textID = "hint.add"
 	tHintArea         textID = "hint.area"
 	tHintBack         textID = "hint.back"
 	tHintCancel       textID = "hint.cancel"
@@ -196,6 +197,7 @@ const (
 // hintTexts are the labels of the hints in English and German.
 func hintTexts() (en, de map[textID]string) {
 	en = map[textID]string{
+		tHintAdd:          "add",
 		tHintArea:         "area",
 		tHintBack:         "back",
 		tHintCancel:       "cancel",
@@ -251,6 +253,7 @@ func hintTexts() (en, de map[textID]string) {
 		tHintVerify:       "verify",
 	}
 	de = map[textID]string{
+		tHintAdd:          "hinzufügen",
 		tHintArea:         "Bereich",
 		tHintBack:         "zurück",
 		tHintCancel:       "abbrechen",

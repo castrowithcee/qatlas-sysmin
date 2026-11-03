@@ -1,12 +1,13 @@
 package tui
 
 import (
-	kittui "github.com/castrowithcee/qatlas-kit/tui"
+	"slices"
+	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
-	"testing"
-	"time"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // wheelWalk turns the wheel down until the focus stops, then up until it stops, and returns the places the
@@ -98,29 +99,32 @@ func TestTheMouseRestsWhileAKeyFieldOfSettingsWaitsForItsKey(t *testing.T) {
 	}
 }
 
-func TestTheWheelMovesTheFocusOfAFormDialogOverVisibleRowsAndHoldsAtTheEnds(t *testing.T) {
+// demoForm opens a form of three fields over the screen, the second a choice; a fourth field is hidden.
+func demoForm(m *Model) {
+	f := &formDlg{title: "Demo", saveText: answer(tHintSave, actSave), submit: func(*Model, *formDlg) tea.Cmd { return nil }}
+	f.fields = []kittui.FormField{textField("a", tColName), choiceField("b", tHostColAdmin, yesNo(), 0),
+		textField("hidden", tHostFormKey), textField("c", tHostFormNewName)}
+	f.show("hidden", false)
+	m.openForm(f)
+}
+
+func TestTheWheelMovesTheFocusOfAFormDialogOverShownFieldsAndHoldsAtTheEnds(t *testing.T) {
 	m := appModel(t, newFake(), 80, 24)
 	now := wheelClock(m)
-	hidden := textRow("hidden", "Hidden", "")
-	hidden.hidden = true
-	m.openForm(&formDlg{title: "Demo", saveText: answer(tHintSave, actSave), submit: func(*Model, *formDlg) tea.Cmd { return nil },
-		rows: []formRow{textRow("a", "First", ""), choiceRow("b", "Second", []string{"x", "y"}, nil, 0), hidden,
-			textRow("c", "Third", "")}})
+	demoForm(m)
+	order := []kittui.FieldID{"a", "b", "c"}
 	x, y := wheelCell(t, m, func(kittui.Target) bool { return true })
-	down, up := wheelWalk(t, m, now, x, y, func() int { return m.form.focus })
-	if len(down) != 2 || down[0] != 1 || down[1] != 3 {
-		t.Errorf("down went %v, want 1 and 3 over the hidden row", down)
-	}
-	wheelEnds(t, "form", down, up, 0, 3)
-	if m.screen != screenPrompt || m.form == nil || m.form.rows[1].sel != 0 {
-		t.Errorf("the wheel changed the form: screen = %v", m.screen)
+	down, up := wheelWalk(t, m, now, x, y, func() int { return slices.Index(order, formFocus(m)) })
+	wheelEnds(t, "form", down, up, 0, 2)
+	if len(down) != 2 || m.screen != screenPrompt || m.form == nil || m.form.value("b") != hostNo {
+		t.Errorf("the wheel went %v or changed the form: screen = %v", down, m.screen)
 	}
 }
 
 func TestTheWheelOverTheDimmedBackgroundOfAFormDialogMovesNothing(t *testing.T) {
 	m, _ := settingsModel(t, newFake(), "general")
 	now := wheelClock(m)
-	m.openForm(&formDlg{title: "Demo", saveText: answer(tHintSave, actSave), rows: []formRow{textRow("a", "First", ""), textRow("b", "Second", "")}})
+	demoForm(m)
 	m.render()
 	if n := len(wheelAreas(m)); n != 1 {
 		t.Fatalf("%d wheel areas, want the one of the dialog:\n%s", n, plain(m))
@@ -130,7 +134,7 @@ func TestTheWheelOverTheDimmedBackgroundOfAFormDialogMovesNothing(t *testing.T) 
 		notch(m, now, at[0], at[1], false)
 		notch(m, now, at[0], at[1], true)
 	}
-	if m.form.focus != 0 || genFocus(m) != focus {
-		t.Errorf("form focus = %d, page focus = %d after the wheel over the background", m.form.focus, genFocus(m))
+	if formFocus(m) != "a" || genFocus(m) != focus {
+		t.Errorf("form focus = %s, page focus = %d after the wheel over the background", formFocus(m), genFocus(m))
 	}
 }

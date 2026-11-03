@@ -383,7 +383,8 @@ type leaveAsk struct{ next func() tea.Cmd }
 
 // guarded runs next at once, or after the question when the page shown holds unsaved input.
 func (m *Model) guarded(next func() tea.Cmd) tea.Cmd {
-	if m.screen != screenArea || !(m.settingsDirty()) {
+	dirty := m.screen == screenArea && m.settingsDirty() || m.screen == screenPrompt && m.form != nil && m.form.dirty()
+	if !dirty {
 		return next()
 	}
 	m.leave = &leaveAsk{next}
@@ -393,20 +394,33 @@ func (m *Model) guarded(next func() tea.Cmd) tea.Cmd {
 	return nil
 }
 
-// updateLeave handles the answer to the leave question: save keeps the person on the page, discard goes on.
+// updateLeave handles the answer to the leave question: save keeps the person on the page or in the form,
+// discard drops the input and goes on, and keep editing goes back to it.
 func (m *Model) updateLeave(key tea.KeyPressMsg) tea.Cmd {
+	form := m.form
 	switch {
 	case m.keyIs(key, actSave):
 		m.closeDialog()
+		if form != nil {
+			m.screen = screenPrompt
+			return m.submitForm(form)
+		}
 		return m.saveCurrent()
 	case m.keyIs(key, actDiscard):
 		next := m.leave.next
 		m.closeDialog()
-		m.set.loaded = false
-		m.loadForms()
+		if form != nil {
+			m.closeForm()
+		} else {
+			m.set.loaded = false
+			m.loadForms()
+		}
 		return next()
 	case m.keyIs(key, actBack), m.keyIs(key, actNo):
 		m.closeDialog()
+		if form != nil {
+			m.screen = screenPrompt
+		}
 	}
 	return nil
 }

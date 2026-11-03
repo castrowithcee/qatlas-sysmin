@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
@@ -98,15 +99,16 @@ func (m *Model) groupNameProblem(name string) string {
 
 func (m *Model) openGroupCreate() tea.Cmd {
 	f := &formDlg{title: m.tr(tHostGroupNewTitle), hint: m.tr(tHostGroupNewHint), saveText: answer(tHintSave, actSave)}
-	f.rows = []formRow{textRow("name", m.tr(tColName), "")}
+	f.fields = []kittui.FormField{textField(fieldName, tColName)}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
-		name := f.row("name").value()
-		if f.row("name").problem = m.groupNameProblem(name); f.row("name").problem != "" {
+		name := f.value(fieldName)
+		if problem := m.groupNameProblem(name); problem != "" {
+			f.fail(fieldName, problem)
 			return nil
 		}
 		p, refusal := m.planHost(hostAsk{id: hostchange.ActionGroupCreate, args: []string{name}})
 		if refusal != "" {
-			f.notice = refusal
+			f.refuse(refusal)
 			return nil
 		}
 		m.closeForm()
@@ -132,17 +134,18 @@ func (m *Model) openGroupRename() tea.Cmd {
 		return nil
 	}
 	f := &formDlg{title: m.tr(tHostGroupRenameTitle, m.diffText(g.Name)), hint: m.tr(tHostGroupRenameHint), saveText: answer(tHintContinue, actSave)}
-	f.rows = []formRow{textRow("name", m.tr(tHostFormNewName), "")}
+	f.fields = []kittui.FormField{textField(fieldName, tHostFormNewName)}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
-		name := f.row("name").value()
-		if f.row("name").problem = m.groupNameProblem(name); f.row("name").problem != "" {
+		name := f.value(fieldName)
+		if problem := m.groupNameProblem(name); problem != "" {
+			f.fail(fieldName, problem)
 			return nil
 		}
 		// A rename is always red: what addresses a group by its name keeps the old one.
 		risk := strings.TrimSpace(m.tr(tHostRiskRenameGroup) + " " + m.groupRisk(g))
 		p, refusal := m.planHost(hostAsk{id: hostchange.ActionGroupRename, args: []string{g.Name, name}, risk: risk})
 		if refusal != "" {
-			f.notice = refusal
+			f.refuse(refusal)
 			return nil
 		}
 		m.closeForm()

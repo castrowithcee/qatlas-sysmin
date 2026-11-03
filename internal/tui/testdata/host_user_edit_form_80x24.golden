@@ -2,21 +2,21 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    2/3
-╔══════════════════════════════════════════════════════════════════════════════╗
-║     NAME        ADMIN              DOCKER  GROUPS                     SYSTEM ║
-║   ▾ ■ ╔══════════════════════════════════════════════════════════════╗       ║
-║     de║ Change demo-user                                             ║       ║
-║ >   de║                                                              ║       ║
-║   ▸ ■ ║ > Change:       < Remove from groups >                       ║       ║
-╚═══════║   Remove from:  none                                         ║═══════╝
+Users (3╔══════════════════════════════════════════════════════════════╗     2/3
+╔═══════║ Change demo-user                                             ║═══════╗
+║     NA║                                                              ║SYSTEM ║
+║   ▾ ■ ║               ╔════════════════════════════════════════════╗ ║       ║
+║     de║ > Change      ║ Remove from groups                       ▾ ║ ║       ║
+║ >   de║               ╚════════════════════════════════════════════╝ ║       ║
+║   ▸ ■ ║               ╭────────────────────────────────────────────╮ ║       ║
+╚═══════║   Remove from │ none                                       │ ║═══════╝
+        ║               ╰────────────────────────────────────────────╯ ║        
         ║                                                              ║        
         ║ [ Save ]  [ Cancel ]                                         ║        
         ║                                                              ║        
-        ║ ←/→ choose · tab next · F2 save · esc cancel                 ║        
+        ║ enter choose · tab next zone or field                        ║        
+        ║ shift+tab previous zone or field · F2 save · esc cancel      ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
-                                                                                
                                                                                 
                                                                                 
                                                                                 

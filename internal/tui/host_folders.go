@@ -116,14 +116,17 @@ func (m *Model) foldersKey(key tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-func hostAccessText(ui *uiContext, a hostadmin.Access) string {
+func hostAccessText(ui *uiContext, a hostadmin.Access) string { return ui.tr(hostAccessID(a)) }
+
+// hostAccessID is the text of a level.
+func hostAccessID(a hostadmin.Access) textID {
 	switch a {
 	case hostadmin.AccessReadWrite:
-		return ui.tr(tHostAccReadWrite)
+		return tHostAccReadWrite
 	case hostadmin.AccessRead:
-		return ui.tr(tHostAccRead)
+		return tHostAccRead
 	}
-	return ui.tr(tHostAccNothing)
+	return tHostAccNothing
 }
 
 func hostFolderKind(ui *uiContext, kind string) string {

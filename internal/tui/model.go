@@ -247,7 +247,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // updateKey handles one key press: first the open dropdown and dialogs, then the list.
 func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	if m.keyIs(key, actForceQuit) {
-		if m.screen == screenArea {
+		if m.screen == screenArea || m.screen == screenPrompt && m.form != nil {
 			return m.guarded(m.quit)
 		}
 		return m.quit()

@@ -15,13 +15,13 @@ const (
 	tHostFormPassword2    textID = "HostFormPassword2"
 	tHostFormFurther      textID = "HostFormFurther"
 	tHostFormKey          textID = "HostFormKey"
+	tHostFormKeyList      textID = "HostFormKeyList"
+	tHostKeyPlaceholder   textID = "HostKeyPlaceholder"
 	tHostFormKeyOf        textID = "HostFormKeyOf"
 	tHostFormWhat         textID = "HostFormWhat"
 	tHostFormAddTo        textID = "HostFormAddTo"
 	tHostFormRemoveFrom   textID = "HostFormRemoveFrom"
 	tHostFormMust         textID = "HostFormMust"
-	tHostFormNoGroups     textID = "HostFormNoGroups"
-	tHostFormTicked       textID = "HostFormTicked"
 	tHostFormNameEmpty    textID = "HostFormNameEmpty"
 	tHostFormNameTaken    textID = "HostFormNameTaken"
 	tHostFormPwEmpty      textID = "HostFormPwEmpty"
@@ -74,7 +74,7 @@ const (
 func hostUserTexts() (en, de map[textID]string) {
 	en = map[textID]string{
 		tHostNewTitle:         "New user",
-		tHostNewHint:          "The user must change the initial password at the first login. Enter in the SSH key field adds the key.",
+		tHostNewHint:          "The user must change the initial password at the first login.",
 		tHostNewServiceHint:   "A service account has no login: no password, no shell, no SSH keys. Use it for a service or container with an identity of its own.",
 		tHostFormKind:         "Kind",
 		tHostFormHome:         "Home",
@@ -86,13 +86,13 @@ func hostUserTexts() (en, de map[textID]string) {
 		tHostFormPassword2:    "Repeat password",
 		tHostFormFurther:      "Further groups",
 		tHostFormKey:          "SSH key",
+		tHostFormKeyList:      "SSH keys",
+		tHostKeyPlaceholder:   "Paste a public key",
 		tHostFormKeyOf:        "Key",
 		tHostFormWhat:         "Change",
 		tHostFormAddTo:        "Add to groups",
 		tHostFormRemoveFrom:   "Remove from",
 		tHostFormMust:         "Change at login",
-		tHostFormNoGroups:     "no group to choose",
-		tHostFormTicked:       "%d of %d chosen",
 		tHostFormNameEmpty:    "Enter a name.",
 		tHostFormNameTaken:    "This user exists already.",
 		tHostFormPwEmpty:      "Enter a password.",
@@ -101,7 +101,7 @@ func hostUserTexts() (en, de map[textID]string) {
 		tHostFormKeyBad:       "Not a public key in authorized_keys format (one line, without options).",
 		tHostFormKeyDup:       "This key is in the list already.",
 		tHostFormKeyMax:       "At most %d keys.",
-		tHostFormKeys:         "SSH keys (%d): %s",
+		tHostFormKeys:         "%d: %s",
 		tHostFormTickOne:      "Choose at least one group.",
 		tHostFormKeysUnread:   "The SSH keys are not read yet. Saving asks to read them as root first.",
 		tHostChgAddGroups:     "Add to groups",
@@ -142,7 +142,7 @@ func hostUserTexts() (en, de map[textID]string) {
 	}
 	de = map[textID]string{
 		tHostNewTitle:         "Neuer Benutzer",
-		tHostNewHint:          "Der Benutzer muss das Startpasswort beim ersten Login ändern. Enter im Feld SSH-Schlüssel fügt den Schlüssel hinzu.",
+		tHostNewHint:          "Der Benutzer muss das Startpasswort beim ersten Login ändern.",
 		tHostNewServiceHint:   "Ein Dienstkonto hat keinen Login: kein Passwort, keine Shell, keine SSH-Schlüssel. Es dient einem Dienst oder Container mit eigener Identität.",
 		tHostFormKind:         "Art",
 		tHostFormHome:         "Home",
@@ -154,13 +154,13 @@ func hostUserTexts() (en, de map[textID]string) {
 		tHostFormPassword2:    "Passwort wiederholen",
 		tHostFormFurther:      "Weitere Gruppen",
 		tHostFormKey:          "SSH-Schlüssel",
+		tHostFormKeyList:      "SSH-Schlüssel",
+		tHostKeyPlaceholder:   "Öffentlichen Schlüssel einfügen",
 		tHostFormKeyOf:        "Schlüssel",
 		tHostFormWhat:         "Änderung",
 		tHostFormAddTo:        "Zu Gruppen hinzufügen",
 		tHostFormRemoveFrom:   "Entfernen aus",
 		tHostFormMust:         "Beim Login ändern",
-		tHostFormNoGroups:     "keine Gruppe zur Auswahl",
-		tHostFormTicked:       "%d von %d gewählt",
 		tHostFormNameEmpty:    "Gib einen Namen ein.",
 		tHostFormNameTaken:    "Diesen Benutzer gibt es schon.",
 		tHostFormPwEmpty:      "Gib ein Passwort ein.",
@@ -169,7 +169,7 @@ func hostUserTexts() (en, de map[textID]string) {
 		tHostFormKeyBad:       "Kein öffentlicher Schlüssel im Format authorized_keys (eine Zeile, ohne Optionen).",
 		tHostFormKeyDup:       "Dieser Schlüssel steht schon in der Liste.",
 		tHostFormKeyMax:       "Höchstens %d Schlüssel.",
-		tHostFormKeys:         "SSH-Schlüssel (%d): %s",
+		tHostFormKeys:         "%d: %s",
 		tHostFormTickOne:      "Wähle mindestens eine Gruppe.",
 		tHostFormKeysUnread:   "Die SSH-Schlüssel sind noch nicht gelesen. Speichern fragt zuerst, ob sie als root gelesen werden sollen.",
 		tHostChgAddGroups:     "Zu Gruppen hinzufügen",

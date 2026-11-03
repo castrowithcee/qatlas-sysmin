@@ -10,21 +10,21 @@ Users (3)                                                         2/3 ╭─ dem
 ║ >   demo-user   yes · not enabled  no      demo-user, su…         ║ │ Admin              yes · not enabled           │
 ║   ▸ ■ System accounts (1)                                         ║ │ Docker             no                          │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  no                          │
-                                                                      │ Groups             demo-user, sudo, demo-team  │
-                                                                      │ Home               /home/demo-user             │
-                                                                      │ Locked             no                          │
-                            ╔══════════════════════════════════════════════════════════════╗───────────────────────────╯
-                            ║ Change demo-user                                             ║                            
-                            ║                                                              ║                            
-                            ║ > Change:       < Remove from groups >                       ║                            
-                            ║   Remove from:  none                                         ║                            
+                            ╔══════════════════════════════════════════════════════════════╗emo-user, sudo, demo-team  │
+                            ║ Change demo-user                                             ║home/demo-user             │
+                            ║                                                              ║o                          │
+                            ║               ╔════════════════════════════════════════════╗ ║───────────────────────────╯
+                            ║ > Change      ║ Remove from groups                       ▾ ║ ║                            
+                            ║               ╚════════════════════════════════════════════╝ ║                            
+                            ║               ╭────────────────────────────────────────────╮ ║                            
+                            ║   Remove from │ none                                       │ ║                            
+                            ║               ╰────────────────────────────────────────────╯ ║                            
                             ║                                                              ║                            
                             ║ [ Save ]  [ Cancel ]                                         ║                            
                             ║                                                              ║                            
-                            ║ ←/→ choose · tab next · F2 save · esc cancel                 ║                            
+                            ║ enter choose · tab next zone or field                        ║                            
+                            ║ shift+tab previous zone or field · F2 save · esc cancel      ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

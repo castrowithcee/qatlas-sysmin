@@ -9,23 +9,23 @@ Groups (4)                                                        1/4 ╭─ dem
 ║ >   demo-team        1                                            ║ │ Type     regular                               │
 ║   ▸ ■ System groups (3)                                           ║ │ Members  1                                     │
 ╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
                             ╔══════════════════════════════════════════════════════════════╗                            
                             ║ Members of demo-team                                         ║                            
                             ║                                                              ║                            
-                            ║   Add:     demo-admin                                        ║                            
-                            ║ > Remove:  demo-user                                         ║                            
+                            ║          ╭─────────────────────────────────────────────────╮ ║                            
+                            ║   Add    │ demo-admin                                      │ ║                            
+                            ║          ╰─────────────────────────────────────────────────╯ ║                            
+                            ║          ╔═════════════════════════════════════════════════╗ ║                            
+                            ║ > Remove ║ demo-user                                       ║ ║                            
+                            ║          ╚═════════════════════════════════════════════════╝ ║                            
                             ║     One confirmation covers all changes. A user whose        ║                            
                             ║     primary group this is cannot be added or removed.        ║                            
                             ║                                                              ║                            
-                            ║ > Choose <  [ Continue ]  [ Cancel ]                         ║                            
+                            ║ [ Continue ]  [ Cancel ]                                     ║                            
                             ║                                                              ║                            
-                            ║ enter choose · tab next · F2 continue · esc cancel           ║                            
+                            ║ enter edit · tab next zone or field                          ║                            
+                            ║ shift+tab previous zone or field · F2 continue · esc cancel  ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

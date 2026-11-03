@@ -61,14 +61,13 @@ func TestGroupCreateChecksTheNameBeforeItAsksAndSendsTheAction(t *testing.T) {
 		{"demo-team", "This group exists already."},
 		{"sudo", "This group exists already."},
 	} {
-		m.form.row("name").in.SetValue(tc.name)
-		m.form.row("name").problem = ""
+		setField(t, m, fieldName, tc.name)
 		save(m)
-		if m.form == nil || !strings.Contains(m.form.row("name").problem, tc.problem) || m.ask != nil || len(f.reqs) != 0 {
-			t.Fatalf("%q: problem %q, ask %+v", tc.name, m.form.row("name").problem, m.ask)
+		if m.form == nil || !strings.Contains(flat(m), "[!] "+tc.problem) || m.ask != nil || len(f.reqs) != 0 {
+			t.Fatalf("%q: no problem %q, ask %+v:\n%s", tc.name, tc.problem, m.ask, plain(m))
 		}
 	}
-	m.form.row("name").in.SetValue("demo-new")
+	setField(t, m, fieldName, "demo-new")
 	save(m)
 	view := flat(m)
 	for _, want := range []string{"Create the group demo-new", "$ groupadd demo-new", "You can undo this under Host > Changes."} {
@@ -157,14 +156,13 @@ func TestGroupRenameIsAlwaysRedAndSendsBothNames(t *testing.T) {
 				t.Fatalf("no form:\n%s", plain(m))
 			}
 			for name, problem := range map[string]string{"": "Enter a name.", "Demo": "Lower-case letters", "demo-team": "This group exists already.", tc.group: "This group exists already."} {
-				m.form.row("name").in.SetValue(name)
-				m.form.row("name").problem = ""
+				setField(t, m, fieldName, name)
 				save(m)
-				if m.form == nil || !strings.Contains(m.form.row("name").problem, problem) || m.ask != nil {
-					t.Fatalf("%q: problem %q", name, m.form.row("name").problem)
+				if m.form == nil || !strings.Contains(flat(m), "[!] "+problem) || m.ask != nil {
+					t.Fatalf("%q: no problem %q:\n%s", name, problem, plain(m))
 				}
 			}
-			m.form.row("name").in.SetValue("demo-crew")
+			setField(t, m, fieldName, "demo-crew")
 			save(m)
 			if m.ask == nil || !m.ask.danger || !m.ask.warn || len(f.reqs) != 0 {
 				t.Fatalf("a rename asks red before anything runs: ask %+v calls %v", m.ask, f.reqs)
@@ -215,7 +213,7 @@ func TestGroupFormsSpeakGerman(t *testing.T) {
 			t.Errorf("lacks %q:\n%s", want, plain(m))
 		}
 	}
-	m.form.row("name").in.SetValue("demo-crew")
+	setField(t, m, fieldName, "demo-crew")
 	save(m)
 	if m.ask == nil || !m.ask.danger || !strings.Contains(flat(m), "wirken nicht mehr, bis sie ebenfalls geändert sind") {
 		t.Errorf("\n%s", plain(m))

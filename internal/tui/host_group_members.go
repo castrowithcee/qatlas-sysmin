@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
@@ -62,18 +63,18 @@ func (m *Model) openGroupMembers() tea.Cmd {
 	case hostadmin.GroupDocker:
 		f.hint += " " + m.tr(tHostPowerWarn)
 	}
-	f.rows = []formRow{
-		pickRow("add", m.tr(tHostMembersAdd), add, notes(add)),
-		pickRow("remove", m.tr(tHostMembersRemove), remove, notes(remove)),
+	f.fields = []kittui.FormField{
+		f.pickField(fieldAdd, tHostMembersAdd, add, notes(add)),
+		f.pickField(fieldRemove, tHostMembersRemove, remove, notes(remove)),
 	}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
-		added, removed := f.row("add").picked(), f.row("remove").picked()
+		added, removed := f.picked(fieldAdd), f.picked(fieldRemove)
 		if len(added)+len(removed) == 0 {
-			f.row("add").problem = m.tr(tHostMembersTickOne)
+			f.fail(fieldAdd, m.tr(tHostMembersTickOne))
 			return nil
 		}
 		if msg := m.guardMembers(g, added, removed); msg != "" {
-			f.notice = msg
+			f.refuse(msg)
 			return nil
 		}
 		ask := hostAsk{id: hostchange.ActionGroupSetMembers, args: []string{g.Name}, risk: m.groupRisk(g),
@@ -95,7 +96,7 @@ func (m *Model) openGroupMembers() tea.Cmd {
 		}
 		p, refusal := m.planHost(ask)
 		if refusal != "" {
-			f.notice = refusal
+			f.refuse(refusal)
 			return nil
 		}
 		m.closeForm()
