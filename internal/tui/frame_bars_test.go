@@ -49,11 +49,11 @@ func TestFocusedBarCarriesTheMarker(t *testing.T) {
 // stays whole.
 func TestNarrowTabLineClosesGapsThenShrinksInactiveTabs(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "3")
+	send(m, "2")
 	for w, check := range map[int]func(string) bool{
 		79: func(l string) bool { return strings.Contains(l, "1 Overview") && strings.Contains(l, "4 Settings") },
 		40: func(l string) bool {
-			return strings.Contains(l, "3 Host") && !strings.Contains(l, "Overview") && strings.Contains(l, " 1 ") && strings.Contains(l, " 4")
+			return strings.Contains(l, "2 Host") && !strings.Contains(l, "Overview") && strings.Contains(l, " 1 ") && strings.Contains(l, " 4")
 		},
 	} {
 		sizedModel(m, w, 24)
@@ -67,7 +67,7 @@ func TestNarrowTabLineClosesGapsThenShrinksInactiveTabs(t *testing.T) {
 // Under lack of space the key hints drop before the back button.
 func TestHeaderDropsKeyHintsBeforeTheBackButton(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "3", "down")
+	send(m, "2", "down")
 	if m.zoneNow() == zoneTabs {
 		t.Fatal("expected focus below the tab line")
 	}

@@ -53,7 +53,7 @@ func TestSettingsOpensOnGeneralWithTheThreePages(t *testing.T) {
 	if m.set.sub != subVault {
 		t.Errorf("right leads to page %d, want Vault", m.set.sub)
 	}
-	send(m, "3", "4")
+	send(m, "2", "4")
 	if m.set.sub != subGeneral {
 		t.Errorf("Settings reopens on page %d, want General", m.set.sub)
 	}

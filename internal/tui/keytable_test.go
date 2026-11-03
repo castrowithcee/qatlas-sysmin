@@ -88,7 +88,7 @@ func TestCtrlDDeletesTheCharacterRightOfTheCursor(t *testing.T) {
 
 func TestVDoesNothingInTheHostUsers(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "3", "v")
+	send(m, "2", "v")
 	if m.status != "" || m.fail != "" {
 		t.Errorf("v answers: status %q fail %q", m.status, m.fail)
 	}

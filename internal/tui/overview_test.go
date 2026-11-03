@@ -161,7 +161,7 @@ func TestOverviewReadsTheHostChangesOfTheLastWeekOnShowAndReload(t *testing.T) {
 	if from := fb.audit.calls[1].From; from != ovNow.AddDate(0, 0, -7).Format(time.RFC3339) {
 		t.Errorf("the log is read from %s, want seven days before now", from)
 	}
-	send(m, "2", "1")
+	send(m, "3", "1")
 	if n := len(fb.audit.calls); n < 4 {
 		t.Errorf("showing the Overview again did not read the log: %d calls", n)
 	}

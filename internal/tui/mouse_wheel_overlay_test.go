@@ -98,7 +98,7 @@ func TestTheWheelBesideThePanelMovesNothing(t *testing.T) {
 		}
 	}
 	m := appModel(t, activityFake(), 120, 40)
-	send(m, "2")
+	send(m, "3")
 	send(m, "?")
 	now := wheelClock(m)
 	_, _, ox, oy := overlayCell(t, m)

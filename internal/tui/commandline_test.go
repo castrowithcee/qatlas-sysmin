@@ -47,7 +47,7 @@ func paletteRows(m *Model) []string {
 
 func TestColonStaysTextWhereTextIsTyped(t *testing.T) {
 	m := appModel(t, overviewFake(), 100, 30)
-	send(m, "2", "/")
+	send(m, "3", "/")
 	typed(m, ":a")
 	if m.pop != nil || m.currentPage().list.query() != ":a" {
 		t.Errorf(": in the filter: palette %v, query %q, want text", m.pop != nil, m.currentPage().list.query())
@@ -177,13 +177,13 @@ func TestEnterRunsTheChosenMatchAndEscClosesWithoutEffect(t *testing.T) {
 	send(m, ":")
 	typed(m, "go")
 	send(m, "down", "enter")
-	if m.pop != nil || m.area != areaActivity {
+	if m.pop != nil || m.area != areaHost {
 		t.Errorf("the second match did not run: area %v", m.area)
 	}
 	send(m, ":")
 	typed(m, "go access")
 	send(m, "esc")
-	if m.pop != nil || m.area != areaActivity {
+	if m.pop != nil || m.area != areaHost {
 		t.Errorf("esc had an effect: area %v", m.area)
 	}
 }
@@ -244,7 +244,7 @@ func TestCommandsActOnlyWhereTheirKeyActs(t *testing.T) {
 	overview := appModel(t, overviewFake(), 100, 30)
 	noVault := appModel(t, newFake(control.VaultAbsent), 100, 30)
 	vault := appModel(t, overviewFake(), 100, 30)
-	send(vault, "2")
+	send(vault, "3")
 
 	cases := []struct {
 		name   string

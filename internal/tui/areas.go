@@ -16,20 +16,20 @@ type area int
 
 const (
 	areaOverview area = iota
-	areaActivity
 	areaHost
+	areaActivity
 	areaSettings
 	areaCount
 )
 
 // key is the English name of the area, whatever language is drawn: the name commands are given by.
 func (a area) key() string {
-	return [...]string{"Overview", "Activity", "Host", "Settings"}[a]
+	return [...]string{"Overview", "Host", "Activity", "Settings"}[a]
 }
 
 // title is the name of the area as drawn.
 func (a area) title() string {
-	return tr([...]textID{tAreaOverview, tAreaActivity, tAreaHost, tAreaSettings}[a])
+	return tr([...]textID{tAreaOverview, tAreaHost, tAreaActivity, tAreaSettings}[a])
 }
 
 // areaByName finds the area whose English name is name, ignoring case.

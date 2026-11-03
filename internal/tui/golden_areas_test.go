@@ -63,7 +63,7 @@ func TestGoldenAreas(t *testing.T) {
 		{"activity_intact", func(t *testing.T, w, h int) *Model {
 			utcClock(t)
 			m := goldenApp(t, activityFake(), w, h)
-			send(m, "2")
+			send(m, "3")
 			return m
 		}},
 		{"activity_broken", func(t *testing.T, w, h int) *Model {
@@ -71,57 +71,57 @@ func TestGoldenAreas(t *testing.T) {
 			fb := activityFake()
 			fb.audit.verify = brokenChain()
 			m := goldenApp(t, fb, w, h)
-			send(m, "2")
+			send(m, "3")
 			return m
 		}},
 		{"activity_filter", func(t *testing.T, w, h int) *Model {
 			utcClock(t)
 			m := goldenApp(t, activityFake(), w, h)
-			send(m, "2", "f", "right", "right", "right", "tab", "right")
+			send(m, "3", "f", "right", "right", "right", "tab", "right")
 			return m
 		}},
 		{"host_users", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "3")
+			send(m, "2")
 			return m
 		}},
 		{"host_user_detail", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "3", "down", "enter")
+			send(m, "2", "down", "enter")
 			return m
 		}},
 		{"host_groups", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "3", "esc", "right")
+			send(m, "2", "esc", "right")
 			return m
 		}},
 		{"host_users_expanded", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "3", "down", "down", "enter", "down")
+			send(m, "2", "down", "down", "enter", "down")
 			return m
 		}},
 		{"host_groups_expanded", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "3", "esc", "right", "down", "down", "enter", "down")
+			send(m, "2", "esc", "right", "down", "down", "enter", "down")
 			return m
 		}},
 		{"host_folders", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "3", "esc", "right", "right", "enter", "enter")
+			send(m, "2", "esc", "right", "right", "enter", "enter")
 			typed(m, "/srv/demo-stack")
 			send(m, "enter", "esc")
 			return m
 		}},
 		{"host_folders_protected", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "3", "esc", "right", "right", "enter", "enter")
+			send(m, "2", "esc", "right", "right", "enter", "enter")
 			typed(m, "/etc")
 			send(m, "enter", "esc")
 			return m
 		}},
 		{"host_folders_empty", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "3", "esc", "right", "right")
+			send(m, "2", "esc", "right", "right")
 			return m
 		}},
 		{"host_change_confirm", func(t *testing.T, w, h int) *Model {
@@ -364,12 +364,12 @@ func TestGoldenAreas(t *testing.T) {
 		}},
 		{"host_info", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "3", "i")
+			send(m, "2", "i")
 			return m
 		}},
 		{"host_help", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "3", "?")
+			send(m, "2", "?")
 			for range helpTopics {
 				if strings.Contains(plain(m), "Host shows the users") {
 					break
@@ -420,6 +420,6 @@ func goldenHostChange(t *testing.T, w, h int) (*Model, *fakeSudo) {
 	m := goldenApp(t, overviewFake(), w, h)
 	f := &fakeSudo{}
 	m.hostReg, m.hostRun, m.hostExec, m.hostBg = hostActions(t), f.run, f.exec, f.bg
-	send(m, "3")
+	send(m, "2")
 	return m, f
 }

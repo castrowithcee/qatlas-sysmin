@@ -45,8 +45,8 @@ func TestEscLeadsFromEveryAreaToTheTabLineAndBackIn(t *testing.T) {
 		w, h  int
 	}{
 		{"1", areaOverview, false, 80, 24},
-		{"2", areaActivity, false, 80, 24},
-		{"3", areaHost, true, 80, 24},
+		{"2", areaHost, true, 80, 24},
+		{"3", areaActivity, false, 80, 24},
 		{"4", areaSettings, true, 80, 24},
 	}
 	for _, c := range cases {
@@ -124,7 +124,7 @@ func TestTheTabLineWrapsRoundAndHomeAndEndReachItsEnds(t *testing.T) {
 
 func TestThePageStripWrapsRoundAndUpLeadsToTheTabLine(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "3", "esc", "left")
+	send(m, "2", "esc", "left")
 	if m.hst.sub != hostChanges || m.zoneNow() != zoneSubs {
 		t.Errorf("left from the first page reaches %d on %v", m.hst.sub, m.zoneNow())
 	}
@@ -140,7 +140,7 @@ func TestThePageStripWrapsRoundAndUpLeadsToTheTabLine(t *testing.T) {
 
 func TestTabAndShiftTabChangeTheZoneAndNeverTheArea(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "3", "esc", "esc")
+	send(m, "2", "esc", "esc")
 	for _, step := range []struct {
 		key  string
 		want zone
@@ -154,7 +154,7 @@ func TestTabAndShiftTabChangeTheZoneAndNeverTheArea(t *testing.T) {
 		}
 	}
 	m = appModel(t, overviewFake(), 80, 24)
-	send(m, "2", "tab")
+	send(m, "3", "tab")
 	if m.zoneNow() != zoneTabs || m.area != areaActivity {
 		t.Errorf("tab from the content of Activity reaches %v in %v, want the tab line", m.zoneNow(), m.area)
 	}
@@ -166,7 +166,7 @@ func TestTabAndShiftTabChangeTheZoneAndNeverTheArea(t *testing.T) {
 
 func TestArrowsInTheContentChangeNeitherTheAreaNorThePage(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "3", "right", "left")
+	send(m, "2", "right", "left")
 	if m.area != areaHost || m.hst.sub != hostUsers || m.zoneNow() != zoneContent {
 		t.Errorf("arrows in the content reach %v page %d on %v", m.area, m.hst.sub, m.zoneNow())
 	}
@@ -174,9 +174,9 @@ func TestArrowsInTheContentChangeNeitherTheAreaNorThePage(t *testing.T) {
 
 func TestDigitsOpenTheAreaInItsContentButNotWhileTyping(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "2")
+	send(m, "3")
 	if m.area != areaActivity || m.zoneNow() != zoneContent {
-		t.Fatalf("2 opens %v on %v", m.area, m.zoneNow())
+		t.Fatalf("3 opens %v on %v", m.area, m.zoneNow())
 	}
 	send(m, "/")
 	typed(m, "3")
@@ -187,7 +187,7 @@ func TestDigitsOpenTheAreaInItsContentButNotWhileTyping(t *testing.T) {
 
 func TestUpOnTheFirstRowLeadsToTheBarAndListsStopAtTheEnds(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "2", "down", "down", "down")
+	send(m, "3", "down", "down", "down")
 	if got := m.act.page.list.cursor; got != 1 {
 		t.Errorf("down past the last row reaches %d, want it to stay on 1", got)
 	}
@@ -205,7 +205,7 @@ func TestUpOnTheFirstRowLeadsToTheBarAndListsStopAtTheEnds(t *testing.T) {
 	}
 
 	m = appModel(t, overviewFake(), 80, 24)
-	send(m, "3", "up", "up")
+	send(m, "2", "up", "up")
 	if m.zoneNow() != zoneSubs {
 		t.Errorf("up on the first row of Host reaches %v, want the page strip", m.zoneNow())
 	}
@@ -270,7 +270,7 @@ func TestCyclingOverSettingsAsksOnlyAboutUnsavedInput(t *testing.T) {
 
 func TestClickOnTheBackButtonActsLikeEscAndTabClicksOpenTheArea(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
-	send(m, "3")
+	send(m, "2")
 	clickOn(t, m, "[esc] back")
 	if m.zoneNow() != zoneSubs {
 		t.Errorf("the back button reaches %v, want the page strip", m.zoneNow())
@@ -327,11 +327,11 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 		subs  bool
 		tab   func(m *Model) int
 	}{
-		{"Activity", func() *Model { m := appModel(t, overviewFake(), 120, 40); send(m, "2"); return m }, false, func(m *Model) int { return m.act.page.tab }},
-		{"Users", func() *Model { m := appModel(t, overviewFake(), 120, 40); send(m, "3"); return m }, true, func(m *Model) int { return m.hst.users.page.tab }},
+		{"Activity", func() *Model { m := appModel(t, overviewFake(), 120, 40); send(m, "3"); return m }, false, func(m *Model) int { return m.act.page.tab }},
+		{"Users", func() *Model { m := appModel(t, overviewFake(), 120, 40); send(m, "2"); return m }, true, func(m *Model) int { return m.hst.users.page.tab }},
 		{"Groups", func() *Model {
 			m := appModel(t, overviewFake(), 120, 40)
-			send(m, "3", "esc", "right", "enter")
+			send(m, "2", "esc", "right", "enter")
 			return m
 		}, true, func(m *Model) int { return m.hst.groups.page.tab }},
 	}
@@ -397,7 +397,7 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 // Below 120 columns the detail has the screen to itself and is no zone beside the rows.
 func TestTheDetailIsNoZoneBelow120Columns(t *testing.T) {
 	m := appModel(t, overviewFake(), 100, 30)
-	send(m, "2", "tab")
+	send(m, "3", "tab")
 	if m.zoneNow() != zoneTabs {
 		t.Errorf("tab from the rows of a narrow Activity reaches %v, want the tab line", m.zoneNow())
 	}
@@ -406,7 +406,7 @@ func TestTheDetailIsNoZoneBelow120Columns(t *testing.T) {
 // esc leads back from every inner level and the footer says so.
 func TestEscBackStandsOnEveryInnerLevel(t *testing.T) {
 	m := appModel(t, overviewFake(), 100, 30)
-	send(m, "2", "down", "enter")
+	send(m, "3", "down", "enter")
 	if !m.act.page.open || !strings.Contains(headerOf(m), "[esc] back") || !strings.Contains(footerOf(m), "esc back") {
 		t.Errorf("the open page detail names no way back:\n%s", plain(m))
 	}

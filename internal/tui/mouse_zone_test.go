@@ -44,7 +44,7 @@ func zoneCases(t *testing.T) []zoneCase {
 		{"Groups", func() *Model {
 			m := appModel(t, overviewFake(), 120, 40)
 			m.hostSrc = longGroupsHost()
-			send(m, "3", "esc", "right", "enter")
+			send(m, "2", "esc", "right", "enter")
 			return m
 		}, "61", "demo-team", func(m *Model) *dataPage { return &m.hst.groups.page }},
 	}
@@ -133,7 +133,7 @@ func TestTheWheelOverTheDetailScrollsItWithoutTakingTheFocus(t *testing.T) {
 
 func TestAClickOnAFreeAreaOfABarFocusesIt(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
-	send(m, "3")
+	send(m, "2")
 	if m.zoneNow() != zoneContent {
 		t.Fatalf("starts on %v", m.zoneNow())
 	}
@@ -158,7 +158,7 @@ func TestAClickOnAFreeAreaOfABarFocusesIt(t *testing.T) {
 
 func TestTheFooterIsNotClickable(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
-	send(m, "2")
+	send(m, "3")
 	m.zone = zoneDetail
 	rows := strings.Split(plain(m), "\n")
 	for x := 0; x < 120; x += 7 {
@@ -196,7 +196,7 @@ func TestATabClickFromSettingsWithInputAsksFirst(t *testing.T) {
 	if !m.settingsDirty() {
 		t.Fatal("Settings holds no unsaved input")
 	}
-	clickOn(t, m, "3 Host")
+	clickOn(t, m, "2 Host")
 	if m.area != areaSettings || m.screen != screenConfirm || m.leave == nil {
 		t.Fatalf("a tab click with unsaved input reaches area %v, screen %v", m.area, m.screen)
 	}
@@ -204,7 +204,7 @@ func TestATabClickFromSettingsWithInputAsksFirst(t *testing.T) {
 		t.Errorf("not the usual question:\n%s", plain(m))
 	}
 	// The question is answered by the person first: a click on a tab behind it does nothing.
-	clickOn(t, m, "2 Activity")
+	clickOn(t, m, "3 Activity")
 	if m.area != areaSettings || m.screen != screenConfirm {
 		t.Errorf("a tab click behind the question reached area %v, screen %v", m.area, m.screen)
 	}
@@ -215,7 +215,7 @@ func TestATabClickFromSettingsWithInputAsksFirst(t *testing.T) {
 }
 func TestATabClickEndsAFilterBeingTyped(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
-	send(m, "2", "/")
+	send(m, "3", "/")
 	if !m.typing() {
 		t.Fatal("/ starts no filter")
 	}
@@ -223,7 +223,7 @@ func TestATabClickEndsAFilterBeingTyped(t *testing.T) {
 	if m.area != areaOverview || m.typing() || m.act.page.filtering() {
 		t.Errorf("a tab click left area %v with the filter typing", m.area)
 	}
-	send(m, "2")
+	send(m, "3")
 	if m.typing() {
 		t.Error("the filter takes keys again after the way back")
 	}

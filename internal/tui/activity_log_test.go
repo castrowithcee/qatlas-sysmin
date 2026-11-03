@@ -79,7 +79,7 @@ func TestActivityLoadsEntriesAndShowsAnIntactChain(t *testing.T) {
 	for _, size := range [][2]int{{80, 24}, {120, 40}} {
 		fb := activityFake()
 		m := appModel(t, fb, size[0], size[1])
-		send(m, "2")
+		send(m, "3")
 		view := plain(m)
 		for _, want := range []string{"Log (12)", "● Chain intact, 52 entries", "signatures checked", "2026-10-28 12:00:00", "Config read"} {
 			if !strings.Contains(view, want) {
@@ -99,7 +99,7 @@ func TestActivityShowsABrokenChainWithSymbolAndText(t *testing.T) {
 	fb := activityFake()
 	fb.audit.verify = brokenChain()
 	m := appModel(t, fb, 80, 24)
-	send(m, "2")
+	send(m, "3")
 	view := plain(m)
 	if !strings.Contains(view, "⚠ Chain broken · 2026-10-27 entry 31 · hash mismatch") || strings.Contains(view, "Chain intact") {
 		t.Errorf("no break shown:\n%s", view)
@@ -118,7 +118,7 @@ func TestActivityCountsDocumentedDamage(t *testing.T) {
 	fb.audit.verify = intactChain()
 	fb.audit.verify.Days[1].Damaged = 1
 	m := appModel(t, fb, 120, 40)
-	send(m, "2")
+	send(m, "3")
 	if view := plain(m); !strings.Contains(view, "● Chain intact, 52 entries · unreadable lines documented: 1 · signatures checked") {
 		t.Errorf("no documented damage shown:\n%s", view)
 	}
@@ -132,7 +132,7 @@ func TestActivityCountsDocumentedDamage(t *testing.T) {
 func TestActivityDoesNotPollTheLog(t *testing.T) {
 	fb := activityFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "2")
+	send(m, "3")
 	logs, checks := fb.count("log"), fb.count("log-verify")
 	clock := clockModel(m, time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC))
 	for range 5 {
@@ -151,7 +151,7 @@ func TestActivityFilterSetsTheParametersAndReloads(t *testing.T) {
 	m := appModel(t, fb, 80, 24)
 	now := time.Date(2026, 10, 28, 15, 30, 0, 0, time.UTC)
 	clockModel(m, now)
-	send(m, "2", "f")
+	send(m, "3", "f")
 	if m.form == nil {
 		t.Fatal("no filter form")
 	}
@@ -181,7 +181,7 @@ func TestActivityLoadsFurtherPagesAtTheEnd(t *testing.T) {
 	fb := activityFake()
 	fb.audit.entries = testLogEntries(250)
 	m := appModel(t, fb, 80, 24)
-	send(m, "2")
+	send(m, "3")
 	if got := len(m.act.order); got != logPageSize || m.act.next == "" {
 		t.Fatalf("first page: %d entries, next %q", got, m.act.next)
 	}
@@ -211,7 +211,7 @@ func TestActivityDrawsNoControlSequenceOfAnEntry(t *testing.T) {
 	m := appModel(t, fb, 120, 40)
 	m.redactor.Add(secretValue)
 	fb.audit.entries[1].Action = secretValue
-	send(m, "2")
+	send(m, "3")
 	for range 3 {
 		raw := m.render()
 		for _, bad := range []string{"\x1b]52", "\x1b[2J", "\x1b[31m", "\x07", secretValue} {
@@ -241,7 +241,7 @@ func TestActivityShowsNoProject(t *testing.T) {
 	utcClock(t)
 	fb := activityFake()
 	m := appModel(t, fb, 120, 40)
-	send(m, "2")
+	send(m, "3")
 	view := plain(m)
 	if strings.Contains(view, "demo-app") || strings.Contains(view, "Project") {
 		t.Errorf("a project is shown:\n%s", view)
@@ -270,7 +270,7 @@ func TestActivityShowsAHostChangeWithItsLabel(t *testing.T) {
 		t.Run(string(tc.lang), func(t *testing.T) {
 			m := appModel(t, fb, 120, 40)
 			useLanguage(t, tc.lang)
-			send(m, "2")
+			send(m, "3")
 			if view := plain(m); !strings.Contains(view, tc.want) || strings.Contains(view, "host.change") {
 				t.Errorf("table lacks %q or shows the raw action:\n%s", tc.want, view)
 			}
@@ -310,7 +310,7 @@ func TestEveryFooterGroupOfThePagesIsTranslated(t *testing.T) {
 	utcClock(t)
 	useLanguage(t, "de")
 	m := appModel(t, activityFake(), 120, 40)
-	send(m, "2")
+	send(m, "3")
 	for _, group := range strings.Split(m.areaKeys(), " · ") {
 		if strings.HasPrefix(group, "{") || group == "1-4 area" {
 			continue

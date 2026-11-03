@@ -72,7 +72,7 @@ func TestTheWheelStepsTheTableOfEveryDataPageWhateverHasTheFocus(t *testing.T) {
 		page func(m *Model) *dataPage
 		rows int
 	}{
-		{"Activity", []string{"2"}, activityFake, func(m *Model) *dataPage { return &m.act.page }, 12},
+		{"Activity", []string{"3"}, activityFake, func(m *Model) *dataPage { return &m.act.page }, 12},
 	}
 	for _, c := range cases {
 		for _, size := range [][2]int{{80, 24}, {120, 40}} {
@@ -98,7 +98,7 @@ func TestTheWheelStepsTheTableOfEveryDataPageWhateverHasTheFocus(t *testing.T) {
 
 func TestTheWheelNeverLeavesTheTableForTheBar(t *testing.T) {
 	m := appModel(t, activityFake(), 120, 40)
-	send(m, "2")
+	send(m, "3")
 	now := wheelClock(m)
 	x, y := wheelCell(t, m, leftArea)
 	for range 3 {
@@ -112,7 +112,7 @@ func TestTheWheelNeverLeavesTheTableForTheBar(t *testing.T) {
 func TestTheWheelScrollsTheOpenDetailInSteps(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
 	m.hostSrc = longGroupsHost()
-	send(m, "3", "esc", "right", "enter", "enter")
+	send(m, "2", "esc", "right", "enter", "enter")
 	if !m.hst.groups.page.open {
 		t.Fatal("enter did not open the detail")
 	}
@@ -207,7 +207,7 @@ func TestTheWheelStepsEachZoneOfTheOverviewForItself(t *testing.T) {
 
 func TestTheWheelRestsWhileAFilterIsTypedAndBehindAQuestion(t *testing.T) {
 	m := appModel(t, activityFake(), 120, 40)
-	send(m, "2", "/")
+	send(m, "3", "/")
 	now := wheelClock(m)
 	x, y := wheelCell(t, m, leftArea)
 	notch(m, now, x, y, false)
