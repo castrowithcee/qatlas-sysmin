@@ -1,39 +1,70 @@
 package tui
 
 import (
-	"maps"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
-// A pick row is a form row for a long multi-selection: the form shows a short summary of what is chosen, and
-// enter or a click opens a list of all values with a filter, over the form. The choice only reaches the row
-// when the list is left with enter; esc drops what was changed in it.
+// A pick list is the editor of a list field for a long multi-selection: the form shows a short summary of what
+// is chosen, and enter or a click opens a list of all values with a filter, over the form. The choice only
+// reaches the field when the list is left with enter; esc drops what was changed in it.
 
 const pickSummaryNames = 2
 
-// pickRow is a form row that chooses any number of values from a list of any length. notes, when set, has
-// one entry per value: a short dimmed word behind it, such as a marker for values that need care.
-func pickRow(key, label string, values, notes []string) formRow {
-	return formRow{key: key, label: label, choice: true, pick: true, values: values, notes: notes, ticked: make([]bool, len(values))}
+// pickList is the values of a list field and which of them are ticked. notes, when set, has one entry per
+// value: a short dimmed word behind it, such as a marker for values that need care.
+type pickList struct {
+	values, notes []string
+	ticked        []bool
 }
 
-// pickText is how a pick row is drawn: the first chosen values and how many more there are.
-func (r *formRow) pickText() string {
-	if len(r.values) == 0 {
-		return tr(tPickNothing)
+func newPickList(values, notes []string) *pickList {
+	return &pickList{values: values, notes: notes, ticked: make([]bool, len(values))}
+}
+
+// picked are the ticked values, in order.
+func (l *pickList) picked() []string {
+	var out []string
+	for i, on := range l.ticked {
+		if on {
+			out = append(out, l.values[i])
+		}
 	}
-	chosen := r.picked()
-	if len(chosen) == 0 {
-		return tr(tPickNone)
+	return out
+}
+
+// summary is what the field shows: the first chosen values and how many more there are, empty for none.
+func (l *pickList) summary(ui *uiContext) string {
+	if len(l.values) == 0 {
+		return ui.tr(tPickNothing)
 	}
+	chosen := l.picked()
 	text := strings.Join(chosen[:min(len(chosen), pickSummaryNames)], ", ")
 	if more := len(chosen) - pickSummaryNames; more > 0 {
-		text += " " + tr(tPickMore, more)
+		text += " " + ui.tr(tPickMore, more)
 	}
 	return text
+}
+
+// pickField adds a list field with its pick list to the form.
+func (f *formDlg) pickField(id kittui.FieldID, label textID, values, notes []string) kittui.FormField {
+	if f.lists == nil {
+		f.lists = map[kittui.FieldID]*pickList{}
+	}
+	f.lists[id] = newPickList(values, notes)
+	return listField(id, label)
+}
+
+// picked are the ticked values of the list field id.
+func (f *formDlg) picked(id kittui.FieldID) []string {
+	if l := f.lists[id]; l != nil {
+		return l.picked()
+	}
+	return nil
 }
 
 // textHit is a click target found by the text of the line it stands in.
@@ -42,24 +73,25 @@ type textHit struct {
 	act   func() tea.Cmd
 }
 
-// pickDlg is the list over a form that a pick row opened.
+// pickDlg is the list over a form that a list field opened.
 type pickDlg struct {
-	row    int
+	field  kittui.FieldID
 	list   filterList
 	ticked map[string]bool
 	notes  map[string]string
+	hits   []textHit
 }
 
-// openPick shows the list of the pick row i, the chosen values at the top.
-func (m *Model) openPick(f *formDlg, i int) {
-	r := &f.rows[i]
-	pk := &pickDlg{row: i, list: newFilterList(func(v string) string { return v }), ticked: map[string]bool{}, notes: map[string]string{}}
+// openPick shows the list of the list field id, the chosen values at the top.
+func (m *Model) openPick(f *formDlg, id kittui.FieldID) {
+	l := f.lists[id]
+	pk := &pickDlg{field: id, list: newFilterList(func(v string) string { return v }), ticked: map[string]bool{}, notes: map[string]string{}}
 	var first, rest []string
-	for j, v := range r.values {
-		if j < len(r.notes) && r.notes[j] != "" {
-			pk.notes[v] = r.notes[j]
+	for j, v := range l.values {
+		if j < len(l.notes) && l.notes[j] != "" {
+			pk.notes[v] = l.notes[j]
 		}
-		if r.ticked[j] {
+		if l.ticked[j] {
 			pk.ticked[v] = true
 			first = append(first, v)
 		} else {
@@ -71,7 +103,7 @@ func (m *Model) openPick(f *formDlg, i int) {
 	f.pick = pk
 }
 
-// pickToggle ticks or unticks the value under the cursor.
+// toggle ticks or unticks the value under the cursor.
 func (pk *pickDlg) toggle() {
 	if name, ok := pk.list.selected(); ok {
 		pk.ticked[name] = !pk.ticked[name]
@@ -92,28 +124,25 @@ func (m *Model) pickKey(f *formDlg, key tea.KeyPressMsg) tea.Cmd {
 	pk := f.pick
 	l := &pk.list
 	switch {
-	case keyIs(key, actBack):
+	case m.keyIs(key, actBack):
 		f.pick = nil
-	case keyIs(key, actEnter):
-		r := &f.rows[pk.row]
-		for i, v := range r.values {
-			r.ticked[i] = pk.ticked[v]
+	case m.keyIs(key, actEnter):
+		list := f.lists[pk.field]
+		for i, v := range list.values {
+			list.ticked[i] = pk.ticked[v]
 		}
-		r.problem = ""
 		f.pick = nil
-		if f.changed != nil {
-			f.changed(m, f, pk.row)
-		}
-	case keyIs(key, actSpace):
+		m.setListValue(f, pk.field, list.summary(m.ui))
+	case m.keyIs(key, actSpace):
 		pk.toggle()
-	case keyIs(key, actUp):
+	case m.keyIs(key, actUp):
 		l.move(-1)
-	case keyIs(key, actDown):
+	case m.keyIs(key, actDown):
 		l.move(1)
-	case keyIs(key, actPageUp), keyIs(key, actPageDown):
-		l.page(key, 0, pickerRows)
+	case m.keyIs(key, actPageUp), m.keyIs(key, actPageDown):
+		l.page(m.ui.keys, key, 0, pickerRows)
 	default:
-		return l.updateFilter(key)
+		l.updateFilter(key)
 	}
 	return nil
 }
@@ -129,9 +158,8 @@ const (
 func (m *Model) pickDialog(f *formDlg) promptDialog {
 	pk := f.pick
 	l := &pk.list
-	f.hits = nil
-	l.input.Placeholder = tr(tLogSearchPlaceholder)
-	lines := []string{"  / " + inputView(fitInput(l.input, pickerField))}
+	pk.hits = nil
+	lines := []string{"  / " + l.input.view(m.ui, pickerField, l.editing, m.tr(tLogSearchPlaceholder))}
 	start, end := l.window(pickerRows, func(int) int { return 1 })
 	for i := start; i < end; i++ {
 		name := l.matches[i]
@@ -141,16 +169,16 @@ func (m *Model) pickDialog(f *formDlg) promptDialog {
 		}
 		plain := truncateCells(tickText(pk.ticked[name])+" "+safeText(name)+note, pickerField+8)
 		if i == l.cursor {
-			lines = append(lines, styles.title.Render("  > "+plain))
+			lines = append(lines, m.ui.st(kittui.StyleTitle).Render("  > "+plain))
 		} else {
-			text := colourTick(plain, styles.cell)
+			text := colourTick(m.ui, plain, m.ui.st(kittui.StyleText))
 			if note != "" {
-				text = strings.TrimSuffix(text, note) + styles.hint.Render(note)
+				text = strings.TrimSuffix(text, note) + m.ui.st(kittui.StyleHint).Render(note)
 			}
 			lines = append(lines, "    "+text)
 		}
 		cursor := i
-		f.hits = append(f.hits, textHit{plain: ansi.Strip(lines[len(lines)-1]), act: func() tea.Cmd {
+		pk.hits = append(pk.hits, textHit{plain: ansi.Strip(lines[len(lines)-1]), act: func() tea.Cmd {
 			if f.pick == pk {
 				l.cursor = cursor
 				pk.toggle()
@@ -159,12 +187,19 @@ func (m *Model) pickDialog(f *formDlg) promptDialog {
 		}})
 	}
 	if len(l.matches) == 0 {
-		lines = append(lines, styles.hint.Render("    "+tr(tPickNoMatch)))
+		lines = append(lines, m.ui.st(kittui.StyleHint).Render("    "+m.tr(tPickNoMatch)))
 	} else {
-		lines = append(lines, styles.hint.Render("    "+tr(tPickPosition, l.cursor+1, len(l.matches))))
+		lines = append(lines, m.ui.st(kittui.StyleHint).Render("    "+m.tr(tPickPosition, l.cursor+1, len(l.matches))))
 	}
-	return promptDialog{title: f.rows[pk.row].label, input: strings.Join(lines, "\n"),
-		keys: "↑/↓ move · space tick · enter keep · {back} discard"}
+	label := ""
+	for _, field := range f.fields {
+		if field.ID == pk.field {
+			label = m.tr(field.Label)
+		}
+	}
+	return promptDialog{title: label, input: strings.Join(lines, "\n"),
+		keys: keyLine(navHint(tHintMove, actUp, actDown), hint(tHintTick, actSpace), answer(tHintKeep, actEnter),
+			answer(tHintDiscard, actBack))}
 }
 
 // tickText is the plain box of a ticked or unticked entry.
@@ -175,14 +210,11 @@ func tickText(ticked bool) string {
 	return "[ ]"
 }
 
-// hitFormLines makes the click targets of the open form or its list work: each is found among lines, which
-// stand from screen row y0 on, and takes the cells [x0, x1) of its line.
-func (m *Model) hitFormLines(lines []string, y0, x0, x1 int) {
-	if m.screen != screenPrompt || m.form == nil {
-		return
-	}
+// hitPickLines makes the rows of the open pick list clickable: each is found among lines, which stand from
+// screen row y0 on, and takes the cells [x0, x1) of its line.
+func (m *Model) hitPickLines(lines []string, y0, x0, x1 int) {
 	used := make([]bool, len(lines))
-	for _, h := range m.form.hits {
+	for _, h := range m.form.pick.hits {
 		for i, line := range lines {
 			if used[i] || !strings.Contains(ansi.Strip(line), h.plain) {
 				continue
@@ -194,24 +226,21 @@ func (m *Model) hitFormLines(lines []string, y0, x0, x1 int) {
 	}
 }
 
-// The texts of the pick row and its list.
+// The texts of the pick list.
 const (
-	tPickNone    textID = "PickNone"
 	tPickNothing textID = "PickNothing"
 	tPickMore    textID = "PickMore"
 )
 
-func init() {
-	maps.Copy(textEN, map[textID]string{
-		tPickNone:                  "none",
-		tPickNothing:               "nothing to choose",
-		tPickMore:                  "+%d",
-		footerID("{back} discard"): "{back} discard",
-	})
-	maps.Copy(textDE, map[textID]string{
-		tPickNone:                  "keine",
-		tPickNothing:               "nichts zur Auswahl",
-		tPickMore:                  "+%d",
-		footerID("{back} discard"): "{back} verwerfen",
-	})
+// pickTexts are the texts of the pick list, in English and German.
+func pickTexts() (en, de map[textID]string) {
+	en = map[textID]string{
+		tPickNothing: "nothing to choose",
+		tPickMore:    "+%d",
+	}
+	de = map[textID]string{
+		tPickNothing: "nichts zur Auswahl",
+		tPickMore:    "+%d",
+	}
+	return en, de
 }

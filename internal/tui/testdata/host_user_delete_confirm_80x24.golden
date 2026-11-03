@@ -2,13 +2,13 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    2/2
+Users (3)                                                                    2/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name╔══════════════════════════════════════════════════════════════╗System ║
-║   ▾ Us║ ⚠ Delete the user demo-user; its home and files stay.        ║       ║
-║   demo║                                                              ║       ║
-║ > demo║     A user with running processes is not deleted. You can    ║       ║
-║   ▸ Sy║     undo this under Host > Changes.                          ║       ║
+║     NA╔══════════════════════════════════════════════════════════════╗SYSTEM ║
+║   ▾ ■ ║ ⚠ Delete the user demo-user; its home and files stay.        ║       ║
+║     de║                                                              ║       ║
+║ >   de║     A user with running processes is not deleted. You can    ║       ║
+║   ▸ ■ ║     undo this under Host > Changes.                          ║       ║
 ╚═══════║                                                              ║═══════╝
         ║   $ userdel demo-user                                        ║        
         ║                                                              ║        

@@ -2,12 +2,12 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users  [Groups]  Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Groups (4)                                                                   1/1
+Groups (4)                                                                   1/4
 ╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
-║   Name║ ⚠ Rename the group demo-team to demo-crew.                   ║       ║
-║   ▾ Gr║                                                              ║       ║
-║ > demo║     Configurations such as sudoers address a group by its    ║       ║
-║   ▸ Sy║     name and keep the old one; they stop working until they  ║       ║
+║     NA║ ⚠ Rename the group demo-team to demo-crew.                   ║       ║
+║   ▾ ■ ║                                                              ║       ║
+║ >   de║     Configurations such as sudoers address a group by its    ║       ║
+║   ▸ ■ ║     name and keep the old one; they stop working until they  ║       ║
 ╚═══════║     are changed too. You can undo this under Host > Changes. ║═══════╝
         ║                                                              ║        
         ║   $ groupmod -n demo-crew demo-team                          ║        

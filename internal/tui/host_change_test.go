@@ -36,6 +36,19 @@ type fakeSudo struct {
 	order []string
 }
 
+// askHostChange asks for the action id with args and, on y, runs it as root. Nothing is run or changed before
+// the answer; a refusal of the arguments or of the action comes back as a message. An action that wants a
+// secret input is asked through confirmHost by the form that collects it.
+func (m *Model) askHostChange(id string, args []string) tea.Cmd {
+	p, refusal := m.planHost(hostAsk{id: id, args: args})
+	if refusal != "" {
+		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: closeKeys()})
+		return nil
+	}
+	m.confirmHost(p)
+	return nil
+}
+
 func (f *fakeSudo) run(req HostRequest) (*exec.Cmd, error) {
 	f.reqs = append(f.reqs, req)
 	if f.buildErr != nil {
@@ -192,7 +205,7 @@ func TestConfirmShowsTheSentenceAndTheExactCommandsBeforeAnythingRuns(t *testing
 
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
-	want := []string{"apply", "--yes", "--output", "json", "--", "demo.set", "alpha", "new"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "demo.set", "alpha", "new"}
 	if got := requestArgs(f); len(got) != 1 || !slices.Equal(got[0], want) {
 		t.Errorf("hook calls %v, want %v", got, want)
 	}
@@ -340,7 +353,7 @@ func TestRunsThatGiveNoAnswerChangeNothingAndSayWhy(t *testing.T) {
 
 func TestMessagesAreGerman(t *testing.T) {
 	m, f, _ := hostChangeModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	f.answer = func(HostRequest) (string, error) { return "", exitError(t, "exit 1") }
 	drain(m, m.askHostChange("demo.set", []string{"alpha", "new"}))
 	send(m, "y")
@@ -403,7 +416,7 @@ func TestEnterOnAReversibleChangeUndoesItAfterTheSameConfirm(t *testing.T) {
 		return `{"journal_id":"20301003T100000.000000Z-eeeeee","sentence":"Put alpha back.","result":"applied","check":"none","reversible":false}`, nil
 	}
 	send(m, "enter", "y")
-	want := []string{"undo", "--yes", "--output", "json", "--", "20301002T101500.000000Z-aaaaaa"}
+	want := []string{"undo", "--confirm", "--output", "json", "--", "20301002T101500.000000Z-aaaaaa"}
 	if got := requestArgs(f); len(got) != 1 || !slices.Equal(got[0], want) {
 		t.Fatalf("undo call %v, want %v", got, want)
 	}

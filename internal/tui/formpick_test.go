@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
@@ -19,8 +20,8 @@ func pickModel(t *testing.T, w, h int, extra ...string) *Model {
 		host.groups = append(host.groups, hostadmin.Group{Name: name, GID: 2000 + i})
 	}
 	send(m, "n", "tab", "tab", "tab", "tab", "tab", "tab")
-	if m.form == nil || m.form.rows[m.form.focus].key != "groups" {
-		t.Fatalf("the groups row is not focused:\n%s", plain(m))
+	if m.form == nil || formFocus(m) != fieldGroups {
+		t.Fatalf("the groups field is not focused:\n%s", plain(m))
 	}
 	return m
 }
@@ -45,20 +46,17 @@ func cell(text string) string {
 	return strings.TrimSpace(text)
 }
 
-func rowText(m *Model, label string) string {
-	for _, line := range strings.Split(plain(m), "\n") {
-		if at := strings.Index(line, label); at >= 0 {
-			return strings.TrimSpace(line[at:])
-		}
-	}
-	return ""
+// summaryShown is the summary of the further groups, and whether the form draws it.
+func summaryShown(m *Model) (string, bool) {
+	got := m.form.value(fieldGroups)
+	return got, strings.Contains(plain(m), got)
 }
 
 func TestPickRowShowsAShortSummaryAndOpensTheListOnEnterAndClick(t *testing.T) {
 	for _, w := range []struct{ w, h int }{{120, 40}, {80, 24}} {
 		m := pickModel(t, w.w, w.h)
-		if got := rowText(m, "Further groups:"); !strings.HasSuffix(cell(got), "none") {
-			t.Errorf("summary %q", got)
+		if got, _ := summaryShown(m); got != "" || !strings.Contains(plain(m), "none") {
+			t.Errorf("summary %q:\n%s", got, plain(m))
 		}
 		send(m, "enter")
 		if m.form.pick == nil || len(listLines(m)) != 2 {
@@ -70,7 +68,7 @@ func TestPickRowShowsAShortSummaryAndOpensTheListOnEnterAndClick(t *testing.T) {
 		}
 		send(m, "tab")
 		clickOn(t, m, "none")
-		if m.form.pick == nil || m.form.rows[m.form.focus].key != "groups" {
+		if m.form.pick == nil || formFocus(m) != fieldGroups {
 			t.Errorf("a click on the row did not open the list at %dx%d:\n%s", w.w, w.h, plain(m))
 		}
 	}
@@ -88,15 +86,15 @@ func TestPickListFiltersTicksTakesOverAndDiscards(t *testing.T) {
 		t.Fatalf("ticked list %q", got)
 	}
 	send(m, "esc")
-	if got := m.form.row("groups").picked(); len(got) != 0 {
+	if got := m.form.picked(fieldGroups); len(got) != 0 {
 		t.Errorf("esc kept %q", got)
 	}
 	send(m, "enter", "space", "enter")
-	if got := m.form.row("groups").picked(); len(got) != 1 || got[0] != "demo-ops" {
+	if got := m.form.picked(fieldGroups); len(got) != 1 || got[0] != "demo-ops" {
 		t.Errorf("picked %q", got)
 	}
-	if got := rowText(m, "Further groups:"); !strings.HasSuffix(cell(got), "demo-ops") {
-		t.Errorf("summary %q", got)
+	if got, shown := summaryShown(m); got != "demo-ops" || !shown {
+		t.Errorf("summary %q, shown %v", got, shown)
 	}
 }
 
@@ -111,7 +109,7 @@ func TestPickListTicksWithAClick(t *testing.T) {
 			t.Errorf("list %q at %dx%d", got, w.w, w.h)
 		}
 		send(m, "enter")
-		if got := m.form.row("groups").picked(); len(got) != 1 || got[0] != "demo-team" {
+		if got := m.form.picked(fieldGroups); len(got) != 1 || got[0] != "demo-team" {
 			t.Errorf("picked %q", got)
 		}
 	}
@@ -143,8 +141,8 @@ func TestPickSummaryNamesTwoAndCountsTheRest(t *testing.T) {
 		send(m, "space", "down")
 	}
 	send(m, "enter")
-	if got := rowText(m, "Further groups:"); !strings.HasSuffix(cell(got), "demo-a, demo-b +3") {
-		t.Errorf("summary %q", got)
+	if got, shown := summaryShown(m); got != "demo-a, demo-b +3" || !shown {
+		t.Errorf("summary %q, shown %v", got, shown)
 	}
 }
 
@@ -190,16 +188,12 @@ func TestCreateFormOffersNoSystemMarkers(t *testing.T) {
 	}
 }
 
-func TestPickRowIgnoresArrowsAndSpaceInTheForm(t *testing.T) {
+func TestListFieldIgnoresArrowsAndSpaceInTheForm(t *testing.T) {
 	m := pickModel(t, 120, 40)
 	called := false
-	m.form.changed = func(*Model, *formDlg, int) { called = true }
-	row := m.form.row("groups")
+	m.form.changed = func(*Model, *formDlg, kittui.FieldID) { called = true }
 	send(m, "right", "left", "space")
-	if called || row.sel != 0 || len(row.picked()) != 0 || m.form.pick != nil {
-		t.Errorf("called %v, sel %d, picked %q", called, row.sel, row.picked())
-	}
-	if got := rowText(m, "Further groups:"); strings.Contains(got, "<") {
-		t.Errorf("the pick row promises stepping: %q", got)
+	if called || len(m.form.picked(fieldGroups)) != 0 || m.form.pick != nil || formFocus(m) != fieldGroups {
+		t.Errorf("called %v, picked %q, focus %s", called, m.form.picked(fieldGroups), formFocus(m))
 	}
 }

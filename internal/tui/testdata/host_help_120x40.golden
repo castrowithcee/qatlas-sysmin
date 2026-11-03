@@ -1,40 +1,40 @@
 qsysmin                                                                                                [?] help  [:] cmd
-   1 Overview  [2 Host]  3 A╔══════════════════════════════════════════════════════════════╗                            
-  [Users]  Groups   Folders ║ Help                                                         ║                            
-────────────────────────────║                                                              ║────────────────────────────
-Users (3)                   ║  keys   audit-log  [host]                                    ║───────────────────────────╮
-╔═══════════════════════════║                                                              ║  Raw                      │
-║   Name        Admin       ║ Host shows the users, groups and folder permissions of this  ║                           │
-║   ▾ Users (2)             ║ machine. Admin means sudo rights, Docker is practically      ║emo-admin                  │
-║ > demo-admin  yes         ║ root, and enabled means membership of the group qsysmin.     ║egular                     │
-║   demo-user   yes · not en║ Grey rows are system accounts and groups, whose ID lies      ║es                         │
-║   ▸ System accounts (1)   ║ outside 1000 to 60000; they sit in their own section, which  ║es                         │
-╚═══════════════════════════║ starts collapsed. enter or space on a heading collapses or   ║es                         │
-                            ║ expands it. e and d work on root and system accounts like on ║emo-admin, sudo, docker,   │
-                            ║ any other account, and the confirmation is then red, because ║sysmin                     │
-                            ║ packages or services may depend on them; only taking admin   ║home/demo-admin            │
-                            ║ from, locking or deleting yourself or the last admin is      ║nknown                     │
-                            ║ refused. Folders reads one path at a time: type it, tab      ║                           │
-                            ║ completes, enter reads. A path marked protected is a system  ║ the fields only root can  │
-                            ║ path. e changes the folder shown, after a confirmation that  ║                           │
-                            ║ names the number of entries and, for a system path, the      ║───────────────────────────╯
-                            ║ risk; if a container that uses the folder stops being        ║                            
-                            ║ healthy, the change is taken back. n creates a person, whose ║                            
-                            ║ initial password must be changed at the first login, or a    ║                            
-                            ║ service account without login (no password, no shell, no SSH ║                            
-                            ║ keys, a home only on request); e changes the marked one      ║                            
-                            ║ (groups, Admin, Docker, password, SSH keys, lock), one       ║                            
-                            ║ change at a time. Lock is the normal way to stop someone: it ║                            
-                            ║ blocks every login, also by SSH key, while running sessions  ║                            
-                            ║ stay open; Unlock releases the password and removes the end  ║                            
-                            ║ of the account. d deletes the marked user after asking       ║                            
-                            ║ whether its home goes too: keeping the home is the default   ║                            
-                            ║ and can be undone, which creates the account again with the  ║                            
-                            ║ same UID, groups and password; deleting the home and mail    ║                            
-                            ║ spool cannot be undone. A user with running processes is not ║                            
-                            ║ deleted. On Groups, n creates a group, e adds and removes    ║                            
-                            ║ lines 1-31 of 47                                             ║                            
-                            ║                                                              ║                            
-                            ║ ↑/↓ scroll · ←/→ topic · esc close                           ║                            
-                            ╚══════════════════════════════════════════════════════════════╝                            
+   1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
+  [Users]  Groups   Folders   Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                         1/3 ╭─ demo-admin ───────────────────────────────────╮
+╔═════════════════════╔═ Help ═══════════════════════════════════════════════════════════════════╗                     │
+║     NAME        ADMI║  qsysmin   host-admin  [host-tui]                                        ║                     │
+║   ▾ ■ Users (2)     ║                                                                          ║min                  │
+║ >   demo-admin  yes ║ Host shows the users, groups and folder permissions of this machine.     ║                     │
+║     demo-user   yes ║ Admin means sudo rights, Docker is practically root, and enabled means   ║                     │
+║   ▸ ■ System account║ membership of the group qsysmin. Grey rows are system accounts and       ║                     │
+╚═════════════════════║ groups, whose ID lies outside 1000 to 60000; they sit in their own       ║                     │
+                      ║ group, which starts collapsed. enter on the row of a group collapses or  ║min, sudo, docker,   │
+                      ║ expands it, left collapses the group of the marked row and right expands ║                     │
+                      ║ it again. e and d work on root and system accounts like on any other     ║emo-admin            │
+                      ║ account, and the confirmation is then red, because packages or services  ║                     │
+                      ║ may depend on them; only taking admin from, locking or deleting yourself ║                     │
+                      ║ or the last admin is refused. Folders reads one path at a time: type it, ║ields only root can  │
+                      ║ tab completes, enter reads. A path marked protected is a system path. e  ║                     │
+                      ║ changes the folder shown, after a confirmation that names the number of  ║─────────────────────╯
+                      ║ entries and, for a system path, the risk; if a container that uses the   ║                      
+                      ║ folder stops being healthy, the change is taken back. n creates a        ║                      
+                      ║ person, whose initial password must be changed at the first login, or a  ║                      
+                      ║ service account without login (no password, no shell, no SSH keys, a     ║                      
+                      ║ home only on request); e changes the marked one (groups, Admin, Docker,  ║                      
+                      ║ password, SSH keys, lock), one change at a time. Lock is the normal way  ║                      
+                      ║ to stop someone: it blocks every login, also by SSH key, while running   ║                      
+                      ║ sessions stay open; Unlock releases the password and removes the end of  ║                      
+                      ║ the account. d deletes the marked user after asking whether its home     ║                      
+                      ║ goes too: keeping the home is the default and can be undone, which       ║                      
+                      ║ creates the account again with the same UID, groups and password;        ║                      
+                      ║ deleting the home and mail spool cannot be undone. A user with running   ║                      
+                      ║ processes is not deleted. On Groups, n creates a group, e adds and       ║                      
+                      ║ removes members of the marked one (several users at once, one            ║                      
+                      ║ lines 1-26 of 39                                                         ║                      
+                      ║                                                                          ║                      
+                      ║ ←/→/tab/shift+tab topic  ↑/↓ scroll  pgup/pgdown page  esc/? close       ║                      
+                      ╚══════════════════════════════════════════════════════════════════════════╝                      
+                                                                                                                        
 ? help                                                                                                                  

@@ -2,13 +2,14 @@ package tui
 
 import (
 	"context"
-	"strings"
+	"fmt"
+	"slices"
 	"time"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 )
 
 // Settings has two pages. General is device-local and needs no service; Update only looks at the releases.
@@ -19,9 +20,9 @@ const (
 )
 
 // subTitle is the name of a Settings page as drawn.
-func subTitle(sub int) string {
-	return tr([...]textID{tSubGeneral, tSubUpdate}[sub])
-}
+func subTitle(ui *uiContext, sub int) string { return ui.tr(subTitleID(sub)) }
+
+func subTitleID(sub int) textID { return [...]textID{tSubGeneral, tSubUpdate}[sub] }
 
 // subKey is the English name of a Settings page, the one commands are given by.
 func subKey(sub int) string { return [...]string{"general", "update"}[sub] }
@@ -36,35 +37,51 @@ type ReleaseInfo struct {
 // ReleaseCheck looks the releases up. It may block and must stop with ctx.
 type ReleaseCheck func(ctx context.Context) (ReleaseInfo, error)
 
-// updateTimeout bounds one release lookup. It is a variable only so a test can shorten it.
-var updateTimeout = 20 * time.Second
+// updateTimeout bounds one release lookup.
+const updateTimeout = 20 * time.Second
 
-// settingsState holds the pages of Settings. The forms are loaded when Settings is shown and dropped when it
-// is left, so a page always starts from what is saved.
+// settingsState holds the pages of Settings. The form of General is loaded when Settings is shown and dropped
+// when it is left, so the page always starts from what is saved.
 type settingsState struct {
-	sub int
-	// editing says a text field of the current page takes the keys.
-	editing bool
-	loaded  bool
-	gen     generalForm
-	upd     updateState
+	sub    int
+	loaded bool
+	gen    *kittui.Form
+	upd    updateState
 }
 
-// General rows: three choices, then one key line per rebindable action in the order of uiprefs.Actions.
+// The values the mouse field offers.
 const (
-	genLanguage = iota
-	genTheme
-	genMouse
-	genKeys
-	genRows = genKeys + 4
+	choiceMouseOn  = "on"
+	choiceMouseOff = "off"
 )
 
-// generalForm is the General page as it is edited.
-type generalForm struct {
-	language, theme, mouse string
-	keys                   [4]textinput.Model
-	focus                  int
-	problems               [4]string
+// The fields and sections of General. A key field is named after its action.
+const (
+	fieldLanguage kittui.FieldID = "language"
+	fieldTheme    kittui.FieldID = "theme"
+	fieldIcons    kittui.FieldID = "icons"
+	fieldStart    kittui.FieldID = "start"
+	fieldMouse    kittui.FieldID = "mouse"
+
+	sectionDisplay kittui.SectionID = "display"
+	sectionKeys    kittui.SectionID = "keys"
+)
+
+func keyFieldID(a action) kittui.FieldID { return kittui.FieldID("key." + string(a)) }
+
+// keyFieldAction is the action of a key field, and false for another field.
+func keyFieldAction(id kittui.FieldID) (action, bool) {
+	for _, a := range rebindable() {
+		if keyFieldID(a) == id {
+			return a, true
+		}
+	}
+	return "", false
+}
+
+// keyLabelID is the label of the key field of a rebindable action.
+func keyLabelID(a action) textID {
+	return map[action]textID{actSave: tLblKeySave, actHelp: tLblKeyHelp, actCommand: tLblKeyCommand, actInfo: tLblKeyInfo}[a]
 }
 
 type updatePhase int
@@ -90,74 +107,98 @@ type updateMsg struct {
 	err  error
 }
 
-func keyInput(value string) textinput.Model {
-	in := newTextInput()
-	in.Prompt = ""
-	in.SetValue(value)
-	return in
+// choiceOr is value where valid holds it and fallback otherwise, so a form never opens on a value it does not
+// offer.
+func choiceOr(value string, valid []string, fallback string) kittui.ChoiceID {
+	if slices.Contains(valid, value) {
+		return kittui.ChoiceID(value)
+	}
+	return kittui.ChoiceID(fallback)
 }
 
-// loadForms builds the forms of Settings from what is saved, once per visit.
+// generalFields are the fields of General as prefs hold them: fixed choices and one key field per rebindable
+// action, in the order of rebindable.
+func (m *Model) generalFields(prefs kitprefs.Prefs) []kittui.FormField {
+	languages := []string{kitprefs.LanguageEnglish, kitprefs.LanguageGerman, kitprefs.LanguageSystem}
+	icons := []string{kitprefs.IconsUnicode, kitprefs.IconsNerdFont, kitprefs.IconsNone}
+	theme, _ := m.ui.knownTheme(prefs.Theme)
+	starts := make([]kittui.Choice, areaCount)
+	for a := area(0); a < areaCount; a++ {
+		starts[a] = kittui.Choice{ID: kittui.ChoiceID(a.id()), Label: a.titleID()}
+	}
+	choice := func(id kittui.FieldID, label textID, choices []kittui.Choice, value kittui.ChoiceID) kittui.FormField {
+		return kittui.FormField{ID: id, Section: sectionDisplay, Kind: kittui.FieldChoice, Label: label, Choices: choices,
+			Value: kittui.FormValue{Choice: value}}
+	}
+	fields := []kittui.FormField{
+		choice(fieldLanguage, tLblLanguage, literalChoices(languages...), choiceOr(prefs.Language, languages, kitprefs.LanguageEnglish)),
+		choice(fieldTheme, tLblTheme, literalChoices(m.ui.themes.Names()...), kittui.ChoiceID(theme)),
+		choice(fieldIcons, tLblIcons, literalChoices(icons...), choiceOr(prefs.Icons, icons, kitprefs.IconsUnicode)),
+		choice(fieldStart, tLblStart, starts, choiceOr(prefs.Start, areaIDs(), areaOverview.id())),
+		choice(fieldMouse, tLblMouse, literalChoices(choiceMouseOn, choiceMouseOff), kittui.ChoiceID(mouseChoice(prefs))),
+	}
+	for _, a := range rebindable() {
+		fields = append(fields, kittui.FormField{ID: keyFieldID(a), Section: sectionKeys, Kind: kittui.FieldKey,
+			Label: keyLabelID(a), Value: kittui.FormValue{Text: m.prefKey(prefs.Keys, a)}, Hint: tSetKeyHint})
+	}
+	return fields
+}
+
+// loadForms builds the form of General from what is saved, once per visit. Its fields come from the code and
+// from preferences already checked, so a form the kit refuses is a defect of this package.
 func (m *Model) loadForms() {
 	if m.set.loaded {
 		return
 	}
-	m.set.loaded, m.set.editing = true, false
-	g := &m.set.gen
-	*g = generalForm{language: m.prefs.Language, mouse: uiprefs.ChoiceMouseOn}
-	if g.language == "" {
-		g.language = uiprefs.LanguageEnglish
+	sections := []kittui.FormSection{{ID: sectionDisplay, Title: tSecDisplay}, {ID: sectionKeys, Title: tSecKeys}}
+	form, err := m.newForm(m.generalFields(m.prefs), sections)
+	if err != nil {
+		panic(fmt.Sprintf("the form of General is invalid: %v", err))
 	}
-	g.theme, _ = knownTheme(m.prefs.Theme)
-	if !m.prefs.MouseEnabled() {
-		g.mouse = uiprefs.ChoiceMouseOff
+	m.set.loaded, m.set.gen = true, form
+}
+
+// mouseChoice is the value of the mouse field for prefs.
+func mouseChoice(prefs kitprefs.Prefs) string {
+	if prefs.MouseEnabled {
+		return choiceMouseOn
 	}
-	keys := m.prefs.Keys.WithDefaults()
-	for i, a := range uiprefs.Actions {
-		g.keys[i] = keyInput(keys.Get(a))
-	}
+	return choiceMouseOff
 }
 
 // resetForms drops the forms; the next visit loads them anew.
-func (m *Model) resetForms() { m.set.loaded, m.set.editing, m.set.sub = false, false, 0 }
-
-func (m *Model) generalDirty() bool {
-	g := &m.set.gen
-	prefs := m.prefs
-	language := prefs.Language
-	if language == "" {
-		language = uiprefs.LanguageEnglish
-	}
-	theme, _ := knownTheme(prefs.Theme)
-	mouse := uiprefs.ChoiceMouseOn
-	if !prefs.MouseEnabled() {
-		mouse = uiprefs.ChoiceMouseOff
-	}
-	if g.language != language || g.theme != theme || g.mouse != mouse {
-		return true
-	}
-	keys := prefs.Keys.WithDefaults()
-	for i, a := range uiprefs.Actions {
-		if strings.TrimSpace(g.keys[i].Value()) != keys.Get(a) {
-			return true
-		}
-	}
-	return false
-}
+func (m *Model) resetForms() { m.set.loaded, m.set.gen, m.set.sub = false, nil, 0 }
 
 // settingsDirty reports unsaved input on the page shown.
 func (m *Model) settingsDirty() bool {
 	if m.area != areaSettings || !m.set.loaded {
 		return false
 	}
-	return m.set.sub == subGeneral && m.generalDirty()
+	return m.set.sub == subGeneral && m.set.gen.Changed()
+}
+
+// generalFocused reports whether the form of General takes the keys of the content.
+func (m *Model) generalFocused() bool {
+	return m.screen == screenArea && m.area == areaSettings && m.set.sub == subGeneral && m.set.gen != nil &&
+		m.zoneNow() == zoneContent
+}
+
+// generalCapturing reports whether a key field of General waits for the new key.
+func (m *Model) generalCapturing() bool {
+	return m.area == areaSettings && m.set.sub == subGeneral && m.set.gen != nil && m.set.gen.Capturing()
+}
+
+// generalInner reports whether General shows a level of its own: the open list of a choice or a key field
+// waiting for its key. Only the keys of the form act then.
+func (m *Model) generalInner() bool {
+	return m.generalFocused() && (m.set.gen.Open() || m.set.gen.Capturing())
 }
 
 // setSub shows page sub of Settings, asking first about unsaved input.
 func (m *Model) setSub(sub int) tea.Cmd {
 	sub = (sub + subCount) % subCount
 	return m.guarded(func() tea.Cmd {
-		m.set.sub, m.set.editing = sub, false
+		m.set.sub = sub
 		m.set.loaded = false
 		m.loadForms()
 		m.clearMessages()
@@ -172,9 +213,9 @@ func (m *Model) checkUpdate(force bool) tea.Cmd {
 		return nil
 	}
 	u.phase, u.seq = updChecking, u.seq+1
-	seq, check := u.seq, m.releases
+	seq, check, timeout := u.seq, m.releases, m.updateTimeout
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), updateTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		info, err := check(ctx)
 		return updateMsg{seq, info, err}
@@ -193,141 +234,76 @@ func (m *Model) takeUpdate(msg updateMsg) {
 }
 
 // settingsKeys is the key text of the page shown.
-func (m *Model) settingsKeys() []string {
-	switch m.set.sub {
-	case subGeneral:
-		return []string{"↑/↓ move", "enter edit", "{save} save"}
+func (m *Model) settingsKeys() []kittui.Hint {
+	if m.set.sub != subGeneral || m.set.gen == nil {
+		return hint(tHintCheck, actTest)
 	}
-	return []string{"t check"}
+	g := m.set.gen
+	keys := g.Hints()
+	if _, ok := keyFieldAction(g.Focused()); ok && !g.Open() && !g.Capturing() {
+		keys = append(keys, hint(tHintStandard, actDelete)...)
+	}
+	return keys
 }
 
-// settingsKey handles a key of Settings while no field takes the text. It reports false for a key the area
-// screen handles itself.
+// settingsKey handles a key of the Update page. It reports false for a key the area screen handles itself.
 func (m *Model) settingsKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
-	if keyIs(key, actSave) {
-		return m.saveCurrent(), true
-	}
-	if m.set.sub == subGeneral {
-		return m.generalKey(key)
+	if m.set.sub != subUpdate {
+		return nil, false
 	}
 	switch {
-	case keyIs(key, actTest):
+	case m.keyIs(key, actTest):
 		return m.checkUpdate(true), true
-	case keyIs(key, actUp):
+	case m.keyIs(key, actUp):
 		m.toBar()
 		return nil, true
 	}
 	return nil, false
 }
 
-// formMove moves the focus over the n rows of a Settings form: up and down stop at the ends, and up on the
-// first row goes to the page strip; tab and shift+tab step from field to field and wrap round, as they do
-// while a field is edited.
-func (m *Model) formMove(focus *int, n int, key tea.KeyPressMsg) bool {
-	switch {
-	case keyIs(key, actUp) && *focus <= 0:
-		m.toBar()
-	case keyIs(key, actUp):
-		*focus--
-	case keyIs(key, actDown):
-		*focus = min(*focus+1, n-1)
-	case keyIs(key, actNext):
-		*focus = wrap(*focus+1, n)
-	case keyIs(key, actPrev):
-		*focus = wrap(*focus-1, n)
-	case keyIs(key, actHome):
-		*focus = 0
-	case keyIs(key, actEnd):
-		*focus = n - 1
-	default:
-		return false
-	}
-	return true
-}
-
+// generalKey hands a key of General to its form. The delete key on a key field restores the standard key. It
+// reports false for a key the form leaves to the area screen; up above the first field goes to the page strip.
 func (m *Model) generalKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
-	g := &m.set.gen
-	if m.formMove(&g.focus, genRows, key) {
+	g := m.set.gen
+	if content, ok := pasted(key); ok {
+		return nil, g.Paste(content)
+	}
+	if a, ok := keyFieldAction(g.Focused()); ok && !g.Open() && !g.Capturing() && m.keyIs(key, actDelete) {
+		if err := g.SetValue(g.Focused(), kittui.FormValue{Text: m.prefKey(nil, a)}); err != nil {
+			m.fail = err.Error()
+		}
 		return nil, true
 	}
-	if !keyIs(key, actEnter) {
-		return nil, false
+	inner := g.Open() || g.Capturing()
+	act, handled := g.Update(key)
+	switch {
+	case act == actSave:
+		return m.saveGeneral(), true
+	case handled, inner:
+		return nil, true
+	case m.keyIs(key, actUp):
+		m.toBar()
+		return nil, true
 	}
-	pick := func(id string, values []string, current string, set func(string)) {
-		active := 0
-		for i, v := range values {
-			if v == current {
-				active = i
-			}
-		}
-		m.openDropdown(id, values, active, func(i int) tea.Cmd { set(values[i]); return nil })
-	}
-	switch g.focus {
-	case genLanguage:
-		pick("language", []string{uiprefs.LanguageEnglish, uiprefs.LanguageGerman, uiprefs.LanguageSystem}, g.language,
-			func(v string) { g.language = v })
-	case genTheme:
-		pick("theme", themeNames(), g.theme, func(v string) { g.theme = v })
-	case genMouse:
-		pick("mouse", []string{uiprefs.ChoiceMouseOn, uiprefs.ChoiceMouseOff}, g.mouse, func(v string) { g.mouse = v })
-	default:
-		m.startEditing()
-	}
-	return nil, true
+	return nil, false
 }
 
-// field is the text field under the focus of the page shown, nil when the focus is on none.
-func (m *Model) field() *textinput.Model {
-	if m.set.sub == subGeneral && m.set.gen.focus >= genKeys {
-		return &m.set.gen.keys[m.set.gen.focus-genKeys]
-	}
-	return nil
-}
-
-func (m *Model) startEditing() {
-	if in := m.field(); in != nil {
-		m.set.editing = true
-		in.Focus()
-		in.CursorEnd()
-	}
-}
-
-func (m *Model) stopEditing() {
-	if in := m.field(); in != nil {
-		in.Blur()
-	}
-	m.set.editing = false
-}
-
-// editKey handles a key while a text field takes the text. enter and tab go on to the next field, esc stops
-// editing and keeps what was typed; nothing is saved but by the save key.
-func (m *Model) editKey(key tea.KeyPressMsg) tea.Cmd {
-	in := m.field()
-	if in == nil {
-		m.set.editing = false
+// clickGeneral is a click on a target of the form of General: the kit focuses the field, opens a choice or
+// takes the value clicked.
+func (m *Model) clickGeneral(res kittui.MouseResult) tea.Cmd {
+	if !m.generalReady() {
 		return nil
 	}
-	rows, focus := genRows, &m.set.gen.focus
-	switch {
-	case keyIs(key, actSave):
-		m.stopEditing()
-		return m.saveCurrent()
-	case keyIs(key, actBack):
-		m.stopEditing()
-	case keyIs(key, actEnter), keyIs(key, actNext), keyIs(key, actDown):
-		m.stopEditing()
-		*focus = wrap(*focus+1, rows)
-	case keyIs(key, actPrev), keyIs(key, actUp):
-		m.stopEditing()
-		*focus = wrap(*focus-1, rows)
-	case infoExtra != "" && key.String() == infoExtra:
-		m.openPopup(popInfo)
-	default:
-		var cmd tea.Cmd
-		*in, cmd = in.Update(inputMsg(key))
-		return cmd
+	m.focusRows()
+	if act, _ := m.set.gen.Click(res); act == actSave {
+		return m.saveGeneral()
 	}
 	return nil
+}
+
+// generalReady reports whether General is the page shown with its form loaded.
+func (m *Model) generalReady() bool {
+	return m.screen == screenArea && m.area == areaSettings && m.set.sub == subGeneral && m.set.gen != nil
 }
 
 // saveCurrent saves the page shown.
@@ -340,49 +316,65 @@ func (m *Model) saveCurrent() tea.Cmd {
 }
 
 // saveGeneral stores the preferences on this device. It needs no service: the file is not part of the
-// configuration. Every key is checked first and a problem stands under its line.
+// configuration. Every key is checked first and a problem stands under its field.
 func (m *Model) saveGeneral() tea.Cmd {
-	g := &m.set.gen
-	keys := uiprefs.Keys{}
-	for i, a := range uiprefs.Actions {
-		keys = keys.With(a, uiprefs.Normalize(g.keys[i].Value()))
+	m.clearMessages()
+	g := m.set.gen
+	values := g.Values()
+	typed := map[action]string{}
+	for _, a := range rebindable() {
+		typed[a] = values[keyFieldID(a)].Text
 	}
-	ok := true
-	for i, a := range uiprefs.Actions {
-		norm, err := keys.Check(a, keys.Get(a))
-		g.problems[i] = ""
+	keys := map[action]string{}
+	var problems []kittui.FormProblem
+	for _, a := range rebindable() {
+		others := map[action]string{}
+		for id, key := range typed {
+			if id != a {
+				others[id] = key
+			}
+		}
+		norm, err := m.ui.keys.CheckBinding(a, typed[a], others)
 		if err != nil {
-			g.problems[i], ok = err.Error(), false
+			problems = append(problems, kittui.FormProblem{Field: keyFieldID(a), Cause: err.Error()})
 			continue
 		}
-		keys = keys.With(a, norm)
+		keys[a] = norm
 	}
-	if !ok {
+	if len(problems) > 0 {
+		g.SetProblems(problems)
+		m.status = m.tr(tFormProblems, len(problems))
 		return nil
 	}
 	if m.prefsPath == "" {
-		m.fail = tr(tPrefsNoPath)
+		m.fail = m.tr(tPrefsNoPath)
 		return nil
 	}
+	usable, _ := m.ui.keys.Resolve(keys)
 	next := m.prefs
-	next.Language, next.Theme, next.MouseOff, next.Keys = g.language, g.theme, g.mouse == uiprefs.ChoiceMouseOff, keys
-	if err := uiprefs.Save(m.prefsPath, next); err != nil {
-		m.fail = tr(tPrefsSaveFailed)
+	next.Language, next.Theme = string(values[fieldLanguage].Choice), string(values[fieldTheme].Choice)
+	next.Icons, next.Start = string(values[fieldIcons].Choice), string(values[fieldStart].Choice)
+	next.MouseEnabled, next.Keys = values[fieldMouse].Choice == choiceMouseOn, usable
+	if err := kitprefs.Save(m.prefsPath, next, m.ui.prefsSchema()); err != nil {
+		m.fail = m.tr(tPrefsSaveFailed)
 		return nil
 	}
 	var query tea.Cmd
-	if before, _ := themeNamed(m.prefs.Theme); before.name != next.Theme {
-		query = terminalColourQuery(next.Theme)
-	}
+	before := m.ui.theme
 	m.prefs = next
-	applyTheme(next.Theme)
-	setLanguage(next.Language)
-	applyKeys(next.Keys)
-	m.status = tr(tPrefsSaved)
-	focus := g.focus
+	m.ui.setTheme(next.Theme)
+	if m.ui.theme != before {
+		query = m.ui.terminalColorQuery()
+	}
+	m.ui.setLanguage(kitprefs.Language(next.Language))
+	m.status = m.tr(tPrefsSaved)
+	if warnings := m.bindKeys(); len(warnings) > 0 {
+		m.status = "warning: " + warnings[0]
+	}
+	focus := g.Focused()
 	m.set.loaded = false
 	m.loadForms()
-	m.set.gen.focus = focus
+	m.set.gen.Focus(focus)
 	return query
 }
 
@@ -391,31 +383,44 @@ type leaveAsk struct{ next func() tea.Cmd }
 
 // guarded runs next at once, or after the question when the page shown holds unsaved input.
 func (m *Model) guarded(next func() tea.Cmd) tea.Cmd {
-	if m.screen != screenArea || !(m.settingsDirty()) {
+	dirty := m.screen == screenArea && m.settingsDirty() || m.screen == screenPrompt && m.form != nil && m.form.dirty()
+	if !dirty {
 		return next()
 	}
-	m.set.editing = false
 	m.leave = &leaveAsk{next}
-	m.ask = &question{title: tr(tLeaveTitle), consequence: tr(tLeaveConsequence), warn: true,
-		keys: "{save} save · d discard · {back} keep editing"}
+	m.ask = &question{title: m.tr(tLeaveTitle), consequence: m.tr(tLeaveConsequence), warn: true,
+		keys: keyLine(answer(tHintSave, actSave), answer(tHintDiscard, actDiscard), answer(tHintKeepEditing, actBack))}
 	m.screen = screenConfirm
 	return nil
 }
 
-// updateLeave handles the answer to the leave question: save keeps the person on the page, discard goes on.
+// updateLeave handles the answer to the leave question: save keeps the person on the page or in the form,
+// discard drops the input and goes on, and keep editing goes back to it.
 func (m *Model) updateLeave(key tea.KeyPressMsg) tea.Cmd {
+	form := m.form
 	switch {
-	case keyIs(key, actSave):
+	case m.keyIs(key, actSave):
 		m.closeDialog()
+		if form != nil {
+			m.screen = screenPrompt
+			return m.submitForm(form)
+		}
 		return m.saveCurrent()
-	case keyIs(key, actDiscard):
+	case m.keyIs(key, actDiscard):
 		next := m.leave.next
 		m.closeDialog()
-		m.set.loaded = false
-		m.loadForms()
+		if form != nil {
+			m.closeForm()
+		} else {
+			m.set.loaded = false
+			m.loadForms()
+		}
 		return next()
-	case keyIs(key, actBack), keyIs(key, actNo):
+	case m.keyIs(key, actBack), m.keyIs(key, actNo):
 		m.closeDialog()
+		if form != nil {
+			m.screen = screenPrompt
+		}
 	}
 	return nil
 }

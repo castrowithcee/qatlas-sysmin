@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 var updateGolden = flag.Bool("update", false, "rewrite the golden files")
@@ -21,25 +21,17 @@ var colourSGR = regexp.MustCompile(`\x1b\[[0-9;:]*(?:3[0-9]|4[0-9]|9[0-9]|10[0-7
 func goldenFrame(t *testing.T) *Model {
 	t.Helper()
 	t.Setenv("NO_COLOR", "1")
-	restoreRenderer(t)
-	setProfile(detectProfile(os.Stdout))
-	if currentProfile() != profileNone {
+	if !kittui.DetectColorProfile(os.Stdout, os.Environ()).Colorless() {
 		t.Fatal("NO_COLOR does not switch the colour profile off")
 	}
-	applyTheme(uiprefs.ThemeTerminal)
-	useLanguage(t, "en")
-	m := New(uiprefs.Default(), nil)
+	m := testModel(defaultPrefs(), nil)
 	m.title = "Services"
-	m.table = table{
-		columns: []column{{title: "Name"}, {title: "State"}, {title: "Note", flex: true}},
-		rows: map[string][]string{
-			"example-app": {"example-app", "running", "demo web service"},
-			"demo-db":     {"demo-db", "running", "demo database"},
-			"sample-job":  {"sample-job", "stopped", "demo nightly job"},
-			"test-proxy":  {"test-proxy", "failed", "demo reverse proxy"},
-		},
-	}
-	m.setEntries([]string{"example-app", "demo-db", "sample-job", "test-proxy"}, nil, nil)
+	fillBase(m, []kittui.Column{{Title: "Name"}, {Title: "State"}, {Title: "Note", Flex: true}}, map[string][]string{
+		"example-app": {"example-app", "running", "demo web service"},
+		"demo-db":     {"demo-db", "running", "demo database"},
+		"sample-job":  {"sample-job", "stopped", "demo nightly job"},
+		"test-proxy":  {"test-proxy", "failed", "demo reverse proxy"},
+	}, []string{"example-app", "demo-db", "sample-job", "test-proxy"}, nil)
 	sizedModel(m, 80, 24)
 	press(t, m, "down")
 	return m
@@ -83,6 +75,6 @@ func TestGoldenModal(t *testing.T) {
 	m := goldenFrame(t)
 	m.screen = screenConfirm
 	m.ask = &question{title: "Stop the example service?", consequence: "The demo service stops serving requests.",
-		keys: "y stop · n/{back} cancel"}
+		keys: keyLine(answer("stop", actYes), answer(tHintCancel, actNo, actBack))}
 	assertGolden(t, "modal_80x24", m.render())
 }

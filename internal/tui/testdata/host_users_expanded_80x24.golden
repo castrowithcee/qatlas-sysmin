@@ -1,24 +1,24 @@
 qsysmin                                            [esc] back  [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings 
-  [Users]  Groups   Folders   Changes 
+   1 Overview  [2 Host]  3 Activity   4 Settings                                
+  [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    3/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name        Admin              Docker  Groups                       System ║
-║   ▾ Users (2)                                                                ║
-║   demo-admin  yes                yes     demo-admin, sudo, docker, …         ║
-║   demo-user   yes · not enabled  no      demo-user, sudo, demo-team          ║
-║   ▾ System accounts (1)                                                      ║
-║ > svc-demo    no                 no      svc-demo                     system ║
+║     NAME        ADMIN              DOCKER  GROUPS                     SYSTEM ║
+║   ▾ ■ Users (2)                                                              ║
+║     demo-admin  yes                yes     demo-admin, sudo, docker…         ║
+║     demo-user   yes · not enabled  no      demo-user, sudo, demo-te…         ║
+║   ▾ ■ System accounts (1)                                                    ║
+║ >   svc-demo    no                 no      svc-demo                   system ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-
-
-
-
-
-
-
-
-
-
-enter details  n new  e edit  d delete  esc back  ? help  : cmds  q quit
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+enter details  n new  e edit  d delete  esc back  ? help  : cmds  q quit        

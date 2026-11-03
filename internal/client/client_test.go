@@ -12,9 +12,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castrowithcee/qatlas-kit/localipc"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
+
+// socket listens in a fresh private directory on a socket closed to others, as the channel requires.
+func socket(t *testing.T) (net.Listener, string) {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "qsysmin-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	path := filepath.Join(dir, "s.sock")
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	if err := os.Chmod(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return ln, path
+}
 
 func TestDialFailsWithoutService(t *testing.T) {
 	dir, _ := os.MkdirTemp("", "qsysmin-")
@@ -25,14 +46,7 @@ func TestDialFailsWithoutService(t *testing.T) {
 }
 
 func TestCallReturnsFixedCode(t *testing.T) {
-	dir, _ := os.MkdirTemp("", "qsysmin-")
-	defer os.RemoveAll(dir)
-	path := filepath.Join(dir, "s.sock")
-	ln, err := net.Listen("unix", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
+	ln, path := socket(t)
 	go func() {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -58,13 +72,7 @@ func TestDialNamesASessionWithoutTheGroup(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root is never refused by file permissions")
 	}
-	dir := t.TempDir()
-	path := filepath.Join(dir, "s.sock")
-	ln, err := net.Listen("unix", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
+	_, path := socket(t)
 	if err := os.Chmod(path, 0); err != nil {
 		t.Fatal(err)
 	}
@@ -86,13 +94,7 @@ func TestDialNamesASessionWithoutTheGroup(t *testing.T) {
 // requestsOf answers every request of one connection with success and hands each request on.
 func requestsOf(t *testing.T) (*client.Client, <-chan control.Request) {
 	t.Helper()
-	dir, _ := os.MkdirTemp("", "qsysmin-")
-	t.Cleanup(func() { os.RemoveAll(dir) })
-	ln, err := net.Listen("unix", filepath.Join(dir, "s.sock"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { ln.Close() })
+	ln, path := socket(t)
 	got := make(chan control.Request, 4)
 	go func() {
 		conn, err := ln.Accept()
@@ -112,7 +114,7 @@ func requestsOf(t *testing.T) (*client.Client, <-chan control.Request) {
 			_ = control.WriteLine(conn, control.Response{V: control.Version, OK: true, Result: json.RawMessage(`{"done":[]}`)})
 		}
 	}()
-	c, err := client.Dial(filepath.Join(dir, "s.sock"))
+	c, err := client.Dial(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,14 +125,7 @@ func requestsOf(t *testing.T) (*client.Client, <-chan control.Request) {
 // listen opens a socket in a short temp directory and hands every accepted connection to h.
 func listen(t *testing.T, h func(net.Conn)) string {
 	t.Helper()
-	dir, _ := os.MkdirTemp("", "qsysmin-")
-	t.Cleanup(func() { os.RemoveAll(dir) })
-	path := filepath.Join(dir, "s.sock")
-	ln, err := net.Listen("unix", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { ln.Close() })
+	ln, path := socket(t)
 	go func() {
 		for {
 			conn, err := ln.Accept()
@@ -143,69 +138,37 @@ func listen(t *testing.T, h func(net.Conn)) string {
 	return path
 }
 
-func TestDialRefusesAForeignPeerBeforeSendingAnything(t *testing.T) {
-	received := make(chan int, 1)
+// The channel checks the socket's files before it connects, so a refused socket never sees the caller.
+func TestDialRefusesASocketOpenToOthersBeforeConnecting(t *testing.T) {
+	accepted := make(chan struct{}, 1)
 	path := listen(t, func(conn net.Conn) {
-		defer conn.Close()
-		buf := make([]byte, 64)
-		n, _ := conn.Read(buf) // returns at once with EOF once the client closed
-		received <- n
+		accepted <- struct{}{}
+		conn.Close()
 	})
-	own := uint32(os.Geteuid())
-	defer client.SetPeer(4321, own+1, own+2, true)()
+	if err := os.Chmod(path, 0o666); err != nil {
+		t.Fatal(err)
+	}
 	c, err := client.Dial(path)
 	if err == nil {
 		c.Close()
 		t.Fatal("dial succeeded")
 	}
-	var pe *client.PeerError
-	if !errors.As(err, &pe) || pe.PID != 4321 || pe.UID != own+1 || pe.Silent {
+	if !errors.Is(err, localipc.ErrRefused) {
 		t.Fatalf("err = %v", err)
 	}
-	for _, want := range []string{"pid 4321", "uid", "sudo kill 4321", "sudo systemctl restart qsysmin"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("error %q lacks %q", err, want)
+	select {
+	case <-accepted:
+		t.Error("the listener was reached")
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestDialRefusesAPathTheChannelCannotName(t *testing.T) {
+	for _, path := range []string{"relative/s.sock", "/run/qsysmin/qsysmin"} {
+		if c, err := client.Dial(path); err == nil {
+			c.Close()
+			t.Errorf("%q accepted", path)
 		}
-	}
-	if n := <-received; n != 0 {
-		t.Errorf("the peer received %d bytes", n)
-	}
-}
-
-func TestDialFailsClosedWithoutPeerCredentials(t *testing.T) {
-	path := listen(t, func(conn net.Conn) { conn.Close() })
-	defer client.FailPeerRead()()
-	if c, err := client.Dial(path); err == nil {
-		c.Close()
-		t.Fatal("dial succeeded")
-	}
-}
-
-func TestDialAllowsTheCallerAndTheServiceUser(t *testing.T) {
-	path := listen(t, func(conn net.Conn) { conn.Close() })
-	own := uint32(os.Geteuid())
-	for name, c := range map[string]struct {
-		uid, svc uint32
-		exists   bool
-	}{
-		"own uid":                      {own, own + 1, true},
-		"own uid without service user": {own, 0, false},
-		"service user":                 {own + 7, own + 7, true},
-	} {
-		t.Run(name, func(t *testing.T) {
-			defer client.SetPeer(99, c.uid, c.svc, c.exists)()
-			cl, err := client.Dial(path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			cl.Close()
-		})
-	}
-	// Without a service user only the caller is allowed.
-	defer client.SetPeer(99, own+7, own+7, false)()
-	if cl, err := client.Dial(path); err == nil {
-		cl.Close()
-		t.Fatal("a foreign uid was allowed without a service user")
 	}
 }
 
@@ -279,14 +242,7 @@ func TestAnswerAfterTheFirstOneMayTakeLonger(t *testing.T) {
 // answering serves one connection that answers every request with code.
 func answering(t *testing.T, code string) string {
 	t.Helper()
-	dir, _ := os.MkdirTemp("", "qsysmin-")
-	t.Cleanup(func() { os.RemoveAll(dir) })
-	path := filepath.Join(dir, "s.sock")
-	ln, err := net.Listen("unix", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { ln.Close() })
+	ln, path := socket(t)
 	go func() {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -304,13 +260,7 @@ func TestDialSocketPermissionNamesTheCallersStanding(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root is never refused by file permissions")
 	}
-	dir := t.TempDir()
-	path := filepath.Join(dir, "s.sock")
-	ln, err := net.Listen("unix", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
+	_, path := socket(t)
 	if err := os.Chmod(path, 0); err != nil {
 		t.Fatal(err)
 	}

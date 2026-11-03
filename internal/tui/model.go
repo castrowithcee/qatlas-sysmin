@@ -9,8 +9,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/castrowithcee/qatlas-kit/redact"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // The defaults bridge the first frame until the terminal reports its real size, which it does before a
@@ -50,29 +51,25 @@ const (
 // Model is the state of the editor frame: the list in the workspace and the dialog over it. Areas of the
 // editor put their rows into list and their dialogs into ask or dialog.
 type Model struct {
-	prefs    uiprefs.Prefs
+	prefs    kitprefs.Prefs
 	redactor *redact.Redactor
+	// ui holds the keys the screens read.
+	ui *uiContext
 
 	screen screen
-	// title heads the list; table lays its entries out as columns.
+	// title heads the list of the bare frame, which base holds.
 	title string
-	table table
-	list  filterList
-	// groups is the grouping of list, nil while it is flat; folds keeps the fold state of each group.
-	groups *listGroups
-	folds  map[string]bool
+	base  dataPage
 	// ask is the question of screenConfirm, dialog the input dialog of screenPrompt.
 	ask    *question
 	dialog *promptDialog
-	// dd is the open list of a dropdown field (see dropdown.go).
-	dd *dropdown
 
 	// home is the base screen: screenList for the bare frame, screenArea once enableAreas ran.
 	home screen
 	// area is the current area of screenArea and zone the part of it that takes the keys; backend serves it;
 	// svc is what the service last reported.
 	area    area
-	zone    zone
+	zone    kittui.FocusZone
 	backend Backend
 	svc     svcState
 	// confirm is the question of screenConfirm that waits for y, nil while there is none.
@@ -113,7 +110,7 @@ type Model struct {
 
 	// screenKeys and screenPos are what the screen drawn last hands to the footer: its key line and its
 	// position, such as "3/12".
-	screenKeys string
+	screenKeys []kittui.Hint
 	screenPos  string
 
 	// termWidth and termHeight are what the terminal reported. width and height are the room of the
@@ -121,13 +118,11 @@ type Model struct {
 	termWidth, termHeight int
 	width, height         int
 
-	// The click targets of the frame drawn last; see mouse.go.
-	hits, frameHits []hit
-	// zoneHits are the click targets of the zones, which rank beneath every other target; wheelHits are the
-	// areas the wheel scrolls under the pointer.
-	zoneHits    []hit
-	wheelHits   []wheelHit
-	footerSpans []footerSpan
+	// mt are the targets of the frame being drawn and mouse the map of the frame drawn last; see mouse.go.
+	mt    mouseTargets
+	mouse *kittui.MouseMap
+	// footerTargets are the keys of the footer drawn last, clickable where they answer a dialog.
+	footerTargets []kittui.Target
 	// footerLog collects the key lines a dialog draws itself, so its keys can be clicked as buttons.
 	footerLog *[]footerLine
 	// inModal and inPanel say that a dialog is drawn into a modal or a panel; backdrop, that the frame is
@@ -139,41 +134,57 @@ type Model struct {
 	// denied is the error that took the access away while the interface ran; Run returns it after the quit.
 	denied error
 	// updateTo is the release the person quit to install; Run reports it.
-	updateTo  string
-	wheelSeen wheelSeen
-	// now is the clock of the wheel filter; nil means time.Now.
+	updateTo string
+	// now is the clock of the editor; nil means time.Now.
 	now func() time.Time
+	// hostUID is the user running the interface, for the early message about taking admin from oneself.
+	hostUID func() int
+	// tickEvery is how often the header looks at the service, updateTimeout how long a release lookup may
+	// take; tests shorten them.
+	tickEvery, updateTimeout time.Duration
 }
 
-// New returns the frame with an empty list. A nil redactor is read as one that knows no secret.
-func New(prefs uiprefs.Prefs, redactor *redact.Redactor) *Model {
-	if prefs == (uiprefs.Prefs{}) {
-		prefs = uiprefs.Default()
-	}
+// newModel returns the frame with an empty list and the default keys, in the language and the theme of prefs,
+// for a terminal of the given colour profile and character set. Preferences without a theme, such as the zero
+// value, are read as the defaults; a nil redactor as one that knows no secret. A theme this version does not
+// have draws the terminal theme.
+func newModel(prefs kitprefs.Prefs, redactor *redact.Redactor, profile kittui.ColorProfile, charset kittui.CharsetMode) *Model {
 	if redactor == nil {
 		redactor = &redact.Redactor{}
 	}
-	m := &Model{prefs: prefs, redactor: redactor, list: newFilterList(func(name string) string { return name })}
+	ui := newUIContext(profile, charset)
+	if prefs.Theme == "" {
+		prefs = kitprefs.Default(ui.prefsSchema())
+	}
+	m := &Model{prefs: prefs, redactor: redactor, ui: ui, hostUID: os.Getuid, tickEvery: tickEvery,
+		updateTimeout: updateTimeout}
+	m.ui.setLanguage(kitprefs.Language(prefs.Language))
+	m.ui.setTheme(prefs.Theme)
 	m.ovr.reset()
 	return m
 }
 
-// Init asks the terminal for its colours where the theme mixes from them.
+// Init asks the terminal for its colours where the theme mixes from them, and for what the start area shows;
+// the overview reads its data once the service has answered.
 func (m *Model) Init() tea.Cmd {
 	if m.backend == nil {
-		return terminalColourQuery(m.prefs.Theme)
+		return m.ui.terminalColorQuery()
 	}
-	return tea.Batch(terminalColourQuery(m.prefs.Theme), m.statusCmd(), tickCmd(), m.checkUpdate(false))
+	cmds := []tea.Cmd{m.ui.terminalColorQuery(), m.statusCmd(), m.tickCmd(), m.checkUpdate(false)}
+	if m.area != areaOverview {
+		cmds = append(cmds, m.enterPage())
+	}
+	return tea.Batch(cmds...)
 }
 
 // Update handles one message.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	defer m.layoutWorkspace()
 	switch msg := msg.(type) {
-	case keysMsg:
+	case kittui.InputBatch:
 		var cmds []tea.Cmd
-		for _, key := range msg {
-			_, cmd := m.Update(key)
+		for _, in := range msg {
+			_, cmd := m.Update(in)
 			cmds = append(cmds, cmd)
 		}
 		return m, tea.Batch(cmds...)
@@ -190,10 +201,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.dataWant()
 	case tea.BackgroundColorMsg, tea.ForegroundColorMsg:
-		m.takeTerminalColour(msg)
+		m.ui.takeTerminalColor(msg)
 		return m, nil
 	case tea.KeyPressMsg:
 		return m, m.updateKey(m.moveKey(legacyKey(msg)))
+	case tea.PasteMsg:
+		// A paste travels through the key handlers as one key no binding matches.
+		return m, m.updateKey(pasteKey(msg.Content))
 	case statusMsg:
 		return m, m.takeStatus(msg)
 	case tickMsg:
@@ -226,14 +240,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // updateKey handles one key press: first the open dropdown and dialogs, then the list.
 func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
-	if keyIs(key, actForceQuit) {
-		if m.screen == screenArea && m.dd == nil {
+	if m.keyIs(key, actForceQuit) {
+		if m.screen == screenArea || m.screen == screenPrompt && m.form != nil {
 			return m.guarded(m.quit)
 		}
 		return m.quit()
-	}
-	if m.dd != nil {
-		return m.updateDropdown(key)
 	}
 	if m.screen == screenPopup {
 		return m.updatePopup(key)
@@ -252,50 +263,23 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	}
 	switch m.screen {
 	case screenConfirm, screenPrompt:
-		if keyIs(key, actBack) || keyIs(key, actNo) {
+		if m.keyIs(key, actBack) || m.keyIs(key, actNo) {
 			m.closeDialog()
 		}
 		return nil
 	}
-	if m.list.editing {
-		switch {
-		case keyIs(key, actEnter):
-			m.list.stopFilter()
-		case keyIs(key, actBack):
-			m.list.clearFilter()
-		case keyIs(key, actUp):
-			m.list.move(-1)
-		case keyIs(key, actDown):
-			m.list.move(1)
-		default:
-			return m.list.updateFilter(key)
-		}
-		return nil
+	p := &m.base
+	if p.filtering() {
+		return m.filterKey(p, key)
 	}
 	switch {
-	case keyIs(key, actQuit):
+	case m.keyIs(key, actQuit):
 		return m.quit()
-	case keyIs(key, actSearch) || keyIs(key, actFilter):
-		m.list.startFilter()
-	case keyIs(key, actBack):
-		m.list.clearFilter()
-	case keyIs(key, actUp):
-		m.list.move(-1)
-	case keyIs(key, actDown):
-		m.list.move(1)
-	case keyIs(key, actPageUp), keyIs(key, actPageDown):
-		start, end := m.listWindow()
-		m.list.page(key, start, end)
-	case keyIs(key, actHome):
-		m.list.jump(-len(m.list.matches))
-	case keyIs(key, actEnd):
-		m.list.jump(len(m.list.matches))
-	case keyIs(key, actCopy):
+	case m.keyIs(key, actCopy):
 		return m.copyCurrent()
-	default:
-		m.foldKey(key)
 	}
-	return nil
+	cmd, _ := m.pageKey(p, key)
+	return cmd
 }
 
 // quit ends the program.
@@ -321,14 +305,8 @@ func (m *Model) closeDialog() {
 // clearMessages forgets the status and the error of the last action.
 func (m *Model) clearMessages() { m.status, m.fail = "", "" }
 
-// selected is the name under the cursor of the list.
-func (m *Model) selected() (string, bool) {
-	name, ok := m.list.selected()
-	if !ok || isGroupRow(name) {
-		return "", false
-	}
-	return name, true
-}
+// selected is the name of the marked row of the bare list.
+func (m *Model) selected() (string, bool) { return m.base.current() }
 
 // View draws the frame on the alternate screen, so it stays a fixed window and the shell is left as it was.
 func (m *Model) View() tea.View {
@@ -349,10 +327,10 @@ func (m *Model) render() string {
 // renderCursor is render together with the cell of the terminal cursor, nil without a focused text field.
 func (m *Model) renderCursor() (string, *tea.Cursor) {
 	view, cursor := takeCursor(m.renderFrame())
-	if styles.filled && view != "" {
-		view = paintCanvas(view, styles.canvasPrefix(), m.termWidth, m.termHeight)
+	if view != "" {
+		view = m.ui.styles.Paint(view, m.termWidth, m.termHeight)
 	}
-	return shown(view), cursor
+	return m.ui.shown(view), cursor
 }
 
 // renderFrame is the frame before the base colour of the theme is applied.
@@ -360,11 +338,15 @@ func (m *Model) renderFrame() string {
 	if m.quitting {
 		return ""
 	}
-	m.hits, m.frameHits, m.zoneHits, m.wheelHits, m.tooSmall = nil, nil, nil, nil, false
-	if m.dd != nil {
-		m.dd.placed = false
-	}
-	m.screenKeys, m.screenPos = "", ""
+	m.mt, m.tooSmall = mouseTargets{}, false
+	view := m.drawFrame()
+	m.mouse = kittui.NewMouseMap(m.mt.targets, m.mouseEnabled() && !m.tooSmall)
+	return view
+}
+
+// drawFrame draws the frame of the screen shown and collects its targets.
+func (m *Model) drawFrame() string {
+	m.screenKeys, m.screenPos = nil, ""
 	m.layoutWorkspace()
 	if m.terminalTooSmall() {
 		m.tooSmall = true
@@ -384,7 +366,7 @@ func (m *Model) renderFrame() string {
 		m.hitFormWheel(0, m.workspaceTop(), m.termWidth, m.termHeight)
 		return view
 	}
-	return m.overlayDropdown(m.frame(m.workspaceView()))
+	return m.frame(m.workspaceView())
 }
 
 // workspaceView is the screen of the workspace.
@@ -393,12 +375,30 @@ func (m *Model) workspaceView() string {
 	case m.screen == screenArea:
 		return m.boundView(m.areaView())
 	case m.questionScreen():
-		return m.boundKeepingKeys(m.framedQuestion(m.questionView), m.width, m.height) + m.notes()
+		return m.boundKeepingKeys(m.framedQuestion(m.questionView), m.width, m.height)
 	case m.promptScreen():
 		d, _ := m.prompt()
 		return m.boundKeepingKeys(m.promptView(d), m.width, m.height)
 	}
 	return m.boundView(m.listView())
+}
+
+// listView draws the bare list: its title and its table.
+func (m *Model) listView() string {
+	p := &m.base
+	keys := keyLine(navHint(tHintMove, actUp, actDown), hint(tHintFilter, actSearch), hint(tHintQuit, actQuit))
+	if p.filtering() {
+		keys = keyLine(hint(tHintTypeToFilter), navHint(tHintMove, actUp, actDown), hint(tHintKeepFilter, actEnter),
+			hint(tHintClearFilter, actBack))
+	}
+	m.keyHint(keys)
+	position := ""
+	if p.list != nil {
+		position = p.list.Position()
+	}
+	m.screenPos = position
+	spec := dataSpec{title: m.title, gap: true, note: m.tr(tListEmpty)}
+	return strings.Join(m.tableBlock(p, spec, m.usable(0), m.height, m.workspaceTop(), position, true), "\n")
 }
 
 func (m *Model) terminalTooSmall() bool {
@@ -407,53 +407,16 @@ func (m *Model) terminalTooSmall() bool {
 
 // resizeView is the notice that replaces the screen while the terminal is smaller than the editor needs.
 func (m *Model) resizeView() string {
-	way := "q quit"
+	way := hint(tHintQuit, actQuit)
 	if m.screen != m.home {
-		way = "{back} leave"
+		way = hint(tHintLeave, actBack)
 	}
 	// The way out comes first, so it is the last thing a terminal of a single row loses.
 	lines := []string{
-		styles.key.Render(footerKeys(way)),
-		styles.warning.Render(warnMark + " " + tr(tResizeTitle)),
-		styles.hint.Render("  " + tr(tResizeNeed, minimumWidth, minimumHeight)),
-		styles.hint.Render("  " + tr(tResizeNow, m.termWidth, m.termHeight)),
+		m.ui.st(kittui.StyleKey).Render(m.hintText(way)),
+		m.ui.st(kittui.StyleWarn).Render(warnMark + " " + m.tr(tResizeTitle)),
+		m.ui.st(kittui.StyleHint).Render("  " + m.tr(tResizeNeed, minimumWidth, minimumHeight)),
+		m.ui.st(kittui.StyleHint).Render("  " + m.tr(tResizeNow, m.termWidth, m.termHeight)),
 	}
 	return m.boundTo(strings.Join(lines, "\n"), m.termWidth, m.termHeight)
-}
-
-// notes are the lines under every screen: what is still running, and what the last action did.
-func (m *Model) notes() string {
-	out := ""
-	if m.busy != "" {
-		out += "\n\n" + m.wrapped(styles.hint, tr(tNoteRunning, m.busy))
-	}
-	if m.fail != "" {
-		out += "\n\n" + m.wrapped(styles.fail, tr(tNoteError, m.fail))
-	} else if m.status != "" {
-		out += "\n\n" + m.wrapped(styles.hint, m.status)
-	}
-	return out
-}
-
-// searchLine shows the filter of l behind the given label.
-func (m *Model) searchLine(l *filterList, label string) string {
-	return m.searchLineIn(m.usable(0), l, label)
-}
-
-// searchLineIn is searchLine within the first room cells of the workspace.
-func (m *Model) searchLineIn(room int, l *filterList, label string) string {
-	prefix, width := m.fitIn(room, label)
-	l.input.Placeholder = tr(tLogSearchPlaceholder)
-	if !l.editing {
-		return prefix + truncateCells(l.query(), width)
-	}
-	return prefix + inputView(fitInput(l.input, width))
-}
-
-// wrap is i taken into 0..n-1: past either end it comes round.
-func wrap(i, n int) int {
-	if n <= 0 {
-		return 0
-	}
-	return ((i % n) + n) % n
 }

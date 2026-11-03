@@ -3,20 +3,20 @@ package tui
 import (
 	"errors"
 	"os"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/castrowithcee/qatlas-kit/redact"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // Options is what Run needs to start the editor on a terminal.
 type Options struct {
 	// Prefs are the device-local preferences; the zero value is read as the defaults.
-	Prefs uiprefs.Prefs
+	Prefs kitprefs.Prefs
 	// PrefsWarnings are problems found while loading Prefs; the editor shows the first one at start.
 	PrefsWarnings []string
 	// Redactor holds the secrets that must never reach the screen or the clipboard; nil knows none.
@@ -59,24 +59,14 @@ func Run(opts Options) error {
 		}
 	}
 	prefs := opts.Prefs
-	if prefs == (uiprefs.Prefs{}) {
-		prefs = uiprefs.Default()
-	}
-	setProfile(detectProfile(opts.Out))
-	known, themeWarning := knownTheme(prefs.Theme)
-	prefs.Theme = known
-	applyTheme(prefs.Theme)
-	setLanguage(prefs.Language)
+	profile := kittui.DetectColorProfile(opts.Out, os.Environ())
+	model := newModel(prefs, opts.Redactor, profile, kittui.DetectCharsetMode(os.Environ()))
 	warnings := opts.PrefsWarnings
-	if themeWarning != "" {
-		warnings = append(warnings, themeWarning)
+	if known, warning := model.ui.knownTheme(prefs.Theme); warning != "" {
+		model.prefs.Theme = known
+		warnings = append(warnings, warning)
 	}
-	if err := prefs.Keys.WithDefaults().Validate(); err != nil {
-		warnings = append(warnings, "keys: "+err.Error()+", using the standard keys")
-		prefs.Keys = uiprefs.DefaultKeys()
-	}
-	applyKeys(prefs.Keys)
-	model := New(prefs, opts.Redactor)
+	warnings = append(warnings, model.bindKeys()...)
 	model.prefsPath, model.version, model.releases = opts.PrefsPath, opts.Version, opts.Releases
 	model.hostSrc = opts.Host
 	model.hostRun, model.hostReg = opts.HostRun, opts.HostActions
@@ -90,10 +80,10 @@ func Run(opts Options) error {
 	if len(warnings) > 0 {
 		model.status = "warning: " + warnings[0]
 	}
-	fragments := newFragmentFilter(time.Now)
-	program := tea.NewProgram(model, tea.WithInput(opts.In), tea.WithOutput(legacyKeys{opts.Out}),
-		tea.WithFilter(fragments.filter), tea.WithColorProfile(toColorprofile(currentProfile())))
-	fragments.send = program.Send
+	input := kittui.NewInputFilter(nil)
+	program := tea.NewProgram(model, tea.WithInput(opts.In), tea.WithOutput(newLegacyKeys(opts.Out)),
+		tea.WithFilter(input.Filter), tea.WithColorProfile(toColorprofile(profile)))
+	input.Attach(program.Send)
 	final, err := program.Run()
 	if fm, ok := final.(*Model); ok && err == nil {
 		switch {

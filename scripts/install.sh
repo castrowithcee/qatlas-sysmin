@@ -116,7 +116,7 @@ main() {
 
 	mkdir "$tmp/extract"
 	tar -xzf "$tmp/$archive" -C "$tmp/extract" --no-same-owner || fail 'could not extract the archive; nothing was installed'
-	for file in bin/qsysmin lib/systemd/system/qsysmin.service; do
+	for file in bin/qsysmin lib/systemd/system/qsysmin.service share/man/man1/qsysmin.1; do
 		[ -f "$tmp/extract/$file" ] && [ ! -L "$tmp/extract/$file" ] ||
 			fail "archive does not contain $file; nothing was installed"
 	done
@@ -124,6 +124,7 @@ main() {
 	# Verified: from here on the system is changed.
 	bin_dir=$root/usr/local/bin
 	unit_dir=$root/etc/systemd/system
+	man_dir=$root/usr/local/share/man/man1
 	state_dir=$root/var/lib/qsysmin
 	if [ -f "$unit_dir/qsysmin.service" ]; then fresh=; else fresh=1; fi
 
@@ -144,13 +145,14 @@ main() {
 		operator=$SUDO_USER
 	fi
 
-	mkdir -p "$state_dir" "$bin_dir" "$unit_dir"
+	mkdir -p "$state_dir" "$bin_dir" "$unit_dir" "$man_dir"
 	chown "$service_user:$service_user" "$state_dir"
 	chmod 0700 "$state_dir"
 
 	# Temporary files sit next to their targets, so every mv is an atomic rename; the unit goes first so a
 	# running service never meets a new binary with an old unit.
 	place "$tmp/extract/lib/systemd/system/qsysmin.service" "$unit_dir/qsysmin.service" 0644
+	place "$tmp/extract/share/man/man1/qsysmin.1" "$man_dir/qsysmin.1" 0644
 	place "$tmp/extract/bin/qsysmin" "$bin_dir/qsysmin" 0755
 
 	systemctl daemon-reload

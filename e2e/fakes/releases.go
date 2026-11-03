@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-const releaseRoot = "/srv/releases"
+var releaseRoot = "/srv/releases"
 
 // qsysminRepo is the only repository the fake knows; its releases come from the directories under releaseRoot
 // (one directory per tag holding the release assets).
@@ -39,7 +39,7 @@ type apiRelease struct {
 }
 
 var (
-	apiPath      = regexp.MustCompile(`^/repos/([^/]+/[^/]+)/releases(?:/(latest)|/tags/([^/]+)|/assets/([^/]+)/([^/]+))?$`)
+	apiPath      = regexp.MustCompile(`^/repos/([^/]+/[^/]+)/releases(?:/(latest)|/tags/([^/]+)|/assets/([0-9]+))?$`)
 	downloadPath = regexp.MustCompile(`^(?:/[^/]+/[^/]+)?/releases/(?:download/([^/]+)|latest/download)/([^/]+)$`)
 	latestPath   = regexp.MustCompile(`^((?:/[^/]+/[^/]+)?/releases)/latest$`)
 	tagPath      = regexp.MustCompile(`^(?:/[^/]+/[^/]+)?/releases/tag/([^/]+)$`)
@@ -58,7 +58,7 @@ func serveReleases(w http.ResponseWriter, r *http.Request) {
 		serveFile(w, r, filepath.Join(releaseRoot, "install.sh"))
 	case apiPath.MatchString(path):
 		m := apiPath.FindStringSubmatch(path)
-		serveAPI(w, r, m[1], m[2], m[3], m[4], m[5])
+		serveAPI(w, r, m[1], m[2], m[3], m[4])
 	case downloadPath.MatchString(path):
 		m := downloadPath.FindStringSubmatch(path)
 		tag := m[1]
@@ -89,15 +89,22 @@ func serveFile(w http.ResponseWriter, r *http.Request, path string) {
 	http.ServeFile(w, r, path)
 }
 
-func serveAPI(w http.ResponseWriter, r *http.Request, repo, latest, tag, assetTag, assetName string) {
-	releases, ok := releasesOf(repo, r.Host)
+func serveAPI(w http.ResponseWriter, r *http.Request, repo, latest, tag, assetID string) {
+	releases, ok := releasesOf(repo, requestScheme(r), r.Host)
 	if !ok {
 		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
 		return
 	}
 	switch {
-	case assetName != "":
-		serveFile(w, r, filepath.Join(releaseRoot, filepath.Base(assetTag), filepath.Base(assetName)))
+	case assetID != "":
+		id, _ := strconv.Atoi(assetID)
+		for _, a := range assetFiles() {
+			if a.id == id {
+				serveFile(w, r, filepath.Join(releaseRoot, a.tag, a.name))
+				return
+			}
+		}
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
 	case latest != "":
 		for _, rel := range releases {
 			if !rel.Prerelease && !rel.Draft {
@@ -125,32 +132,61 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// releasesOf returns the releases of repo, newest first. Asset URLs point back at host, so a client that
-// only trusts its configured origin follows them.
-func releasesOf(repo, host string) ([]apiRelease, bool) {
-	if repo != qsysminRepo {
-		return nil, false
+func requestScheme(r *http.Request) string {
+	if r.TLS == nil {
+		return "http"
 	}
-	tags := tagDirs()
-	out := make([]apiRelease, 0, len(tags))
-	for _, tag := range tags {
-		rel := apiRelease{
-			TagName: tag, Name: "qsysmin " + tag, Prerelease: strings.Contains(tag, "-"),
-			Body:        "Invented test release " + tag + ".",
-			HTMLURL:     "https://" + host + "/" + repo + "/releases/tag/" + tag,
-			PublishedAt: "2026-04-01T10:00:00Z",
-		}
+	return "https"
+}
+
+// assetFile is one regular file of a release. GitHub addresses assets by a numeric ID, so the fake numbers
+// the files in the order of tagDirs and then by name.
+type assetFile struct {
+	id        int
+	tag, name string
+	size      int64
+}
+
+func assetFiles() []assetFile {
+	var out []assetFile
+	for _, tag := range tagDirs() {
 		entries, _ := os.ReadDir(filepath.Join(releaseRoot, tag))
 		for _, e := range entries {
 			info, err := e.Info()
 			if err != nil || !info.Mode().IsRegular() {
 				continue
 			}
+			out = append(out, assetFile{id: len(out) + 1, tag: tag, name: e.Name(), size: info.Size()})
+		}
+	}
+	return out
+}
+
+// releasesOf returns the releases of repo, newest first. Asset URLs point back at host under the numeric
+// asset path of the API, so a client that only trusts its configured origin follows them.
+func releasesOf(repo, scheme, host string) ([]apiRelease, bool) {
+	if repo != qsysminRepo {
+		return nil, false
+	}
+	tags := tagDirs()
+	files := assetFiles()
+	out := make([]apiRelease, 0, len(tags))
+	for _, tag := range tags {
+		rel := apiRelease{
+			TagName: tag, Name: "qsysmin " + tag, Prerelease: strings.Contains(tag, "-"),
+			Body:        "Invented test release " + tag + ".",
+			HTMLURL:     scheme + "://" + host + "/" + repo + "/releases/tag/" + tag,
+			PublishedAt: "2026-04-01T10:00:00Z",
+		}
+		for _, f := range files {
+			if f.tag != tag {
+				continue
+			}
 			rel.Assets = append(rel.Assets, apiAsset{
-				Name:        e.Name(),
-				URL:         "https://" + host + "/repos/" + repo + "/releases/assets/" + tag + "/" + e.Name(),
-				BrowserURL:  "https://" + host + "/" + repo + "/releases/download/" + tag + "/" + e.Name(),
-				Size:        info.Size(),
+				Name:        f.name,
+				URL:         scheme + "://" + host + "/repos/" + repo + "/releases/assets/" + strconv.Itoa(f.id),
+				BrowserURL:  scheme + "://" + host + "/" + repo + "/releases/download/" + tag + "/" + f.name,
+				Size:        f.size,
 				ContentType: "application/octet-stream",
 			})
 		}

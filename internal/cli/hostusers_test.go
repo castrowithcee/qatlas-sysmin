@@ -156,7 +156,7 @@ func TestHostApplyUserActionsKeepPasswordsAndKeysOutOfEverything(t *testing.T) {
 	var outputs []string
 	// The key cannot be written by the fake host, so the check fails and the account is deleted again; the
 	// report of that path is checked as well.
-	code, out, errOut := runChange(t, f, 0, string(input)+"\n", "host", "apply", "--yes", "--output", "json", "--", "user.create", "demo-new")
+	code, out, errOut := runChange(t, f, 0, string(input)+"\n", "host", "apply", "--confirm", "--output", "json", "--", "user.create", "demo-new")
 	outputs = append(outputs, out, errOut)
 	m := decode(t, out)
 	if code != 1 || m["result"] != "restored" || !strings.Contains(m["check_error"].(string), "SSH key") {
@@ -166,12 +166,12 @@ func TestHostApplyUserActionsKeepPasswordsAndKeysOutOfEverything(t *testing.T) {
 		t.Errorf("commands %v", cmds)
 	}
 
-	code, out, errOut = runChange(t, f, 0, marker+"-2\n", "host", "apply", "--yes", "--output", "json", "--", "user.set-password", "demo-user", "must-change")
+	code, out, errOut = runChange(t, f, 0, marker+"-2\n", "host", "apply", "--confirm", "--output", "json", "--", "user.set-password", "demo-user", "must-change")
 	outputs = append(outputs, out, errOut)
 	if m := decode(t, out); code != 0 || m["result"] != "applied" || m["check"] != "passed" {
 		t.Fatalf("set-password: code %d %v %q", code, m, errOut)
 	}
-	_, out, errOut = runChange(t, f, 0, keyLine+"\n", "host", "apply", "--yes", "--output", "json", "--", "user.add-key", "demo-user")
+	_, out, errOut = runChange(t, f, 0, keyLine+"\n", "host", "apply", "--confirm", "--output", "json", "--", "user.add-key", "demo-user")
 	outputs = append(outputs, out, errOut)
 
 	_, out, errOut = runChange(t, f, 0, "", "host", "journal", "--output", "json")
@@ -197,19 +197,19 @@ func TestHostApplyUserRefusalChangesNothing(t *testing.T) {
 	}
 	f.env.Registry, f.env.Exec = reg, execFn(run)
 	f.env.SudoUID = func() int { return 1000 }
-	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.set-admin", "demo-admin", "off")
+	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "--confirm", "--", "user.set-admin", "demo-admin", "off")
 	if code != 1 || !strings.Contains(out, "refused") || !strings.Contains(out, "from yourself") || !strings.Contains(errOut, "from yourself") || len(w.argv) != 0 {
 		t.Fatalf("code %d out %q err %q argv %q", code, out, errOut, w.argv)
 	}
-	code, _, _ = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.set-admin", "Demo", "off")
+	code, _, _ = runChange(t, f, 0, "", "host", "apply", "--confirm", "--", "user.set-admin", "Demo", "off")
 	if code != 2 {
 		t.Errorf("an invalid name is a usage error: %d", code)
 	}
-	code, _, _ = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.create-service", "demo-bot", "admin")
+	code, _, _ = runChange(t, f, 0, "", "host", "apply", "--confirm", "--", "user.create-service", "demo-bot", "admin")
 	if code != 2 {
 		t.Errorf("a service account is never an admin: %d", code)
 	}
-	code, out, _ = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.create-service", "demo-user")
+	code, out, _ = runChange(t, f, 0, "", "host", "apply", "--confirm", "--", "user.create-service", "demo-user")
 	if code != 1 || !strings.Contains(out, "exists already") || len(w.argv) != 0 {
 		t.Errorf("an existing name is refused: code %d out %q argv %q", code, out, w.argv)
 	}
@@ -224,7 +224,7 @@ func TestHostApplyUserDeleteRefusalsChangeNothing(t *testing.T) {
 	}
 	f.env.Registry, f.env.Exec = reg, execFn(run)
 	f.env.SudoUID = func() int { return 1001 }
-	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.delete", "demo-user")
+	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "--confirm", "--", "user.delete", "demo-user")
 	if code != 1 || !strings.Contains(out, "refused") || !strings.Contains(errOut, "your own account") || len(w.argv) != 0 {
 		t.Fatalf("own account: code %d out %q err %q argv %q", code, out, errOut, w.argv)
 	}
@@ -236,11 +236,11 @@ func TestHostApplyUserDeleteRefusalsChangeNothing(t *testing.T) {
 	if err := os.WriteFile(w.path("proc/4711/status"), []byte("Name:\tdemo\nUid:\t1001\t1001\t1001\t1001\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	code, out, errOut = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.delete", "demo-user", "with-home")
+	code, out, errOut = runChange(t, f, 0, "", "host", "apply", "--confirm", "--", "user.delete", "demo-user", "with-home")
 	if code != 1 || !strings.Contains(out, "refused") || !strings.Contains(errOut, "still has running processes; end them first") || len(w.argv) != 0 {
 		t.Fatalf("running processes: code %d out %q err %q argv %q", code, out, errOut, w.argv)
 	}
-	if code, _, _ = runChange(t, f, 0, "", "host", "apply", "--yes", "--", "user.delete", "demo-user", "home"); code != 2 {
+	if code, _, _ = runChange(t, f, 0, "", "host", "apply", "--confirm", "--", "user.delete", "demo-user", "home"); code != 2 {
 		t.Errorf("an unknown option is a usage error: %d", code)
 	}
 }
@@ -267,7 +267,7 @@ func TestHostApplyGroupRefusalsChangeNothing(t *testing.T) {
 		{[]string{"group.create", "Demo"}, 2, ""},
 		{[]string{"group.rename", "demo-user"}, 2, ""},
 	} {
-		code, out, errOut := runChange(t, f, 0, "", append([]string{"host", "apply", "--yes", "--"}, tc.args...)...)
+		code, out, errOut := runChange(t, f, 0, "", append([]string{"host", "apply", "--confirm", "--"}, tc.args...)...)
 		if code != tc.code || tc.code == 1 && (!strings.Contains(out, "refused") || !strings.Contains(errOut, tc.reason)) || len(w.argv) != 0 {
 			t.Errorf("%q: code %d out %q err %q argv %q", tc.args, code, out, errOut, w.argv)
 		}

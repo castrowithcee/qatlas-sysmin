@@ -1,44 +1,40 @@
 package tui
 
 import (
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+
 	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // frameModel is a frame of the given size over a short list of invented entries, drawn without colour.
 func frameModel(t *testing.T, w, h int) *Model {
 	t.Helper()
-	restoreRenderer(t)
-	setProfile(profileNone)
-	applyTheme(uiprefs.ThemeTerminal)
-	useLanguage(t, "en")
-	m := New(uiprefs.Default(), nil)
+	m := testModel(defaultPrefs(), nil)
 	m.title = "Entries"
-	m.table = table{
-		columns: []column{{title: "Name"}, {title: "Note", flex: true}},
-		rows:    map[string][]string{},
+	cells := map[string][]string{}
+	names := []string{"alpha", "bravo", "charlie", "delta"}
+	for _, n := range names {
+		cells[n] = []string{n, "note of " + n}
 	}
-	var names []string
-	for _, n := range []string{"alpha", "bravo", "charlie", "delta"} {
-		names = append(names, n)
-		m.table.rows[n] = []string{n, "note of " + n}
-	}
-	m.setEntries(names, nil, nil)
+	fillBase(m, frameColumns(), cells, names, nil)
 	sizedModel(m, w, h)
 	return m
+}
+
+func frameColumns() []kittui.Column {
+	return []kittui.Column{{Title: "Name"}, {Title: "Note", Flex: true}}
 }
 
 func plain(m *Model) string { return ansi.Strip(m.render()) }
 
 func TestEmptyFrameHasHeaderFooterAndQuits(t *testing.T) {
 	m := frameModel(t, 80, 24)
-	m.setEntries(nil, nil, nil)
+	fillBase(m, frameColumns(), nil, nil, nil)
 	view := plain(m)
 	assertViewFits(t, view, 80, 24)
 	lines := strings.Split(view, "\n")
@@ -80,12 +76,12 @@ func TestListFilterNarrowsAndEscClears(t *testing.T) {
 	press(t, m, "/")
 	typeText(t, m, "ar")
 	press(t, m, "enter")
-	if got := strings.Join(m.list.matches, ","); got != "charlie" {
-		t.Errorf("matches = %q", got)
+	if view := plain(m); !strings.Contains(view, "1/1 (4 total)") || strings.Contains(view, "alpha") {
+		t.Errorf("the filter does not narrow to charlie:\n%s", view)
 	}
 	press(t, m, "esc")
-	if len(m.list.matches) != 4 {
-		t.Errorf("esc left %d entries, want 4", len(m.list.matches))
+	if view := plain(m); !strings.Contains(view, "3/4") || !strings.Contains(view, "alpha") {
+		t.Errorf("esc does not bring every entry back:\n%s", view)
 	}
 }
 
@@ -97,14 +93,14 @@ func TestGroupsFoldAndTheCursorStaysOnEntries(t *testing.T) {
 		}
 		return ""
 	}
-	m.setEntries([]string{"alpha", "bravo", "charlie", "delta"}, group, nil)
+	fillBase(m, frameColumns(), nil, []string{"alpha", "bravo", "charlie", "delta"}, group)
 	view := plain(m)
 	for _, want := range []string{"▾ ■ first (2)", "▾ ■ no group (2)"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view lacks %q:\n%s", want, view)
 		}
 	}
-	m.list.selectName(groupRow("first"))
+	markGroup(&m.base, 0)
 	press(t, m, "enter")
 	if strings.Contains(plain(m), "alpha") {
 		t.Error("a folded group still shows its entries")
@@ -115,7 +111,7 @@ func TestQuestionIsAModalWithButtonsOverTheList(t *testing.T) {
 	m := frameModel(t, 80, 24)
 	m.screen = screenConfirm
 	m.ask = &question{title: "Remove the example entry?", consequence: "The entry is gone.", danger: true,
-		keys: "y remove · n/{back} cancel"}
+		keys: keyLine(answer("remove", actYes), answer(tHintCancel, actNo, actBack))}
 	view := plain(m)
 	assertViewFits(t, view, 80, 24)
 	for _, want := range []string{"Remove the example entry?", "The entry is gone.", "Remove", "Cancel", "alpha"} {
@@ -132,7 +128,7 @@ func TestQuestionIsAModalWithButtonsOverTheList(t *testing.T) {
 func TestQuestionFillsASmallTerminal(t *testing.T) {
 	m := frameModel(t, 50, 16)
 	m.screen = screenConfirm
-	m.ask = &question{title: "Remove the example entry?", consequence: "The entry is gone.", keys: "y remove · n/{back} cancel"}
+	m.ask = &question{title: "Remove the example entry?", consequence: "The entry is gone.", keys: keyLine(answer("remove", actYes), answer(tHintCancel, actNo, actBack))}
 	view := plain(m)
 	assertViewFits(t, view, 50, 16)
 	if !strings.Contains(view, "Remove the example entry?") || !strings.Contains(view, "y remove") {
@@ -143,7 +139,7 @@ func TestQuestionFillsASmallTerminal(t *testing.T) {
 func TestPromptDialogIsAModal(t *testing.T) {
 	m := frameModel(t, 80, 24)
 	m.screen = screenPrompt
-	m.dialog = &promptDialog{title: "Name the entry", input: "name: example", hint: "Letters only.", keys: "enter save · {back} cancel"}
+	m.dialog = &promptDialog{title: "Name the entry", input: "name: example", hint: "Letters only.", keys: keyLine(answer(tHintSave, actEnter), answer(tHintCancel, actBack))}
 	view := plain(m)
 	assertViewFits(t, view, 80, 24)
 	for _, want := range []string{"Name the entry", "example", "Letters only.", "Save", "Cancel"} {
@@ -188,7 +184,7 @@ func TestClickMarksARowAndASecondClickPressesEnter(t *testing.T) {
 
 func TestSwitchedOffMouseDoesNothing(t *testing.T) {
 	m := frameModel(t, 80, 24)
-	m.prefs.MouseOff = true
+	m.prefs.MouseEnabled = false
 	m.render()
 	m.Update(tea.MouseClickMsg{X: 5, Y: 8, Button: tea.MouseLeft})
 	if name, _ := m.selected(); name != "alpha" {
@@ -223,7 +219,7 @@ func TestBackButtonStandsOnDialogsAndPressesEsc(t *testing.T) {
 		t.Error("the bare list shows a back button")
 	}
 	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", consequence: "Nothing happens.", keys: "y yes · n/{back} no"}
+	m.ask = &question{title: "Sure?", consequence: "Nothing happens.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
 	first := strings.Split(plain(m), "\n")[0]
 	at := strings.Index(first, "[esc] back")
 	if at < 0 {
@@ -248,31 +244,9 @@ func TestCopyHandsOverTheNameOfTheRowAndRedactsSecrets(t *testing.T) {
 	}
 }
 
-func TestDropdownOpensChoosesAndCloses(t *testing.T) {
-	m := frameModel(t, 80, 24)
-	chosen := -1
-	m.openDropdown("field", []string{"One", "Two", "Three"}, 0, func(i int) tea.Cmd { chosen = i; return nil })
-	m.noteField("field", 2, 3)
-	m.layoutWorkspace()
-	view := ansi.Strip(m.overlayDropdown(m.frame(m.workspaceView())))
-	assertViewFits(t, view, 80, 24)
-	if !strings.Contains(view, "Three") {
-		t.Errorf("the open list is not drawn:\n%s", view)
-	}
-	press(t, m, "down", "enter")
-	if chosen != 1 || m.dd != nil {
-		t.Errorf("chosen = %d, open = %v, want 1 and closed", chosen, m.dd != nil)
-	}
-	m.openDropdown("field", []string{"One"}, 0, func(int) tea.Cmd { chosen = 9; return nil })
-	press(t, m, "esc")
-	if m.dd != nil || chosen == 9 {
-		t.Error("esc did not close the list without choosing")
-	}
-}
-
-func TestFragmentFilterDropsASplitMouseReport(t *testing.T) {
-	f := newFragmentFilter(func() time.Time { return time.Unix(0, 0) })
-	if msg := f.filter(nil, textKey("a")); msg == nil {
+func TestTheInputFilterLetsATypedLetterPass(t *testing.T) {
+	f := kittui.NewInputFilter(func() time.Time { return time.Unix(0, 0) })
+	if msg := f.Filter(nil, textKey("a")); msg == nil {
 		t.Error("a typed letter was dropped")
 	}
 }

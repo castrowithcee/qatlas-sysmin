@@ -2,20 +2,20 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users  [Groups]  Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Groups (4)                                                                   1/1
-╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name       Members  System                                                 ║
-║   ▾ Gr╔══════════════════════════════════════════════════════════════╗       ║
-║ > demo║ New group                                                    ║       ║
-║   ▸ Sy║                                                              ║       ║
-╚═══════║ > Name: demo-crew                                            ║═══════╝
+Groups (4)                                                                   1/4
+╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
+║     NA║ New group                                                    ║       ║
+║   ▾ ■ ║                                                              ║       ║
+║ >   de║        ╔═══════════════════════════════════════════════════╗ ║       ║
+║   ▸ ■ ║ > Name ║ demo-crew_                                        ║ ║       ║
+╚═══════║        ╚═══════════════════════════════════════════════════╝ ║═══════╝
         ║     The system gives the group a regular group number.       ║        
         ║                                                              ║        
-        ║ > Next <  [ Save ]  [ Cancel ]                               ║        
+        ║ [ Save ]  [ Cancel ]                                         ║        
         ║                                                              ║        
-        ║ enter next · tab next · F2 save · esc cancel                 ║        
+        ║ tab next zone or field · shift+tab previous zone or field    ║        
+        ║ F2 save · esc cancel                                         ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

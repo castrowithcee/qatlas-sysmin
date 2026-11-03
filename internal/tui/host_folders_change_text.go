@@ -1,7 +1,5 @@
 package tui
 
-import "maps"
-
 // The texts of the form that changes a folder.
 const (
 	tHostFolderChangeTitle textID = "HostFolderChangeTitle"
@@ -19,8 +17,9 @@ const (
 	tHostFolderCountFailed textID = "HostFolderCountFailed"
 )
 
-func init() {
-	maps.Copy(textEN, map[textID]string{
+// hostFolderChangeTexts are the texts of the form that changes a folder, in English and German.
+func hostFolderChangeTexts() (en, de map[textID]string) {
+	en = map[textID]string{
 		tHostFolderChangeTitle: "Change %s",
 		tHostFolderOwner:       "Owner",
 		tHostFolderGroup:       "Group",
@@ -34,10 +33,8 @@ func init() {
 		tHostFolderCount:       "%d entries are changed: the folder and everything below it.",
 		tHostFolderTooMany:     "%s has more than %d entries. Change a smaller folder. Nothing was changed.",
 		tHostFolderCountFailed: "The entries below the folder cannot be counted: %s. Nothing was changed.",
-
-		footerID("e change"): "e change",
-	})
-	maps.Copy(textDE, map[textID]string{
+	}
+	de = map[textID]string{
 		tHostFolderChangeTitle: "%s ändern",
 		tHostFolderOwner:       "Besitzer",
 		tHostFolderGroup:       "Gruppe",
@@ -51,7 +48,6 @@ func init() {
 		tHostFolderCount:       "%d Einträge werden geändert: der Ordner und alles darunter.",
 		tHostFolderTooMany:     "%s hat mehr als %d Einträge. Ändere einen kleineren Ordner. Es wurde nichts geändert.",
 		tHostFolderCountFailed: "Die Einträge unter dem Ordner lassen sich nicht zählen: %s. Es wurde nichts geändert.",
-
-		footerID("e change"): "e ändern",
-	})
+	}
+	return en, de
 }

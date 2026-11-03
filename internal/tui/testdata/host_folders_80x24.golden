@@ -1,24 +1,24 @@
 qsysmin                                            [esc] back  [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings 
-   Users   Groups  [Folders]  Changes 
+   1 Overview  [2 Host]  3 Activity   4 Settings                                
+   Users   Groups  [Folders]  Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Folders
-
-Path: /srv/demo-app 
-
-Type           folder
-Owner root     read and write
-Group qsysmin  read
-Others         nothing
-Mode           2750
-ACL            set: further rights apply that the levels above do not show
-Special        setgid: new entries take the group of this folder
-
-
-
-
-
-
-
-
-enter edit path  e change  esc back  i info  ? help  : cmds  q quit
+Folders                                                                         
+                                                                                
+Path: /srv/demo-app                                                             
+                                                                                
+Type           folder                                                           
+Owner root     read and write                                                   
+Group qsysmin  read                                                             
+Others         nothing                                                          
+Mode           2750                                                             
+ACL            set: further rights apply that the levels above do not show      
+Special        setgid: new entries take the group of this folder                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+enter edit path  e change  esc back  i info  ? help  : cmds  q quit             

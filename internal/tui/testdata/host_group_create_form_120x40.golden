@@ -2,28 +2,28 @@ qsysmin                                                                         
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
    Users  [Groups]  Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Groups (4)                                                        1/1 ╭─ demo-team ────────────────────────────────────╮
+Groups (4)                                                        1/4 ╭─ demo-team ────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
-║   Name       Members  System                                      ║ │                                                │
-║   ▾ Groups (1)                                                    ║ │ Name     demo-team                             │
-║ > demo-team        1                                              ║ │ Type     regular                               │
-║   ▸ System groups (3)                                             ║ │ Members  1                                     │
+║     NAME       MEMBERS  SYSTEM                                    ║ │                                                │
+║   ▾ ■ Groups (1)                                                  ║ │ Name     demo-team                             │
+║ >   demo-team        1                                            ║ │ Type     regular                               │
+║   ▸ ■ System groups (3)                                           ║ │ Members  1                                     │
 ╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
-                                                                                                                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                             ╔══════════════════════════════════════════════════════════════╗                            
                             ║ New group                                                    ║                            
                             ║                                                              ║                            
-                            ║ > Name: demo-crew                                            ║                            
+                            ║        ╔═══════════════════════════════════════════════════╗ ║                            
+                            ║ > Name ║ demo-crew_                                        ║ ║                            
+                            ║        ╚═══════════════════════════════════════════════════╝ ║                            
                             ║     The system gives the group a regular group number.       ║                            
                             ║                                                              ║                            
-                            ║ > Next <  [ Save ]  [ Cancel ]                               ║                            
+                            ║ [ Save ]  [ Cancel ]                                         ║                            
                             ║                                                              ║                            
-                            ║ enter next · tab next · F2 save · esc cancel                 ║                            
+                            ║ tab next zone or field · shift+tab previous zone or field    ║                            
+                            ║ F2 save · esc cancel                                         ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

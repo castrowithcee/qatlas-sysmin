@@ -4,12 +4,12 @@ qsysmin                                                        [?] help  [:] cmd
 ────────────────────────────────────────────────────────────────────────────────
 Users (3╔══════════════════════════════════════════════════════════════╗     3/3
 ╔═══════║ ⚠ Delete the user svc-demo together with its home and mail   ║═══════╗
-║   Name║   spool.                                                     ║System ║
-║   ▾ Us║                                                              ║       ║
-║   demo║     Packages or services may depend on this system account.  ║       ║
-║   demo║     /usr/lib/svc-demo is a system path. /usr/lib/svc-demo    ║       ║
-║   ▾ Sy║     belongs to root. This cannot be undone: the home         ║       ║
-║ > svc-║     /usr/lib/svc-demo and the mail spool are deleted with    ║system ║
+║     NA║   spool.                                                     ║SYSTEM ║
+║   ▾ ■ ║                                                              ║       ║
+║     de║     Packages or services may depend on this system account.  ║       ║
+║     de║     /usr/lib/svc-demo is a system path. /usr/lib/svc-demo    ║       ║
+║   ▾ ■ ║     belongs to root. This cannot be undone: the home         ║       ║
+║ >   sv║     /usr/lib/svc-demo and the mail spool are deleted with    ║system ║
 ╚═══════║     all their files.                                         ║═══════╝
         ║                                                              ║        
         ║   $ userdel -r svc-demo                                      ║        

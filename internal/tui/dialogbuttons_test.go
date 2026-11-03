@@ -6,12 +6,14 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 func buttonKeys(buttons []dialogButton) string {
 	var out []string
 	for _, b := range buttons {
-		out = append(out, b.key+"="+b.label)
+		out = append(out, string(b.act)+"="+b.label)
 	}
 	return strings.Join(out, ",")
 }
@@ -19,38 +21,40 @@ func buttonKeys(buttons []dialogButton) string {
 func TestDialogButtonsAreReadFromTheKeyLine(t *testing.T) {
 	m := frameModel(t, 80, 24)
 	for _, c := range []struct {
-		keys string
+		keys []kittui.Hint
 		want string
 	}{
-		{"y stop · n/{back} cancel", "y=Stop,n=Cancel"},
-		{"enter save · {back} cancel", "enter=Save,esc=Cancel"},
-		{"y yes · n/{back} no, nothing changes · {help} help", "y=Yes,n=No"},
-		{"enter or y confirm · {back} back", "enter=Confirm,esc=Back"},
+		{keyLine(answer("stop", actYes), answer(tHintCancel, actNo, actBack)), "yes=Stop,no=Cancel"},
+		{keyLine(answer(tHintSave, actEnter), answer(tHintCancel, actBack)), "enter=Save,back=Cancel"},
+		{keyLine(answer("yes", actYes), answer("no, nothing changes", actNo, actBack), hint(tHintHelp, actHelp)), "yes=Yes,no=No"},
+		{keyLine(answer("confirm", actEnter, actYes), answer(tHintBack, actBack)), "enter=Confirm,back=Back"},
 	} {
 		if got := buttonKeys(m.dialogButtons(c.keys, false, nil)); got != c.want {
-			t.Errorf("%q gives %q, want %q", c.keys, got, c.want)
+			t.Errorf("%q gives %q, want %q", m.hintText(c.keys), got, c.want)
 		}
 	}
-	// Groups of the editor around the dialog are no answers.
-	for _, b := range m.dialogButtons("y yes · {help} help · {command} cmds · ↑/↓ move", false, nil) {
-		if b.key != "y" {
-			t.Errorf("%q became a button", b.key)
+	// Hints of the editor around the dialog are no answers.
+	keys := keyLine(answer("yes", actYes), hint(tHintHelp, actHelp), hint(tHintCmds, actCommand), navHint(tHintMove, actUp, actDown))
+	for _, b := range m.dialogButtons(keys, false, nil) {
+		if b.act != actYes {
+			t.Errorf("%q became a button", b.act)
 		}
 	}
-	if got := m.dialogButtons("y remove · n/{back} cancel", false, map[string]string{"y": "Remove it"}); got[0].label != "Remove it" {
+	keys = keyLine(answer("remove", actYes), answer(tHintCancel, actNo, actBack))
+	if got := m.dialogButtons(keys, false, map[action]string{actYes: "Remove it"}); got[0].label != "Remove it" {
 		t.Errorf("label = %q, want the given label", got[0].label)
 	}
 }
 
 func TestEnterGroupIsTheFocusedButton(t *testing.T) {
 	m := frameModel(t, 80, 24)
-	buttons := m.dialogButtons("enter save · {back} cancel", false, nil)
+	buttons := m.dialogButtons(keyLine(answer(tHintSave, actEnter), answer(tHintCancel, actBack)), false, nil)
 	if !buttons[0].focused || buttons[1].focused {
 		t.Errorf("focus = %v, %v, want the enter answer only", buttons[0].focused, buttons[1].focused)
 	}
-	for _, b := range m.dialogButtons("y yes · n/{back} no", false, nil) {
+	for _, b := range m.dialogButtons(keyLine(answer("yes", actYes), answer("no", actNo, actBack)), false, nil) {
 		if b.focused {
-			t.Errorf("%q is focused although enter answers nothing", b.key)
+			t.Errorf("%q is focused although enter answers nothing", b.act)
 		}
 	}
 }
@@ -58,36 +62,36 @@ func TestEnterGroupIsTheFocusedButton(t *testing.T) {
 // Only a question that destroys something draws its answer as the danger button.
 func TestOnlyDestructiveQuestionsHaveADangerButton(t *testing.T) {
 	m := frameModel(t, 80, 24)
-	kinds := func(keys string, danger bool) map[string]buttonKind {
-		out := map[string]buttonKind{}
+	kinds := func(keys []kittui.Hint, danger bool) map[action]buttonKind {
+		out := map[action]buttonKind{}
 		for _, b := range m.dialogButtons(keys, danger, nil) {
-			out[b.key] = b.kind
+			out[b.act] = b.kind
 		}
 		return out
 	}
-	if got := kinds("y remove · n/{back} cancel", true); got["y"] != buttonDanger || got["n"] != buttonNormal {
+	if got := kinds(keyLine(answer("remove", actYes), answer(tHintCancel, actNo, actBack)), true); got[actYes] != buttonDanger || got[actNo] != buttonNormal {
 		t.Errorf("danger question: %v", got)
 	}
-	if got := kinds("d delete · {back} cancel", true); got["d"] != buttonDanger {
+	if got := kinds(keyLine(answer(tHintDelete, actDiscard), answer(tHintCancel, actBack)), true); got[actDiscard] != buttonDanger {
 		t.Errorf("discard answer: %v", got)
 	}
-	if got := kinds("y lock · n/{back} cancel", false); got["y"] != buttonPrimary {
+	if got := kinds(keyLine(answer("lock", actYes), answer(tHintCancel, actNo, actBack)), false); got[actYes] != buttonPrimary {
 		t.Errorf("a harmless question has a danger button: %v", got)
 	}
 }
 
-func TestButtonLabelIsTheCapitalisedActionWithoutItsExplanation(t *testing.T) {
+func TestButtonLabelIsTheCapitalisedLabelWithoutItsExplanation(t *testing.T) {
 	for in, want := range map[string]string{
-		"n/esc cancel, nothing saved": "Cancel",
-		"enter or y confirm":          "Confirm",
-		"y yes":                       "Yes",
-		"y":                           "",
+		"cancel, nothing saved": "Cancel",
+		"confirm":               "Confirm",
+		"yes":                   "Yes",
+		"":                      "",
 	} {
 		if got := buttonLabel(in); got != want {
 			t.Errorf("buttonLabel(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if got := buttonLabel("y " + strings.Repeat("long ", 20)); len([]rune(got)) > 24 {
+	if got := buttonLabel(strings.Repeat("long ", 20)); len([]rune(got)) > 24 {
 		t.Errorf("a long label is not cut: %q", got)
 	}
 }
@@ -96,7 +100,8 @@ func TestButtonRowsWrapAtTheWidthAndLogTheirKeysAsSpans(t *testing.T) {
 	m := frameModel(t, 80, 24)
 	var log []footerLine
 	m.footerLog = &log
-	buttons := m.dialogButtons("y yes · n no · a all · enter save", false, nil)
+	buttons := m.dialogButtons(keyLine(answer("yes", actYes), answer("no", actNo), answer("all", actSpace),
+		answer(tHintSave, actEnter)), false, nil)
 	rows := m.buttonRows(buttons)
 	lines := strings.Split(ansi.Strip(rows), "\n")
 	if len(lines) != 1 || !strings.Contains(lines[0], "[ Yes ]  [ No ]") {
@@ -106,8 +111,8 @@ func TestButtonRowsWrapAtTheWidthAndLogTheirKeysAsSpans(t *testing.T) {
 		t.Fatalf("log = %+v", log)
 	}
 	for i, span := range log[0].spans {
-		if span.key != buttons[i].key || span.x1 <= span.x0 {
-			t.Errorf("span %d = %+v for %q", i, span, buttons[i].key)
+		if span.act != buttons[i].act || span.x1 <= span.x0 {
+			t.Errorf("span %d = %+v for %q", i, span, buttons[i].act)
 		}
 	}
 	if got := log[0].plain[log[0].spans[1].x0:log[0].spans[1].x1]; got != "[ No ]" {
@@ -125,7 +130,7 @@ func TestButtonRowsWrapAtTheWidthAndLogTheirKeysAsSpans(t *testing.T) {
 func TestClickOnAModalButtonPressesItsKey(t *testing.T) {
 	m := frameModel(t, 80, 24)
 	m.screen = screenConfirm
-	m.ask = &question{title: "Stop the example service?", consequence: "It stops.", keys: "y stop · n/{back} cancel"}
+	m.ask = &question{title: "Stop the example service?", consequence: "It stops.", keys: keyLine(answer("stop", actYes), answer(tHintCancel, actNo, actBack))}
 	view := plain(m)
 	if !strings.Contains(view, "[ Stop ]") || !strings.Contains(view, "[ Cancel ]") {
 		t.Fatalf("the question shows no buttons:\n%s", view)
@@ -155,7 +160,7 @@ func TestDialogsReadWithoutColourAndFitTheSmallestTerminal(t *testing.T) {
 	m := goldenFrame(t)
 	m.screen = screenConfirm
 	m.ask = &question{title: "Stop the example service?", consequence: "It stops.", danger: true,
-		keys: "enter or y stop · n/{back} cancel"}
+		keys: keyLine(answer("stop", actEnter, actYes), answer(tHintCancel, actNo, actBack))}
 	view := m.render()
 	if colourSGR.MatchString(view) || !strings.Contains(view, "> Stop <") || !strings.Contains(view, "[ Cancel ]") {
 		t.Errorf("the focused button does not read without colour:\n%q", view)

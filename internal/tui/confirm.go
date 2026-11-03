@@ -20,22 +20,22 @@ func (m *Model) askConfirm(q question, yes func() tea.Cmd) {
 // updateConfirm handles the answer to the question.
 func (m *Model) updateConfirm(key tea.KeyPressMsg) tea.Cmd {
 	if m.confirm.notice {
-		if keyIs(key, actBack) || keyIs(key, actEnter) || keyIs(key, actYes) || keyIs(key, actNo) {
+		if m.keyIs(key, actBack) || m.keyIs(key, actEnter) || m.keyIs(key, actYes) || m.keyIs(key, actNo) {
 			m.closeDialog()
 		}
 		return nil
 	}
 	switch {
-	case keyIs(key, actYes):
+	case m.keyIs(key, actYes):
 		yes := m.confirm.yes
 		m.closeDialog()
 		return yes()
-	case keyIs(key, actNo), keyIs(key, actBack):
+	case m.keyIs(key, actNo), m.keyIs(key, actBack):
 		if cancel := m.confirm.cancel; cancel != nil {
 			cancel()
 		}
 		m.closeDialog()
-		m.status = tr(tCancelled)
+		m.status = m.tr(tCancelled)
 	}
 	return nil
 }

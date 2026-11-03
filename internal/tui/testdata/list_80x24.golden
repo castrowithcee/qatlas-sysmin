@@ -1,24 +1,24 @@
-qsysmin
+qsysmin                                                                         
 ────────────────────────────────────────────────────────────────────────────────
 Services (4)                                                                 2/4
-
+                                                                                
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name         State    Note                                                 ║
+║   NAME         STATE    NOTE                                                 ║
 ║   example-app  running  demo web service                                     ║
 ║ > demo-db      running  demo database                                        ║
 ║   sample-job   stopped  demo nightly job                                     ║
 ║   test-proxy   failed   demo reverse proxy                                   ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-
-
-
-
-
-
-
-
-
-
-
-
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
 / filter  q quit  c copy                                           ↑/↓ move  2/4

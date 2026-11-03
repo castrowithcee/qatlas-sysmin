@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	kithelp "github.com/castrowithcee/qatlas-kit/helptopics"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
@@ -22,25 +25,21 @@ func groupsModel(t *testing.T, w, h int) (*Model, *fakeSudo, *countingHost) {
 }
 
 func selectGroup(m *Model, name string) {
-	p := &m.hst.groups.page
-	if !p.list.selectName(name) {
-		openSystem(m, p, "enter")
-		p.list.selectName(name)
-	}
+	markName(&m.hst.groups.page, name)
 }
 
 func TestGroupsPageOffersNewRenameAndDeleteInTheFooter(t *testing.T) {
 	m, _, _ := groupsModel(t, 120, 40)
 	selectGroup(m, "demo-team")
-	keys := strings.Join(m.hostKeys(), " ")
+	keys := m.hintText(m.hostKeys())
 	for _, want := range []string{"n new", "r rename", "d delete"} {
 		if !strings.Contains(keys, want) {
 			t.Errorf("keys %q lack %q", keys, want)
 		}
 	}
 	p := &m.hst.groups.page
-	p.list.selectName(sectionRow("groups"))
-	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "n new") || strings.Contains(keys, "rename") || strings.Contains(keys, "delete") {
+	markGroup(p, 0)
+	if keys := m.hintText(m.hostKeys()); !strings.Contains(keys, "n new") || strings.Contains(keys, "rename") || strings.Contains(keys, "delete") {
 		t.Errorf("on a heading only n works: %q", keys)
 	}
 	send(m, "d", "r")
@@ -62,14 +61,13 @@ func TestGroupCreateChecksTheNameBeforeItAsksAndSendsTheAction(t *testing.T) {
 		{"demo-team", "This group exists already."},
 		{"sudo", "This group exists already."},
 	} {
-		m.form.row("name").in.SetValue(tc.name)
-		m.form.row("name").problem = ""
+		setField(t, m, fieldName, tc.name)
 		save(m)
-		if m.form == nil || !strings.Contains(m.form.row("name").problem, tc.problem) || m.ask != nil || len(f.reqs) != 0 {
-			t.Fatalf("%q: problem %q, ask %+v", tc.name, m.form.row("name").problem, m.ask)
+		if m.form == nil || !strings.Contains(flat(m), "[!] "+tc.problem) || m.ask != nil || len(f.reqs) != 0 {
+			t.Fatalf("%q: no problem %q, ask %+v:\n%s", tc.name, tc.problem, m.ask, plain(m))
 		}
 	}
-	m.form.row("name").in.SetValue("demo-new")
+	setField(t, m, fieldName, "demo-new")
 	save(m)
 	view := flat(m)
 	for _, want := range []string{"Create the group demo-new", "$ groupadd demo-new", "You can undo this under Host > Changes."} {
@@ -85,7 +83,7 @@ func TestGroupCreateChecksTheNameBeforeItAsksAndSendsTheAction(t *testing.T) {
 		return reportApplied, nil
 	}
 	send(m, "y")
-	want := []string{"apply", "--yes", "--output", "json", "--", "group.create", "demo-new"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "group.create", "demo-new"}
 	if len(f.reqs) == 0 || !slices.Equal(f.reqs[len(f.reqs)-1].Args, want) {
 		t.Fatalf("calls %+v, want %q", f.reqs, want)
 	}
@@ -118,7 +116,7 @@ func TestGroupDeleteAsksPlainForARegularGroupAndRedForSystemGroupsRootAndDocker(
 			}
 			f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 			send(m, "y")
-			want := []string{"apply", "--yes", "--output", "json", "--", "group.delete", tc.group}
+			want := []string{"apply", "--confirm", "--output", "json", "--", "group.delete", tc.group}
 			if len(f.reqs) == 0 || !slices.Equal(f.reqs[len(f.reqs)-1].Args, want) {
 				t.Errorf("calls %+v, want %q", f.reqs, want)
 			}
@@ -158,14 +156,13 @@ func TestGroupRenameIsAlwaysRedAndSendsBothNames(t *testing.T) {
 				t.Fatalf("no form:\n%s", plain(m))
 			}
 			for name, problem := range map[string]string{"": "Enter a name.", "Demo": "Lower-case letters", "demo-team": "This group exists already.", tc.group: "This group exists already."} {
-				m.form.row("name").in.SetValue(name)
-				m.form.row("name").problem = ""
+				setField(t, m, fieldName, name)
 				save(m)
-				if m.form == nil || !strings.Contains(m.form.row("name").problem, problem) || m.ask != nil {
-					t.Fatalf("%q: problem %q", name, m.form.row("name").problem)
+				if m.form == nil || !strings.Contains(flat(m), "[!] "+problem) || m.ask != nil {
+					t.Fatalf("%q: no problem %q:\n%s", name, problem, plain(m))
 				}
 			}
-			m.form.row("name").in.SetValue("demo-crew")
+			setField(t, m, fieldName, "demo-crew")
 			save(m)
 			if m.ask == nil || !m.ask.danger || !m.ask.warn || len(f.reqs) != 0 {
 				t.Fatalf("a rename asks red before anything runs: ask %+v calls %v", m.ask, f.reqs)
@@ -177,7 +174,7 @@ func TestGroupRenameIsAlwaysRedAndSendsBothNames(t *testing.T) {
 			}
 			f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 			send(m, "y")
-			want := []string{"apply", "--yes", "--output", "json", "--", "group.rename", tc.group, "demo-crew"}
+			want := []string{"apply", "--confirm", "--output", "json", "--", "group.rename", tc.group, "demo-crew"}
 			if len(f.reqs) == 0 || !slices.Equal(f.reqs[len(f.reqs)-1].Args, want) {
 				t.Errorf("calls %+v, want %q", f.reqs, want)
 			}
@@ -208,7 +205,7 @@ func TestCancellingTheGroupFormsRunsNothing(t *testing.T) {
 
 func TestGroupFormsSpeakGerman(t *testing.T) {
 	m, _, _ := groupsModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	selectGroup(m, "demo-ops")
 	send(m, "r")
 	for _, want := range []string{"demo-ops umbenennen", "Neuer Name", "sprechen eine Gruppe über ihren Namen an"} {
@@ -216,7 +213,7 @@ func TestGroupFormsSpeakGerman(t *testing.T) {
 			t.Errorf("lacks %q:\n%s", want, plain(m))
 		}
 	}
-	m.form.row("name").in.SetValue("demo-crew")
+	setField(t, m, fieldName, "demo-crew")
 	save(m)
 	if m.ask == nil || !m.ask.danger || !strings.Contains(flat(m), "wirken nicht mehr, bis sie ebenfalls geändert sind") {
 		t.Errorf("\n%s", plain(m))
@@ -231,8 +228,10 @@ func TestGroupFormsSpeakGerman(t *testing.T) {
 
 func TestGroupsHelpAndInfoNoLongerCallSystemGroupsReadOnly(t *testing.T) {
 	eachLanguage(t, func(t *testing.T) {
-		for _, id := range []textID{tInfoHostGroups, tHelpHost} {
-			text := tr(id)
+		ui := testUI()
+		ui.setLanguage(testLang)
+		host, _ := kithelp.Lookup(helptopics.Topics(testLang), "host-tui")
+		for id, text := range map[string]string{string(tInfoHostGroups): ui.tr(tInfoHostGroups), host.Name: host.Text} {
 			if strings.Contains(text, "read-only") || strings.Contains(text, "nur lesbar") || !strings.Contains(text, "sudo") {
 				t.Errorf("%s: %q", id, text)
 			}

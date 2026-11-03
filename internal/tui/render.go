@@ -5,6 +5,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // boundView cuts plain text to the workspace.
@@ -35,6 +37,12 @@ func (m *Model) boundKeepingKeys(view string, width, height int) string {
 		lines = append(lines[:1], lines[len(lines)-height+1:]...)
 	}
 	return m.boundTo(strings.Join(lines, "\n"), width, height)
+}
+
+// tableFramed reports whether a screen draws its table, or a dialog its panel, in a frame: below these sizes
+// the frame costs more room than the terminal has.
+func (m *Model) tableFramed() bool {
+	return m.usable(0) >= tableFrameMinWidth && m.height >= tableFrameMinHeight
 }
 
 // clipCells cuts text to width visible cells. Escape sequences count no cells and are never split; when
@@ -152,7 +160,7 @@ func (m *Model) fitIn(room int, prefix string) (string, int) {
 // indented draws a hint under the row it belongs to and keeps its continuation lines there too, so a hint
 // that needs two lines still reads as one hint rather than as a stray sentence at the left margin.
 func (m *Model) indented(text string) string {
-	return m.indentedWith(styles.hint, text)
+	return m.indentedWith(m.ui.st(kittui.StyleHint), text)
 }
 
 func (m *Model) indentedWith(style lipgloss.Style, text string) string {
@@ -164,12 +172,8 @@ func (m *Model) indentedWith(style lipgloss.Style, text string) string {
 	return strings.Join(lines, "\n")
 }
 
-// row draws one line of a list. A line that does not fit is continued under its own entry instead of being
-// cut off at the right edge: the list is where the source of every secret role stands, and that is the part
-// that falls off first.
-func (m *Model) row(active bool, text string) string { return m.rowIn(m.usable(0), active, text) }
-
-// rowIn is row within the first room cells of the workspace.
+// rowIn draws one line of a list within the first room cells of the workspace. A line that does not fit is
+// continued under its own entry instead of being cut off at the right edge.
 func (m *Model) rowIn(room int, active bool, text string) string {
 	blank, width := m.fitIn(room, "  ")
 	marker := blank
@@ -178,7 +182,7 @@ func (m *Model) rowIn(room int, active bool, text string) string {
 	}
 	style := lipgloss.NewStyle()
 	if active {
-		style = styles.active
+		style = m.ui.st(kittui.StyleActive)
 	}
 	lines := strings.Split(render(style, width, text), "\n")
 	for i, l := range lines {
@@ -191,16 +195,10 @@ func (m *Model) rowIn(room int, active bool, text string) string {
 	return strings.Join(lines, "\n")
 }
 
-// listRow draws one row of a table screen: a list or a picker. text is
-// already cut to fit beside the marker: long cells are shortened before they ever reach here, never
-// wrapped. The marked row is highlighted the full width of the row, behind a narrow accent mark, which is
-// '>' where colour cannot show the bar, so NO_COLOR or an ASCII terminal still shows which one it is; every
-// other row is plain.
-func (m *Model) listRow(active bool, text string) string {
-	return m.listRowIn(m.usable(0), active, text)
-}
-
-// listRowIn is listRow within the first room cells of the workspace.
+// listRowIn draws one row of a table within the first room cells of the workspace. text is already cut to fit
+// beside the marker: long cells are shortened before they ever reach here, never wrapped. The marked row is
+// highlighted the full width of the row, behind a narrow accent mark, which is '>' where colour cannot show
+// the bar, so NO_COLOR or an ASCII terminal still shows which one it is; every other row is plain.
 func (m *Model) listRowIn(room int, active bool, text string) string {
 	blank, width := m.fitIn(room, "  ")
 	if !active {
@@ -209,76 +207,66 @@ func (m *Model) listRowIn(room int, active bool, text string) string {
 	body := padLine(text, width)
 	if len(blank) != 2 {
 		// No room for the mark: the bar alone shows the row.
-		return styles.activeRow.Render(keepStyle(blank+body, styles.activeRow))
+		return m.ui.st(kittui.StyleActiveRow).Render(keepStyle(blank+body, m.ui.st(kittui.StyleActiveRow)))
 	}
 	// The cells of the text may reset their own styles, so the bar is set again after each reset.
-	return styles.selMark.Render(selectionMark()) + styles.activeRow.Render(keepStyle(" "+body, styles.activeRow))
+	return m.ui.st(kittui.StyleSelectionMark).Render(m.ui.styles.SelectionMark()) + m.ui.st(kittui.StyleActiveRow).Render(keepStyle(" "+body, m.ui.st(kittui.StyleActiveRow)))
 }
 
-// selectionMark leads the marked row: a narrow accent bar where colour shows it, and '>' where it does not,
-// so the selection never depends on colour alone.
-func selectionMark() string {
-	if styles.palette.selection == "" || currentProfile() == profileNone {
-		return ">"
-	}
-	return "▌"
-}
-
-// hint is the key line of a screen. Like every other prose line it is wrapped into the terminal instead of
-// being cut off at its right edge.
-func (m *Model) hint(text string) string { return "\n" + m.wrapped(styles.hint, text) }
-
-// keyHint is the key line of a screen: groups of keys separated by " · ". It hands the line to the footer of
-// the frame (see footerLine) and returns nothing for the workspace; only while a modal dialog is drawn does
-// it return the line itself (see dialogKeyHint).
-func (m *Model) keyHint(text string) string {
+// keyHint hands the key line of a screen to the footer of the frame and returns nothing for the workspace;
+// only while a modal dialog is drawn does it return the line itself (see dialogKeyHint).
+func (m *Model) keyHint(keys []kittui.Hint) string {
 	if m.footerLog == nil {
-		// A screen's keys stand in the footer of the frame, not in the workspace. A dialog under a backdrop
-		// leaves the footer as it was.
+		// A dialog under a backdrop leaves the footer as it was.
 		if !m.backdrop {
 			if m.copyKeyShown() {
-				text = withCopyKey(text)
+				keys = withCopyKey(keys)
 			}
-			m.screenKeys = text
+			m.screenKeys = keys
 		}
 		return ""
 	}
-	return m.dialogKeyHint(text)
+	return m.dialogKeyHint(keys)
 }
 
 // dialogKeyHint is the key line of a modal dialog: groups never split across a wrap, only between groups,
-// and within a group the key (its first word) is bold while the action after it keeps the plain hint style.
-// A single group too wide for the terminal is cut with "...". It stands in the dialog itself, where its
-// keys are buttons.
-func (m *Model) dialogKeyHint(text string) string {
-	return "\n" + strings.Join(m.keyHintLines(text), "\n")
+// and within a group the keys are bold while the label keeps the plain hint style. A single group too wide
+// for the terminal is cut with "...". It stands in the dialog itself, where its keys are buttons.
+func (m *Model) dialogKeyHint(keys []kittui.Hint) string {
+	return "\n" + strings.Join(m.keyHintLines(keys), "\n")
 }
 
-// keyHintLines is the footer text broken into lines of whole groups.
-func (m *Model) keyHintLines(text string) []string { return m.keyHintLinesWith(text, keyHintGroup) }
+// keyHintLines is a key line broken into lines of whole groups.
+func (m *Model) keyHintLines(keys []kittui.Hint) []string {
+	return m.keyHintLinesWith(keys, kittui.StyleKey)
+}
 
-// keyHintLinesWith is keyHintLines with each group drawn by style.
-func (m *Model) keyHintLinesWith(text string, style func(group string) string) []string {
-	text = footerKeys(text)
+// keyHintLinesWith is keyHintLines with the keys of each group in keyStyle. A dialog names the keys of its
+// own line, so every key of it counts.
+func (m *Model) keyHintLinesWith(keys []kittui.Hint, keyStyle kittui.TextStyle) []string {
 	width := m.usable(0)
 	var lines []string
 	var line string
 	lineWidth := 0
 	var current []footerSpan
 	var spanned [][]footerSpan
-	for _, group := range strings.Split(text, " · ") {
-		group = truncateCells(group, width)
-		gw := lipgloss.Width(group)
+	for _, g := range m.hintGroups(keys, kittui.InputNavigation) {
+		text := truncateCells(g.Text(), width)
+		gw := lipgloss.Width(text)
 		if lineWidth > 0 && lineWidth+lipgloss.Width(" · ")+gw > width {
 			lines, spanned = append(lines, line), append(spanned, current)
 			line, lineWidth, current = "", 0, nil
 		}
 		if lineWidth > 0 {
-			line += styles.hint.Render(" · ")
+			line += m.ui.st(kittui.StyleHint).Render(" · ")
 			lineWidth += lipgloss.Width(" · ")
 		}
-		current = append(current, footerSpan{lineWidth, lineWidth + gw, footerKey(group)})
-		line += style(group)
+		var act action
+		if len(g.Keys) > 0 {
+			act = g.Keys[0].Action
+		}
+		current = append(current, footerSpan{lineWidth, lineWidth + gw, act})
+		line += keyHintGroup(m.ui, text, len(g.Keys) > 0, keyStyle)
 		lineWidth += gw
 	}
 	if lineWidth > 0 || len(lines) == 0 {
@@ -292,11 +280,15 @@ func (m *Model) keyHintLinesWith(text string, style func(group string) string) [
 	return lines
 }
 
-// keyHintGroup styles one "key action" hint: the key (its first word) bold, the action after it faint.
-func keyHintGroup(group string) string {
-	key, action, ok := strings.Cut(group, " ")
-	if !ok {
-		return styles.key.Render(key)
+// keyHintGroup styles one drawn group: its keys, the first word, in keyStyle and the label after them faint.
+// A group without keys is faint as a whole.
+func keyHintGroup(ui *uiContext, text string, keyed bool, keyStyle kittui.TextStyle) string {
+	key, label, ok := strings.Cut(text, " ")
+	switch {
+	case !keyed:
+		return ui.st(kittui.StyleHint).Render(text)
+	case !ok:
+		return ui.st(keyStyle).Render(key)
 	}
-	return styles.key.Render(key) + styles.hint.Render(" "+action)
+	return ui.st(keyStyle).Render(key) + ui.st(kittui.StyleHint).Render(" "+label)
 }

@@ -7,10 +7,11 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // The Changes page lists the latest changes to the host from the journal, which only root can read. It is
@@ -59,15 +60,12 @@ func (m *Model) readChanges() tea.Cmd {
 func (m *Model) fillHostChanges() {
 	c := &m.hst.chg
 	c.items = map[string]hostChange{}
-	rows := map[string][]string{}
-	var ids []string
+	var rows []dataRow
 	for _, e := range c.all {
 		c.items[e.ID] = e
-		ids = append(ids, e.ID)
-		rows[e.ID] = []string{hostTime(e.Time), m.diffText(e.Sentence), e.Result}
+		rows = append(rows, dataRow{name: e.ID, cells: []string{hostTime(e.Time), m.cellText(e.Sentence), m.shownResult(e.Result)}})
 	}
-	c.page.cols = m.hostChangeColumns()
-	c.page.setRows(ids, rows)
+	c.page.fill(m.ui, listConfig{cols: m.hostChangeColumns(), empty: tHostChangesNone}, rows)
 }
 
 func hostTime(rfc3339 string) string {
@@ -78,40 +76,41 @@ func hostTime(rfc3339 string) string {
 	return t.Local().Format("2006-01-02 15:04:05")
 }
 
-func shownResult(v string) string {
+func (m *Model) shownResult(v string) string {
 	switch v {
 	case hostchange.ResultApplied:
-		return tr(tHostResApplied)
+		return m.tr(tHostResApplied)
 	case hostchange.ResultFailed:
-		return tr(tHostResFailed)
+		return m.tr(tHostResFailed)
 	case hostchange.ResultRestored:
-		return tr(tHostResRestored)
+		return m.tr(tHostResRestored)
 	case hostchange.ResultUndone:
-		return tr(tHostResUndone)
+		return m.tr(tHostResUndone)
 	}
 	return v
 }
 
-func (m *Model) hostChangeColumns() []column {
-	tone := func(cell string) lipgloss.Style {
-		if cell == tr(tHostResFailed) || cell == tr(tHostResRestored) {
-			return styles.warning
+func (m *Model) hostChangeColumns() []kittui.Column {
+	failed, restored := m.tr(tHostResFailed), m.tr(tHostResRestored)
+	tone := func(cell string) kittui.TextStyle {
+		if cell == failed || cell == restored {
+			return kittui.StyleWarn
 		}
-		return styles.cell
+		return kittui.StyleText
 	}
-	return []column{
-		{title: tr(tColTime)},
-		{title: tr(tHostColChange), flex: true},
-		{title: tr(tHostColResult), shown: shownResult, tone: tone},
+	return []kittui.Column{
+		{Title: tColTime},
+		{Title: tHostColChange, Flex: true},
+		{Title: tHostColResult, Tone: tone},
 	}
 }
 
 func (m *Model) hostChangesSpec() dataSpec {
-	empty := tr(tHostChangesHint, "ctrl+r")
-	if m.hst.chg.have {
-		empty = tr(tHostChangesNone)
+	note := ""
+	if !m.hst.chg.have {
+		note = m.tr(tHostChangesHint)
 	}
-	return dataSpec{title: tr(tSubChanges), empty: empty, lines: m.hostChangeLines}
+	return dataSpec{title: m.tr(tSubChanges), note: note, lines: m.hostChangeLines}
 }
 
 func (m *Model) hostChangeLines(id string, tab, width int) []string {
@@ -119,25 +118,25 @@ func (m *Model) hostChangeLines(id string, tab, width int) []string {
 	if !ok {
 		return nil
 	}
-	undo := tr(tHostNoUndo)
+	undo := m.tr(tHostNoUndo)
 	if e.UndoSentence != "" {
 		undo = m.diffText(e.UndoSentence)
 	}
 	switch tab {
 	case tabOverview:
-		return factLines([][2]string{
-			{tr(tColTime), hostTime(e.Time)},
-			{tr(tHostColChange), m.diffText(e.Sentence)},
-			{tr(tHostColResult), shownResult(e.Result)},
-			{tr(tHostLblUndo), undo},
+		return factLines(m.ui, [][2]string{
+			{m.tr(tColTime), hostTime(e.Time)},
+			{m.tr(tHostColChange), m.diffText(e.Sentence)},
+			{m.tr(tHostColResult), m.shownResult(e.Result)},
+			{m.tr(tHostLblUndo), undo},
 		}, width)
 	case tabDetails:
 		if len(e.UndoCommands) == 0 {
-			return []string{styles.hint.Render(tr(tHostNoUndo))}
+			return []string{m.ui.st(kittui.StyleHint).Render(m.tr(tHostNoUndo))}
 		}
 		var lines []string
 		for _, c := range e.UndoCommands {
-			lines = append(lines, wrapIndented(styles.hint, "$ ", m.diffText(c), width)...)
+			lines = append(lines, wrapIndented(m.ui.st(kittui.StyleHint), "$ ", m.diffText(c), width)...)
 		}
 		return lines
 	}
@@ -158,9 +157,9 @@ func boolText(b bool) string {
 // changesKey handles the keys of the Changes page that the table does not.
 func (m *Model) changesKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
-	case keyIs(key, actReload):
+	case m.keyIs(key, actReload):
 		return m.readChanges(), true
-	case keyIs(key, actEnter):
+	case m.keyIs(key, actEnter):
 		return m.askUndo(), true
 	}
 	return nil, false
@@ -174,14 +173,14 @@ func (m *Model) askUndo() tea.Cmd {
 	}
 	e := m.hst.chg.items[id]
 	if !e.Reversible || e.UndoSentence == "" {
-		m.hostNotice(question{title: tr(tHostUndoRefused), consequence: tr(tHostUndoRefusedNote, m.diffText(e.Sentence)),
-			warn: true, keys: "{back} close"})
+		m.hostNotice(question{title: m.tr(tHostUndoRefused), consequence: m.tr(tHostUndoRefusedNote, m.diffText(e.Sentence)),
+			warn: true, keys: closeKeys()})
 		return nil
 	}
-	q := planQuestion(e.UndoSentence, e.UndoCommands, "", "undo")
+	q := planQuestion(m.ui, e.UndoSentence, e.UndoCommands, "", tHintUndo)
 	q.title = m.diffText(e.UndoSentence)
-	q.consequence = tr(tHostUndoNote, m.diffText(e.Sentence))
-	argv := []string{"undo", "--yes", "--output", "json", "--", id}
+	q.consequence = m.tr(tHostUndoNote, m.diffText(e.Sentence))
+	argv := []string{"undo", "--confirm", "--output", "json", "--", id}
 	m.askConfirm(q, func() tea.Cmd {
 		return m.runUndo(argv, id, e.UndoSentence)
 	})
@@ -232,8 +231,8 @@ func (m *Model) askReadUser() tea.Cmd {
 		return nil
 	}
 	m.askConfirm(question{
-		title: tr(tHostReadTitle, m.diffText(name)), consequence: tr(tHostReadNote),
-		details: planDetails([]string{"qsysmin host user " + shellWord(name)}), keys: "y read as root · n/{back} cancel",
+		title: m.tr(tHostReadTitle, m.diffText(name)), consequence: m.tr(tHostReadNote),
+		details: planDetails(m.ui, []string{"qsysmin host user " + shellWord(name)}), keys: keyLine(answer(tHintReadAsRoot, actYes), answer(tHintCancel, actNo, actBack)),
 	}, func() tea.Cmd { return m.readUser(name) })
 	return nil
 }
@@ -262,7 +261,7 @@ func (m *Model) readUser(name string) tea.Cmd {
 			}
 		}
 		m.fillHostUsers()
-		m.status = tr(tHostReadDone, m.diffText(name))
+		m.status = m.tr(tHostReadDone, m.diffText(name))
 		return nil
 	})
 }

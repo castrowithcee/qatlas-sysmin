@@ -7,10 +7,14 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+// framed reports whether a view holds the top corner of a frame: rounded, or double for a focused frame
+// without colour.
+func framed(view string) bool { return strings.ContainsAny(view, "╭╔") }
+
 // inModal reports whether text stands on a row of the modal's frame.
 func inModal(view, text string) bool {
 	for _, line := range strings.Split(view, "\n") {
-		if strings.Contains(line, text) && (strings.Contains(line, "│") || strings.Contains(line, "╭")) {
+		if strings.Contains(line, text) && strings.ContainsAny(line, "│║╭╔") {
 			return true
 		}
 	}
@@ -22,7 +26,7 @@ func promptModel(t *testing.T, w, h int) *Model {
 	m := frameModel(t, w, h)
 	m.screen = screenPrompt
 	m.dialog = &promptDialog{title: "Name the entry", notice: "Names are shown in the list.", input: "name: example",
-		hint: "Letters only.", keys: "enter save · {back} cancel", field: true}
+		hint: "Letters only.", keys: keyLine(answer(tHintSave, actEnter), answer(tHintCancel, actBack)), field: true}
 	return m
 }
 
@@ -45,7 +49,7 @@ func TestPromptFillsTheWorkspaceWhereTheTerminalIsTooSmallForAModal(t *testing.T
 	m := promptModel(t, minimumWidth, minimumHeight)
 	view := plain(m)
 	assertViewFits(t, view, minimumWidth, minimumHeight)
-	if strings.Contains(view, "╭") || strings.Contains(view, "[ Cancel ]") {
+	if framed(view) || strings.Contains(view, "[ Cancel ]") {
 		t.Errorf("a modal on a terminal too small for one:\n%s", view)
 	}
 	for _, want := range []string{"Name the entry", "name: example", "Letters only.", "enter save"} {
@@ -65,7 +69,7 @@ func TestPromptFitsBothSizesWithAnErrorAndALongInput(t *testing.T) {
 		if !strings.Contains(view, "name already taken") || !strings.Contains(view, "cancel") && !strings.Contains(view, "Cancel") {
 			t.Errorf("%dx%d lacks the error or the way out:\n%s", size.w, size.h, view)
 		}
-		if modal := strings.Contains(view, "╭"); modal != (size.w >= modalMinWidth && size.h >= modalMinHeight) {
+		if modal := framed(view); modal != (size.w >= modalMinWidth && size.h >= modalMinHeight) {
 			t.Errorf("%dx%d modal = %v:\n%s", size.w, size.h, modal, view)
 		}
 	}

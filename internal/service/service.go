@@ -9,6 +9,7 @@ import (
 	"net"
 	"path/filepath"
 
+	"github.com/castrowithcee/qatlas-kit/localipc"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
@@ -23,10 +24,11 @@ type Config struct {
 	SocketPath string
 	Version    string
 
-	// Resolver answers the peer check's group questions; nil uses the system's groups.
-	Resolver daemon.Resolver
-	// Credentials reads the peer of a connection; nil uses SO_PEERCRED. Tests name a root or a foreign peer.
-	Credentials func(net.Conn) (daemon.Peer, error)
+	// Group is the group the socket admits besides root; empty means control.ServiceGroup. Tests name a
+	// group of their own process.
+	Group string
+	// IsAdmin reports whether a peer that is not root is an administrator; nil reads the group database.
+	IsAdmin func(uid uint32) (bool, error)
 	// OnLogError is told about audit log writes that failed; nil logs them with slog.
 	OnLogError func(error)
 }
@@ -34,9 +36,10 @@ type Config struct {
 // Service is the audit log and the control socket server around it.
 type Service struct {
 	cfg      Config
+	endpoint localipc.ServiceEndpoint
 	log      *auditlog.Logger
 	server   *daemon.Server
-	listener *net.UnixListener
+	listener net.Listener
 }
 
 // Run opens the service, listens on the socket and serves until ctx ends.
@@ -60,19 +63,25 @@ func Open(cfg Config) (*Service, error) {
 	if cfg.SocketPath == "" {
 		cfg.SocketPath = control.DefaultSocketPath
 	}
+	ep, err := control.Endpoint(cfg.SocketPath)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Group != "" {
+		ep.Group = cfg.Group
+	}
 	log, err := auditlog.Open(filepath.Join(cfg.StateDir, "logs"))
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{cfg: cfg, log: log}
+	s := &Service{cfg: cfg, endpoint: ep, log: log}
 
 	srv, err := daemon.New(daemon.Config{
-		Logger:      s.log,
-		OnLogError:  cfg.OnLogError,
-		Version:     cfg.Version,
-		Resolver:    cfg.Resolver,
-		Credentials: cfg.Credentials,
-		Status:      s.fillStatus,
+		Logger:     s.log,
+		OnLogError: cfg.OnLogError,
+		Version:    cfg.Version,
+		IsAdmin:    cfg.IsAdmin,
+		Status:     s.fillStatus,
 	})
 	if err != nil {
 		return nil, err
@@ -89,7 +98,7 @@ func (s *Service) Server() *daemon.Server { return s.server }
 
 // Listen opens the control socket.
 func (s *Service) Listen() error {
-	ln, err := daemon.Listen(s.cfg.SocketPath)
+	ln, err := s.server.Listen(s.endpoint)
 	if err != nil {
 		return err
 	}

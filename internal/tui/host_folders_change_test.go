@@ -44,13 +44,13 @@ func TestFolderFormIsPrefilledWithTheCurrentValues(t *testing.T) {
 func TestFolderChangeNeedsAFolderAndIsOfferedOnlyForOne(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
 	runCommand(m, "go host folders")
-	if strings.Contains(strings.Join(m.hostKeys(), "|"), "e change") {
+	if strings.Contains(m.hintText(m.hostKeys()), "e change") {
 		t.Error("e is offered before a folder was read")
 	}
 	send(m, "enter")
 	typed(m, "/srv/demo-app/app.conf")
 	send(m, "enter", "esc", "e")
-	if m.form != nil || m.status == "" || strings.Contains(strings.Join(m.hostKeys(), "|"), "e change") {
+	if m.form != nil || m.status == "" || strings.Contains(m.hintText(m.hostKeys()), "e change") {
 		t.Errorf("a file must not open the form: status %q keys %v", m.status, m.hostKeys())
 	}
 	send(m, "enter")
@@ -59,7 +59,7 @@ func TestFolderChangeNeedsAFolderAndIsOfferedOnlyForOne(t *testing.T) {
 	}
 	typed(m, "/srv/demo-app")
 	send(m, "enter", "esc")
-	if !strings.Contains(strings.Join(m.hostKeys(), "|"), "e change") || len(f.reqs) != 0 {
+	if !strings.Contains(m.hintText(m.hostKeys()), "e change") || len(f.reqs) != 0 {
 		t.Errorf("keys %v", m.hostKeys())
 	}
 }
@@ -148,7 +148,7 @@ func TestARestoredFolderChangeNamesContainerAndFinding(t *testing.T) {
 
 func TestFolderChangeSpeaksGerman(t *testing.T) {
 	m, _, _, _ := userModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	openFolderForm(t, m, "/srv/demo-app", fixedCount(1))
 	for _, want := range []string{"Besitzer darf", "Gruppe darf", "Andere dürfen", "Alles darunter"} {
 		if !strings.Contains(flat(m), want) {

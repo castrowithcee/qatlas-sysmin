@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
@@ -16,7 +17,7 @@ func goldenApp(t *testing.T, fb *fakeBackend, w, h int) *Model {
 	t.Helper()
 	t.Setenv("NO_COLOR", "1")
 	m := appModel(t, fb, w, h)
-	if currentProfile() != profileNone {
+	if !m.ui.colorless() {
 		t.Fatal("the golden frames need a terminal without colour")
 	}
 	return m
@@ -70,7 +71,7 @@ func TestGoldenAreas(t *testing.T) {
 		{"activity_filter", func(t *testing.T, w, h int) *Model {
 			utcClock(t)
 			m := goldenApp(t, activityFake(), w, h)
-			send(m, "3", "f", "right", "right", "right", "tab", "right")
+			send(m, "3", "f", "right", "right", "right", "tab", "enter", "down")
 			return m
 		}},
 		{"host_users", func(t *testing.T, w, h int) *Model {
@@ -363,7 +364,7 @@ func TestGoldenAreas(t *testing.T) {
 		{"host_help", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "2", "?")
-			for range helpTopics {
+			for range helptopics.Topics(testLang) {
 				if strings.Contains(plain(m), "Host shows the users") {
 					break
 				}
@@ -393,9 +394,7 @@ func goldenHostUsers(t *testing.T, w, h int) (*Model, *fakeSudo) {
 	t.Helper()
 	m, f := goldenHostChange(t, w, h)
 	m.hostReg = nil
-	old := hostUID
-	hostUID = func() int { return 4242 }
-	t.Cleanup(func() { hostUID = old })
+	m.hostUID = func() int { return 4242 }
 	return m, f
 }
 

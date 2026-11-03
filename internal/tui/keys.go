@@ -16,11 +16,11 @@ func (m *Model) typing() bool {
 	case screenPrompt:
 		return true
 	case screenList:
-		return m.list.editing
+		return m.base.filtering()
 	case screenArea:
-		return (m.area == areaSettings && m.set.editing) || m.hostTyping() || m.currentPage().filtering()
+		return m.generalCapturing() || m.hostTyping() || m.currentPage().filtering()
 	case screenPopup:
-		return m.pop != nil && m.pop.kind == popCommand
+		return m.pop != nil && m.pop.cmd != nil
 	}
 	return false
 }
@@ -29,17 +29,15 @@ func (m *Model) typing() bool {
 // nothing is typed.
 func (m *Model) helpReachable() bool { return !m.typing() }
 
-// moveKey turns the vim keys into the arrow keys on a screen that reads no text, so
-// every screen moves the same way and no handler needs to know the letters.
+// moveKey turns the vim keys into the arrow keys on a screen that reads no text (where text is typed they are
+// text), so every screen moves the same way and no handler needs to know the letters.
 func (m *Model) moveKey(key tea.KeyPressMsg) tea.KeyPressMsg {
-	if m.typing() {
-		return key
-	}
+	focus := m.inputFocus()
 	for _, d := range []struct {
 		act  action
 		code rune
 	}{{actVimLeft, tea.KeyLeft}, {actVimDown, tea.KeyDown}, {actVimUp, tea.KeyUp}, {actVimRight, tea.KeyRight}} {
-		if keyIs(key, d.act) {
+		if m.ui.keys.Is(key, d.act, focus) {
 			return tea.KeyPressMsg{Code: d.code}
 		}
 	}
@@ -50,7 +48,7 @@ func (m *Model) moveKey(key tea.KeyPressMsg) tea.KeyPressMsg {
 const pasteCode rune = -1
 
 // pasteKey is a paste as the key it travels as through the key handlers of the screens. It is named after the
-// pasted text in brackets, so no key binding matches it, and inputMsg hands it to a text field as a paste.
+// pasted text in brackets, so no key binding matches it, and a text field takes it as a paste.
 func pasteKey(content string) tea.KeyPressMsg {
 	return tea.KeyPressMsg{Code: pasteCode, Text: "[" + content + "]"}
 }
@@ -63,19 +61,28 @@ func pasted(key tea.KeyPressMsg) (string, bool) {
 	return key.Text[1 : len(key.Text)-1], true
 }
 
-// inputMsg is what a text field is handed for key: a paste key as the paste it stands for, and alt with a
-// character the field binds nothing to as that character, which a field has always typed.
-func inputMsg(key tea.KeyPressMsg) tea.Msg {
+// typedKey is key as a filter of the kit reads it: a paste key as the text it stands for, and alt with a
+// character a text line binds nothing to as that character, which a text field has always typed.
+func typedKey(key tea.KeyPressMsg) tea.KeyPressMsg {
 	if content, ok := pasted(key); ok {
-		return tea.PasteMsg{Content: content}
+		return textKey(content)
 	}
-	if key.Text != "" || key.Mod&^tea.ModShift != tea.ModAlt || !unicode.IsPrint(key.Code) || inputBinds(key) {
-		return key
+	if r, ok := altCharacter(key); ok {
+		return textKey(string(r))
+	}
+	return key
+}
+
+// altCharacter is the character of alt with a printable key that no text line binds, and false for any other
+// key.
+func altCharacter(key tea.KeyPressMsg) (rune, bool) {
+	if key.Text != "" || key.Mod&^tea.ModShift != tea.ModAlt || !unicode.IsPrint(key.Code) || altWordKey(key.Code) {
+		return 0, false
 	}
 	if key.Mod.Contains(tea.ModShift) {
-		return textKey(string(unicode.ToUpper(key.Code)))
+		return unicode.ToUpper(key.Code), true
 	}
-	return textKey(string(key.Code))
+	return key.Code, true
 }
 
 // legacyKey names a key as the terminal library always named it where its input reader now names it
@@ -88,15 +95,6 @@ func legacyKey(key tea.KeyPressMsg) tea.KeyPressMsg {
 	return key
 }
 
-// linuxFunctionKey is F1 to F5 of the Linux console, which sends them as "\x1b[[" and a letter from A to E; the
-// input reader reports the two apart.
-func linuxFunctionKey(key tea.KeyPressMsg) (tea.KeyPressMsg, bool) {
-	if len(key.Text) != 1 || key.Text[0] < 'A' || key.Text[0] > 'E' {
-		return key, false
-	}
-	return tea.KeyPressMsg{Code: tea.KeyF1 + rune(key.Text[0]-'A')}, true
-}
-
 // textKey is the key press of typed text.
 func textKey(text string) tea.KeyPressMsg {
 	code := tea.KeyExtended
@@ -106,19 +104,24 @@ func textKey(text string) tea.KeyPressMsg {
 	return tea.KeyPressMsg{Code: code, Text: text}
 }
 
-// keyboardModes removes what Bubble Tea writes to switch the keyboard enhancements of the terminal on, off, or
-// to ask about them: modifyOtherKeys and the Kitty keyboard protocol. With them a terminal reports keys such as
-// ctrl+i, shift+enter or the keypad's enter under names of their own; without them every key keeps the name
-// the legacy encoding gives it, the name every key binding, stored ones included, was taken under.
-var keyboardModes = strings.NewReplacer(ansi.SetModifyOtherKeys2, "", ansi.ResetModifyOtherKeys, "",
-	ansi.PushKittyKeyboard(1), "", ansi.PopKittyKeyboard(1), "", ansi.RequestKittyKeyboard, "")
-
 // legacyKeys is the terminal output of the editor without the keyboard enhancements. Bubble Tea writes each
 // frame, and each set of terminal modes, in one write, so no sequence is split between two.
-type legacyKeys struct{ f *os.File }
+type legacyKeys struct {
+	f *os.File
+	// modes removes what Bubble Tea writes to switch the keyboard enhancements of the terminal on, off, or to
+	// ask about them: modifyOtherKeys and the Kitty keyboard protocol. With them a terminal reports keys such
+	// as ctrl+i, shift+enter or the keypad's enter under names of their own; without them every key keeps the
+	// name the legacy encoding gives it, the name every key binding, stored ones included, was taken under.
+	modes *strings.Replacer
+}
+
+func newLegacyKeys(f *os.File) legacyKeys {
+	return legacyKeys{f, strings.NewReplacer(ansi.SetModifyOtherKeys2, "", ansi.ResetModifyOtherKeys, "",
+		ansi.PushKittyKeyboard(1), "", ansi.PopKittyKeyboard(1), "", ansi.RequestKittyKeyboard, "")}
+}
 
 func (o legacyKeys) Write(p []byte) (int, error) {
-	if _, err := o.f.WriteString(keyboardModes.Replace(string(p))); err != nil {
+	if _, err := o.f.WriteString(o.modes.Replace(string(p))); err != nil {
 		return 0, err
 	}
 	return len(p), nil

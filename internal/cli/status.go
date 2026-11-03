@@ -6,13 +6,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 )
 
-// withService runs fn on a connection to the service at socket. Every failure is a runtime error with a
-// message that says what to check.
+// withService runs fn on a connection to the service at socket. Every failure is a diagnostic with a code and
+// the step to take.
 func withService(socket string, fn func(*client.Client) error) error {
 	c, err := client.Dial(socket)
 	if err != nil {
@@ -26,13 +26,13 @@ func withService(socket string, fn func(*client.Client) error) error {
 	return accessError(err)
 }
 
-// accessError turns a caller without access into the one line that says so, printed without a prefix.
+// accessError turns a caller without access into its diagnostic.
 func accessError(err error) error {
 	switch {
 	case errors.Is(err, client.ErrReserved):
-		return &plainError{client.ReservedMessage}
+		return client.ErrReserved
 	case errors.Is(err, client.ErrNotEnabled):
-		return &plainError{client.NotEnabledMessage}
+		return client.ErrNotEnabled
 	}
 	return err
 }
@@ -44,12 +44,16 @@ func dialError(err error) error {
 	}
 	var pe *client.PeerError
 	if errors.As(err, &pe) {
-		return err // it names the process and the next step itself
+		return failure(codePeerMismatch, err, "Stop the process as the message says, then repeat the request.",
+			"Tell the user which process answers at the socket; do not stop it yourself.")
 	}
 	if errors.Is(err, client.ErrSessionGroup) {
-		return fmt.Errorf("%w; log in again, or put \"sudo -g %s\" in front of the command", err, control.ServiceGroup)
+		return failure(codeSessionGroup, err,
+			fmt.Sprintf("Log in again, or put \"sudo -g %s\" in front of the command.", control.ServiceGroup), askUserReport)
 	}
-	return fmt.Errorf("%w (is the service running, and are you root or in the group qsysmin?)", err)
+	return failure(output.CodeUnreachable, err,
+		"Check that the service is running and that you are root or in the group qsysmin.",
+		"Tell the user the service is unreachable; do not start or restart it.")
 }
 
 func newStatusCommand(opts *Options) *cobra.Command {
@@ -57,7 +61,6 @@ func newStatusCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show the state of the running service",
-		Args:  noArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			var st control.StatusResult
 			err := withService(socket, func(cl *client.Client) (err error) {
@@ -65,7 +68,7 @@ func newStatusCommand(opts *Options) *cobra.Command {
 				return err
 			})
 			if err != nil {
-				return fmt.Errorf("status: %w", err)
+				return err
 			}
 			return emit(c, opts, output.Object{Fields: []output.Field{
 				{Name: "version", Value: st.Version},

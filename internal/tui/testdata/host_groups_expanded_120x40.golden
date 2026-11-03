@@ -1,40 +1,40 @@
 qsysmin                                                                                    [esc] back  [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings 
-   Users  [Groups]  Folders   Changes 
+   1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
+   Users  [Groups]  Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Groups (4)                                                        2/4 ╭─ sudo ─────────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
-║   Name       Members  System                                      ║ │                                                │
-║   ▾ Groups (1)                                                    ║ │ Name     sudo                                  │
-║   demo-team        1                                              ║ │ Type     system (read-only)                    │
-║   ▾ System groups (3)                                             ║ │ Members  2                                     │
-║ > sudo             2  system                                      ║ │                                                │
-║   docker           1  system                                      ║ │                                                │
-║   qsysmin          1  system                                      ║ │                                                │
+║     NAME       MEMBERS  SYSTEM                                    ║ │                                                │
+║   ▾ ■ Groups (1)                                                  ║ │ Name     sudo                                  │
+║     demo-team        1                                            ║ │ Type     system (read-only)                    │
+║   ▾ ■ System groups (3)                                           ║ │ Members  2                                     │
+║ >   sudo             2  system                                    ║ │                                                │
+║     docker           1  system                                    ║ │                                                │
+║     qsysmin          1  system                                    ║ │                                                │
 ╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
 enter details  n new  e members  r rename  d delete  / filter  esc back  i info  c copy  ? help  : cmds  q quit      2/4

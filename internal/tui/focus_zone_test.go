@@ -1,11 +1,21 @@
 package tui
 
 import (
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+
 	"strings"
 	"testing"
 )
 
 // headerOf is the first row of the frame, where the back button stands.
+// wrap is i taken into 0..n-1: past either end it comes round.
+func wrap(i, n int) int {
+	if n <= 0 {
+		return 0
+	}
+	return ((i % n) + n) % n
+}
+
 func headerOf(m *Model) string { return strings.Split(plain(m), "\n")[0] }
 
 // footerOf is the last row of the frame.
@@ -141,7 +151,7 @@ func TestTabAndShiftTabChangeTheZoneAndNeverTheArea(t *testing.T) {
 	send(m, "2", "esc", "esc")
 	for _, step := range []struct {
 		key  string
-		want zone
+		want kittui.FocusZone
 	}{
 		{"tab", zoneSubs}, {"tab", zoneContent}, {"tab", zoneTabs},
 		{"shift+tab", zoneContent}, {"shift+tab", zoneSubs}, {"shift+tab", zoneTabs},
@@ -153,8 +163,8 @@ func TestTabAndShiftTabChangeTheZoneAndNeverTheArea(t *testing.T) {
 	}
 	m = appModel(t, overviewFake(), 80, 24)
 	send(m, "3", "tab")
-	if m.zoneNow() != zoneTabs || m.area != areaActivity {
-		t.Errorf("tab from the content of Activity reaches %v in %v, want the tab line", m.zoneNow(), m.area)
+	if m.zoneNow() != zoneFilters || m.area != areaActivity {
+		t.Errorf("tab from the content of Activity reaches %v in %v, want the filter bar", m.zoneNow(), m.area)
 	}
 	send(m, "shift+tab")
 	if m.zoneNow() != zoneContent || m.area != areaActivity {
@@ -178,23 +188,23 @@ func TestDigitsOpenTheAreaInItsContentButNotWhileTyping(t *testing.T) {
 	}
 	send(m, "/")
 	typed(m, "3")
-	if m.area != areaActivity || m.act.page.list.query() != "3" {
-		t.Errorf("a digit typed into the filter opens %v, filter %q", m.area, m.act.page.list.query())
+	if m.area != areaActivity || m.act.page.list.Query() != "3" {
+		t.Errorf("a digit typed into the filter opens %v, filter %q", m.area, m.act.page.list.Query())
 	}
 }
 
 func TestUpOnTheFirstRowLeadsToTheBarAndListsStopAtTheEnds(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
 	send(m, "3", "down", "down", "down")
-	if got := m.act.page.list.cursor; got != 1 {
+	if got := logRow(m); got != 1 {
 		t.Errorf("down past the last row reaches %d, want it to stay on 1", got)
 	}
 	send(m, "end", "pgdown")
-	if got := m.act.page.list.cursor; got != 1 {
+	if got := logRow(m); got != 1 {
 		t.Errorf("end and pgdown reach %d, want 1", got)
 	}
 	send(m, "home", "pgup")
-	if got := m.act.page.list.cursor; got != 0 || m.zoneNow() != zoneContent {
+	if got := logRow(m); got != 0 || m.zoneNow() != zoneContent {
 		t.Errorf("home and pgup reach %d on %v, want the first row in the content", got, m.zoneNow())
 	}
 	send(m, "up")
@@ -223,11 +233,15 @@ func TestUpOnTheFirstRowLeadsToTheBarAndListsStopAtTheEnds(t *testing.T) {
 	}
 
 	m, _ = settingsModel(t, newFake(), "general")
-	send(m, "end", "down")
-	if m.set.gen.focus != genRows-1 {
-		t.Errorf("down past the last row of General reaches %d", m.set.gen.focus)
+	for range len(generalOrder()) + 1 {
+		send(m, "down")
 	}
-	send(m, "home", "up")
+	if genFocus(m) != len(generalOrder())-1 {
+		t.Errorf("down past the last field of General reaches %d", genFocus(m))
+	}
+	for range len(generalOrder()) {
+		send(m, "up")
+	}
 	if m.zoneNow() != zoneSubs {
 		t.Errorf("up on the first row of General reaches %v, want the page strip", m.zoneNow())
 	}
@@ -243,9 +257,7 @@ func TestCyclingOverSettingsAsksOnlyAboutUnsavedInput(t *testing.T) {
 	}
 
 	m, _ = settingsModel(t, newFake(), "general")
-	send(m, "down", "down", "down", "enter")
-	typed(m, "5")
-	send(m, "esc")
+	send(m, "right") // the language takes its next value
 	if !m.settingsDirty() {
 		t.Fatal("the edit left nothing unsaved")
 	}
@@ -287,23 +299,26 @@ func TestClickOnTheBackButtonActsLikeEscAndTabClicksOpenTheArea(t *testing.T) {
 }
 
 // zonesOf walks the tab chain forward from the current zone and returns the zones it meets until it is back.
-func zonesOf(t *testing.T, m *Model, key string) []zone {
+func zonesOf(t *testing.T, m *Model, key string) []kittui.FocusZone {
 	t.Helper()
 	start := m.zoneNow()
-	out := []zone{start}
-	for range 6 {
+	out := []kittui.FocusZone{start}
+	// The filter bar takes a step per field before the focus leaves it, so a zone counts once.
+	for range 10 {
 		send(m, key)
 		z := m.zoneNow()
 		if z == start {
 			return out
 		}
-		out = append(out, z)
+		if z != out[len(out)-1] {
+			out = append(out, z)
+		}
 	}
 	t.Fatalf("%s does not come round: %v", key, out)
 	return nil
 }
 
-func sameZones(a, b []zone) bool {
+func sameZones(a, b []kittui.FocusZone) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -338,17 +353,17 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 		if m.zoneNow() != zoneContent {
 			t.Fatalf("%s: starts on %v, want the rows", c.name, m.zoneNow())
 		}
-		want := []zone{zoneContent, zoneDetail, zoneTabs}
+		want := []kittui.FocusZone{zoneContent, zoneDetail, zoneFilters, zoneTabs}
 		if c.subs {
-			want = []zone{zoneContent, zoneDetail, zoneTabs, zoneSubs}
+			want = []kittui.FocusZone{zoneContent, zoneDetail, zoneTabs, zoneSubs}
 		}
 		if got := zonesOf(t, m, "tab"); !sameZones(got, want) {
 			t.Errorf("%s: tab walks %v, want %v", c.name, got, want)
 		}
 		m.zone = zoneContent
-		back := []zone{zoneContent, zoneTabs, zoneDetail}
+		back := []kittui.FocusZone{zoneContent, zoneTabs, zoneFilters, zoneDetail}
 		if c.subs {
-			back = []zone{zoneContent, zoneSubs, zoneTabs, zoneDetail}
+			back = []kittui.FocusZone{zoneContent, zoneSubs, zoneTabs, zoneDetail}
 		}
 		if got := zonesOf(t, m, "shift+tab"); !sameZones(got, back) {
 			t.Errorf("%s: shift+tab walks %v, want %v", c.name, got, back)
@@ -356,6 +371,10 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 		m.zone = zoneContent
 		before := c.tab(m)
 		send(m, "right", "left")
+		if c.subs {
+			// Left on a row of a grouped table folds its group; right opens it again from the group row.
+			send(m, "right", "down")
+		}
 		if c.tab(m) != before || m.zoneNow() != zoneContent {
 			t.Errorf("%s: the arrows on the rows turn the detail tab (%d, was %d) or leave the rows (%v)", c.name, c.tab(m), before, m.zoneNow())
 		}
@@ -396,8 +415,8 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 func TestTheDetailIsNoZoneBelow120Columns(t *testing.T) {
 	m := appModel(t, overviewFake(), 100, 30)
 	send(m, "3", "tab")
-	if m.zoneNow() != zoneTabs {
-		t.Errorf("tab from the rows of a narrow Activity reaches %v, want the tab line", m.zoneNow())
+	if m.zoneNow() != zoneFilters {
+		t.Errorf("tab from the rows of a narrow Activity reaches %v, want the filter bar", m.zoneNow())
 	}
 }
 

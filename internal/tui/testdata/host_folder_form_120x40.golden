@@ -4,33 +4,33 @@ qsysmin                                                                         
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Folders                                                                                                                 
                                                                                                                         
-Path: /srv/demo-app                                                                                                     
-                                                                                                                        
-Type           folder                                                                                                   
-Owner root     read and write                                                                                           
-Group qsysmin  read                                                                                                     
-Others         nothing                                                                                                  
-Mode           2750                                                                                                     
-ACL            set: further ╔══════════════════════════════════════════════════════════════╗                            
-Special        setgid: new e║ Change /srv/demo-app                                         ║                            
-                            ║                                                              ║                            
-                            ║ > Owner:                < root >                             ║                            
-                            ║   Group:                qsysmin                              ║                            
-                            ║   Owner may:            read and write                       ║                            
-                            ║   Group may:            read                                 ║                            
-                            ║   Others may:           nothing                              ║                            
-                            ║   Everything below it:  no                                   ║                            
+Path: /srv/demo-app         ╔══════════════════════════════════════════════════════════════╗                            
+                            ║ Change /srv/demo-app                                         ║                            
+Type           folder       ║                                                              ║                            
+Owner root     read and writ║                       ╔════════════════════════════════════╗ ║                            
+Group qsysmin  read         ║ > Owner               ║ root                             ▾ ║ ║                            
+Others         nothing      ║                       ╚════════════════════════════════════╝ ║                            
+Mode           2750         ║                       ╭────────────────────────────────────╮ ║                            
+ACL            set: further ║   Group               │ qsysmin                          ▾ │ ║                            
+Special        setgid: new e║                       ╰────────────────────────────────────╯ ║                            
+                            ║                       ╭────────────────────────────────────╮ ║                            
+                            ║   Owner may           │ read and write                   ▾ │ ║                            
+                            ║                       ╰────────────────────────────────────╯ ║                            
+                            ║                       ╭────────────────────────────────────╮ ║                            
+                            ║   Group may           │ read                             ▾ │ ║                            
+                            ║                       ╰────────────────────────────────────╯ ║                            
+                            ║                       ╭────────────────────────────────────╮ ║                            
+                            ║   Others may          │ nothing                          ▾ │ ║                            
+                            ║                       ╰────────────────────────────────────╯ ║                            
+                            ║                       ╭────────────────────────────────────╮ ║                            
+                            ║   Everything below it │ no                               ▾ │ ║                            
+                            ║                       ╰────────────────────────────────────╯ ║                            
                             ║                                                              ║                            
                             ║ [ Save ]  [ Cancel ]                                         ║                            
                             ║                                                              ║                            
-                            ║ ←/→ choose · tab next · F2 save · esc cancel                 ║                            
+                            ║ enter choose · tab next zone or field                        ║                            
+                            ║ shift+tab previous zone or field · F2 save · esc cancel      ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

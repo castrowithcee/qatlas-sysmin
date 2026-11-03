@@ -3,7 +3,6 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -11,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"golang.org/x/crypto/ssh"
 
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
@@ -19,9 +19,6 @@ import (
 // can before anything leaves the form, and ends in the confirmation of hostchange; the root command checks it
 // all again and stays the authority.
 
-// hostUID is the user running the interface, for the early message about taking admin from oneself.
-var hostUID = os.Getuid
-
 // Limits the root actions enforce too; checking them here only saves a round through sudo.
 const (
 	maxFormPassword = 256
@@ -29,11 +26,11 @@ const (
 )
 
 // userKindText is the type of a user in the details: system accounts can be changed like others.
-func userKindText(system bool) string {
+func userKindText(ui *uiContext, system bool) string {
 	if system {
-		return tr(tHostSystem)
+		return ui.tr(tHostSystem)
 	}
-	return tr(tHostRegular)
+	return ui.tr(tHostRegular)
 }
 
 // fixedGroup is a group with a switch of its own, never one of the further groups.
@@ -67,7 +64,7 @@ func (m *Model) systemNotes(names []string) []string {
 	notes := make([]string, len(names))
 	for i, g := range names {
 		if m.isSystemGroup(g) {
-			notes[i] = tr(tHostSystem)
+			notes[i] = m.tr(tHostSystem)
 		}
 	}
 	return notes
@@ -95,28 +92,46 @@ func (m *Model) isSystemGroup(name string) bool {
 type userKey struct{ line, fingerprint string }
 
 // parseUserKey checks one authorized_keys line the way the root action does: one line, a public key, no options.
-func parseUserKey(text string) (userKey, string) {
+func parseUserKey(ui *uiContext, text string) (userKey, string) {
 	text = strings.TrimSpace(text)
 	if text == "" || strings.ContainsAny(text, "\r\n") {
-		return userKey{}, tr(tHostFormKeyBad)
+		return userKey{}, ui.tr(tHostFormKeyBad)
 	}
 	pub, _, options, rest, err := ssh.ParseAuthorizedKey([]byte(text))
 	if err != nil || len(rest) > 0 || len(options) > 0 {
-		return userKey{}, tr(tHostFormKeyBad)
+		return userKey{}, ui.tr(tHostFormKeyBad)
 	}
 	return userKey{line: text, fingerprint: ssh.FingerprintSHA256(pub)}, ""
 }
 
-// passwordProblem checks the two entries of a password field pair.
-func passwordProblem(f *formDlg, first, second string) bool {
-	pw, again := f.row(first), f.row(second)
+// The fields of the user forms.
+const (
+	fieldKind     kittui.FieldID = "kind"
+	fieldName     kittui.FieldID = "name"
+	fieldPassword kittui.FieldID = "password"
+	fieldAgain    kittui.FieldID = "again"
+	fieldAdmin    kittui.FieldID = "admin"
+	fieldHome     kittui.FieldID = "home"
+	fieldDocker   kittui.FieldID = "docker"
+	fieldGroups   kittui.FieldID = "groups"
+	fieldWhat     kittui.FieldID = "what"
+	fieldAdd      kittui.FieldID = "add"
+	fieldRemove   kittui.FieldID = "remove"
+	fieldMust     kittui.FieldID = "must"
+	fieldKey      kittui.FieldID = "key"
+	fieldKeyOf    kittui.FieldID = "fp"
+)
+
+// passwordProblem checks the two entries of a password field pair and reports whether it found a problem.
+func passwordProblem(ui *uiContext, f *formDlg) bool {
+	pw, again := f.raw(fieldPassword), f.raw(fieldAgain)
 	switch {
-	case pw.raw() == "":
-		pw.problem = tr(tHostFormPwEmpty)
-	case utf8.RuneCountInString(pw.raw()) > maxFormPassword || !validPasswordText(pw.raw()):
-		pw.problem = tr(tHostFormPwBad, maxFormPassword)
-	case pw.raw() != again.raw():
-		again.problem = tr(tHostFormPwMismatch)
+	case pw == "":
+		f.fail(fieldPassword, ui.tr(tHostFormPwEmpty))
+	case utf8.RuneCountInString(pw) > maxFormPassword || !validPasswordText(pw):
+		f.fail(fieldPassword, ui.tr(tHostFormPwBad, maxFormPassword))
+	case pw != again:
+		f.fail(fieldAgain, ui.tr(tHostFormPwMismatch))
 	default:
 		return false
 	}
@@ -135,38 +150,26 @@ func validPasswordText(p string) bool {
 	return true
 }
 
-// wipe forgets what a masked pair held.
-func wipe(f *formDlg, keys ...string) {
-	for _, k := range keys {
-		if r := f.row(k); r != nil {
-			r.in.SetValue("")
-		}
-	}
-}
-
 // keyList is the form's state for the SSH keys added so far.
 type keyList struct{ keys []userKey }
 
-// add checks the text of the key row and puts its key on the list; a problem stands under the row.
-func (k *keyList) add(row *formRow) bool {
-	key, problem := parseUserKey(row.value())
+// add checks one key line and puts its key on the list; it returns the problem, empty when the key was added.
+func (k *keyList) add(ui *uiContext, text string) string {
+	key, problem := parseUserKey(ui, text)
 	switch {
 	case problem != "":
-		row.problem = problem
+		return problem
 	case slices.ContainsFunc(k.keys, func(o userKey) bool { return o.fingerprint == key.fingerprint }):
-		row.problem = tr(tHostFormKeyDup)
+		return ui.tr(tHostFormKeyDup)
 	case len(k.keys) >= maxFormKeys:
-		row.problem = tr(tHostFormKeyMax, maxFormKeys)
-	default:
-		k.keys = append(k.keys, key)
-		row.in.SetValue("")
-		return true
+		return ui.tr(tHostFormKeyMax, maxFormKeys)
 	}
-	return false
+	k.keys = append(k.keys, key)
+	return ""
 }
 
 // summary lists the fingerprints of the keys added, the latest few.
-func (k *keyList) summary() string {
+func (k *keyList) summary(ui *uiContext) string {
 	if len(k.keys) == 0 {
 		return ""
 	}
@@ -180,7 +183,7 @@ func (k *keyList) summary() string {
 	for _, key := range shown {
 		fps = append(fps, key.fingerprint)
 	}
-	return tr(tHostFormKeys, len(k.keys), strings.Join(fps, ", ")+more)
+	return ui.tr(tHostFormKeys, len(k.keys), strings.Join(fps, ", ")+more)
 }
 
 // --- create ---
@@ -191,128 +194,108 @@ const (
 	kindService = "service"
 )
 
-type createForm struct{ keyList }
-
 // openUserCreate opens the form for a new person or service account.
 func (m *Model) openUserCreate() tea.Cmd {
-	st := &createForm{}
-	f := &formDlg{title: tr(tHostNewTitle), saveText: "{save} save"}
-	yesNo := []string{hostNo, hostYes}
-	shown := []string{tr(tHostNo), tr(tHostYes)}
-	f.rows = []formRow{
-		choiceRow("kind", tr(tHostFormKind), []string{kindPerson, kindService}, []string{tr(tHostKindPerson), tr(tHostKindService)}, 0),
-		textRow("name", tr(tColName), ""),
-		maskedRow("password", tr(tHostFormPassword)),
-		maskedRow("again", tr(tHostFormPassword2)),
-		choiceRow("admin", tr(tHostColAdmin), yesNo, shown, 0),
-		choiceRow("home", tr(tHostFormHome), yesNo, shown, 0),
-		choiceRow("docker", tr(tHostColDocker), yesNo, shown, 0),
-		pickRow("groups", tr(tHostFormFurther), m.furtherGroups(false), nil),
-		textRow("key", tr(tHostFormKey), ""),
+	f := &formDlg{title: m.tr(tHostNewTitle), saveText: answer(tHintSave, actSave), keys: &keyList{}}
+	f.fields = []kittui.FormField{
+		choiceField(fieldKind, tHostFormKind, shownChoices([]string{kindPerson, kindService}, []textID{tHostKindPerson, tHostKindService}), 0),
+		textField(fieldName, tColName),
+		maskedField(fieldPassword, tHostFormPassword),
+		maskedField(fieldAgain, tHostFormPassword2),
+		choiceField(fieldAdmin, tHostColAdmin, yesNo(), 0),
+		choiceField(fieldHome, tHostFormHome, yesNo(), 0),
+		choiceField(fieldDocker, tHostColDocker, yesNo(), 0),
+		f.pickField(fieldGroups, tHostFormFurther, m.furtherGroups(false), nil),
+		listField(fieldKeys, tHostFormKeyList),
 	}
-	f.enter = func(_ *Model, f *formDlg, row int) bool {
-		if f.rows[row].key != "key" || f.rows[row].value() == "" {
-			return false
-		}
-		if st.add(&f.rows[row]) {
-			f.hint = tr(tHostNewHint) + " " + st.summary()
-		}
-		return true
-	}
-	f.changed = func(_ *Model, f *formDlg, row int) {
-		if f.rows[row].key == "kind" {
-			st.arrange(f)
+	f.changed = func(m *Model, f *formDlg, id kittui.FieldID) {
+		if id == fieldKind {
+			arrangeCreate(m, f)
 		}
 	}
-	f.submit = st.submit
-	st.arrange(f)
+	f.submit = submitCreate
+	arrangeCreate(m, f)
 	m.openForm(f)
 	return nil
 }
 
-func serviceKind(f *formDlg) bool { return f.row("kind").value() == kindService }
+func serviceKind(f *formDlg) bool { return f.value(fieldKind) == kindService }
 
-// arrange shows the rows of the kind chosen. A service account has no password, Admin or key; what a person
-// typed there is forgotten when the kind changes.
-func (st *createForm) arrange(f *formDlg) {
-	service := serviceKind(f)
-	for _, k := range []string{"password", "again", "admin", "key"} {
-		f.row(k).hidden = service
+// arrangeCreate shows the fields of the kind chosen. A service account has no password, Admin or key; the keys
+// added for a person are forgotten when the kind changes, and a password is never kept across the change.
+func arrangeCreate(m *Model, f *formDlg) {
+	service := f.kit != nil && serviceKind(f)
+	for _, id := range []kittui.FieldID{fieldPassword, fieldAgain, fieldAdmin, fieldKeys} {
+		f.show(id, !service)
 	}
-	f.row("home").hidden = !service
-	f.hint = tr(tHostNewHint)
+	f.show(fieldHome, service)
+	f.hint = m.tr(tHostNewHint)
 	if service {
-		wipe(f, "password", "again")
-		f.row("key").in.SetValue("")
-		st.keys = nil
-		f.hint = tr(tHostNewServiceHint)
+		f.keys.keys = nil
+		f.hint = m.tr(tHostNewServiceHint)
+	}
+	if f.kit != nil {
+		f.rearrange(m)
 	}
 }
 
-func (st *createForm) submit(m *Model, f *formDlg) tea.Cmd {
-	name := f.row("name").value()
+func submitCreate(m *Model, f *formDlg) tea.Cmd {
+	name := f.value(fieldName)
 	switch {
 	case name == "":
-		f.row("name").problem = tr(tHostFormNameEmpty)
+		f.fail(fieldName, m.tr(tHostFormNameEmpty))
 	case m.hostUserExists(name):
-		f.row("name").problem = tr(tHostFormNameTaken)
+		f.fail(fieldName, m.tr(tHostFormNameTaken))
 	}
-	bad := f.row("name").problem != ""
 	service := serviceKind(f)
 	if !service {
-		if passwordProblem(f, "password", "again") {
-			bad = true
-		}
-		if f.row("key").value() != "" && !st.add(f.row("key")) {
-			bad = true
-		}
+		passwordProblem(m.ui, f)
 	}
-	if bad {
+	if f.failed() {
 		return nil
 	}
 	args := []string{name}
-	admin, docker := !service && f.row("admin").value() == hostYes, f.row("docker").value() == hostYes
+	admin, docker := !service && f.value(fieldAdmin) == hostYes, f.value(fieldDocker) == hostYes
 	if admin {
 		args = append(args, "admin")
 	}
-	if service && f.row("home").value() == hostYes {
+	if service && f.value(fieldHome) == hostYes {
 		args = append(args, "home")
 	}
 	if docker {
 		args = append(args, "docker")
 	}
-	for _, g := range f.row("groups").picked() {
+	for _, g := range f.picked(fieldGroups) {
 		args = append(args, "group="+g)
 	}
 	if service {
 		p, refusal := m.planHost(hostAsk{id: hostchange.ActionUserCreateService, args: args, power: docker})
 		if refusal != "" {
-			f.notice = refusal
+			f.refuse(refusal)
 			return nil
 		}
 		m.closeForm()
 		m.confirmHost(p)
 		return nil
 	}
-	input := hostchange.CreateInput{Password: f.row("password").raw()}
-	for _, k := range st.keys {
+	input := hostchange.CreateInput{Password: f.raw(fieldPassword)}
+	for _, k := range f.keys.keys {
 		input.Keys = append(input.Keys, k.line)
 	}
 	secret, err := json.Marshal(input)
 	pw := []byte(input.Password)
 	if err != nil {
 		zero(pw)
-		f.notice = err.Error()
+		f.refuse(err.Error())
 		return nil
 	}
 	p, refusal := m.planHost(hostAsk{id: hostchange.ActionUserCreate, args: args, secret: secret, mask: [][]byte{pw}, power: admin || docker})
 	if refusal != "" {
 		zero(secret)
 		zero(pw)
-		f.notice = refusal
+		f.refuse(refusal)
 		return nil
 	}
-	wipe(f, "password", "again")
 	m.closeForm()
 	m.confirmHost(p)
 	return nil
@@ -345,13 +328,14 @@ const (
 	chgUnlock       = "unlock"
 )
 
-func changeText(id string) string {
-	return tr(map[string]textID{
+// changeText is the text drawn for the change of an id.
+func changeText(id string) textID {
+	return map[string]textID{
 		chgAddGroups: tHostChgAddGroups, chgRemoveGroups: tHostChgRemoveGroups, chgAdminOn: tHostChgAdminOn,
 		chgAdminOff: tHostChgAdminOff, chgDockerOn: tHostChgDockerOn, chgDockerOff: tHostChgDockerOff,
 		chgPassword: tHostChgPassword, chgAddKey: tHostChgAddKey, chgRemoveKey: tHostChgRemoveKey, chgEnable: tHostChgEnable,
 		chgLock: tHostChgLock, chgUnlock: tHostChgUnlock,
-	}[id])
+	}[id]
 }
 
 // editFor are the groups a user may be added to and taken out of.
@@ -415,70 +399,73 @@ func (m *Model) openUserEdit() tea.Cmd {
 	if u.Admin && !u.Enabled {
 		ids = append([]string{chgEnable}, ids...)
 	}
-	shown := make([]string, len(ids))
+	shown := make([]textID, len(ids))
 	for i, id := range ids {
 		shown[i] = changeText(id)
 	}
-	var fps, fpShown []string
+	var keys []kittui.Choice
 	for _, k := range u.SSHKeys {
-		fps = append(fps, k.Fingerprint)
-		fpShown = append(fpShown, k.Fingerprint+" "+k.Comment)
+		keys = append(keys, kittui.Choice{ID: kittui.ChoiceID(k.Fingerprint), Label: literal(m.diffText(k.Fingerprint + " " + k.Comment))})
 	}
-	if len(fps) == 0 {
-		fps, fpShown = []string{""}, []string{""}
+	st := &editForm{u: u}
+	f := &formDlg{title: m.tr(tHostEditTitle, m.diffText(u.Name)), saveText: answer(tHintSave, actSave), submit: st.submit}
+	f.fields = []kittui.FormField{
+		choiceField(fieldWhat, tHostFormWhat, shownChoices(ids, shown), 0),
+		f.pickField(fieldAdd, tHostFormAddTo, add, m.systemNotes(add)),
+		f.pickField(fieldRemove, tHostFormRemoveFrom, remove, m.systemNotes(remove)),
+		maskedField(fieldPassword, tHostFormPassword),
+		maskedField(fieldAgain, tHostFormPassword2),
+		choiceField(fieldMust, tHostFormMust, shownChoices([]string{hostYes, hostNo}, []textID{tHostYes, tHostNo}), 0),
+		textField(fieldKey, tHostFormKey),
+		choiceField(fieldKeyOf, tHostFormKeyOf, keys, 0),
 	}
-	st := &editForm{u: u, add: add, remove: remove}
-	f := &formDlg{title: tr(tHostEditTitle, m.diffText(u.Name)), saveText: "{save} save", submit: st.submit}
-	f.rows = []formRow{
-		choiceRow("what", tr(tHostFormWhat), ids, shown, 0),
-		pickRow("add", tr(tHostFormAddTo), add, m.systemNotes(add)),
-		pickRow("remove", tr(tHostFormRemoveFrom), remove, m.systemNotes(remove)),
-		maskedRow("password", tr(tHostFormPassword)),
-		maskedRow("again", tr(tHostFormPassword2)),
-		choiceRow("must", tr(tHostFormMust), []string{hostYes, hostNo}, []string{tr(tHostYes), tr(tHostNo)}, 0),
-		textRow("key", tr(tHostFormKey), ""),
-		choiceRow("fp", tr(tHostFormKeyOf), fps, fpShown, 0),
-	}
-	f.changed = func(_ *Model, f *formDlg, row int) {
-		if f.rows[row].key == "what" {
-			st.arrange(f)
+	f.changed = func(m *Model, f *formDlg, id kittui.FieldID) {
+		if id == fieldWhat {
+			st.arrange(m, f)
 		}
 	}
-	st.arrange(f)
+	st.arrange(m, f)
 	m.openForm(f)
 	return nil
 }
 
 type editForm struct {
-	u           hostadmin.User
-	add, remove []string
+	u hostadmin.User
 }
 
-// arrange shows the rows of the change chosen and the hint that goes with it.
-func (st *editForm) arrange(f *formDlg) {
-	what := f.row("what").value()
-	show := map[string]bool{
-		"add": what == chgAddGroups, "remove": what == chgRemoveGroups,
-		"password": what == chgPassword, "again": what == chgPassword, "must": what == chgPassword,
-		"key": what == chgAddKey, "fp": what == chgRemoveKey && len(st.u.SSHKeys) > 0,
+// arrange shows the fields of the change chosen and the hint that goes with it.
+func (st *editForm) arrange(m *Model, f *formDlg) {
+	what := chgAddGroups
+	if f.kit != nil {
+		what = f.value(fieldWhat)
+	} else if len(f.fields[0].Choices) > 0 {
+		what = string(f.fields[0].Choices[0].ID)
 	}
-	for i := range f.rows {
-		if k := f.rows[i].key; k != "what" {
-			f.rows[i].hidden = !show[k]
+	show := map[kittui.FieldID]bool{
+		fieldAdd: what == chgAddGroups, fieldRemove: what == chgRemoveGroups,
+		fieldPassword: what == chgPassword, fieldAgain: what == chgPassword, fieldMust: what == chgPassword,
+		fieldKey: what == chgAddKey, fieldKeyOf: what == chgRemoveKey && len(st.u.SSHKeys) > 0,
+	}
+	for _, field := range f.fields {
+		if field.ID != fieldWhat {
+			f.show(field.ID, show[field.ID])
 		}
 	}
 	f.hint = ""
 	switch what {
 	case chgAdminOn, chgDockerOn:
-		f.hint = tr(tHostPowerWarn)
+		f.hint = m.tr(tHostPowerWarn)
 	case chgEnable:
-		f.hint = tr(tHostChgEnableHint)
+		f.hint = m.tr(tHostChgEnableHint)
 	case chgAddKey:
-		f.hint = tr(tHostChgKeyHint)
+		f.hint = m.tr(tHostChgKeyHint)
 	case chgRemoveKey:
 		if st.u.SSHKeys == nil {
-			f.hint = tr(tHostFormKeysUnread)
+			f.hint = m.tr(tHostFormKeysUnread)
 		}
+	}
+	if f.kit != nil {
+		f.rearrange(m)
 	}
 }
 
@@ -487,16 +474,16 @@ func (m *Model) guardRevoke(u hostadmin.User) string { return m.guardAdmin(u, tH
 
 // guardLock gives the early message of the rules the root action enforces for locking.
 func (m *Model) guardLock(u hostadmin.User) string {
-	if uid := hostUID(); uid != 0 && uid == u.UID {
-		return tr(tHostSelfLock)
+	if uid := m.hostUID(); uid != 0 && uid == u.UID {
+		return m.tr(tHostSelfLock)
 	}
 	return m.guardAdmin(u, tHostSelfAdmin)
 }
 
 // guardDelete gives the early message of the rules the root action enforces for deleting.
 func (m *Model) guardDelete(u hostadmin.User) string {
-	if uid := hostUID(); uid != 0 && uid == u.UID {
-		return tr(tHostSelfDelete)
+	if uid := m.hostUID(); uid != 0 && uid == u.UID {
+		return m.tr(tHostSelfDelete)
 	}
 	return m.guardAdmin(u, tHostSelfDelete)
 }
@@ -506,41 +493,41 @@ func (m *Model) guardAdmin(u hostadmin.User, self textID) string {
 	if !u.Admin {
 		return ""
 	}
-	if uid := hostUID(); uid != 0 && uid == u.UID {
-		return tr(self)
+	if uid := m.hostUID(); uid != 0 && uid == u.UID {
+		return m.tr(self)
 	}
 	for _, o := range m.hst.users.all {
 		if o.Name != u.Name && o.Admin && o.Enabled && (o.Expired == nil || !*o.Expired) {
 			return ""
 		}
 	}
-	return tr(tHostLastAdmin, m.diffText(u.Name))
+	return m.tr(tHostLastAdmin, m.diffText(u.Name))
 }
 
 func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 	name := st.u.Name
 	ask := hostAsk{args: []string{name}}
 	var chosen []string // the further groups of the change; the groups of the Admin and Docker switches do not count
-	switch f.row("what").value() {
+	switch what := f.value(fieldWhat); what {
 	case chgAddGroups, chgRemoveGroups:
-		key, id := "add", hostchange.ActionUserAddGroups
-		if f.row("what").value() == chgRemoveGroups {
-			key, id = "remove", hostchange.ActionUserRemoveGroups
+		id, action := fieldAdd, hostchange.ActionUserAddGroups
+		if what == chgRemoveGroups {
+			id, action = fieldRemove, hostchange.ActionUserRemoveGroups
 		}
-		picked := f.row(key).picked()
+		picked := f.picked(id)
 		if len(picked) == 0 {
-			f.row(key).problem = tr(tHostFormTickOne)
+			f.fail(id, m.tr(tHostFormTickOne))
 			return nil
 		}
-		ask.id, ask.args, chosen = id, append(ask.args, picked...), picked
+		ask.id, ask.args, chosen = action, append(ask.args, picked...), picked
 	case chgAdminOn, chgDockerOn:
 		ask.id, ask.args, ask.power = hostchange.ActionUserSetAdmin, append(ask.args, "on"), true
-		if f.row("what").value() == chgDockerOn {
+		if what == chgDockerOn {
 			ask.id = hostchange.ActionUserSetDocker
 		}
 	case chgAdminOff:
 		if msg := m.guardRevoke(st.u); msg != "" {
-			f.notice = msg
+			f.refuse(msg)
 			return nil
 		}
 		ask.id, ask.args = hostchange.ActionUserSetAdmin, append(ask.args, "off")
@@ -553,24 +540,24 @@ func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 		ask.id = hostchange.ActionUserEnable
 	case chgLock:
 		if msg := m.guardLock(st.u); msg != "" {
-			f.notice = msg
+			f.refuse(msg)
 			return nil
 		}
 		ask.id = hostchange.ActionUserLock
 	case chgUnlock:
 		ask.id = hostchange.ActionUserUnlock
 	case chgPassword:
-		if passwordProblem(f, "password", "again") {
+		if passwordProblem(m.ui, f) {
 			return nil
 		}
-		ask.id, ask.secret = hostchange.ActionUserSetPassword, []byte(f.row("password").raw())
-		if f.row("must").value() == hostYes {
+		ask.id, ask.secret = hostchange.ActionUserSetPassword, []byte(f.raw(fieldPassword))
+		if f.value(fieldMust) == hostYes {
 			ask.args = append(ask.args, "must-change")
 		}
 	case chgAddKey:
-		key, problem := parseUserKey(f.row("key").value())
+		key, problem := parseUserKey(m.ui, f.value(fieldKey))
 		if problem != "" {
-			f.row("key").problem = problem
+			f.fail(fieldKey, problem)
 			return nil
 		}
 		ask.id, ask.secret = hostchange.ActionUserAddKey, []byte(key.line)
@@ -579,16 +566,15 @@ func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 			m.closeForm()
 			return m.askReadUser()
 		}
-		ask.id, ask.args = hostchange.ActionUserRemoveKey, append(ask.args, f.row("fp").value())
+		ask.id, ask.args = hostchange.ActionUserRemoveKey, append(ask.args, f.value(fieldKeyOf))
 	}
 	ask.risk = m.riskOf(st.u, chosen)
 	p, refusal := m.planHost(ask)
 	if refusal != "" {
 		zero(ask.secret)
-		f.notice = refusal
+		f.refuse(refusal)
 		return nil
 	}
-	wipe(f, "password", "again")
 	m.closeForm()
 	m.confirmHost(p)
 	return nil
@@ -597,11 +583,11 @@ func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 // hostUsersKey handles n, e and d on the Users page.
 func (m *Model) hostUsersKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
-	case keyIs(key, actNew):
+	case m.keyIs(key, actNew):
 		return m.openUserCreate(), true
-	case keyIs(key, actEdit):
+	case m.keyIs(key, actEdit):
 		return m.openUserEdit(), true
-	case keyIs(key, actDelete):
+	case m.keyIs(key, actDelete):
 		return m.openUserDelete(), true
 	}
 	return nil, false
@@ -635,19 +621,19 @@ func (m *Model) homeRiskText(u hostadmin.User) string {
 		who := m.diffText(strings.Join(r.Who, ", "))
 		switch r.Kind {
 		case hostchange.HomeSystemPath:
-			parts = append(parts, tr(tHostHomeSystem, home))
+			parts = append(parts, m.tr(tHostHomeSystem, home))
 		case hostchange.HomeHoldsHome:
-			parts = append(parts, tr(tHostHomeHolds, home, who))
+			parts = append(parts, m.tr(tHostHomeHolds, home, who))
 		case hostchange.HomeLink:
-			parts = append(parts, tr(tHostHomeLink, home))
+			parts = append(parts, m.tr(tHostHomeLink, home))
 		case hostchange.HomeNotDirectory:
-			parts = append(parts, tr(tHostHomeNotDir, home))
+			parts = append(parts, m.tr(tHostHomeNotDir, home))
 		case hostchange.HomeForeignOwner:
-			parts = append(parts, tr(tHostHomeOwner, home, who))
+			parts = append(parts, m.tr(tHostHomeOwner, home, who))
 		}
 	}
 	if err != nil {
-		parts = append(parts, tr(tHostHomeUnread, home, m.diffText(err.Error())))
+		parts = append(parts, m.tr(tHostHomeUnread, home, m.diffText(err.Error())))
 	}
 	return strings.Join(parts, " ")
 }
@@ -669,30 +655,30 @@ func (m *Model) openUserDelete() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	f := &formDlg{title: tr(tHostDeleteTitle, m.diffText(u.Name)), saveText: "{save} continue"}
-	f.rows = []formRow{
-		choiceRow("home", tr(tHostFormHome), []string{homeKeep, homeDelete}, []string{tr(tHostHomeKeep), tr(tHostHomeDelete)}, 0),
+	f := &formDlg{title: m.tr(tHostDeleteTitle, m.diffText(u.Name)), saveText: answer(tHintContinue, actSave)}
+	f.fields = []kittui.FormField{
+		choiceField(fieldHome, tHostFormHome, shownChoices([]string{homeKeep, homeDelete}, []textID{tHostHomeKeep, tHostHomeDelete}), 0),
 	}
 	arrange := func(f *formDlg) {
-		f.hint = tr(tHostDeleteHint)
-		if f.row("home").value() == homeDelete {
-			f.hint = tr(tHostDeleteHomeHint)
+		f.hint = m.tr(tHostDeleteHint)
+		if f.kit != nil && f.value(fieldHome) == homeDelete {
+			f.hint = m.tr(tHostDeleteHomeHint)
 		}
 	}
-	f.changed = func(_ *Model, f *formDlg, _ int) { arrange(f) }
+	f.changed = func(_ *Model, f *formDlg, _ kittui.FieldID) { arrange(f) }
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
 		if msg := m.guardDelete(u); msg != "" {
-			f.notice = msg
+			f.refuse(msg)
 			return nil
 		}
 		ask := hostAsk{id: hostchange.ActionUserDelete, args: []string{u.Name}, risk: m.riskOf(u, nil)}
-		if f.row("home").value() == homeDelete {
+		if f.value(fieldHome) == homeDelete {
 			ask.args = append(ask.args, "with-home")
-			ask.final = strings.TrimSpace(m.homeRiskText(u) + " " + tr(tHostDeleteFinal, m.diffText(u.Home)))
+			ask.final = strings.TrimSpace(m.homeRiskText(u) + " " + m.tr(tHostDeleteFinal, m.diffText(u.Home)))
 		}
 		p, refusal := m.planHost(ask)
 		if refusal != "" {
-			f.notice = refusal
+			f.refuse(refusal)
 			return nil
 		}
 		m.closeForm()
@@ -716,14 +702,14 @@ func (m *Model) canEditCurrent() bool {
 func (m *Model) riskOf(u hostadmin.User, groups []string) string {
 	var parts []string
 	if u.UID == 0 || u.Name == "root" {
-		parts = append(parts, tr(tHostRiskRoot))
+		parts = append(parts, m.tr(tHostRiskRoot))
 	}
 	if u.System {
-		parts = append(parts, tr(tHostRiskAccount))
+		parts = append(parts, m.tr(tHostRiskAccount))
 	}
 	for _, g := range groups {
 		if m.isSystemGroup(g) {
-			parts = append(parts, tr(tHostRiskGroup))
+			parts = append(parts, m.tr(tHostRiskGroup))
 			break
 		}
 	}

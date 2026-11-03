@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
@@ -14,8 +15,10 @@ import (
 // host and the three levels per position, never free text; a recursive change is counted first, and a system
 // path is confirmed in red before the acknowledgement the root action demands is passed.
 
-// folderLevels are the levels a position can get.
-var folderLevels = []hostadmin.Access{hostadmin.AccessNothing, hostadmin.AccessRead, hostadmin.AccessReadWrite}
+// folderLevels() are the levels a position can get.
+func folderLevels() []hostadmin.Access {
+	return []hostadmin.Access{hostadmin.AccessNothing, hostadmin.AccessRead, hostadmin.AccessReadWrite}
+}
 
 // countEntries counts what a change of path touches; a test stands in for the file system.
 func (m *Model) countEntries(path string, recursive bool) (int, error) {
@@ -70,54 +73,73 @@ func (m *Model) hostAccountNames() (users, groups []string) {
 	return users, groups
 }
 
-func levelRow(key, label string, current hostadmin.Access) formRow {
-	values := make([]string, len(folderLevels))
-	shown := make([]string, len(folderLevels))
+// The fields of the folder form.
+const (
+	fieldOwner     kittui.FieldID = "owner"
+	fieldGroup     kittui.FieldID = "group"
+	fieldUserAcc   kittui.FieldID = "user"
+	fieldGroupAcc  kittui.FieldID = "groupacc"
+	fieldOtherAcc  kittui.FieldID = "other"
+	fieldRecursive kittui.FieldID = "recursive"
+)
+
+// levelField is the choice of the level of one position, on current.
+func levelField(id kittui.FieldID, label textID, current hostadmin.Access) kittui.FormField {
+	choices := make([]kittui.Choice, len(folderLevels()))
 	sel := 0
-	for i, l := range folderLevels {
-		values[i], shown[i] = string(l), hostAccessText(l)
+	for i, l := range folderLevels() {
+		choices[i] = kittui.Choice{ID: kittui.ChoiceID(l), Label: hostAccessID(l)}
 		if l == current {
 			sel = i
 		}
 	}
-	return choiceRow(key, label, values, shown, sel)
+	return choiceField(id, label, choices, sel)
+}
+
+// accountField is the choice among account names, shown as they are.
+func (m *Model) accountField(id kittui.FieldID, label textID, names []string, sel int) kittui.FormField {
+	choices := make([]kittui.Choice, len(names))
+	for i, n := range names {
+		choices[i] = kittui.Choice{ID: kittui.ChoiceID(n), Label: literal(m.diffText(n))}
+	}
+	return choiceField(id, label, choices, sel)
 }
 
 // openFolderChange opens the form that changes the folder shown.
 func (m *Model) openFolderChange() tea.Cmd {
 	folder, ok := m.changeableFolder()
 	if !ok {
-		m.status = tr(tHostFolderOnlyDir)
+		m.status = m.tr(tHostFolderOnlyDir)
 		return nil
 	}
 	path := realPath(folder)
 	users, groups := m.hostAccountNames()
 	owners, ownerSel := accountChoices(users, folder.Owner)
 	groupNames, groupSel := accountChoices(groups, folder.Group)
-	f := &formDlg{title: tr(tHostFolderChangeTitle, m.diffText(path)), saveText: "{save} save"}
-	f.rows = []formRow{
-		choiceRow("owner", tr(tHostFolderOwner), owners, nil, ownerSel),
-		choiceRow("group", tr(tHostFolderGroup), groupNames, nil, groupSel),
-		levelRow("user", tr(tHostFolderOwnerMay), folder.OwnerAcc),
-		levelRow("groupacc", tr(tHostFolderGroupMay), folder.GroupAcc),
-		levelRow("other", tr(tHostFolderOthersMay), folder.OthersAcc),
-		choiceRow("recursive", tr(tHostFolderBelow), []string{hostNo, hostYes}, []string{tr(tHostNo), tr(tHostYes)}, 0),
+	f := &formDlg{title: m.tr(tHostFolderChangeTitle, m.diffText(path)), saveText: answer(tHintSave, actSave)}
+	f.fields = []kittui.FormField{
+		m.accountField(fieldOwner, tHostFolderOwner, owners, ownerSel),
+		m.accountField(fieldGroup, tHostFolderGroup, groupNames, groupSel),
+		levelField(fieldUserAcc, tHostFolderOwnerMay, folder.OwnerAcc),
+		levelField(fieldGroupAcc, tHostFolderGroupMay, folder.GroupAcc),
+		levelField(fieldOtherAcc, tHostFolderOthersMay, folder.OthersAcc),
+		choiceField(fieldRecursive, tHostFolderBelow, yesNo(), 0),
 	}
 	if hostchange.IsSystemPath(path) {
-		f.hint = tr(tHostFolderSystemHint)
+		f.hint = m.tr(tHostFolderSystemHint)
 	}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd { return m.submitFolderChange(f, path) }
 	m.openForm(f)
 	return nil
 }
 
-func levelOf(f *formDlg, key string) hostadmin.Access { return hostadmin.Access(f.row(key).value()) }
+func levelOf(f *formDlg, id kittui.FieldID) hostadmin.Access { return hostadmin.Access(f.value(id)) }
 
 func (m *Model) submitFolderChange(f *formDlg, path string) tea.Cmd {
 	req := hostchange.FolderRequest{
-		Path: path, Owner: f.row("owner").value(), Group: f.row("group").value(),
-		UserAccess: levelOf(f, "user"), GroupAccess: levelOf(f, "groupacc"), OtherAccess: levelOf(f, "other"),
-		Recursive:  f.row("recursive").value() == hostYes,
+		Path: path, Owner: f.value(fieldOwner), Group: f.value(fieldGroup),
+		UserAccess: levelOf(f, fieldUserAcc), GroupAccess: levelOf(f, fieldGroupAcc), OtherAccess: levelOf(f, fieldOtherAcc),
+		Recursive:  f.value(fieldRecursive) == hostYes,
 		SystemPath: hostchange.IsSystemPath(path),
 	}
 	count := 0
@@ -125,10 +147,10 @@ func (m *Model) submitFolderChange(f *formDlg, path string) tea.Cmd {
 		n, err := m.countEntries(path, true)
 		switch {
 		case errors.Is(err, hostchange.ErrTooManyEntries):
-			f.notice = tr(tHostFolderTooMany, m.diffText(path), hostchange.MaxFolderEntries)
+			f.refuse(m.tr(tHostFolderTooMany, m.diffText(path), hostchange.MaxFolderEntries))
 			return nil
 		case err != nil:
-			f.notice = tr(tHostFolderCountFailed, m.diffText(err.Error()))
+			f.refuse(m.tr(tHostFolderCountFailed, m.diffText(err.Error())))
 			return nil
 		}
 		count = n
@@ -137,17 +159,17 @@ func (m *Model) submitFolderChange(f *formDlg, path string) tea.Cmd {
 	// confirmation below is the only way to reach that run.
 	p, refusal := m.planHost(hostAsk{id: hostchange.ActionFolderSetPermissions, args: hostchange.FolderArgs(req)})
 	if refusal != "" {
-		f.notice = refusal
+		f.refuse(refusal)
 		return nil
 	}
 	m.closeForm()
 	m.confirmHost(p)
 	if req.Recursive {
-		m.ask.consequence = tr(tHostFolderCount, count) + " " + m.ask.consequence
+		m.ask.consequence = m.tr(tHostFolderCount, count) + " " + m.ask.consequence
 	}
 	if req.SystemPath {
 		m.ask.warn, m.ask.danger = true, true
-		m.ask.consequence = tr(tHostFolderSystemWarn) + " " + m.ask.consequence
+		m.ask.consequence = m.tr(tHostFolderSystemWarn) + " " + m.ask.consequence
 	}
 	return nil
 }

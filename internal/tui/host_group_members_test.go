@@ -34,17 +34,17 @@ func lastArgs(f *fakeSudo) []string {
 func TestGroupMembersFormOffersTheRightUsersAndSendsOneActionForAllChanges(t *testing.T) {
 	m, f, _ := groupsModel(t, 120, 40)
 	selectGroup(m, "demo-team")
-	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "e members") {
+	if keys := m.hintText(m.hostKeys()); !strings.Contains(keys, "e members") {
 		t.Errorf("keys %q lack e members", keys)
 	}
 	send(m, "e")
 	if m.form == nil || !strings.Contains(flatBoxes(m), "Members of demo-team") {
 		t.Fatalf("no form:\n%s", plain(m))
 	}
-	if got := m.form.row("add").values; !slices.Equal(got, []string{"demo-admin", "svc-demo"}) {
+	if got := listValues(m, fieldAdd); !slices.Equal(got, []string{"demo-admin", "svc-demo"}) {
 		t.Errorf("add offers %q: members and primary users do not belong", got)
 	}
-	if got := m.form.row("remove").values; !slices.Equal(got, []string{"demo-user"}) {
+	if got := listValues(m, fieldRemove); !slices.Equal(got, []string{"demo-user"}) {
 		t.Errorf("remove offers %q", got)
 	}
 	tickIn(m, 2)
@@ -62,7 +62,7 @@ func TestGroupMembersFormOffersTheRightUsersAndSendsOneActionForAllChanges(t *te
 	}
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
-	want := []string{"apply", "--yes", "--output", "json", "--", "group.set-members", "demo-team", "+demo-admin", "+svc-demo", "-demo-user"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "group.set-members", "demo-team", "+demo-admin", "+svc-demo", "-demo-user"}
 	if !slices.Equal(lastArgs(f), want) {
 		t.Errorf("calls %+v, want %q", f.reqs, want)
 	}
@@ -82,7 +82,7 @@ func TestGroupMembersAskRedForSystemGroupsRootAndDockerAndWarnAsPower(t *testing
 			m, f, _ := groupsModel(t, 120, 40)
 			selectGroup(m, tc.group)
 			send(m, "e")
-			if m.form == nil || len(m.form.row("add").values) == 0 {
+			if m.form == nil || len(listValues(m, fieldAdd)) == 0 {
 				t.Fatalf("no users to add:\n%s", plain(m))
 			}
 			tickIn(m, 1)
@@ -127,7 +127,7 @@ func TestGroupMembersOfSudoFollowTheAdminSwitch(t *testing.T) {
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
 	// demo-admin is in qsysmin and demo-user is not: the second is taken out of sudo only.
-	want := []string{"apply", "--yes", "--output", "json", "--", "group.set-members", "sudo", "+svc-demo", "-demo-admin", "-demo-user:without-qsysmin"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "group.set-members", "sudo", "+svc-demo", "-demo-admin", "-demo-user:without-qsysmin"}
 	if !slices.Equal(lastArgs(f), want) {
 		t.Errorf("calls %+v, want %q", f.reqs, want)
 	}
@@ -139,17 +139,16 @@ func TestGroupMembersAreRefusedEarlyForSelfAndTheLastAdmin(t *testing.T) {
 	send(m, "e", "tab")
 	tickIn(m, 1) // demo-admin is the first member and the only one with access to qsysmin
 	save(m)
-	if m.form == nil || !strings.Contains(m.form.notice, "last admin") || m.ask != nil || len(f.reqs) != 0 {
-		t.Fatalf("notice %q ask %+v", m.form.notice, m.ask)
+	if m.form == nil || !strings.Contains(flat(m), "last admin") || m.ask != nil || len(f.reqs) != 0 {
+		t.Fatalf("no refusal, ask %+v:\n%s", m.ask, plain(m))
 	}
-	old := hostUID
-	hostUID = func() int { return 1001 }
-	t.Cleanup(func() { hostUID = old })
-	m.form.row("remove").ticked = make([]bool, len(m.form.row("remove").values))
-	m.form.row("remove").ticked[1] = true
+	m.hostUID = func() int { return 1001 }
+	remove := m.form.lists[fieldRemove]
+	remove.ticked = make([]bool, len(remove.values))
+	remove.ticked[1] = true
 	save(m)
-	if m.form == nil || !strings.Contains(m.form.notice, "cannot take admin rights from yourself") || m.ask != nil {
-		t.Fatalf("notice %q ask %+v", m.form.notice, m.ask)
+	if m.form == nil || !strings.Contains(flat(m), "cannot take admin rights from yourself") || m.ask != nil {
+		t.Fatalf("no refusal, ask %+v:\n%s", m.ask, plain(m))
 	}
 }
 
@@ -158,8 +157,8 @@ func TestGroupMembersNeedAtLeastOneChoice(t *testing.T) {
 	selectGroup(m, "demo-team")
 	send(m, "e")
 	save(m)
-	if m.form == nil || !strings.Contains(m.form.row("add").problem, "Choose at least one user.") || m.ask != nil || len(f.reqs) != 0 {
-		t.Fatalf("problem %q", m.form.row("add").problem)
+	if m.form == nil || !strings.Contains(flat(m), "[!] Choose at least one user.") || m.ask != nil || len(f.reqs) != 0 {
+		t.Fatalf("no problem:\n%s", plain(m))
 	}
 	send(m, "esc")
 	if m.form != nil || len(f.reqs) != 0 {
@@ -171,11 +170,11 @@ func TestGroupMembersLeaveOutPrimaryUsersAndHeadings(t *testing.T) {
 	m, _, _ := groupsModel(t, 120, 40)
 	selectGroup(m, "demo-user")
 	send(m, "e")
-	if got := m.form.row("add").values; slices.Contains(got, "demo-user") {
+	if got := listValues(m, fieldAdd); slices.Contains(got, "demo-user") {
 		t.Errorf("add offers the user whose primary group it is: %q", got)
 	}
 	send(m, "esc")
-	m.hst.groups.page.list.selectName(sectionRow("groups"))
+	markGroup(&m.hst.groups.page, 0)
 	send(m, "e")
 	if m.form != nil {
 		t.Error("e on a heading must do nothing")
@@ -184,9 +183,9 @@ func TestGroupMembersLeaveOutPrimaryUsersAndHeadings(t *testing.T) {
 
 func TestGroupMembersFormSpeaksGerman(t *testing.T) {
 	m, _, _ := groupsModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	selectGroup(m, "docker")
-	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "e members") {
+	if keys := m.hintText(m.hostKeys()); !strings.Contains(keys, "e Mitglieder") {
 		t.Errorf("keys %q", keys)
 	}
 	send(m, "e")

@@ -6,15 +6,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 )
 
-// pathInput is a text line: a plain text input, or for a path a text input with what completes the typed
-// path on the local file system. Only an absolute path is completed. tab takes the suggestion marked, ctrl+n
-// and ctrl+p move the mark; every other key goes to the text.
+// pathInput is a text line: a plain text line, or for a path a text line with what completes the typed path on
+// the local file system. Only an absolute path is completed. tab takes the suggestion marked, the arrows and
+// ctrl+n and ctrl+p move the mark; every other key goes to the text.
 type pathInput struct {
-	textinput.Model
+	line textLine
 	mode pathMode
 	// start is the directory suggested while nothing is typed.
 	start string
@@ -49,46 +48,33 @@ type pathEntry struct {
 	dir  bool
 }
 
-func newPathInput() pathInput {
-	in := newTextInput()
-	in.Prompt = ""
-	return pathInput{Model: in}
-}
+// value is the text of the line.
+func (p *pathInput) value() string { return p.line.value() }
 
 // open starts typing value with the cursor at its end; start is the suggestion for an empty line.
 func (p *pathInput) open(value string, mode pathMode, start string) {
 	p.mode, p.start, p.listed = mode, start, nil
-	p.SetValue(value)
-	p.CursorEnd()
-	p.Focus()
+	p.line.set(value)
 	p.refresh()
-}
-
-// close ends the typing; the value stays where the line wrote it.
-func (p *pathInput) close() {
-	p.Blur()
-	p.matches, p.mark, p.marked = nil, 0, false
 }
 
 // edit hands key to the text and reports whether the text changed.
-func (p *pathInput) edit(key tea.KeyPressMsg) (tea.Cmd, bool) {
-	before := p.Value()
-	var cmd tea.Cmd
-	p.Model, cmd = p.Model.Update(inputMsg(key))
-	if p.Value() == before {
-		return cmd, false
+func (p *pathInput) edit(key tea.KeyPressMsg) bool {
+	before := p.value()
+	p.line.edit(key)
+	if p.value() == before {
+		return false
 	}
 	p.refresh()
-	return cmd, true
+	return true
 }
 
 // complete puts the marked suggestion into the text and reports whether that changed it.
 func (p *pathInput) complete() bool {
-	if p.mark >= len(p.matches) || p.matches[p.mark] == p.Value() {
+	if p.mark >= len(p.matches) || p.matches[p.mark] == p.value() {
 		return false
 	}
-	p.SetValue(p.matches[p.mark])
-	p.CursorEnd()
+	p.line.set(p.matches[p.mark])
 	p.refresh()
 	return true
 }
@@ -103,7 +89,7 @@ func (p *pathInput) move(step int) {
 }
 
 func (p *pathInput) refresh() {
-	p.matches, p.mark, p.marked = p.suggest(p.Value()), 0, false
+	p.matches, p.mark, p.marked = p.suggest(p.value()), 0, false
 }
 
 // shown are the suggestions that stand under the line and the position of the marked one among them.

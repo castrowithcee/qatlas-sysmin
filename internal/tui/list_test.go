@@ -17,7 +17,7 @@ func selectedName(t *testing.T, m *Model) string {
 	t.Helper()
 	name, ok := m.selected()
 	if !ok {
-		t.Fatalf("nothing is selected; shown %v", m.list.matches)
+		t.Fatalf("nothing is selected; position %q", m.base.list.Position())
 	}
 	return name
 }

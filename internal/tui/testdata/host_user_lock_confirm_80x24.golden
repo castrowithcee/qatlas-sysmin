@@ -2,13 +2,13 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    2/2
+Users (3)                                                                    2/3
 ╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
-║   Name║ ⚠ Lock demo-user: no login is possible any more, with a      ║System ║
-║   ▾ Us║   password or an SSH key.                                    ║       ║
-║   demo║                                                              ║       ║
-║ > demo║     You can undo this under Host > Changes. Running sessions ║       ║
-║   ▸ Sy║     stay open until they end.                                ║       ║
+║     NA║ ⚠ Lock demo-user: no login is possible any more, with a      ║SYSTEM ║
+║   ▾ ■ ║   password or an SSH key.                                    ║       ║
+║     de║                                                              ║       ║
+║ >   de║     You can undo this under Host > Changes. Running sessions ║       ║
+║   ▸ ■ ║     stay open until they end.                                ║       ║
 ╚═══════║                                                              ║═══════╝
         ║   $ usermod -L -e 1 demo-user                                ║        
         ║                                                              ║        

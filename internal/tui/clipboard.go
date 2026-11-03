@@ -15,7 +15,7 @@ import (
 // copySource is where the copy key takes its text from right now, or nil when there is nothing to copy: the
 // name of the marked row of the list. The text is built only when the key is pressed.
 func (m *Model) copySource() func() string {
-	if m.screen == screenArea && m.dd == nil && !m.typing() {
+	if m.screen == screenArea && !m.typing() && !m.barOpen() {
 		if p := m.currentPage(); p != nil {
 			// Only the name of the marked row. A log entry has no name, so its row is copied as drawn.
 			if name, ok := p.current(); ok {
@@ -27,7 +27,7 @@ func (m *Model) copySource() func() string {
 		}
 		return nil
 	}
-	if m.screen != screenList || m.list.editing || m.dd != nil {
+	if m.screen != screenList || m.base.filtering() {
 		return nil
 	}
 	name, ok := m.selected()
@@ -39,23 +39,6 @@ func (m *Model) copySource() func() string {
 
 // copyKeyShown reports whether a footer names the copy key: where it copies something.
 func (m *Model) copyKeyShown() bool { return m.helpReachable() && m.copySource() != nil }
-
-// withCopyKey adds the copy group to a key line, ahead of the groups every screen ends with.
-func withCopyKey(text string) string {
-	if strings.Contains(text, "{copy}") {
-		return text
-	}
-	at := -1
-	for _, marker := range []string{"{command} cmds", "{help} help"} {
-		if i := strings.Index(text, marker); i >= 0 && (at < 0 || i < at) {
-			at = i
-		}
-	}
-	if at < 0 {
-		return text + " · {copy} copy"
-	}
-	return text[:at] + "{copy} copy · " + text[at:]
-}
 
 // copyCurrent hands the text of the copy source to the terminal and says so; it is nil where there is
 // nothing to copy.
@@ -69,7 +52,7 @@ func (m *Model) copyCurrent() tea.Cmd {
 		return nil
 	}
 	m.clearMessages()
-	m.status = tr(tCopyHandedOver)
+	m.status = m.tr(tCopyHandedOver)
 	return tea.SetClipboard(text)
 }
 

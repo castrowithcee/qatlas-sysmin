@@ -367,7 +367,8 @@ func TestOverviewFooterNamesTheKeyOfTheFocusedEntry(t *testing.T) {
 	fb.down = errDropped
 	m = overviewModel(t, fb, 120, 40)
 	send(m, "1")
-	if foot := lastRow(m); !strings.Contains(foot, "enter retry") {
+	// The retry of the step and of ctrl+r read the same and so share one group.
+	if foot := lastRow(m); !strings.Contains(foot, "enter/ctrl+r retry") {
 		t.Errorf("footer on the retry step: %q", foot)
 	}
 }
@@ -431,7 +432,7 @@ func TestOverviewInASmallTerminalKeepsTitleAndSteps(t *testing.T) {
 
 func TestOverviewHeaderDateFollowsTheLanguage(t *testing.T) {
 	m := overviewModel(t, overviewFake(), 80, 24)
-	useLanguage(t, i18n.German)
+	useLanguage(t, m, i18n.German)
 	if view := plain(m); !strings.Contains(view, "Mi., 28. Okt. 2026") || !strings.Contains(view, "Nächste Schritte") {
 		t.Errorf("the German overview:\n%s", view)
 	}

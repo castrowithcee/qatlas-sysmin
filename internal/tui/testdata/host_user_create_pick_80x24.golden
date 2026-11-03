@@ -2,13 +2,13 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                                    1/2
+Users (3)                                                                    1/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name╔══════════════════════════════════════════════════════════════╗System ║
-║   ▾ Us║ Further groups                                               ║       ║
-║ > demo║                                                              ║       ║
-║   demo║   / Type to search                                           ║       ║
-║   ▸ Sy║   > [x] demo-team                                            ║       ║
+║     NA╔══════════════════════════════════════════════════════════════╗SYSTEM ║
+║   ▾ ■ ║ Further groups                                               ║       ║
+║ >   de║                                                              ║       ║
+║     de║   / Type to search                                           ║       ║
+║   ▸ ■ ║   > [x] demo-team                                            ║       ║
 ╚═══════║     1/1                                                      ║═══════╝
         ║                                                              ║        
         ║ > Keep <  [ Discard ]                                        ║        

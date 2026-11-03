@@ -1,10 +1,13 @@
 package tui
 
 import (
-	tea "charm.land/bubbletea/v2"
-
+	"slices"
 	"testing"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // wheelWalk turns the wheel down until the focus stops, then up until it stops, and returns the places the
@@ -46,11 +49,11 @@ func TestTheWheelMovesTheFocusOfSettingsFormsAndHoldsAtTheEnds(t *testing.T) {
 	m, _ := settingsModel(t, newFake(), "general")
 	now := wheelClock(m)
 	x, y := wheelCell(t, m, leftArea)
-	last := genRows - 1
-	down, up := wheelWalk(t, m, now, x, y, func() int { return m.set.gen.focus })
+	last := len(generalOrder()) - 1
+	down, up := wheelWalk(t, m, now, x, y, func() int { return genFocus(m) })
 	wheelEnds(t, "general", down, up, 0, last)
 	if len(down) != last || len(up) != last {
-		t.Errorf("the wheel went %v down and %v up, want one row at a time", down, up)
+		t.Errorf("the wheel went %v down and %v up, want one field at a time", down, up)
 	}
 }
 
@@ -63,74 +66,75 @@ func TestTheWheelOverSettingsKeepsTheZoneAndNeverLeavesForThePageStrip(t *testin
 	}
 	x, y := wheelCell(t, m, leftArea)
 	notch(m, now, x, y, false)
-	if m.set.gen.focus != 1 || m.zoneNow() != zoneTabs {
-		t.Errorf("focus = %d, zone = %v after a notch down", m.set.gen.focus, m.zoneNow())
+	if genFocus(m) != 1 || m.zoneNow() != zoneTabs {
+		t.Errorf("focus = %d, zone = %v after a notch down", genFocus(m), m.zoneNow())
 	}
 	notch(m, now, x, y, true)
 	notch(m, now, x, y, true)
-	if m.set.gen.focus != 0 || m.zoneNow() != zoneTabs {
-		t.Errorf("focus = %d, zone = %v after the wheel up at the first row", m.set.gen.focus, m.zoneNow())
+	if genFocus(m) != 0 || m.zoneNow() != zoneTabs {
+		t.Errorf("focus = %d, zone = %v after the wheel up at the first field", genFocus(m), m.zoneNow())
 	}
-	// From the content, up on the first row would lead to the page strip; the wheel holds.
+	// From the content, up on the first field would lead to the page strip; the wheel holds.
 	m.zone = zoneContent
 	notch(m, now, x, y, true)
-	if m.set.gen.focus != 0 || m.zoneNow() != zoneContent {
-		t.Errorf("focus = %d, zone = %v after the wheel up from the content", m.set.gen.focus, m.zoneNow())
+	if genFocus(m) != 0 || m.zoneNow() != zoneContent {
+		t.Errorf("focus = %d, zone = %v after the wheel up from the content", genFocus(m), m.zoneNow())
 	}
 }
 
-func TestTheWheelRestsWhileAFieldOfSettingsIsEdited(t *testing.T) {
+func TestTheMouseRestsWhileAKeyFieldOfSettingsWaitsForItsKey(t *testing.T) {
 	m, _ := settingsModel(t, newFake(), "general")
 	now := wheelClock(m)
-	m.set.gen.focus = genKeys
-	send(m, "enter")
-	typed(m, "x")
-	if !m.set.editing {
-		t.Fatalf("no field is edited:\n%s", plain(m))
-	}
-	value := m.field().Value()
 	x, y := wheelCell(t, m, leftArea)
+	toField(t, m, keyFieldID(actSave))
+	send(m, "enter")
+	if !m.set.gen.Capturing() {
+		t.Fatalf("the key field does not wait:\n%s", plain(m))
+	}
 	notch(m, now, x, y, false)
-	notch(m, now, x, y, true)
-	if !m.set.editing || m.set.gen.focus != genKeys || m.field().Value() != value {
-		t.Errorf("editing = %v, focus = %d, value = %q after the wheel, want the edit untouched",
-			m.set.editing, m.set.gen.focus, m.field().Value())
+	m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	if !m.set.gen.Capturing() || m.set.gen.Focused() != keyFieldID(actSave) || m.mouseMode() != tea.MouseModeNone {
+		t.Errorf("capturing = %v, focus = %s, mouse mode %v after the mouse, want the wait untouched",
+			m.set.gen.Capturing(), m.set.gen.Focused(), m.mouseMode())
 	}
 }
 
-func TestTheWheelMovesTheFocusOfAFormDialogOverVisibleRowsAndHoldsAtTheEnds(t *testing.T) {
+// demoForm opens a form of three fields over the screen, the second a choice; a fourth field is hidden.
+func demoForm(m *Model) {
+	f := &formDlg{title: "Demo", saveText: answer(tHintSave, actSave), submit: func(*Model, *formDlg) tea.Cmd { return nil }}
+	f.fields = []kittui.FormField{textField("a", tColName), choiceField("b", tHostColAdmin, yesNo(), 0),
+		textField("hidden", tHostFormKey), textField("c", tHostFormNewName)}
+	f.show("hidden", false)
+	m.openForm(f)
+}
+
+func TestTheWheelMovesTheFocusOfAFormDialogOverShownFieldsAndHoldsAtTheEnds(t *testing.T) {
 	m := appModel(t, newFake(), 80, 24)
 	now := wheelClock(m)
-	hidden := textRow("hidden", "Hidden", "")
-	hidden.hidden = true
-	m.openForm(&formDlg{title: "Demo", saveText: "{save} save", submit: func(*Model, *formDlg) tea.Cmd { return nil },
-		rows: []formRow{textRow("a", "First", ""), choiceRow("b", "Second", []string{"x", "y"}, nil, 0), hidden,
-			textRow("c", "Third", "")}})
-	x, y := wheelCell(t, m, func(wheelHit) bool { return true })
-	down, up := wheelWalk(t, m, now, x, y, func() int { return m.form.focus })
-	if len(down) != 2 || down[0] != 1 || down[1] != 3 {
-		t.Errorf("down went %v, want 1 and 3 over the hidden row", down)
-	}
-	wheelEnds(t, "form", down, up, 0, 3)
-	if m.screen != screenPrompt || m.form == nil || m.form.rows[1].sel != 0 {
-		t.Errorf("the wheel changed the form: screen = %v", m.screen)
+	demoForm(m)
+	order := []kittui.FieldID{"a", "b", "c"}
+	x, y := wheelCell(t, m, func(kittui.Target) bool { return true })
+	down, up := wheelWalk(t, m, now, x, y, func() int { return slices.Index(order, formFocus(m)) })
+	wheelEnds(t, "form", down, up, 0, 2)
+	if len(down) != 2 || m.screen != screenPrompt || m.form == nil || m.form.value("b") != hostNo {
+		t.Errorf("the wheel went %v or changed the form: screen = %v", down, m.screen)
 	}
 }
 
 func TestTheWheelOverTheDimmedBackgroundOfAFormDialogMovesNothing(t *testing.T) {
 	m, _ := settingsModel(t, newFake(), "general")
 	now := wheelClock(m)
-	m.openForm(&formDlg{title: "Demo", saveText: "{save} save", rows: []formRow{textRow("a", "First", ""), textRow("b", "Second", "")}})
+	demoForm(m)
 	m.render()
-	if len(m.wheelHits) != 1 {
-		t.Fatalf("%d wheel areas, want the one of the dialog:\n%s", len(m.wheelHits), plain(m))
+	if n := len(wheelAreas(m)); n != 1 {
+		t.Fatalf("%d wheel areas, want the one of the dialog:\n%s", n, plain(m))
 	}
-	focus := m.set.gen.focus
+	focus := genFocus(m)
 	for _, at := range [][2]int{{0, 3}, {m.termWidth - 1, m.termHeight - 3}} {
 		notch(m, now, at[0], at[1], false)
 		notch(m, now, at[0], at[1], true)
 	}
-	if m.form.focus != 0 || m.set.gen.focus != focus {
-		t.Errorf("form focus = %d, page focus = %d after the wheel over the background", m.form.focus, m.set.gen.focus)
+	if formFocus(m) != "a" || genFocus(m) != focus {
+		t.Errorf("form focus = %s, page focus = %d after the wheel over the background", formFocus(m), genFocus(m))
 	}
 }

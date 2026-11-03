@@ -1,23 +1,23 @@
 qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users  [Groups]  Folders   Changes                                           
-────────────────────────────────────────────────────────────────────────────────
-Groups (4)                                                                   1/1
-╔══════════════════════════════════════════════════════════════════════════════╗
-║   Name╔══════════════════════════════════════════════════════════════╗       ║
-║   ▾ Gr║ Members of demo-team                                         ║       ║
-║ > demo║                                                              ║       ║
-║   ▸ Sy║   Add:     demo-admin                                        ║       ║
-╚═══════║ > Remove:  demo-user                                         ║═══════╝
+────────╔══════════════════════════════════════════════════════════════╗────────
+Groups (║ Members of demo-team                                         ║     1/4
+╔═══════║                                                              ║═══════╗
+║     NA║          ╭─────────────────────────────────────────────────╮ ║       ║
+║   ▾ ■ ║   Add    │ demo-admin                                      │ ║       ║
+║ >   de║          ╰─────────────────────────────────────────────────╯ ║       ║
+║   ▸ ■ ║          ╔═════════════════════════════════════════════════╗ ║       ║
+╚═══════║ > Remove ║ demo-user                                       ║ ║═══════╝
+        ║          ╚═════════════════════════════════════════════════╝ ║        
         ║     One confirmation covers all changes. A user whose        ║        
         ║     primary group this is cannot be added or removed.        ║        
         ║                                                              ║        
-        ║ > Choose <  [ Continue ]  [ Cancel ]                         ║        
+        ║ [ Continue ]  [ Cancel ]                                     ║        
         ║                                                              ║        
-        ║ enter choose · tab next · F2 continue · esc cancel           ║        
+        ║ enter edit · tab next zone or field                          ║        
+        ║ shift+tab previous zone or field · F2 continue · esc cancel  ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
-                                                                                
                                                                                 
                                                                                 
                                                                                 

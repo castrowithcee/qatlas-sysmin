@@ -1,40 +1,40 @@
 qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
-  [Users]  Groups   Folders   Changes                                                                                   
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Users (3)                                                         1/2 ╭─ demo-admin ───────────────────────────────────╮
-╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
-║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name               demo-admin                  │
-║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               regular                     │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              yes                         │
-║   ▸ System accounts (1)                                           ║ │ Docker             yes                         │
-╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗es                         │
-                            ║ New user                                                     ║emo-admin, sudo, docker,   │
-                            ║                                                              ║sysmin                     │
-                            ║   Kind:             Person                                   ║home/demo-admin            │
-                            ║   Name:            demo-new                                  ║nknown                     │
-                            ║   Password:        ********                                  ║                           │
-                            ║   Repeat password: ********                                  ║ the fields only root can  │
-                            ║   Admin:            yes                                      ║                           │
-                            ║   Docker:           no                                       ║───────────────────────────╯
-                            ║ > Further groups:   demo-team                                ║                            
-                            ║   SSH key:                                                   ║                            
+  [Users]  Groups   Folders ╔══════════════════════════════════════════════════════════════╗                            
+────────────────────────────║ New user                                                     ║────────────────────────────
+Users (3)                   ║                                                              ║───────────────────────────╮
+╔═══════════════════════════║                   ╭────────────────────────────────────────╮ ║  Raw                      │
+║     NAME        ADMIN     ║   Kind            │ Person                               ▾ │ ║                           │
+║   ▾ ■ Users (2)           ║                   ╰────────────────────────────────────────╯ ║emo-admin                  │
+║ >   demo-admin  yes       ║                   ╭────────────────────────────────────────╮ ║egular                     │
+║     demo-user   yes · not ║   Name            │ demo-new                               │ ║es                         │
+║   ▸ ■ System accounts (1) ║                   ╰────────────────────────────────────────╯ ║es                         │
+╚═══════════════════════════║                   ╭────────────────────────────────────────╮ ║es                         │
+                            ║   Password        │ (entered, hidden)                      │ ║emo-admin, sudo, docker,   │
+                            ║                   ╰────────────────────────────────────────╯ ║sysmin                     │
+                            ║                   ╭────────────────────────────────────────╮ ║home/demo-admin            │
+                            ║   Repeat password │ (entered, hidden)                      │ ║nknown                     │
+                            ║                   ╰────────────────────────────────────────╯ ║                           │
+                            ║                   ╭────────────────────────────────────────╮ ║ the fields only root can  │
+                            ║   Admin           │ yes                                  ▾ │ ║                           │
+                            ║                   ╰────────────────────────────────────────╯ ║───────────────────────────╯
+                            ║                   ╭────────────────────────────────────────╮ ║                            
+                            ║   Docker          │ no                                   ▾ │ ║                            
+                            ║                   ╰────────────────────────────────────────╯ ║                            
+                            ║                   ╔════════════════════════════════════════╗ ║                            
+                            ║ > Further groups  ║ demo-team                              ║ ║                            
+                            ║                   ╚════════════════════════════════════════╝ ║                            
+                            ║                   ╭────────────────────────────────────────╮ ║                            
+                            ║   SSH keys        │ none                                   │ ║                            
+                            ║                   ╰────────────────────────────────────────╯ ║                            
                             ║     The user must change the initial password at the first   ║                            
-                            ║     login. Enter in the SSH key field adds the key.          ║                            
+                            ║     login.                                                   ║                            
                             ║                                                              ║                            
-                            ║ > Choose <  [ Save ]  [ Cancel ]                             ║                            
+                            ║ [ Save ]  [ Cancel ]                                         ║                            
                             ║                                                              ║                            
-                            ║ enter choose · tab next · F2 save · esc cancel               ║                            
+                            ║ enter edit · tab next zone or field                          ║                            
+                            ║ shift+tab previous zone or field · F2 save · esc cancel      ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
 ? help                                                                                                                  

@@ -31,17 +31,21 @@ if [ -z "${SOURCE_DATE_EPOCH:-}" ]; then
 fi
 export SOURCE_DATE_EPOCH
 
+# The manpage comes from the command tree and does not depend on the architecture.
+go run -ldflags "-X github.com/castrowithcee/qatlas-sysmin/internal/cli.version=$version" scripts/gen_man.go "$work/man"
+
 for goarch in amd64 arm64; do
 	stage="$work/stage-$goarch"
-	mkdir -p "$stage/bin" "$stage/share/doc/qsysmin" "$stage/lib/systemd/system"
+	mkdir -p "$stage/bin" "$stage/share/doc/qsysmin" "$stage/share/man/man1" "$stage/lib/systemd/system"
 
 	CGO_ENABLED=0 GOOS=linux GOARCH="$goarch" go build -trimpath -buildvcs=false \
 		-ldflags "-s -w -X github.com/castrowithcee/qatlas-sysmin/internal/cli.version=$version" \
 		-o "$stage/bin/qsysmin" .
+	cp "$work/man/qsysmin.1" "$stage/share/man/man1/qsysmin.1"
 	cp LICENSE "$stage/share/doc/qsysmin/LICENSE"
 	cp packaging/qsysmin.service "$stage/lib/systemd/system/qsysmin.service"
 	chmod 755 "$stage/bin/qsysmin"
-	chmod 644 "$stage/share/doc/qsysmin/LICENSE" "$stage/lib/systemd/system/qsysmin.service"
+	chmod 644 "$stage/share/doc/qsysmin/LICENSE" "$stage/share/man/man1/qsysmin.1" "$stage/lib/systemd/system/qsysmin.service"
 
 	# Fixed order, owner and mtime; gzip -n leaves out the name and timestamp.
 	(cd "$stage" && LC_ALL=C tar --sort=name --owner=0 --group=0 --numeric-owner \

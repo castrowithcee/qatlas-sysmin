@@ -2,15 +2,16 @@ package tui
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+
+	"github.com/castrowithcee/qatlas-kit/i18n"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // Activity shows what the service did: the action log. A page is a constant, a state in activityState, a body
@@ -24,7 +25,9 @@ const (
 // actKey is the English name of an Activity page, the one commands are given by.
 func actKey(sub int) string { return [...]string{"log"}[sub] }
 
-func actTitle(sub int) string { return tr([...]textID{tSubLog}[sub]) }
+func actTitle(ui *uiContext, sub int) string { return ui.tr(actTitleID(sub)) }
+
+func actTitleID(sub int) textID { return [...]textID{tSubLog}[sub] }
 
 // logPageSize is how many entries one request asks for.
 const logPageSize = 100
@@ -39,18 +42,20 @@ const (
 	periodCount
 )
 
-// logActions are the actions of the log the filter offers, in the order of the service's own list.
-var logActions = []string{
-	"config.apply", "config.read",
-	"control.request", "control.refuse", "control.status",
-	"host.change",
+// logActions() are the actions of the log the filter offers, in the order of the service's own list.
+func logActions() []string {
+	return []string{
+		"config.apply", "config.read",
+		"control.request", "control.refuse", "control.status",
+		"host.change",
+	}
 }
 
 // actionID is the key of the readable label of a log action.
 func actionID(action string) textID { return textID("action." + action) }
 
 // actionText is the readable label of a log action; an action without one is shown as it is, made safe.
-func (m *Model) actionText(action string) string { return trOr(actionID(action), m.diffText(action)) }
+func (m *Model) actionText(action string) string { return m.trOr(actionID(action), m.diffText(action)) }
 
 // logFilter is what narrows the log. An empty action or result and the period all mean no limit.
 type logFilter struct {
@@ -79,8 +84,11 @@ func (f logFilter) params(now time.Time, after string) control.LogListParams {
 	return p
 }
 
-func periodText(period int) string {
-	return tr([...]textID{tPeriodAll, tPeriodHour, tPeriodToday, tPeriod7Days, tPeriod30Days}[period])
+func periodText(ui *uiContext, period int) string { return ui.tr(periodID(period)) }
+
+// periodID is the catalog key of the name of a period.
+func periodID(period int) textID {
+	return [...]textID{tPeriodAll, tPeriodHour, tPeriodToday, tPeriod7Days, tPeriod30Days}[period]
 }
 
 // activityState is the Activity area.
@@ -100,6 +108,9 @@ type activityState struct {
 	asked   bool
 	gen     int
 	filter  logFilter
+	// bar is the filter bar on filter, built in the language barLang; see logfilter.go.
+	bar     *kittui.FilterBar
+	barLang i18n.Lang
 	chain   chainState
 }
 
@@ -167,19 +178,18 @@ func (m *Model) takeLog(msg logMsg) tea.Cmd {
 	a.loading = false
 	if msg.err != nil {
 		if msg.after == "" {
-			a.err, a.have = errorText(msg.err), false
+			a.err, a.have = errorText(m.ui, msg.err), false
 			a.order, a.items, a.next = nil, nil, ""
 			a.rebuild(m)
 			return nil
 		}
 		a.stalled = true
-		m.fail = errorText(msg.err)
+		m.fail = errorText(m.ui, msg.err)
 		return nil
 	}
 	a.err, a.have = "", true
 	if msg.after == "" {
 		a.order, a.items = nil, map[string]control.LogEntry{}
-		a.page.list.cursor, a.page.list.offset = 0, 0
 	}
 	for _, e := range msg.res.Entries {
 		id := strconv.FormatUint(e.Seq, 10)
@@ -191,6 +201,9 @@ func (m *Model) takeLog(msg logMsg) tea.Cmd {
 	}
 	a.next = msg.res.Next
 	a.rebuild(m)
+	if msg.after == "" {
+		a.page.toFirst()
+	}
 	return m.dataWant()
 }
 
@@ -199,7 +212,7 @@ func (m *Model) takeVerify(msg verifyMsg) {
 	c.checking = false
 	c.err, c.have = "", msg.err == nil
 	if msg.err != nil {
-		c.err = errorText(msg.err)
+		c.err = errorText(m.ui, msg.err)
 		return
 	}
 	c.res = msg.res
@@ -207,7 +220,7 @@ func (m *Model) takeVerify(msg verifyMsg) {
 
 // rebuild makes the rows of the table from the entries.
 func (a *activityState) rebuild(m *Model) {
-	rows := map[string][]string{}
+	rows := make([]dataRow, 0, len(a.order))
 	for _, id := range a.order {
 		e := a.items[id]
 		uid := "-"
@@ -218,11 +231,14 @@ func (a *activityState) rebuild(m *Model) {
 		if e.Signed {
 			signed = "✓"
 		}
-		rows[id] = []string{e.Time.Local().Format("2006-01-02 15:04:05"), m.actionText(e.Action),
-			m.diffText(e.Result), durationText(e.DurationMS), uid, signed}
+		rows = append(rows, dataRow{name: id, cells: []string{e.Time.Local().Format("2006-01-02 15:04:05"),
+			m.trOr(actionID(e.Action), m.cellText(e.Action)), m.cellText(e.Result), durationText(e.DurationMS), uid, signed}})
 	}
-	a.page.cols = logColumns()
-	a.page.setRows(a.order, rows)
+	empty := tLogEmpty
+	if a.filter.active() {
+		empty = tLogEmptyFiltered
+	}
+	a.page.fill(m.ui, listConfig{cols: logColumns(), empty: empty}, rows)
 }
 
 func durationText(ms int64) string {
@@ -232,40 +248,40 @@ func durationText(ms int64) string {
 	return fmt.Sprintf("%d ms", ms)
 }
 
-func logColumns() []column {
-	return []column{
-		{title: tr(tColTime)},
-		{title: tr(tColAction)},
-		{title: tr(tColResult), flex: true, tone: func(cell string) lipgloss.Style {
+func logColumns() []kittui.Column {
+	return []kittui.Column{
+		{Title: tColTime},
+		{Title: tColAction},
+		{Title: tColResult, Flex: true, Tone: func(cell string) kittui.TextStyle {
 			if cell == control.LogResultFailure {
-				return styles.warning
+				return kittui.StyleWarn
 			}
-			return styles.cell
+			return kittui.StyleText
 		}},
-		{title: tr(tColDuration), right: true, optional: true},
-		{title: tr(tColUID), right: true, optional: true},
-		{title: tr(tColSigned), optional: true},
+		{Title: tColDuration, Right: true, Optional: true},
+		{Title: tColUID, Right: true, Optional: true},
+		{Title: tColSigned, Optional: true},
 	}
 }
 
 // activityWant asks for the next page where the marked entry is the last one shown.
 func (m *Model) activityWant() tea.Cmd {
 	a := &m.act
-	if a.sub != actLog || a.next == "" || a.loading || a.stalled || len(a.page.list.matches) == 0 || a.page.list.cursor < len(a.page.list.matches)-1 {
+	if a.sub != actLog || a.next == "" || a.loading || a.stalled || a.page.list == nil || !a.page.atLastRow() {
 		return nil
 	}
 	return m.logCmd(a.next)
 }
 
 // titleText is the title of the table: the page and, behind it, every filter that is on.
-func (a *activityState) titleText() string {
-	parts := []string{actTitle(a.sub)}
+func (a *activityState) titleText(ui *uiContext) string {
+	parts := []string{actTitle(ui, a.sub)}
 	f := a.filter
 	if f.period != periodAll {
-		parts = append(parts, periodText(f.period))
+		parts = append(parts, periodText(ui, f.period))
 	}
 	if f.action != "" {
-		parts = append(parts, trOr(actionID(f.action), f.action))
+		parts = append(parts, ui.trOr(actionID(f.action), f.action))
 	}
 	if f.result != "" {
 		parts = append(parts, f.result)
@@ -275,17 +291,14 @@ func (a *activityState) titleText() string {
 
 func (m *Model) logSpec() dataSpec {
 	a := &m.act
-	empty := tr(tLogEmpty)
+	note := ""
 	switch {
 	case a.err != "":
-		empty = a.err
+		note = a.err
 	case a.loading:
-		empty = tr(tAccLoading)
-	case a.filter.active():
-		empty = tr(tLogEmptyFiltered)
+		note = m.tr(tAccLoading)
 	}
-	spec := dataSpec{title: a.titleText(), empty: empty, lines: m.logLines}
-	return spec
+	return dataSpec{title: a.titleText(m.ui), note: note, lines: m.logLines}
 }
 
 // logLines are the lines of one tab of a log entry.
@@ -298,9 +311,9 @@ func (m *Model) logLines(id string, tab, width int) []string {
 	if e.ClientUID != nil {
 		uid = strconv.FormatUint(uint64(*e.ClientUID), 10)
 	}
-	signed := tr(tLogUnsigned)
+	signed := m.tr(tLogUnsigned)
 	if e.Signed {
-		signed = tr(tLogSigned)
+		signed = m.tr(tLogSigned)
 	}
 	result := m.diffText(e.Result)
 	if e.ErrorCode != "" {
@@ -309,17 +322,17 @@ func (m *Model) logLines(id string, tab, width int) []string {
 	when := e.Time.Local().Format("2006-01-02 15:04:05")
 	switch tab {
 	case tabOverview:
-		return factLines([][2]string{
-			{tr(tColTime), when},
-			{tr(tColAction), m.actionText(e.Action)},
-			{tr(tColResult), result},
+		return factLines(m.ui, [][2]string{
+			{m.tr(tColTime), when},
+			{m.tr(tColAction), m.actionText(e.Action)},
+			{m.tr(tColResult), result},
 		}, width)
 	case tabDetails:
-		return factLines([][2]string{
-			{tr(tLblSeq), id},
-			{tr(tColUID), uid},
-			{tr(tColDuration), durationText(e.DurationMS)},
-			{tr(tColSigned), signed},
+		return factLines(m.ui, [][2]string{
+			{m.tr(tLblSeq), id},
+			{m.tr(tColUID), uid},
+			{m.tr(tColDuration), durationText(e.DurationMS)},
+			{m.tr(tColSigned), signed},
 		}, width)
 	}
 	return []string{"seq: " + id, "time: " + e.Time.UTC().Format(time.RFC3339), "action: " + m.diffText(e.Action),
@@ -335,9 +348,9 @@ func (m *Model) chainLines(width int) []string {
 	c := m.act.chain
 	switch {
 	case c.err != "":
-		return []string{styles.hint.Render(truncateCells("○ "+tr(tLogChainUnknown)+": "+c.err, width))}
+		return []string{m.ui.st(kittui.StyleHint).Render(truncateCells("○ "+m.tr(tLogChainUnknown)+": "+c.err, width))}
 	case !c.have:
-		return []string{styles.hint.Render(truncateCells("○ "+tr(tLogChainChecking), width))}
+		return []string{m.ui.st(kittui.StyleHint).Render(truncateCells("○ "+m.tr(tLogChainChecking), width))}
 	}
 	r := c.res
 	// notes are what follows the verdict: documented damage, and old signatures that nobody checks.
@@ -348,10 +361,10 @@ func (m *Model) chainLines(width int) []string {
 		unchecked = unchecked || d.Signatures == control.LogSignaturesNotChecked
 	}
 	if damaged > 0 {
-		notes = append(notes, tr(tLogDamaged, damaged))
+		notes = append(notes, m.tr(tLogDamaged, damaged))
 	}
 	if unchecked {
-		notes = append(notes, tr(tLogSigUnchecked))
+		notes = append(notes, m.tr(tLogSigUnchecked))
 	}
 	signatures := strings.Join(notes, " · ")
 	if r.Intact {
@@ -359,43 +372,43 @@ func (m *Model) chainLines(width int) []string {
 		for _, d := range r.Days {
 			entries += d.Entries
 		}
-		text := tr(tLogChainIntact, entries)
+		text := m.tr(tLogChainIntact, entries)
 		if signatures != "" {
 			text += " · " + signatures
 		}
-		return []string{styles.ok.Render("●") + " " + truncateCells(text, max(width-2, 1))}
+		return []string{m.ui.st(kittui.StyleOK).Render("●") + " " + truncateCells(text, max(width-2, 1))}
 	}
-	text := tr(tLogChainBroken)
+	text := m.tr(tLogChainBroken)
 	if len(r.Problems) > 0 {
 		p := r.Problems[0]
-		position := tr(tLogLine, p.Line)
+		position := m.tr(tLogLine, p.Line)
 		if p.Seq != 0 {
-			position = tr(tLogEntry, p.Seq)
+			position = m.tr(tLogEntry, p.Seq)
 		}
-		text += " · " + m.diffText(p.Date) + " " + position + " · " + problemCodeText(p.Code)
+		text += " · " + m.diffText(p.Date) + " " + position + " · " + problemCodeText(m.ui, p.Code)
 		if n := len(r.Problems) - 1; n > 0 || r.MoreProblems {
 			more := strconv.Itoa(n)
 			if r.MoreProblems {
 				more += "+"
 			}
-			text += " · " + tr(tLogMoreDays, more)
+			text += " · " + m.tr(tLogMoreDays, more)
 		}
 	}
-	lines := []string{styles.fail.Render(truncateCells(warnMark+" "+text, width))}
+	lines := []string{m.ui.st(kittui.StyleFail).Render(truncateCells(warnMark+" "+text, width))}
 	if signatures != "" {
-		lines = append(lines, styles.fail.Render(truncateCells("  "+signatures, width)))
+		lines = append(lines, m.ui.st(kittui.StyleFail).Render(truncateCells("  "+signatures, width)))
 	}
 	return lines
 }
 
 // problemCodeText is a problem word of the chain check in words; an unknown word is shown as it is, made safe.
-func problemCodeText(code string) string {
+func problemCodeText(ui *uiContext, code string) string {
 	ids := map[string]textID{
 		control.LogProblemUnparsable: tLogProbUnparsable, control.LogProblemGenesis: tLogProbGenesis,
 		control.LogProblemMissing: tLogProbMissing, control.LogProblemChain: tLogProbChain,
 	}
 	if id, ok := ids[code]; ok {
-		return tr(id)
+		return ui.tr(id)
 	}
 	return strings.Map(func(r rune) rune {
 		if r < ' ' || r == 0x7f {
@@ -408,75 +421,40 @@ func problemCodeText(code string) string {
 // activityBody is the page of Activity under the bars of the frame.
 func (m *Model) activityBody() string {
 	top := m.workspaceTop()
+	if m.act.page.stale(m.ui) {
+		m.act.rebuild(m)
+	}
 	lines := m.chainLines(m.usable(0))
-	return strings.Join(lines, "\n") + "\n" + m.dataBody(&m.act.page, m.logSpec(), top+len(lines))
+	return m.withFilterBar(lines, top, func(top int) string { return m.dataBody(&m.act.page, m.logSpec(), top) })
 }
 
-func (m *Model) activityKeys() []string {
-	if m.detailFocus(&m.act.page) {
-		return []string{"←/→ tab", "↑/↓ scroll", "{back} back"}
+func (m *Model) activityKeys() []kittui.Hint {
+	if m.zoneNow() == zoneFilters {
+		return m.filterBarHints()
 	}
-	return []string{"↑/↓ move", "enter details", "f filter", "t verify", "ctrl+r reload", "/ search"}
+	if m.detailFocus(&m.act.page) {
+		return detailKeys()
+	}
+	return keyLine(navHint(tHintMove, actUp, actDown), hint(tHintDetails, actEnter), hint(tHintFilter, actFilter),
+		hint(tHintVerify, actTest), hint(tHintReload, actReload), hint(tHintSearch, actSearch))
+}
+
+// detailKeys are the keys of the detail of a row.
+func detailKeys() []kittui.Hint {
+	return keyLine(navHint(tHintTab, actLeft, actRight), navHint(tHintScroll, actUp, actDown), hint(tHintBack, actBack))
 }
 
 // activityKey handles the keys of Activity that the table does not.
 func (m *Model) activityKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
-	case keyIs(key, actTest):
+	case m.keyIs(key, actTest):
 		m.clearMessages()
 		return m.verifyCmd(), true
-	case keyIs(key, actReload):
+	case m.keyIs(key, actReload):
 		m.clearMessages()
 		return tea.Batch(m.statusCmd(), m.activityCmd()), true
 	}
 	return nil, false
-}
-
-// openLogFilter opens the form of the filter.
-func (m *Model) openLogFilter() {
-	a := &m.act
-	f := &formDlg{title: tr(tLogFilterTitle), saveText: "{save} apply", submit: submitLogFilter}
-	periods := make([]string, periodCount)
-	values := make([]string, periodCount)
-	for i := range periods {
-		periods[i], values[i] = periodText(i), strconv.Itoa(i)
-	}
-	f.rows = []formRow{
-		choiceRow("period", tr(tColPeriod), values, periods, a.filter.period),
-		choiceRow("action", tr(tColAction), nil, nil, 0),
-		choiceRow("result", tr(tColResult), []string{"", control.LogResultSuccess, control.LogResultFailure},
-			[]string{tr(tFilterAll), control.LogResultSuccess, control.LogResultFailure}, 0),
-	}
-	setActionChoice(f.row("action"), a.filter.action)
-	switch a.filter.result {
-	case control.LogResultSuccess:
-		f.row("result").sel = 1
-	case control.LogResultFailure:
-		f.row("result").sel = 2
-	}
-	m.openForm(f)
-}
-
-// setActionChoice offers all and the logged actions to the action row, each by its readable label, and selects
-// the current one.
-func setActionChoice(r *formRow, current string) {
-	r.values, r.shown = []string{""}, []string{tr(tFilterAll)}
-	for _, action := range logActions {
-		r.values, r.shown = append(r.values, action), append(r.shown, trOr(actionID(action), action))
-	}
-	r.sel = slices.Index(r.values, current)
-	if r.sel < 0 {
-		r.sel = 0
-	}
-}
-
-// submitLogFilter takes the choices as the filter and reads the log anew.
-func submitLogFilter(m *Model, f *formDlg) tea.Cmd {
-	period, _ := strconv.Atoi(f.row("period").value())
-	m.act.filter = logFilter{period: period, action: f.row("action").value(),
-		result: f.row("result").value()}
-	m.closeForm()
-	return m.logCmd("")
 }
 
 // setActSub shows page sub of Activity.

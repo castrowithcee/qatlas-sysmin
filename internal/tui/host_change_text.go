@@ -1,7 +1,5 @@
 package tui
 
-import "maps"
-
 // The texts of the host changes: the confirmation, the result, the messages of a run that gave no answer, and
 // the Changes page.
 const (
@@ -57,8 +55,9 @@ const (
 	tHostRefusedNote       textID = "HostRefusedNote"
 )
 
-func init() {
-	maps.Copy(textEN, map[textID]string{
+// hostChangeTexts are the texts of the host changes, in English and German.
+func hostChangeTexts() (en, de map[textID]string) {
+	en = map[textID]string{
 		tSubChanges:            "Changes",
 		tInfoHostChanges:       "The latest changes made to this host through qsysmin, from the journal that only root can read. Enter on a change that can be undone asks to undo it. Reading asks for your sudo password.",
 		tHostColChange:         "Change",
@@ -68,9 +67,9 @@ func init() {
 		tHostResFailed:         "failed",
 		tHostResRestored:       "restored",
 		tHostResUndone:         "undone",
-		tHostChangesHint:       "Press %s to read the latest changes as root. sudo asks for your password.",
+		tHostChangesHint:       "Press {reload} to read the latest changes as root. sudo asks for your password.",
 		tHostChangesNone:       "No changes yet.",
-		tHostChangesStale:      "This list is older than your last change. Press %s to read it again.",
+		tHostChangesStale:      "This list is older than your last change. Press {reload} to read it again.",
 		tHostNoUndo:            "This change cannot be undone.",
 		tHostReversible:        "You can undo this under Host > Changes.",
 		tHostIrreversible:      "This cannot be undone: %s",
@@ -102,21 +101,15 @@ func init() {
 		tHostErrOutput:         "The answer of qsysmin could not be read. Nothing was changed.",
 		tHostReadTitle:         "Read %s as root?",
 		tHostReadNote:          "Reads the locked state and the SSH keys of this user, which only root can see. Nothing is changed. sudo asks for your password.",
-		tHostReadHint:          "Press %s to read the fields only root can see.",
+		tHostReadHint:          "Press {reload} to read the fields only root can see.",
 		tHostReadDone:          "Read %s as root.",
 		tHostErrNoCredential:   "sudo no longer holds your password and cannot ask again here (for example because its timeout is zero). Nothing was changed.",
 		tHostErrReported:       "qsysmin answered without a report: %s. Read Host > Changes to see whether anything was done.",
 		tHostRefused:           "Not changed: %s",
 		tHostRefusedNote:       "A rule of the host refused this change before anything was done.",
 		tHostPowerWarn:         "Admin and Docker rights allow practically everything on this host.",
-
-		footerID("y apply"):             "y apply",
-		footerID("y undo"):              "y undo",
-		footerID("y read as root"):      "y read as root",
-		footerID("enter undo"):          "enter undo",
-		footerID("ctrl+r read as root"): "ctrl+r read as root",
-	})
-	maps.Copy(textDE, map[textID]string{
+	}
+	de = map[textID]string{
 		tSubChanges:            "Änderungen",
 		tInfoHostChanges:       "Die letzten Änderungen, die über qsysmin an diesem Host gemacht wurden, aus dem Journal, das nur root lesen kann. Enter auf einer Änderung, die sich zurücknehmen lässt, fragt nach dem Rückgängigmachen. Zum Lesen wird dein sudo-Passwort gefragt.",
 		tHostColChange:         "Änderung",
@@ -126,9 +119,9 @@ func init() {
 		tHostResFailed:         "fehlgeschlagen",
 		tHostResRestored:       "zurückgestellt",
 		tHostResUndone:         "rückgängig gemacht",
-		tHostChangesHint:       "Drücke %s, um die letzten Änderungen als root zu lesen. sudo fragt nach deinem Passwort.",
+		tHostChangesHint:       "Drücke {reload}, um die letzten Änderungen als root zu lesen. sudo fragt nach deinem Passwort.",
 		tHostChangesNone:       "Noch keine Änderungen.",
-		tHostChangesStale:      "Diese Liste ist älter als deine letzte Änderung. Drücke %s, um sie neu zu lesen.",
+		tHostChangesStale:      "Diese Liste ist älter als deine letzte Änderung. Drücke {reload}, um sie neu zu lesen.",
 		tHostNoUndo:            "Diese Änderung lässt sich nicht rückgängig machen.",
 		tHostReversible:        "Du kannst das unter Host > Änderungen rückgängig machen.",
 		tHostIrreversible:      "Das lässt sich nicht rückgängig machen: %s",
@@ -160,18 +153,13 @@ func init() {
 		tHostErrOutput:         "Die Antwort von qsysmin ließ sich nicht lesen. Es wurde nichts geändert.",
 		tHostReadTitle:         "%s als root lesen?",
 		tHostReadNote:          "Liest den Sperrstatus und die SSH-Schlüssel dieses Benutzers, die nur root sehen kann. Es wird nichts geändert. sudo fragt nach deinem Passwort.",
-		tHostReadHint:          "Drücke %s, um die Felder zu lesen, die nur root sieht.",
+		tHostReadHint:          "Drücke {reload}, um die Felder zu lesen, die nur root sieht.",
 		tHostReadDone:          "%s als root gelesen.",
 		tHostErrNoCredential:   "sudo hält dein Passwort nicht mehr und kann hier nicht erneut fragen (zum Beispiel wegen eines Timeouts von null). Es wurde nichts geändert.",
 		tHostErrReported:       "qsysmin hat ohne Bericht geantwortet: %s. Unter Host > Änderungen steht, ob etwas geschehen ist.",
 		tHostRefused:           "Nicht geändert: %s",
 		tHostRefusedNote:       "Eine Regel des Hosts hat diese Änderung abgelehnt, bevor etwas geschah.",
 		tHostPowerWarn:         "Admin- und Docker-Rechte erlauben praktisch alles auf diesem Host.",
-
-		footerID("y apply"):             "y ausführen",
-		footerID("y undo"):              "y rückgängig",
-		footerID("y read as root"):      "y als root lesen",
-		footerID("enter undo"):          "enter rückgängig",
-		footerID("ctrl+r read as root"): "ctrl+r als root lesen",
-	})
+	}
+	return en, de
 }

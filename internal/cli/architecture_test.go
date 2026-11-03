@@ -46,7 +46,6 @@ var surfaceForbidden = map[string]bool{
 
 var architectureExceptions = []archException{
 	{ruleImports, "internal/cli/run.go", "internal/service", "entry point of the service itself"},
-	{ruleImports, "internal/cli/cli.go", "internal/daemon", "Options field that lets tests replace the service's peer resolver"},
 }
 
 func TestArchitecture(t *testing.T) {

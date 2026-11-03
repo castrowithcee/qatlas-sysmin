@@ -1,10 +1,11 @@
 package tui
 
 import (
-	"hash/fnv"
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // Shared building blocks of the screens. Every block returns lines of exactly the requested width in cells,
@@ -17,8 +18,8 @@ type panelOpts struct {
 
 // frameChars returns the frame characters: rounded, or double for a focused frame without colour, where the
 // colour of the frame cannot show the focus.
-func frameChars(focused bool) (h, v string, corners [4]string) {
-	if focused && styles.palette.borderFocus == "" {
+func frameChars(ui *uiContext, focused bool) (h, v string, corners [4]string) {
+	if focused && ui.palette().BorderFocus == "" {
 		return "═", "║", [4]string{"╔", "╗", "╚", "╝"}
 	}
 	return "─", "│", [4]string{"╭", "╮", "╰", "╯"}
@@ -26,33 +27,33 @@ func frameChars(focused bool) (h, v string, corners [4]string) {
 
 // panel draws a frame of inner content width by rows around lines (width inner+4, height rows+2), with its
 // title in the top border.
-func panel(title string, lines []string, inner, rows int, o panelOpts) []string {
+func panel(ui *uiContext, title string, lines []string, inner, rows int, o panelOpts) []string {
 	inner = max(inner, 0)
-	out := []string{panelTop(title, "", inner, o.focused)}
+	out := []string{panelTop(ui, title, "", inner, o.focused)}
 	for i := 0; i < rows; i++ {
 		text := ""
 		if i < len(lines) {
 			text = lines[i]
 		}
-		out = append(out, panelSide(text, inner, o.focused))
+		out = append(out, panelSide(ui, text, inner, o.focused))
 	}
-	return append(out, panelBottom(inner, o.focused))
+	return append(out, panelBottom(ui, inner, o.focused))
 }
 
 // panelStyle is the style of the frame lines.
-func panelStyle(focused bool) lipgloss.Style {
+func panelStyle(ui *uiContext, focused bool) lipgloss.Style {
 	if focused {
-		return styles.focusBorder
+		return ui.st(kittui.StyleBorderFocus)
 	}
-	return styles.quietBorder
+	return ui.st(kittui.StyleBorder)
 }
 
 // panelTop is the top border of a panel of inner content width, with its title in it and, dimmed at the right
 // end, an optional note.
-func panelTop(title, note string, inner int, focused bool) string {
+func panelTop(ui *uiContext, title, note string, inner int, focused bool) string {
 	inner = max(inner, 0)
-	style := panelStyle(focused)
-	h, _, c := frameChars(focused)
+	style := panelStyle(ui, focused)
+	h, _, c := frameChars(ui, focused)
 	label := truncateCells(" "+title+" ", inner+1)
 	if title == "" {
 		label = ""
@@ -66,40 +67,40 @@ func panelTop(title, note string, inner int, focused bool) string {
 	}
 	rule := max(inner+1-lipgloss.Width(label)-lipgloss.Width(tail), 0)
 	if tail != "" {
-		return style.Render(c[0]+h) + styles.title.Render(label) + style.Render(strings.Repeat(h, rule-1)) +
-			styles.hint.Render(tail) + style.Render(h+c[1])
+		return style.Render(c[0]+h) + ui.st(kittui.StyleTitle).Render(label) + style.Render(strings.Repeat(h, rule-1)) +
+			ui.st(kittui.StyleHint).Render(tail) + style.Render(h+c[1])
 	}
-	return style.Render(c[0]+h) + styles.title.Render(label) + style.Render(strings.Repeat(h, rule)+c[1])
+	return style.Render(c[0]+h) + ui.st(kittui.StyleTitle).Render(label) + style.Render(strings.Repeat(h, rule)+c[1])
 }
 
 // panelSide is one content line of a panel: cut or padded to inner cells between the side borders. The
 // content area carries the panel colour; cells with a background of their own (fields, marked rows) keep it.
-func panelSide(text string, inner int, focused bool) string {
+func panelSide(ui *uiContext, text string, inner int, focused bool) string {
 	inner = max(inner, 0)
-	bg := styles.palette.panel
-	style := panelStyle(focused)
-	_, v, _ := frameChars(focused)
+	bg := ui.palette().Panel
+	style := panelStyle(ui, focused)
+	_, v, _ := frameChars(ui, focused)
 	body := lipgloss.NewStyle()
 	if bg != "" {
-		body = body.Background(bg.lip())
+		body = body.Background(lip(bg))
 	}
 	text = keepBackground(clipCells(text, inner), bg)
 	return style.Render(v) + body.Render(" "+padLine(text, inner)+" ") + style.Render(v)
 }
 
 // panelBottom is the bottom border of a panel of inner content width.
-func panelBottom(inner int, focused bool) string {
-	h, _, c := frameChars(focused)
-	return panelStyle(focused).Render(c[2] + strings.Repeat(h, max(inner, 0)+2) + c[3])
+func panelBottom(ui *uiContext, inner int, focused bool) string {
+	h, _, c := frameChars(ui, focused)
+	return panelStyle(ui, focused).Render(c[2] + strings.Repeat(h, max(inner, 0)+2) + c[3])
 }
 
 // keepBackground makes a finished line keep the background bg across the resets of its own styles, so a
 // filled area stays filled behind styled text. Without a colour it returns the line as it is.
-func keepBackground(text string, bg colour) string {
+func keepBackground(text string, bg kittui.Color) string {
 	if bg == "" || !strings.Contains(text, "\x1b[") {
 		return text
 	}
-	set := lipgloss.NewStyle().Background(bg.lip()).Render("x")
+	set := lipgloss.NewStyle().Background(lip(bg)).Render("x")
 	set = set[:strings.Index(set, "x")]
 	if set == "" {
 		return text
@@ -122,35 +123,35 @@ func keepStyle(text string, style lipgloss.Style) string {
 }
 
 // afterResets puts set behind every full reset of text, in both spellings: Lip Gloss writes the short one,
-// paintCanvas the long one.
+// the painting of the screen the long one.
 func afterResets(text, set string) string {
 	return strings.NewReplacer("\x1b[0m", "\x1b[0m"+set, "\x1b[m", "\x1b[m"+set).Replace(text)
 }
 
 // surfaceRow draws a finished input row as a field: cut or padded to width cells on the surface colour.
 // Without a colour the row is only padded.
-func surfaceRow(text string, width int) string {
+func surfaceRow(ui *uiContext, text string, width int) string {
 	text = padLine(clipCells(text, width), width)
-	if styles.palette.surface == "" {
+	if ui.palette().Surface == "" {
 		return text
 	}
-	return lipgloss.NewStyle().Background(styles.palette.surface.lip()).Render(keepBackground(text, styles.palette.surface))
+	return lipgloss.NewStyle().Background(lip(ui.palette().Surface)).Render(keepBackground(text, ui.palette().Surface))
 }
 
 // accentFill is the surface of the tab that has the focus: bold base text on the accent colour. Without colour
 // it is the bold style of the plain tabs.
-func accentFill() lipgloss.Style {
-	p := styles.palette
-	if plainTabs() {
-		return styles.active
+func accentFill(ui *uiContext) lipgloss.Style {
+	p := ui.palette()
+	if plainTabs(ui) {
+		return ui.st(kittui.StyleActive)
 	}
-	return lipgloss.NewStyle().Bold(true).Background(p.accent.lip()).Foreground(p.base.lip())
+	return lipgloss.NewStyle().Bold(true).Background(lip(p.Accent)).Foreground(lip(p.Base))
 }
 
 // plainTabs reports whether the active tab cannot be told by its fill: no theme colours, or a terminal that
 // shows none. The brackets mark it then.
-func plainTabs() bool {
-	return styles.palette.accent == "" || currentProfile() == profileNone
+func plainTabs(ui *uiContext) bool {
+	return ui.palette().Accent == "" || ui.colorless()
 }
 
 // tabStrip draws a row of tabs and returns the cells each takes, counted from the first cell of the row. The
@@ -158,49 +159,37 @@ func plainTabs() bool {
 // the others are dimmed. Without colour the active tab stands in brackets, in reverse video while it has the
 // focus, so the colour is never the only mark. A word "|" is a separator, not a tab. Every tab takes the same
 // cells whether active or not.
-func tabStrip(words []string, active int, focused bool) (string, [][2]int) {
-	return tabStripGap(words, active, focused, " ")
-}
-
-// tabStripGap is tabStrip with gap between the tabs.
-func tabStripGap(words []string, active int, focused bool, gap string) (string, [][2]int) {
+func tabStrip(ui *uiContext, words []string, active int, focused bool) (string, [][2]int) {
 	var b strings.Builder
 	spans := make([][2]int, 0, len(words))
 	x := 0
-	plain := plainTabs()
+	plain := plainTabs(ui)
 	for i, word := range words {
-		text, style := " "+word+" ", styles.hint
+		text, style := " "+word+" ", ui.st(kittui.StyleHint)
 		switch {
 		case word == "|":
 			text = word
 		case i == active:
-			style = styles.activeRow
+			style = ui.st(kittui.StyleActiveRow)
 			if plain {
-				text, style = "["+word+"]", styles.active
+				text, style = "["+word+"]", ui.st(kittui.StyleActive)
 			}
 			if focused {
-				style = accentFill()
+				style = accentFill(ui)
 				if plain {
-					style = styles.activeRow
+					style = ui.st(kittui.StyleActiveRow)
 				}
 			}
 		}
 		if i > 0 {
-			b.WriteString(gap)
-			x += len(gap)
+			b.WriteString(" ")
+			x++
 		}
 		b.WriteString(style.Render(text))
 		spans = append(spans, [2]int{x, x + lipgloss.Width(text)})
 		x += lipgloss.Width(text)
 	}
 	return b.String(), spans
-}
-
-// card is a bordered figure: the label dimmed above a large value. Width is the total width in cells.
-func card(label, value string, width int) []string {
-	inner := max(width-4, 0)
-	lines := []string{styles.hint.Render(truncateCells(label, inner)), styles.title.Render(truncateCells(value, inner))}
-	return panel("", lines, inner, 2, panelOpts{})
 }
 
 type statusKind int
@@ -213,15 +202,15 @@ const (
 )
 
 // statusMark is a coloured dot followed by the word; the word stays when there is no colour.
-func statusMark(kind statusKind, word string) string {
-	style := styles.hint
+func statusMark(ui *uiContext, kind statusKind, word string) string {
+	style := ui.st(kittui.StyleHint)
 	switch kind {
 	case statusOK:
-		style = styles.ok
+		style = ui.st(kittui.StyleOK)
 	case statusFail:
-		style = styles.fail
+		style = ui.st(kittui.StyleFail)
 	case statusWarn:
-		style = styles.warning
+		style = ui.st(kittui.StyleWarn)
 	}
 	return style.Render("●") + " " + word
 }
@@ -236,47 +225,31 @@ const (
 
 // button renders a label as a button. The focus shows as "> label <" and reverse video, so it reads without
 // colour; the primary and danger kinds are bold, and filled where there is colour.
-func button(kind buttonKind, label string, focused bool) string {
+func button(ui *uiContext, kind buttonKind, label string, focused bool) string {
 	text := "[ " + label + " ]"
 	if focused {
 		text = "> " + label + " <"
 	}
 	style := lipgloss.NewStyle()
-	p := styles.palette
+	p := ui.palette()
 	switch kind {
 	case buttonPrimary:
 		style = style.Bold(true)
-		if p.accent != "" {
-			style = style.Background(p.accent.lip()).Foreground(p.base.lip())
+		if p.Accent != "" {
+			style = style.Background(lip(p.Accent)).Foreground(lip(p.Base))
 		}
 	case buttonDanger:
 		style = style.Bold(true)
-		if p.fail != "" {
-			style = style.Background(p.fail.lip()).Foreground(p.base.lip())
+		if p.Fail != "" {
+			style = style.Background(lip(p.Fail)).Foreground(lip(p.Base))
 		}
 	default:
-		if p.border != "" {
-			style = style.Foreground(p.text.lip())
+		if p.Border != "" {
+			style = style.Foreground(lip(p.Text))
 		}
 	}
 	if focused {
 		style = style.Bold(true).Reverse(true)
 	}
 	return style.Render(text)
-}
-
-// brandColor is the stable brand colour of a group name.
-func brandColor(name string) colour {
-	h := fnv.New32a()
-	h.Write([]byte(name))
-	return styles.palette.brand[h.Sum32()%uint32(len(styles.palette.brand))]
-}
-
-// groupMark is the square in the colour of the group.
-func groupMark(name string) string {
-	style := lipgloss.NewStyle()
-	if c := brandColor(name); c != "" {
-		style = style.Foreground(c.lip())
-	}
-	return style.Render("■")
 }

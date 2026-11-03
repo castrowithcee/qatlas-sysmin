@@ -11,6 +11,8 @@ import (
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // The Overview: the host as key figures (cards), the next steps and the last changes to the host. The cards
@@ -105,14 +107,16 @@ func (m *Model) takeOverview(msg overviewMsg) {
 // ovItem is a card or a next step. act is what enter does there and key how the footer names it; both are
 // empty for a step that only informs.
 type ovItem struct {
-	label, value, key string
-	kind              statusKind
-	info              textID
-	act               func() tea.Cmd
+	label, value string
+	// key is the label of the hint of enter on the entry; empty where enter does nothing.
+	key  textID
+	kind statusKind
+	info textID
+	act  func() tea.Cmd
 }
 
 // noData is the dimmed word a card shows without figures.
-func (m *Model) noData() string { return tr(tOvNone) }
+func (m *Model) noData() string { return m.tr(tOvNone) }
 
 // hostUserFigures counts the admins of the host and those of them who cannot use qsysmin yet.
 func (m *Model) hostUserFigures() (admins, notEnabled int) {
@@ -132,7 +136,7 @@ func (m *Model) overviewCards() []ovItem {
 	o := &m.ovr
 	users := func() tea.Cmd { return m.show(areaHost, hostUsers) }
 	figure := func(label, value string, have bool, warn bool, info textID, act func() tea.Cmd) ovItem {
-		c := ovItem{label: label, kind: statusDim, value: m.noData(), key: "enter open", info: info, act: act}
+		c := ovItem{label: label, kind: statusDim, value: m.noData(), key: tHintOpen, info: info, act: act}
 		if have {
 			c.kind, c.value = statusOK, value
 			if warn {
@@ -147,15 +151,15 @@ func (m *Model) overviewCards() []ovItem {
 	if o.more {
 		changes += "+"
 	}
-	service := ovItem{label: tr(tOvService), kind: statusOK, value: tr(tOvReachable), info: tInfoOvService}
+	service := ovItem{label: m.tr(tOvService), kind: statusOK, value: m.tr(tOvReachable), info: tInfoOvService}
 	if !m.serviceUp() {
-		service.kind, service.value = statusFail, tr(tOvUnreachable)
-		service.key, service.act = "enter retry", m.statusCmd
+		service.kind, service.value = statusFail, m.tr(tOvUnreachable)
+		service.key, service.act = tHintRetry, m.statusCmd
 	}
 	return []ovItem{
-		figure(tr(tOvAdmins), fmt.Sprint(admins), haveUsers, false, tInfoOvAdmins, users),
-		figure(tr(tOvNotEnabled), fmt.Sprint(notEnabled), haveUsers, notEnabled > 0, tInfoOvNotEnabled, users),
-		figure(tr(tOvChanges), changes, o.haveLog, false, tInfoOvChanges,
+		figure(m.tr(tOvAdmins), fmt.Sprint(admins), haveUsers, false, tInfoOvAdmins, users),
+		figure(m.tr(tOvNotEnabled), fmt.Sprint(notEnabled), haveUsers, notEnabled > 0, tInfoOvNotEnabled, users),
+		figure(m.tr(tOvChanges), changes, o.haveLog, false, tInfoOvChanges,
 			func() tea.Cmd { return m.show(areaActivity, actLog) }),
 		service,
 	}
@@ -166,14 +170,14 @@ func (m *Model) overviewSteps() []ovItem {
 	if !m.svc.known {
 		return nil
 	}
-	step := func(kind statusKind, label, key string, act func() tea.Cmd) ovItem {
+	step := func(kind statusKind, label string, key textID, act func() tea.Cmd) ovItem {
 		return ovItem{label: label, kind: kind, key: key, act: act, info: tInfoOvSteps}
 	}
 	if !m.serviceUp() {
 		if m.svc.noGroup {
-			return []ovItem{step(statusFail, tr(tOvRegroup), "enter restart", m.regroup)}
+			return []ovItem{step(statusFail, m.tr(tOvRegroup), tHintRestart, m.regroup)}
 		}
-		retry := step(statusFail, tr(tOvRetry), "enter retry", m.statusCmd)
+		retry := step(statusFail, m.tr(tOvRetry), tHintRetry, m.statusCmd)
 		if m.svc.foreign {
 			// The error carries the way out; it must stay readable.
 			retry.label += " · " + oneLine(m.svc.fail)
@@ -182,14 +186,14 @@ func (m *Model) overviewSteps() []ovItem {
 	}
 	var steps []ovItem
 	if latest := m.updateAvailable(); latest != "" {
-		steps = append(steps, step(statusWarn, tr(tOvInstall, latest), "enter update", m.selfUpdate))
+		steps = append(steps, step(statusWarn, m.tr(tOvInstall, latest), tHintUpdate, m.selfUpdate))
 	}
 	if _, notEnabled := m.hostUserFigures(); m.hst.users.have && notEnabled > 0 {
-		steps = append(steps, step(statusWarn, tr(tOvStepEnable, notEnabled), "enter open",
+		steps = append(steps, step(statusWarn, m.tr(tOvStepEnable, notEnabled), tHintOpen,
 			func() tea.Cmd { return m.show(areaHost, hostUsers) }))
 	}
 	if len(steps) == 0 {
-		steps = append(steps, ovItem{label: tr(tOvNothing), kind: statusDim, info: tInfoOvSteps})
+		steps = append(steps, ovItem{label: m.tr(tOvNothing), kind: statusDim, info: tInfoOvSteps})
 	}
 	return steps
 }
@@ -316,29 +320,29 @@ func (m *Model) overviewKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	zones := p.zones()
 	at := slices.Index(zones, z)
 	switch {
-	case keyIs(key, actUp) && *c <= 0:
+	case m.keyIs(key, actUp) && *c <= 0:
 		m.toBar()
-	case keyIs(key, actUp), keyIs(key, actLeft) && z == ovCards:
+	case m.keyIs(key, actUp), m.keyIs(key, actLeft) && z == ovCards:
 		*c = max(*c-1, 0)
-	case keyIs(key, actDown), keyIs(key, actRight) && z == ovCards:
+	case m.keyIs(key, actDown), m.keyIs(key, actRight) && z == ovCards:
 		*c = max(min(*c+1, n-1), 0)
-	case keyIs(key, actHome):
+	case m.keyIs(key, actHome):
 		*c = 0
-	case keyIs(key, actEnd):
+	case m.keyIs(key, actEnd):
 		*c = max(n-1, 0)
-	case keyIs(key, actNext):
+	case m.keyIs(key, actNext):
 		if at+1 >= len(zones) {
 			m.toBar()
 		} else {
 			m.ovr.zone = zones[at+1]
 		}
-	case keyIs(key, actPrev):
+	case m.keyIs(key, actPrev):
 		if at == 0 {
 			m.toBar()
 		} else {
 			m.ovr.zone = zones[at-1]
 		}
-	case keyIs(key, actEnter):
+	case m.keyIs(key, actEnter):
 		if act := m.overviewCurrent().act; act != nil {
 			return act(), true
 		}
@@ -349,45 +353,45 @@ func (m *Model) overviewKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 }
 
 // ovDate is the date of the header in the language of the interface.
-func ovDate(t time.Time) string {
+func ovDate(ui *uiContext, t time.Time) string {
 	t = t.Local()
-	days, months := strings.Split(tr(tOvWeekdays), ","), strings.Split(tr(tOvMonths), ",")
-	return tr(tOvDate, days[t.Weekday()], t.Day(), months[t.Month()-1], t.Year())
+	days, months := strings.Split(ui.tr(tOvWeekdays), ","), strings.Split(ui.tr(tOvMonths), ",")
+	return ui.tr(tOvDate, days[t.Weekday()], t.Day(), months[t.Month()-1], t.Year())
 }
 
 // ovMark is the leading mark of a step: its shape tells the kind as well as its colour.
-func ovMark(kind statusKind) string {
+func ovMark(ui *uiContext, kind statusKind) string {
 	switch kind {
 	case statusWarn:
-		return styles.warning.Render(warnMark)
+		return ui.st(kittui.StyleWarn).Render(warnMark)
 	case statusFail:
-		return styles.fail.Render("✗")
+		return ui.st(kittui.StyleFail).Render("✗")
 	case statusDim:
-		return styles.hint.Render("○")
+		return ui.st(kittui.StyleHint).Render("○")
 	}
-	return styles.ok.Render("●")
+	return ui.st(kittui.StyleOK).Render("●")
 }
 
 // ovLine is one entry line of width cells; the selected one carries the bar, which is ">" without colour.
-func ovLine(text string, selected bool, width int) string {
+func ovLine(ui *uiContext, text string, selected bool, width int) string {
 	room := max(width-2, 0)
 	if !selected {
 		return "  " + clipCells(text, room)
 	}
-	return styles.selMark.Render(selectionMark()) + styles.activeRow.Render(keepStyle(" "+padLine(clipCells(text, room), room), styles.activeRow))
+	return ui.st(kittui.StyleSelectionMark).Render(ui.styles.SelectionMark()) + ui.st(kittui.StyleActiveRow).Render(keepStyle(" "+padLine(clipCells(text, room), room), ui.st(kittui.StyleActiveRow)))
 }
 
 // ovValueStyle is the style of the figure on a card.
-func ovValueStyle(k statusKind) lipgloss.Style {
+func ovValueStyle(ui *uiContext, k statusKind) lipgloss.Style {
 	switch k {
 	case statusDim:
-		return styles.hint
+		return ui.st(kittui.StyleHint)
 	case statusWarn:
-		return styles.warning
+		return ui.st(kittui.StyleWarn)
 	case statusFail:
-		return styles.fail
+		return ui.st(kittui.StyleFail)
 	}
-	return styles.title
+	return ui.st(kittui.StyleTitle)
 }
 
 // overviewBody draws the Overview and registers its click targets. A click marks the entry and acts like
@@ -395,7 +399,7 @@ func ovValueStyle(k statusKind) lipgloss.Style {
 func (m *Model) overviewBody() string {
 	cards, steps, p := m.overviewNow()
 	if len(steps) == 0 {
-		return m.wrapped(styles.hint, tr(tChecking))
+		return m.wrapped(m.ui.st(kittui.StyleHint), m.tr(tChecking))
 	}
 	o := &m.ovr
 	width := m.usable(0)
@@ -418,16 +422,19 @@ func (m *Model) overviewBody() string {
 		})
 	}
 
-	// wheel lets the wheel step the mark of zone z over the lines [row, row+rows) of the body, among the n
-	// entries shown, without giving the zone the focus.
+	// wheel lets the wheel over the lines [row, row+rows) of the body, among the n entries of zone z shown,
+	// step the mark of the part of the overview that holds its focus, without moving the focus. The kit names
+	// the zone of a notch only, and the parts of the overview share the zone of the content.
+	shown := [2]int{}
 	wheel := func(row, rows, n int, z ovZone) {
-		m.addWheel(0, top+row, width, top+row+rows, func(up bool) tea.Cmd {
-			wheelCursor(&o.cursor[z], n, up)
+		shown[z] = n
+		m.addWheel(0, top+row, width, top+row+rows, zoneContent, func(up bool) tea.Cmd {
+			wheelCursor(&o.cursor[o.zone], shown[o.zone], up)
 			return nil
 		})
 	}
 
-	lines = append(lines, titleLine(m.area.title(), ovDate(m.timeNow()), width))
+	lines = append(lines, m.ui.styles.TitleLine(m.area.title(m.ui), ovDate(m.ui, m.timeNow()), width))
 	if p.blank {
 		lines = append(lines, "")
 	}
@@ -437,9 +444,9 @@ func (m *Model) overviewBody() string {
 		var parts []string
 		x := 0
 		for i, c := range cards {
-			text := c.label + " " + ovValueStyle(c.kind).Render(c.value)
+			text := c.label + " " + ovValueStyle(m.ui, c.kind).Render(c.value)
 			if sel(ovCards, i) {
-				text = styles.activeRow.Render(keepStyle("> "+c.label+" "+c.value, styles.activeRow))
+				text = m.ui.st(kittui.StyleActiveRow).Render(keepStyle("> "+c.label+" "+c.value, m.ui.st(kittui.StyleActiveRow)))
 			}
 			w := lipgloss.Width(text)
 			hit(len(lines), 1, x, x+w, ovCards, i, c.act)
@@ -463,8 +470,8 @@ func (m *Model) overviewBody() string {
 					label = "> " + c.label
 				}
 			}
-			value := ovValueStyle(c.kind).Render(truncateCells(c.value, inner))
-			panels = append(panels, panel(truncateCells(label, inner), []string{value}, inner, 1, panelOpts{focused: sel(ovCards, i)}))
+			value := ovValueStyle(m.ui, c.kind).Render(truncateCells(c.value, inner))
+			panels = append(panels, panel(m.ui, truncateCells(label, inner), []string{value}, inner, 1, panelOpts{focused: sel(ovCards, i)}))
 			hit(len(lines), ovCardRows, x, x+w, ovCards, i, c.act)
 			x += w + 1
 		}
@@ -494,24 +501,24 @@ func (m *Model) overviewBody() string {
 		for j, text := range piece {
 			lead := "  "
 			if j == 0 {
-				lead = ovMark(steps[i].kind) + " "
+				lead = ovMark(m.ui, steps[i].kind) + " "
 			}
-			body = append(body, ovLine(lead+text, sel(ovSteps, i), inner))
+			body = append(body, ovLine(m.ui, lead+text, sel(ovSteps, i), inner))
 		}
 		hit(first+len(body)-len(piece), len(piece), 0, width, ovSteps, i, steps[i].act)
 	}
 	stepsRow := len(lines)
 	if p.framed {
-		lines = append(lines, panel(tr(tOvSteps), body, inner, len(body), panelOpts{focused: focus && zone == ovSteps})...)
+		lines = append(lines, panel(m.ui, m.tr(tOvSteps), body, inner, len(body), panelOpts{focused: focus && zone == ovSteps})...)
 	} else {
-		lines = append(lines, styles.title.Render(tr(tOvSteps)))
+		lines = append(lines, m.ui.st(kittui.StyleTitle).Render(m.tr(tOvSteps)))
 		lines = append(lines, body...)
 	}
 	wheel(stepsRow, len(lines)-stepsRow, min(len(steps), p.steps), ovSteps)
 
 	if p.changes > 0 {
 		rows := m.changeLines(width - 4)[:p.changes]
-		lines = append(lines, panel(tr(tOvLastChanges), rows, width-4, len(rows), panelOpts{})...)
+		lines = append(lines, panel(m.ui, m.tr(tOvLastChanges), rows, width-4, len(rows), panelOpts{})...)
 	}
 
 	return strings.Join(lines, "\n")
@@ -523,10 +530,10 @@ func (m *Model) overviewBody() string {
 func (m *Model) changeLines(width int) []string {
 	o := &m.ovr
 	if !m.serviceUp() || !o.haveLog {
-		return []string{styles.hint.Render(clipCells(m.noData(), width))}
+		return []string{m.ui.st(kittui.StyleHint).Render(clipCells(m.noData(), width))}
 	}
 	if len(o.changes) == 0 {
-		return []string{styles.hint.Render(clipCells(tr(tOvNoChanges), width))}
+		return []string{m.ui.st(kittui.StyleHint).Render(clipCells(m.tr(tOvNoChanges), width))}
 	}
 	var lines []string
 	for _, e := range o.changes[:min(len(o.changes), ovMaxChanges)] {
@@ -534,7 +541,7 @@ func (m *Model) changeLines(width int) []string {
 		if e.Host != nil {
 			what = m.diffText(e.Host.ActionID)
 			if e.Host.UndoOf != "" {
-				what += " · " + tr(tOvUndo)
+				what += " · " + m.tr(tOvUndo)
 			}
 		}
 		lines = append(lines, clipCells(e.Time.Local().Format("2006-01-02 15:04")+"  "+what, width))
@@ -549,9 +556,9 @@ func (m *Model) overviewVersionLine(width int) string {
 		version = m.svc.st.Version
 	}
 	name := strings.TrimSpace("qsysmin " + version)
-	text, plain := styles.hint.Render(name), name
+	text, plain := m.ui.st(kittui.StyleHint).Render(name), name
 	if latest := m.updateAvailable(); latest != "" {
-		text += styles.warning.Render(" → " + latest)
+		text += m.ui.st(kittui.StyleWarn).Render(" → " + latest)
 		plain += " → " + latest
 	}
 	return clipCells(text, width)
@@ -559,4 +566,6 @@ func (m *Model) overviewVersionLine(width int) string {
 
 // statusRow leads a line with a mark whose shape tells the kind as well as its colour: a dot for what is well,
 // a warning sign, a cross for what failed, a ring for what has no data.
-func statusRow(kind statusKind, text string) string { return ovMark(kind) + " " + text }
+func statusRow(ui *uiContext, kind statusKind, text string) string {
+	return ovMark(ui, kind) + " " + text
+}

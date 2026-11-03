@@ -10,14 +10,25 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
-// rebind replaces the key of an action for one test.
-func rebind(t *testing.T, a action, key string) {
+// withTableKeys gives m a key table in which the action a has keys as its default keys, for a test of a table
+// the code does not hold.
+func withTableKeys(t *testing.T, m *Model, a action, keys ...string) {
 	t.Helper()
-	old := keymap[a]
-	setKeys(a, key)
-	t.Cleanup(func() { keymap[a] = old })
+	table := keyTable()
+	for i := range table {
+		if table[i].ID == a {
+			table[i].DefaultKeys = keys
+		}
+	}
+	km, err := kittui.NewKeymap(table, kittui.CharsetUnicode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.ui.keys = km
 }
 
 func TestDefaultKeymapKeepsTheKnownKeys(t *testing.T) {
@@ -32,67 +43,75 @@ func TestDefaultKeymapKeepsTheKnownKeys(t *testing.T) {
 		actFilter: "f",
 		actTest:   "t", actSelfUpdate: "U",
 		actSuggestPrev: "ctrl+p", actSuggestNext: "ctrl+n",
-		actReload: "ctrl+r",
+		actReload: "ctrl+r", actArea: "1 2 3 4",
 	}
-	if len(keymap) != len(want) {
-		t.Fatalf("keymap has %d actions, want %d", len(keymap), len(want))
+	table := testKeys().Actions()
+	if len(table) != len(want) {
+		t.Fatalf("the key table has %d actions, want %d", len(table), len(want))
 	}
-	for a, key := range want {
-		if keyOf(a) != key {
-			t.Errorf("action %q is bound to %q, want %q", a, keyOf(a), key)
+	for _, a := range table {
+		if strings.Join(a.DefaultKeys, " ") != want[a.ID] {
+			t.Errorf("action %q is bound to %q, want %q", a.ID, a.DefaultKeys, want[a.ID])
 		}
 	}
-	if !keyIs(tea.KeyPressMsg{Code: 'i', Text: "i"}, actInfo) || keyIs(tea.KeyPressMsg{}, actInfo) {
+	m := New(defaultPrefs(), nil)
+	if !m.keyIs(tea.KeyPressMsg{Code: 'i', Text: "i"}, actInfo) || m.keyIs(tea.KeyPressMsg{}, actInfo) {
 		t.Error("the info action does not match exactly its key")
 	}
-	if keyLabel(actSave) != "F2" || keyLabel(actHelp) != "?" {
-		t.Errorf("labels = %q, %q", keyLabel(actSave), keyLabel(actHelp))
+	if m.keyLabel(actSave) != "F2" || m.keyLabel(actHelp) != "?" {
+		t.Errorf("labels = %q, %q", m.keyLabel(actSave), m.keyLabel(actHelp))
 	}
 }
 
-// Every key a footer names for a global action comes from the keymap: no screen file spells one as a
-// literal in a footer text.
-func TestFooterTextsNameGlobalKeysOnlyByPlaceholder(t *testing.T) {
-	files, err := filepath.Glob("*.go")
-	if err != nil {
-		t.Fatal(err)
+// The rebindable actions keep the names tui.yaml stores their keys under, and Settings shows each of them.
+func TestRebindableActionsAreThoseOfThePreferences(t *testing.T) {
+	var got []string
+	for _, a := range testKeys().Actions() {
+		if a.Rebind != kittui.RebindNone {
+			got = append(got, string(a.ID))
+		}
 	}
-	banned := []string{"? help", ": cmds", "F2 save", "F2 next", "F2 write", "F2 or enter", "esc back", "esc cancel", "esc close", "esc leave", "n/esc"}
-	for _, f := range files {
-		if strings.HasSuffix(f, "_test.go") || f == "keymap.go" {
-			continue
-		}
-		src, err := os.ReadFile(f)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for i, line := range strings.Split(string(src), "\n") {
-			if strings.HasPrefix(strings.TrimSpace(line), "//") || !strings.Contains(line, `"`) {
-				continue
-			}
-			for _, b := range banned {
-				if strings.Contains(line, b) && strings.Contains(line, " · ") {
-					t.Errorf("%s:%d spells %q in a footer text; use the key placeholder", f, i+1, b)
-				}
-			}
-		}
+	slices.Sort(got)
+	want := []string{"command", "help", "info", "save"}
+	shown := []string{}
+	for _, a := range rebindable() {
+		shown = append(shown, string(a))
+	}
+	if slices.Sort(shown); !slices.Equal(got, want) || !slices.Equal(shown, want) {
+		t.Errorf("rebindable actions = %v, Settings shows %v, want %v", got, shown, want)
 	}
 }
 
-// assertNoCollisions fails when two actions of one level share a key.
-func assertNoCollisions(t *testing.T) {
-	t.Helper()
-	seen := map[keyLevel]map[string]action{}
-	for _, d := range keyDefs {
-		if seen[d.level] == nil {
-			seen[d.level] = map[string]action{}
-		}
-		for _, k := range keymap[d.act].Keys() {
-			if other, ok := seen[d.level][k]; ok {
-				t.Errorf("%s and %s share %q on level %s", other, d.act, k, d.level)
-			}
-			seen[d.level][k] = d.act
-		}
+// The keys of the preferences act, and the extra info key works on text lines too.
+func TestPreferenceKeysAreBound(t *testing.T) {
+	prefs := defaultPrefs()
+	prefs.Keys = map[action]string{actSave: "f3", actHelp: "ctrl+l", actInfo: "f4"}
+	m := New(prefs, nil)
+	if !m.keyIs(keyMsg("f3"), actSave) || m.keyIs(keyMsg("f2"), actSave) {
+		t.Error("save is not on f3 alone")
+	}
+	if !m.keyIs(tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl}, actHelp) {
+		t.Error("help is not on ctrl+l")
+	}
+	if !m.keyIsTyped(tea.KeyPressMsg{Code: tea.KeyF4}, actInfo) || m.keyIsTyped(tea.KeyPressMsg{Code: 'i', Text: "i"}, actInfo) {
+		t.Error("on a text line only the extra key asks for the info")
+	}
+	if m.keyLabel(actInfo) != "i/F4" || m.firstKeyLabel(actInfo) != "i" {
+		t.Errorf("info label = %q, first %q", m.keyLabel(actInfo), m.firstKeyLabel(actInfo))
+	}
+}
+
+// A key the table refuses keeps the standard key of its action, with a warning, and leaves the preferences.
+func TestRefusedPreferenceKeysFallBackToTheStandard(t *testing.T) {
+	prefs := defaultPrefs()
+	prefs.Keys = map[action]string{actSave: "f3", actHelp: "ctrl+g"}
+	m := newModel(prefs, nil, kittui.ProfileNone, kittui.CharsetUnicode)
+	warnings := m.bindKeys()
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "keys.help ctrl+g") || !strings.Contains(warnings[0], "using ?") {
+		t.Fatalf("warnings = %v, want one for help", warnings)
+	}
+	if m.keyLabel(actHelp) != "?" || m.keyLabel(actSave) != "F3" || m.prefs.Keys[actHelp] != "" {
+		t.Errorf("help %q, save %q, preferences %+v", m.keyLabel(actHelp), m.keyLabel(actSave), m.prefs.Keys)
 	}
 }
 
@@ -100,16 +119,16 @@ func assertNoCollisions(t *testing.T) {
 // of a String() with one.
 var keyLiteral = regexp.MustCompile(`^\s*case\s+(?:(?:"[^"]*"|[\w.]+\([^()]*\)|[\w.]+)\s*,\s*)*"[^"]*"\s*[,:]|\.String\(\)\s*[!=]=\s*"`)
 
-// nonKeySwitches are files whose string cases are no keys (names, colour codes, footer groups, filter
-// states). TestTableKeysAreNeverLiterals still covers them for every key of the table.
-var nonKeySwitches = []string{"canvas.go", "footer.go", "logs.go", "mouse.go", "tui.go"}
+// nonKeySwitches are files whose string cases are no keys (names, colour codes, filter states).
+// TestTableKeysAreNeverLiterals still covers them for every key of the table.
+var nonKeySwitches = []string{"canvas.go", "logs.go", "mouse.go", "tui.go"}
 
 // tableKeys are the key names the keymap owns: every default key of every action. No file but keymap.go
 // spells one as a key value.
 func tableKeys() []string {
 	var keys []string
-	for _, d := range keyDefs {
-		for _, k := range d.keys {
+	for _, a := range keyTable() {
+		for _, k := range a.DefaultKeys {
 			if !slices.Contains(keys, k) {
 				keys = append(keys, k)
 			}

@@ -10,6 +10,8 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // Host shows the users, groups and folder permissions of the machine qsysmin runs on. The data comes from the
@@ -23,8 +25,10 @@ const (
 	hostCount
 )
 
-func hostTitle(sub int) string {
-	return tr([...]textID{tSubUsers, tSubGroups, tSubFolders, tSubChanges}[sub])
+func hostTitle(ui *uiContext, sub int) string { return ui.tr(hostTitleID(sub)) }
+
+func hostTitleID(sub int) textID {
+	return [...]textID{tSubUsers, tSubGroups, tSubFolders, tSubChanges}[sub]
 }
 
 // hostKey is the English name of a Host page, the one commands are given by.
@@ -154,98 +158,92 @@ const (
 	hostSystem   = "system"
 )
 
-func shownHost(v string) string {
+func (m *Model) shownHost(v string) string {
 	switch v {
 	case hostYes:
-		return tr(tHostYes)
+		return m.tr(tHostYes)
 	case hostNo:
-		return tr(tHostNo)
+		return m.tr(tHostNo)
 	case hostAdminOff:
-		return tr(tHostAdminOff)
+		return m.tr(tHostAdminOff)
 	case hostSystem:
-		return tr(tHostSystem)
+		return m.tr(tHostSystem)
 	}
 	return v
 }
 
-func (m *Model) hostSystemTone(system func(name string) bool) func(string) lipgloss.Style {
-	return func(cell string) lipgloss.Style {
-		if system(cell) {
-			return styles.hint
+// systemTone dims the name of a system account or group, found by its cell in system.
+func systemTone(system map[string]bool) func(string) kittui.TextStyle {
+	return func(cell string) kittui.TextStyle {
+		if system[cell] {
+			return kittui.StyleHint
 		}
-		return styles.cell
+		return kittui.StyleText
 	}
 }
 
-func (m *Model) hostUserColumns() []column {
-	warn := func(cell string) lipgloss.Style {
-		if cell == tr(tHostAdminOff) {
-			return styles.warning
+func (m *Model) hostUserColumns(system map[string]bool) []kittui.Column {
+	off := m.tr(tHostAdminOff)
+	warn := func(cell string) kittui.TextStyle {
+		if cell == off {
+			return kittui.StyleWarn
 		}
-		return styles.cell
+		return kittui.StyleText
 	}
-	return []column{
-		{title: tr(tColName), tone: m.hostSystemTone(func(n string) bool { return m.hst.users.items[n].System })},
-		{title: tr(tHostColAdmin), shown: shownHost, short: map[string]string{hostAdminOff: tr(tHostAdminOffShort)}, tone: warn},
-		{title: tr(tHostColDocker), shown: shownHost},
-		{title: tr(tHostColGroups), flex: true, optional: true, drop: 2},
-		{title: tr(tHostColSystem), shown: shownHost, optional: true, drop: 1, tone: toneDim},
-	}
-}
-
-func (m *Model) hostGroupColumns() []column {
-	return []column{
-		{title: tr(tColName), tone: m.hostSystemTone(func(n string) bool { return m.hst.groups.items[n].System })},
-		{title: tr(tHostColMembers), right: true},
-		{title: tr(tHostColSystem), shown: shownHost, optional: true, tone: toneDim},
+	return []kittui.Column{
+		{Title: tColName, Tone: systemTone(system)},
+		{Title: tHostColAdmin, Short: map[string]string{off: m.tr(tHostAdminOffShort)}, Tone: warn},
+		{Title: tHostColDocker},
+		{Title: tHostColGroups, Flex: true, Optional: true},
+		{Title: tHostColSystem, Optional: true, Dimmed: true},
 	}
 }
 
-// fillHostUsers rebuilds the rows of Users from what was read: the users, and the system accounts in a section
-// of their own that starts folded.
+func hostGroupColumns(system map[string]bool) []kittui.Column {
+	return []kittui.Column{
+		{Title: tColName, Tone: systemTone(system)},
+		{Title: tHostColMembers, Right: true},
+		{Title: tHostColSystem, Optional: true, Dimmed: true},
+	}
+}
+
+// fillHostUsers rebuilds the rows of Users from what was read: the users, and the system accounts in a group
+// of their own that starts folded. The system accounts are the group without key, which stands last.
 func (m *Model) fillHostUsers() {
 	u := &m.hst.users
 	u.items = map[string]hostadmin.User{}
-	rows := map[string][]string{}
-	regular := dataSection{key: "users", title: tSubUsers}
-	system := dataSection{key: "system", title: tHostSysAccounts, collapsed: true}
+	system := map[string]bool{}
+	var rows []dataRow
+	regular := m.tr(tSubUsers)
 	for _, user := range u.all {
 		u.items[user.Name] = user
+		name, group, mark := m.cellText(user.Name), regular, ""
 		if user.System {
-			system.names = append(system.names, user.Name)
-		} else {
-			regular.names = append(regular.names, user.Name)
+			system[name], group, mark = true, "", m.shownHost(hostSystem)
 		}
-		mark := ""
-		if user.System {
-			mark = hostSystem
-		}
-		rows[user.Name] = []string{m.diffText(user.Name), adminText(user), hostYesNo(user.Docker),
-			m.diffText(strings.Join(user.Groups, ", ")), mark}
+		rows = append(rows, dataRow{name: user.Name, group: group, cells: []string{name, m.shownHost(adminText(user)),
+			m.shownHost(hostYesNo(user.Docker)), m.cellText(strings.Join(user.Groups, ", ")), mark}})
 	}
-	u.page.cols = m.hostUserColumns()
-	u.page.setSections([]dataSection{regular, system}, rows)
+	u.page.fill(m.ui, listConfig{cols: m.hostUserColumns(system), empty: tHostNoUsers, grouped: true,
+		noGroup: tHostSysAccounts, folded: []string{""}}, rows)
 }
 
 func (m *Model) fillHostGroups() {
 	g := &m.hst.groups
 	g.items = map[string]hostadmin.Group{}
-	rows := map[string][]string{}
-	regular := dataSection{key: "groups", title: tSubGroups}
-	system := dataSection{key: "system", title: tHostSysGroups, collapsed: true}
+	system := map[string]bool{}
+	var rows []dataRow
+	regular := m.tr(tSubGroups)
 	for _, group := range g.all {
 		g.items[group.Name] = group
-		mark := ""
+		name, key, mark := m.cellText(group.Name), regular, ""
 		if group.System {
-			mark = hostSystem
-			system.names = append(system.names, group.Name)
-		} else {
-			regular.names = append(regular.names, group.Name)
+			system[name], key, mark = true, "", m.shownHost(hostSystem)
 		}
-		rows[group.Name] = []string{m.diffText(group.Name), strconv.Itoa(len(group.Members)), mark}
+		rows = append(rows, dataRow{name: group.Name, group: key, cells: []string{name, strconv.Itoa(len(group.Members)), mark}})
 	}
-	g.page.cols = m.hostGroupColumns()
-	g.page.setSections([]dataSection{regular, system}, rows)
+	g.page.fill(m.ui, listConfig{cols: hostGroupColumns(system), empty: tHostNoGroups, grouped: true,
+		noGroup: tHostSysGroups, folded: []string{""}}, rows)
 }
 
 func hostYesNo(b bool) string {
@@ -256,44 +254,36 @@ func hostYesNo(b bool) string {
 }
 
 // knownBool draws a value only root can read: nil is unknown, never "no".
-func hostKnownBool(b *bool) string {
+func hostKnownBool(ui *uiContext, b *bool) string {
 	switch {
 	case b == nil:
-		return tr(tHostUnknown)
+		return ui.tr(tHostUnknown)
 	case *b:
-		return tr(tHostYes)
+		return ui.tr(tHostYes)
 	}
-	return tr(tHostNo)
+	return ui.tr(tHostNo)
 }
 
 func (m *Model) hostUsersSpec() dataSpec {
-	empty := tr(tHostNoUsers)
-	if m.hst.users.err != "" {
-		empty = m.hst.users.err
-	}
-	return dataSpec{title: tr(tSubUsers), empty: empty, lines: m.hostUserLines}
+	return dataSpec{title: m.tr(tSubUsers), note: m.hst.users.err, lines: m.hostUserLines}
 }
 
 func (m *Model) hostGroupsSpec() dataSpec {
-	empty := tr(tHostNoGroups)
-	if m.hst.groups.err != "" {
-		empty = m.hst.groups.err
-	}
-	return dataSpec{title: tr(tSubGroups), empty: empty, lines: m.hostGroupLines}
+	return dataSpec{title: m.tr(tSubGroups), note: m.hst.groups.err, lines: m.hostGroupLines}
 }
 
-func hostList(items []string) string {
+func hostList(ui *uiContext, items []string) string {
 	if len(items) == 0 {
-		return tr(tHostNone)
+		return ui.tr(tHostNone)
 	}
 	return strings.Join(items, ", ")
 }
 
-func hostKindText(system bool) string {
+func hostKindText(ui *uiContext, system bool) string {
 	if system {
-		return tr(tHostSystemRO)
+		return ui.tr(tHostSystemRO)
 	}
-	return tr(tHostRegular)
+	return ui.tr(tHostRegular)
 }
 
 // hostUserLines are the lines of one tab of a user. Keys are shown by type, comment and fingerprint, never as
@@ -303,31 +293,31 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 	if !ok {
 		return nil
 	}
-	admin := shownHost(adminText(u))
+	admin := m.shownHost(adminText(u))
 	switch tab {
 	case tabOverview:
-		lines := factLines([][2]string{
-			{tr(tColName), m.diffText(u.Name)},
-			{tr(tColType), userKindText(u.System)},
-			{tr(tHostColAdmin), admin},
-			{tr(tHostColDocker), shownHost(hostYesNo(u.Docker))},
-			{tr(tHostLblEnabled), shownHost(hostYesNo(u.Enabled))},
-			{tr(tHostColGroups), m.diffText(hostList(u.Groups))},
-			{tr(tHostLblHome), m.diffText(u.Home)},
-			{tr(tHostLblLocked), hostKnownBool(u.Locked)},
+		lines := factLines(m.ui, [][2]string{
+			{m.tr(tColName), m.diffText(u.Name)},
+			{m.tr(tColType), userKindText(m.ui, u.System)},
+			{m.tr(tHostColAdmin), admin},
+			{m.tr(tHostColDocker), m.shownHost(hostYesNo(u.Docker))},
+			{m.tr(tHostLblEnabled), m.shownHost(hostYesNo(u.Enabled))},
+			{m.tr(tHostColGroups), m.diffText(hostList(m.ui, u.Groups))},
+			{m.tr(tHostLblHome), m.diffText(u.Home)},
+			{m.tr(tHostLblLocked), hostKnownBool(m.ui, u.Locked)},
 		}, width)
 		if u.Locked == nil {
 			lines = append(lines, "")
-			lines = append(lines, wrapIndented(styles.hint, "", tr(tHostReadHint, "ctrl+r"), width)...)
+			lines = append(lines, wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostReadHint), width)...)
 		}
 		return lines
 	case tabDetails:
 		if u.SSHKeys == nil {
-			lines := wrapIndented(styles.hint, "", tr(tHostKeysUnknown), width)
-			return append(append(lines, ""), wrapIndented(styles.hint, "", tr(tHostReadHint, "ctrl+r"), width)...)
+			lines := wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostKeysUnknown), width)
+			return append(append(lines, ""), wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostReadHint), width)...)
 		}
 		if len(u.SSHKeys) == 0 {
-			return []string{styles.hint.Render(tr(tHostNoKeys))}
+			return []string{m.ui.st(kittui.StyleHint).Render(m.tr(tHostNoKeys))}
 		}
 		var lines []string
 		for _, k := range u.SSHKeys {
@@ -355,7 +345,7 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 func (m *Model) hostChangesView(top int) string {
 	body := m.dataBody(&m.hst.chg.page, m.hostChangesSpec(), top)
 	if m.hst.chg.stale && m.hst.chg.have && !m.backdrop {
-		body += "\n" + m.wrapped(styles.warning, tr(tHostChangesStale, "ctrl+r"))
+		body += "\n" + m.wrapped(m.ui.st(kittui.StyleWarn), m.tr(tHostChangesStale))
 	}
 	return body
 }
@@ -374,14 +364,14 @@ func (m *Model) hostGroupLines(name string, tab, width int) []string {
 	}
 	switch tab {
 	case tabOverview:
-		return factLines([][2]string{
-			{tr(tColName), m.diffText(g.Name)},
-			{tr(tColType), hostKindText(g.System)},
-			{tr(tHostColMembers), strconv.Itoa(len(g.Members))},
+		return factLines(m.ui, [][2]string{
+			{m.tr(tColName), m.diffText(g.Name)},
+			{m.tr(tColType), hostKindText(m.ui, g.System)},
+			{m.tr(tHostColMembers), strconv.Itoa(len(g.Members))},
 		}, width)
 	case tabDetails:
 		if len(g.Members) == 0 {
-			return []string{styles.hint.Render(tr(tHostNoMembers))}
+			return []string{m.ui.st(kittui.StyleHint).Render(m.tr(tHostNoMembers))}
 		}
 		members := append([]string(nil), g.Members...)
 		sort.Strings(members)
@@ -403,58 +393,62 @@ func (m *Model) hostBody() string {
 	top := m.workspaceTop()
 	switch m.hst.sub {
 	case hostGroups:
-		m.hst.groups.page.cols = m.hostGroupColumns()
+		if m.hst.groups.page.stale(m.ui) {
+			m.fillHostGroups()
+		}
 		return m.dataBody(&m.hst.groups.page, m.hostGroupsSpec(), top)
 	case hostFolders:
 		return m.hostFoldersBody()
 	case hostChanges:
-		m.hst.chg.page.cols = m.hostChangeColumns()
+		if m.hst.chg.page.stale(m.ui) {
+			m.fillHostChanges()
+		}
 		return m.hostChangesView(top)
 	}
-	m.hst.users.page.cols = m.hostUserColumns()
+	if m.hst.users.page.stale(m.ui) {
+		m.fillHostUsers()
+	}
 	return m.dataBody(&m.hst.users.page, m.hostUsersSpec(), top)
 }
 
 // hostKeys is the key line of Host.
-func (m *Model) hostKeys() []string {
+func (m *Model) hostKeys() []kittui.Hint {
 	if m.hst.sub == hostFolders {
-		keys := []string{"enter edit path"}
+		keys := hint(tHintEditPath, actEnter)
 		if _, ok := m.changeableFolder(); ok {
-			keys = append(keys, "e change")
+			keys = append(keys, hint(tHintChange, actEdit)...)
 		}
 		return keys
 	}
 	if p := m.currentPage(); p != nil && m.detailFocus(p) {
-		keys := []string{"←/→ tab", "↑/↓ scroll", "{back} back"}
+		keys := detailKeys()
 		if m.hst.sub == hostUsers {
-			keys = append(keys, "ctrl+r read as root")
+			keys = append(keys, hint(tHintReadAsRoot, actReload)...)
 		}
 		return keys
 	}
 	if m.hst.sub == hostChanges {
-		return []string{"↑/↓ move", "enter undo", "ctrl+r read as root", "/ filter"}
+		return keyLine(navHint(tHintMove, actUp, actDown), hint(tHintUndo, actEnter), hint(tHintReadAsRoot, actReload),
+			hint(tHintFilter, actSearch))
 	}
-	enter := "enter details"
-	if p := m.currentPage(); p != nil && p.onHeading() {
-		enter = "enter collapse"
-		if p.headingFolded() {
-			enter = "enter expand"
-		}
+	enter := tHintDetails
+	if p := m.currentPage(); p != nil && p.onGroup() {
+		enter = tHintFold
 	}
-	keys := []string{"↑/↓ move", enter}
+	keys := keyLine(navHint(tHintMove, actUp, actDown), hint(enter, actEnter))
 	if m.hst.sub == hostUsers {
-		keys = append(keys, "n new")
+		keys = append(keys, hint(tHintNew, actNew)...)
 		if m.canEditCurrent() {
-			keys = append(keys, "e edit", "d delete")
+			keys = keyLine(keys, hint(tHintEdit, actEdit), hint(tHintDelete, actDelete))
 		}
 	}
 	if m.hst.sub == hostGroups {
-		keys = append(keys, "n new")
+		keys = append(keys, hint(tHintNew, actNew)...)
 		if _, ok := m.currentGroup(); ok {
-			keys = append(keys, "e members", "r rename", "d delete")
+			keys = keyLine(keys, hint(tHintMembers, actEdit), hint(tHintRename, actRename), hint(tHintDelete, actDelete))
 		}
 	}
-	return append(keys, "/ filter")
+	return append(keys, hint(tHintFilter, actSearch)...)
 }
 
 // hostKey handles the keys of Host that the page does not.
@@ -462,7 +456,7 @@ func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	if m.hst.sub == hostChanges {
 		return nil, false
 	}
-	if m.hst.sub == hostUsers && keyIs(key, actReload) {
+	if m.hst.sub == hostUsers && m.keyIs(key, actReload) {
 		if p := m.currentPage(); p != nil && m.detailSeen() {
 			if _, ok := p.current(); ok {
 				return m.askReadUser(), true
@@ -478,13 +472,12 @@ func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.hostGroupsKey(key)
 	}
 	if m.hst.sub == hostFolders {
-		if keyIs(key, actEnter) || keyIs(key, actSearch) || keyIs(key, actFilter) {
+		if m.keyIs(key, actEnter) || m.keyIs(key, actSearch) || m.keyIs(key, actFilter) {
 			f := m.foldersReady()
 			f.editing = true
-			f.in.Focus()
 			return nil, true
 		}
-		if keyIs(key, actEdit) {
+		if m.keyIs(key, actEdit) {
 			return m.openFolderChange(), true
 		}
 		return nil, false

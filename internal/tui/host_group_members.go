@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
@@ -50,30 +51,30 @@ func (m *Model) openGroupMembers() tea.Cmd {
 		out := make([]string, len(names))
 		for i, n := range names {
 			if system[n] {
-				out[i] = tr(tHostSystem)
+				out[i] = m.tr(tHostSystem)
 			}
 		}
 		return out
 	}
-	f := &formDlg{title: tr(tHostMembersTitle, m.diffText(g.Name)), hint: tr(tHostMembersHint), saveText: "{save} continue"}
+	f := &formDlg{title: m.tr(tHostMembersTitle, m.diffText(g.Name)), hint: m.tr(tHostMembersHint), saveText: answer(tHintContinue, actSave)}
 	switch g.Name {
 	case hostadmin.GroupAdmin:
-		f.hint = tr(tHostMembersSudoHint)
+		f.hint = m.tr(tHostMembersSudoHint)
 	case hostadmin.GroupDocker:
-		f.hint += " " + tr(tHostPowerWarn)
+		f.hint += " " + m.tr(tHostPowerWarn)
 	}
-	f.rows = []formRow{
-		pickRow("add", tr(tHostMembersAdd), add, notes(add)),
-		pickRow("remove", tr(tHostMembersRemove), remove, notes(remove)),
+	f.fields = []kittui.FormField{
+		f.pickField(fieldAdd, tHostMembersAdd, add, notes(add)),
+		f.pickField(fieldRemove, tHostMembersRemove, remove, notes(remove)),
 	}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
-		added, removed := f.row("add").picked(), f.row("remove").picked()
+		added, removed := f.picked(fieldAdd), f.picked(fieldRemove)
 		if len(added)+len(removed) == 0 {
-			f.row("add").problem = tr(tHostMembersTickOne)
+			f.fail(fieldAdd, m.tr(tHostMembersTickOne))
 			return nil
 		}
 		if msg := m.guardMembers(g, added, removed); msg != "" {
-			f.notice = msg
+			f.refuse(msg)
 			return nil
 		}
 		ask := hostAsk{id: hostchange.ActionGroupSetMembers, args: []string{g.Name}, risk: m.groupRisk(g),
@@ -95,7 +96,7 @@ func (m *Model) openGroupMembers() tea.Cmd {
 		}
 		p, refusal := m.planHost(ask)
 		if refusal != "" {
-			f.notice = refusal
+			f.refuse(refusal)
 			return nil
 		}
 		m.closeForm()
@@ -112,10 +113,10 @@ func (m *Model) guardMembers(g hostadmin.Group, added, removed []string) string 
 	if (g.Name != hostadmin.GroupAdmin && g.Name != hostadmin.GroupQsysmin) || len(removed) == 0 {
 		return ""
 	}
-	uid := hostUID()
+	uid := m.hostUID()
 	for _, u := range m.hostUserList() {
 		if uid != 0 && u.UID == uid && slices.Contains(removed, u.Name) {
-			return tr(tHostSelfAdmin)
+			return m.tr(tHostSelfAdmin)
 		}
 	}
 	for _, u := range m.hostUserList() {
@@ -131,5 +132,5 @@ func (m *Model) guardMembers(g hostadmin.Group, added, removed []string) string 
 			return ""
 		}
 	}
-	return tr(tHostLastAdmin, m.diffText(strings.Join(removed, ", ")))
+	return m.tr(tHostLastAdmin, m.diffText(strings.Join(removed, ", ")))
 }

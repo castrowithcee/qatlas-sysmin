@@ -1,18 +1,18 @@
 package tui
 
 import (
-	"slices"
+	"fmt"
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // action names a key-bound action of the editor. Dispatch and footers refer to the action, never to the
-// key, so the binding lives in exactly one place.
-type action string
+// key, so the binding lives in exactly one place. The IDs of the rebindable actions are the names under keys
+// in tui.yaml.
+type action = kittui.ActionID
 
 const (
 	actInfo      action = "info"
@@ -36,6 +36,7 @@ const (
 	actEnter    action = "enter"
 	actSpace    action = "space"
 	actSearch   action = "search"
+	actArea     action = "area"
 	actQuit     action = "quit"
 
 	actVimUp    action = "vimup"
@@ -63,206 +64,160 @@ const (
 	actReload      action = "reload"
 )
 
-// keyLevel is the set of actions that can be pressed in the same place. Within one level no two actions
-// share a key; across levels one key may mean different things only where the levels never meet: the
-// answers of a question (y, n, d) and the keys only the help overlay knows. Every other key has one meaning
-// on every screen.
-type keyLevel string
-
-const (
-	levelGlobal  keyLevel = "global"
-	levelLetter  keyLevel = "letter"
-	levelCtrl    keyLevel = "ctrl"
-	levelMove    keyLevel = "move"
-	levelConfirm keyLevel = "confirm"
-	levelVim     keyLevel = "vim"
-	levelHelp    keyLevel = "help"
-)
-
-// keyDefs is the key table: every action with its level, default keys, and the catalog text of its help.
+// keyTable is the key table: every action with its level, default keys, and the catalog text of its help.
 // Keys are the names bubbletea reports (tea.KeyPressMsg.String). The vim letters are entries of their own
-// that only moveKey reads: on a screen that reads text they are text, so the movement bindings hold arrows only.
-// The help level holds the keys only the help overlay knows; tab there steps through topics, not fields.
-var keyDefs = []struct {
-	act   action
-	level keyLevel
-	keys  []string
-	help  textID
-}{
-	{actSave, levelGlobal, []string{"f2"}, tKeyHelpSave},
-	{actHelp, levelGlobal, []string{"?"}, tKeyHelpHelp},
-	{actCommand, levelGlobal, []string{":"}, tKeyHelpCommand},
-	{actBack, levelGlobal, []string{"esc"}, tKeyHelpBack},
-	{actForceQuit, levelGlobal, []string{"ctrl+c"}, tKeyHelpForceQuit},
+// that only moveKey reads: on a screen that reads text they are text, so the movement bindings hold arrows
+// only. The help level holds the keys only the help overlay knows; tab there steps through topics, not fields.
+func keyTable() []kittui.Action {
+	act := func(id action, level kittui.KeyLevel, help textID, keys ...string) kittui.Action {
+		return kittui.Action{ID: id, Level: level, DefaultKeys: keys, Help: help}
+	}
+	rebind := func(a kittui.Action, r kittui.Rebinding) kittui.Action { a.Rebind = r; return a }
+	second := func(a kittui.Action, of action) kittui.Action { a.SecondWayOf = of; return a }
+	return []kittui.Action{
+		rebind(act(actSave, kittui.LevelGlobal, tKeyHelpSave, "f2"), kittui.RebindReplace),
+		rebind(act(actHelp, kittui.LevelGlobal, tKeyHelpHelp, "?"), kittui.RebindReplace),
+		rebind(act(actCommand, kittui.LevelGlobal, tKeyHelpCommand, ":"), kittui.RebindReplace),
+		act(actBack, kittui.LevelGlobal, tKeyHelpBack, "esc"),
+		act(actForceQuit, kittui.LevelGlobal, tKeyHelpForceQuit, "ctrl+c"),
 
-	// The letter actions: each letter means one thing on every screen where nothing is typed.
-	{actInfo, levelLetter, []string{"i"}, tKeyHelpInfo},
-	{actDelete, levelLetter, []string{"d"}, tKeyHelpDelete},
-	{actQuit, levelLetter, []string{"q"}, tKeyHelpQuit},
-	{actCopy, levelLetter, []string{"c"}, tKeyHelpCopy},
-	{actNew, levelLetter, []string{"n"}, tKeyHelpNew},
-	{actEdit, levelLetter, []string{"e"}, tKeyHelpEdit},
-	{actRename, levelLetter, []string{"r"}, tKeyHelpRename},
-	{actFilter, levelLetter, []string{"f"}, tKeyHelpFilter},
-	{actTest, levelLetter, []string{"t"}, tKeyHelpTest},
-	{actSelfUpdate, levelLetter, []string{"U"}, tKeyHelpSelfUpdate},
+		// The letter actions: each letter means one thing on every screen where nothing is typed. Info keeps
+		// its letter; the extra key of the preferences joins it and also works on text lines.
+		rebind(act(actInfo, kittui.LevelLetter, tKeyHelpInfo, "i"), kittui.RebindExtra),
+		act(actDelete, kittui.LevelLetter, tKeyHelpDelete, "d"),
+		act(actQuit, kittui.LevelLetter, tKeyHelpQuit, "q"),
+		act(actCopy, kittui.LevelLetter, tKeyHelpCopy, "c"),
+		act(actNew, kittui.LevelLetter, tKeyHelpNew, "n"),
+		act(actEdit, kittui.LevelLetter, tKeyHelpEdit, "e"),
+		act(actRename, kittui.LevelLetter, tKeyHelpRename, "r"),
+		act(actFilter, kittui.LevelLetter, tKeyHelpFilter, "f"),
+		act(actTest, kittui.LevelLetter, tKeyHelpTest, "t"),
+		act(actSelfUpdate, kittui.LevelLetter, tKeyHelpSelfUpdate, "U"),
 
-	// The control keys of text lines and of the target picker. None can be rebound to a global action.
-	{actSuggestPrev, levelCtrl, []string{"ctrl+p"}, tKeyHelpSuggestPrev},
-	{actSuggestNext, levelCtrl, []string{"ctrl+n"}, tKeyHelpSuggestNext},
-	{actReload, levelCtrl, []string{"ctrl+r"}, tKeyHelpReload},
+		// The control keys of text lines and of the target picker. The suggestion keys are the second way of
+		// the arrows, for a terminal where a multiplexer does not take them.
+		second(act(actSuggestPrev, kittui.LevelCtrl, tKeyHelpSuggestPrev, "ctrl+p"), actUp),
+		second(act(actSuggestNext, kittui.LevelCtrl, tKeyHelpSuggestNext, "ctrl+n"), actDown),
+		act(actReload, kittui.LevelCtrl, tKeyHelpReload, "ctrl+r"),
 
-	{actUp, levelMove, []string{"up"}, tKeyHelpUp},
-	{actDown, levelMove, []string{"down"}, tKeyHelpDown},
-	{actLeft, levelMove, []string{"left"}, tKeyHelpLeft},
-	{actRight, levelMove, []string{"right"}, tKeyHelpRight},
-	{actHome, levelMove, []string{"home"}, tKeyHelpHome},
-	{actEnd, levelMove, []string{"end"}, tKeyHelpEnd},
-	{actPageUp, levelMove, []string{"pgup"}, tKeyHelpPageUp},
-	{actPageDown, levelMove, []string{"pgdown"}, tKeyHelpPageDown},
-	{actNext, levelMove, []string{"tab"}, tKeyHelpNext},
-	{actPrev, levelMove, []string{"shift+tab"}, tKeyHelpPrev},
-	{actEnter, levelMove, []string{"enter"}, tKeyHelpEnter},
-	{actSpace, levelMove, []string{"space"}, tKeyHelpSpace},
-	{actSearch, levelMove, []string{"/"}, tKeyHelpSearch},
+		act(actUp, kittui.LevelMove, tKeyHelpUp, "up"),
+		act(actDown, kittui.LevelMove, tKeyHelpDown, "down"),
+		act(actLeft, kittui.LevelMove, tKeyHelpLeft, "left"),
+		act(actRight, kittui.LevelMove, tKeyHelpRight, "right"),
+		act(actHome, kittui.LevelMove, tKeyHelpHome, "home"),
+		act(actEnd, kittui.LevelMove, tKeyHelpEnd, "end"),
+		act(actPageUp, kittui.LevelMove, tKeyHelpPageUp, "pgup"),
+		act(actPageDown, kittui.LevelMove, tKeyHelpPageDown, "pgdown"),
+		act(actNext, kittui.LevelMove, tKeyHelpNext, "tab"),
+		act(actPrev, kittui.LevelMove, tKeyHelpPrev, "shift+tab"),
+		act(actEnter, kittui.LevelMove, tKeyHelpEnter, "enter"),
+		act(actSpace, kittui.LevelMove, tKeyHelpSpace, "space"),
+		act(actSearch, kittui.LevelMove, tKeyHelpSearch, "/"),
+		// One digit per area, in the order of the tab line.
+		act(actArea, kittui.LevelMove, tKeyHelpArea, "1", "2", "3", "4"),
 
-	{actVimUp, levelVim, []string{"k"}, tKeyHelpUp},
-	{actVimDown, levelVim, []string{"j"}, tKeyHelpDown},
-	{actVimLeft, levelVim, []string{"h"}, tKeyHelpLeft},
-	{actVimRight, levelVim, []string{"l"}, tKeyHelpRight},
+		act(actVimUp, kittui.LevelVim, tKeyHelpUp, "k"),
+		act(actVimDown, kittui.LevelVim, tKeyHelpDown, "j"),
+		act(actVimLeft, kittui.LevelVim, tKeyHelpLeft, "h"),
+		act(actVimRight, kittui.LevelVim, tKeyHelpRight, "l"),
 
-	{actTopicNext, levelHelp, []string{"tab"}, tKeyHelpTopicNext},
-	{actTopicPrev, levelHelp, []string{"shift+tab"}, tKeyHelpTopicPrev},
+		act(actTopicNext, kittui.LevelHelp, tKeyHelpTopicNext, "tab"),
+		act(actTopicPrev, kittui.LevelHelp, tKeyHelpTopicPrev, "shift+tab"),
 
-	{actYes, levelConfirm, []string{"y"}, tKeyHelpYes},
-	{actNo, levelConfirm, []string{"n"}, tKeyHelpNo},
-	{actDiscard, levelConfirm, []string{"d"}, tKeyHelpDiscard},
+		act(actYes, kittui.LevelConfirm, tKeyHelpYes, "y"),
+		act(actNo, kittui.LevelConfirm, tKeyHelpNo, "n"),
+		act(actDiscard, kittui.LevelConfirm, tKeyHelpDiscard, "d"),
+	}
 }
 
-// keymap is the key table as bindings. Dispatch and footers read it alone; setKeys and refreshKeyHelp are
-// the only writers.
-var keymap = func() map[action]key.Binding {
-	m := map[action]key.Binding{}
-	for _, d := range keyDefs {
-		m[d.act] = key.NewBinding(key.WithKeys(d.keys...))
+// rebindable are the actions whose keys the preferences hold, in the order Settings shows them.
+func rebindable() []action { return []action{actSave, actHelp, actCommand, actInfo} }
+
+// bindKeys makes the keys of the preferences the keys in force. An entry the key table refuses keeps the
+// standard key of its action with a warning and leaves the preferences, so Settings shows the key that acts.
+func (m *Model) bindKeys() []string {
+	usable, refused := m.ui.keys.Resolve(m.prefs.Keys)
+	var warnings []string
+	for _, err := range refused {
+		warnings = append(warnings, fmt.Sprintf("keys.%s %v, using %s", err.Action, err, m.standardKey(err.Action)))
 	}
-	return m
-}()
-
-// infoExtra is the optional second key of the info action, set in the preferences. Unlike i it is no
-// letter, so it also works on text lines; "" means none.
-var infoExtra string
-
-// userActions maps the rebindable actions of the preferences to the actions of the keymap.
-var userActions = map[string]action{
-	uiprefs.ActionSave: actSave, uiprefs.ActionHelp: actHelp, uiprefs.ActionCommand: actCommand,
+	if err := m.ui.keys.Bind(usable); err != nil {
+		warnings = append(warnings, fmt.Sprintf("keys: %v, using the standard keys", err))
+		usable = nil
+	}
+	m.prefs.Keys = usable
+	return warnings
 }
 
-func init() { uiprefs.Reserved = reservedOwner }
-
-// reservedOwner names the action of the table that owns k and that the preferences cannot rebind, so no
-// binding may take it; "" means the key is free.
-func reservedOwner(k string) string {
-	rebindable := map[action]bool{}
-	for _, a := range userActions {
-		rebindable[a] = true
+// standardKey names the key an action of the preferences has by default: its own key, or no extra key for
+// the info action, which keeps its letter.
+func (m *Model) standardKey(a action) string {
+	if key := m.prefKey(nil, a); key != "" {
+		return key
 	}
-	for _, d := range keyDefs {
-		if !rebindable[d.act] && slices.Contains(keymap[d.act].Keys(), k) {
-			return string(d.act)
+	return "no extra key"
+}
+
+// prefKey is the key of a rebindable action under the bindings keys: the binding, or else the default key of
+// an action whose key a binding replaces, and none for the extra info key.
+func (m *Model) prefKey(keys map[action]string, a action) string {
+	if key, ok := keys[a]; ok {
+		return key
+	}
+	for _, t := range m.ui.keys.Actions() {
+		if t.ID == a && t.Rebind == kittui.RebindReplace {
+			return t.DefaultKeys[0]
 		}
 	}
 	return ""
 }
 
-// setKeys replaces the keys of an action; none unbinds it.
-func setKeys(a action, keys ...string) {
-	b := keymap[a]
-	b.SetKeys(slices.DeleteFunc(slices.Clone(keys), func(k string) bool { return k == "" })...)
-	keymap[a] = b
+// inputFocus is what the screen shown does with a key press: where text is typed, a key that types a
+// character is text.
+func (m *Model) inputFocus() kittui.InputFocus {
+	if m.typing() {
+		return kittui.InputText
+	}
+	return kittui.InputNavigation
 }
 
-// applyKeys makes the keys of the preferences the keymap. Dispatch and footers read the keymap alone, so
-// both follow at once.
-func applyKeys(k uiprefs.Keys) {
-	k = k.WithDefaults()
-	for name, a := range userActions {
-		setKeys(a, k.Get(name))
-	}
-	infoExtra = k.Info
-	refreshKeyHelp()
+// keyIs reports whether the key press triggers the action, whatever the screen reads. A handler that runs
+// while text is typed asks it only for keys that type nothing, or asks keyIsTyped.
+func (m *Model) keyIs(msg tea.KeyPressMsg, a action) bool {
+	return m.ui.keys.Is(msg, a, kittui.InputNavigation)
 }
 
-// refreshKeyHelp sets the help of every binding from the catalog in the current language and the keys in
-// force. It runs when either changes, never at package start, so no text is fixed in a language early.
-func refreshKeyHelp() {
-	for _, d := range keyDefs {
-		b := keymap[d.act]
-		b.SetHelp(keyLabel(d.act), tr(d.help))
-		keymap[d.act] = b
-	}
+// keyIsTyped reports whether the key press triggers the action on a text line: only the keys of the action
+// that type no character count, such as the extra info key.
+func (m *Model) keyIsTyped(msg tea.KeyPressMsg, a action) bool {
+	return m.ui.keys.Is(msg, a, kittui.InputText)
 }
 
-// keyOf is the first key bound to an action, "" when unbound. A switch can take it as a case, so one
-// screen's key switch stays a switch.
-func keyOf(a action) string {
-	if keys := keymap[a].Keys(); len(keys) > 0 {
-		return keys[0]
-	}
-	return ""
+// keyLabel is how a footer names the keys of an action, joined by "/": function keys capitalized, arrows as
+// glyphs, everything else as bound, the extra info key last.
+func (m *Model) keyLabel(a action) string { return m.ui.keys.Label(a) }
+
+// firstKeyLabel is the label of the first key of an action alone, such as "i" of "i/F3".
+func (m *Model) firstKeyLabel(a action) string {
+	first, _, _ := strings.Cut(m.keyLabel(a), "/")
+	return first
 }
 
-// keyIs reports whether the key press triggers the action. An unbound action never matches.
-func keyIs(msg tea.KeyPressMsg, a action) bool { return key.Matches(msg, keymap[a]) }
-
-// arrowNames are the glyphs a footer shows for the arrow keys.
-var arrowNames = map[string]string{"up": "↑", "down": "↓", "left": "←", "right": "→"}
-
-// keyName is how a footer spells a key: arrows as glyphs, function keys capitalized, everything else as bound.
-func keyName(k string) string {
-	if g, ok := arrowNames[k]; ok {
-		return g
+// reloadPress is the key press of the first key bound to reload, so the command runs exactly what the key
+// runs in the area shown. Reload cannot be rebound, so its keys are those of the table.
+func (u *uiContext) reloadPress() (tea.KeyPressMsg, bool) {
+	for _, a := range u.keys.Actions() {
+		if a.ID != actReload {
+			continue
+		}
+		for _, k := range a.DefaultKeys {
+			if name, ok := strings.CutPrefix(k, "ctrl+"); ok && len([]rune(name)) == 1 {
+				return tea.KeyPressMsg{Code: []rune(name)[0], Mod: tea.ModCtrl}, true
+			}
+			if code, ok := functionKeyCode(strings.ToUpper(k)); ok {
+				return tea.KeyPressMsg{Code: code}, true
+			}
+		}
 	}
-	if len(k) >= 2 && k[0] == 'f' && strings.Trim(k[1:], "0123456789") == "" {
-		return "F" + k[1:]
-	}
-	return k
-}
-
-// keyLabel is how a footer names the keys of an action, joined by "/": function keys capitalized,
-// everything else as bound, the second info key last.
-func keyLabel(a action) string {
-	var names []string
-	for _, k := range keymap[a].Keys() {
-		names = append(names, keyName(k))
-	}
-	if a == actInfo && infoExtra != "" {
-		names = append(names, keyName(infoExtra))
-	}
-	return strings.Join(names, "/")
-}
-
-// footerPlaceholders are the names a footer text may use for a bound key, e.g. "{save} save".
-var footerPlaceholders = []struct {
-	name string
-	act  action
-}{
-	{"{save}", actSave}, {"{help}", actHelp}, {"{info}", actInfo}, {"{command}", actCommand},
-	{"{back}", actBack}, {"{delete}", actDelete}, {"{copy}", actCopy},
-}
-
-// footerKeys replaces the key placeholders of a footer text with the current key names, so a footer
-// follows the keymap while a screen-local key stays a plain literal in its text.
-func footerKeys(text string) string { return keyPlaceholders(footerText(text)) }
-
-// keyPlaceholders replaces the key placeholders of an already translated footer text. Translating comes
-// first because the catalog is keyed by the group with its placeholders.
-func keyPlaceholders(text string) string {
-	if !strings.Contains(text, "{") {
-		return text
-	}
-	for _, p := range footerPlaceholders {
-		text = strings.ReplaceAll(text, p.name, keyLabel(p.act))
-	}
-	return text
+	return tea.KeyPressMsg{}, false
 }

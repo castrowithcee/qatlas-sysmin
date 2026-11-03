@@ -1,15 +1,15 @@
 qsysmin                                                                                    [esc] back  [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings 
-  [Users]  Groups   Folders   Changes 
+   1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
+  [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         3/3 ╭─ svc-demo ─────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
-║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name               svc-demo                    │
-║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               system                      │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              no                          │
-║   ▾ System accounts (1)                                           ║ │ Docker             no                          │
-║ > svc-demo    no                 no      svc-demo          system ║ │ Enabled (qsysmin)  no                          │
+║     NAME        ADMIN              DOCKER  GROUPS          SYSTEM ║ │                                                │
+║   ▾ ■ Users (2)                                                   ║ │ Name               svc-demo                    │
+║     demo-admin  yes                yes     demo-admin, s…         ║ │ Type               system                      │
+║     demo-user   yes · not enabled  no      demo-user, su…         ║ │ Admin              no                          │
+║   ▾ ■ System accounts (1)                                         ║ │ Docker             no                          │
+║ >   svc-demo    no                 no      svc-demo        system ║ │ Enabled (qsysmin)  no                          │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Groups             svc-demo                    │
                                                                       │ Home               /var/lib/svc-demo           │
                                                                       │ Locked             unknown                     │
@@ -17,24 +17,24 @@ Users (3)                                                         3/3 ╭─ svc
                                                                       │ Press ctrl+r to read the fields only root can  │
                                                                       │ see.                                           │
                                                                       ╰────────────────────────────────────────────────╯
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
 enter details  n new  e edit  d delete  / filter  esc back  i info  c copy  ? help  : cmds  q quit         ↑/↓ move  3/3

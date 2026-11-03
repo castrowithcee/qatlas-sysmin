@@ -1,13 +1,15 @@
 package tui
 
 import (
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+
 	"reflect"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 )
 
 // clipboardOf is the text a command hands to the terminal, and whether it is a clipboard command at all.
@@ -40,7 +42,7 @@ func noControl(t *testing.T, where, text string) {
 
 func TestCopyHandsOverTheNameOfTheMarkedRow(t *testing.T) {
 	m := frameModel(t, 100, 30)
-	m.list.selectName("charlie")
+	markName(&m.base, "charlie")
 	got, ok := pressCopy(m)
 	if !ok || got != "charlie" {
 		t.Fatalf("c copied %q (%v), want the name of the marked row", got, ok)
@@ -54,10 +56,9 @@ func TestCopyHandsOverTheNameOfTheMarkedRow(t *testing.T) {
 }
 
 func TestCopyStatusIsAHandOverInBothLanguages(t *testing.T) {
-	t.Cleanup(func() { setLanguage(uiprefs.LanguageEnglish) })
-	for lang, want := range map[string]string{uiprefs.LanguageEnglish: "Handed to the terminal", uiprefs.LanguageGerman: "An das Terminal"} {
+	for lang, want := range map[string]string{kitprefs.LanguageEnglish: "Handed to the terminal", kitprefs.LanguageGerman: "An das Terminal"} {
 		m := frameModel(t, 100, 30)
-		setLanguage(lang)
+		m.ui.setLanguage(kitprefs.Language(lang))
 		if _, ok := pressCopy(m); !ok {
 			t.Fatalf("%s: c handed nothing over", lang)
 		}
@@ -79,27 +80,27 @@ func TestCopyKeyCopiesNothingWhereItIsATextKeyOrNothingIsMarked(t *testing.T) {
 	if text, ok := clipboardOf(cmd); ok {
 		t.Fatalf("c on the filter line copied %q", text)
 	}
-	if m.list.query() != "c" {
-		t.Errorf("the filter = %q, want c typed", m.list.query())
+	if q := m.base.list.Query(); q != "c" {
+		t.Errorf("the filter = %q, want c typed", q)
 	}
 
 	m = frameModel(t, 100, 30)
-	m.setEntries(nil, nil, nil)
+	fillBase(m, frameColumns(), nil, nil, nil)
 	if _, ok := pressCopy(m); ok || m.copyKeyShown() {
 		t.Error("an empty list copies or names the copy key")
 	}
 
 	m = frameModel(t, 100, 30)
 	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", keys: "y yes · n/{back} no"}
+	m.ask = &question{title: "Sure?", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
 	if _, ok := pressCopy(m); ok {
 		t.Error("c copied while a question is open")
 	}
 
-	m = frameModel(t, 100, 30)
-	m.openDropdown("field", []string{"One", "Two"}, 0, func(int) tea.Cmd { return nil })
-	if m.copySource() != nil {
-		t.Error("an open dropdown offers a copy source")
+	m, _ = settingsModel(t, newFake(), "general")
+	send(m, "enter")
+	if !m.set.gen.Open() || m.copySource() != nil {
+		t.Error("an open list of values offers a copy source")
 	}
 }
 
@@ -140,7 +141,7 @@ func TestCopyCleanKeepsLineBreaksTrimsAndNeverCuts(t *testing.T) {
 // The name of a row that holds a registered secret is handed over redacted, never raw.
 func TestCopyRedactsASecretInTheNameOfTheRow(t *testing.T) {
 	m := frameModel(t, 100, 30)
-	m.setEntries([]string{"leaky-canary-demo-secret"}, nil, nil)
+	fillBase(m, frameColumns(), nil, []string{"leaky-canary-demo-secret"}, nil)
 	m.redactor.Add("canary-demo-secret")
 	got, ok := pressCopy(m)
 	if !ok || strings.Contains(got, "canary-demo-secret") {
@@ -149,14 +150,18 @@ func TestCopyRedactsASecretInTheNameOfTheRow(t *testing.T) {
 }
 
 func TestWithCopyKeyPutsTheGroupAheadOfHelpAndCommands(t *testing.T) {
-	for in, want := range map[string]string{
-		"↑/↓ move · {help} help":                    "↑/↓ move · {copy} copy · {help} help",
-		"enter open · {command} cmds · {help} help": "enter open · {copy} copy · {command} cmds · {help} help",
-		"↑/↓ move":                      "↑/↓ move · {copy} copy",
-		"x · {copy} copy · {help} help": "x · {copy} copy · {help} help",
+	m := frameModel(t, 80, 24)
+	for _, c := range []struct {
+		in   []kittui.Hint
+		want string
+	}{
+		{keyLine(navHint(tHintMove, actUp, actDown), hint(tHintHelp, actHelp)), "↑/↓ move · c copy · ? help"},
+		{keyLine(hint(tHintOpen, actEnter), hint(tHintCmds, actCommand), hint(tHintHelp, actHelp)), "enter open · c copy · : cmds · ? help"},
+		{navHint(tHintMove, actUp, actDown), "↑/↓ move · c copy"},
+		{keyLine(hint(tHintOpen, actEnter), hint(tHintCopy, actCopy), hint(tHintHelp, actHelp)), "enter open · c copy · ? help"},
 	} {
-		if got := withCopyKey(in); got != want {
-			t.Errorf("withCopyKey(%q) = %q, want %q", in, got, want)
+		if got := m.hintText(withCopyKey(c.in)); got != c.want {
+			t.Errorf("withCopyKey(%q) = %q, want %q", m.hintText(c.in), got, c.want)
 		}
 	}
 }

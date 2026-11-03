@@ -12,14 +12,12 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
+	"github.com/castrowithcee/qatlas-sysmin/internal/sockettest"
 )
 
-type groupOfTests struct{ admin bool }
-
-func (groupOfTests) GroupID(string) (uint32, error)           { return uint32(os.Getgid()), nil }
-func (groupOfTests) PeerGroups(daemon.Peer) ([]uint32, error) { return nil, nil }
-func (g groupOfTests) IsAdmin(uint32) (bool, error)           { return g.admin, nil }
+func admin(is bool) func(uint32) (bool, error) {
+	return func(uint32) (bool, error) { return is, nil }
+}
 
 type env struct {
 	cfg    Config
@@ -31,19 +29,16 @@ type env struct {
 // newEnv opens a service on an empty state directory; nothing is set up beforehand.
 func newEnv(t *testing.T, mods ...func(*Config)) *env {
 	t.Helper()
-	sock, err := os.MkdirTemp("", "qsysmin-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(sock) })
+	sock, group := sockettest.Path(t)
 	e := &env{done: make(chan error, 1)}
 	e.cfg = Config{
-		StateDir: t.TempDir(), SocketPath: filepath.Join(sock, "s.sock"),
-		Version: "test", Resolver: groupOfTests{admin: true},
+		StateDir: t.TempDir(), SocketPath: sock, Group: group,
+		Version: "test", IsAdmin: admin(true),
 	}
 	for _, mod := range mods {
 		mod(&e.cfg)
 	}
+	var err error
 	e.svc, err = Open(e.cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +89,10 @@ func TestAnswersAnAdminOnAFreshStateDirectory(t *testing.T) {
 }
 
 func TestRefusesAPeerThatIsNoAdmin(t *testing.T) {
-	e := newEnv(t, func(cfg *Config) { cfg.Resolver = groupOfTests{admin: false} })
+	if os.Geteuid() == 0 {
+		t.Skip("root needs no admin right")
+	}
+	e := newEnv(t, func(cfg *Config) { cfg.IsAdmin = admin(false) })
 	e.start(t)
 	if _, err := e.dial(t).Status(); !errors.Is(err, client.ErrReserved) {
 		t.Fatalf("err = %v, want %v", err, client.ErrReserved)
@@ -172,15 +170,18 @@ func TestShutdownRemovesSocket(t *testing.T) {
 }
 
 func TestServesOnlyChannelLogAndHostOperations(t *testing.T) {
-	e := newEnv(t, asPeer(0))
+	e := newEnv(t)
 	e.start(t)
 	c := e.dial(t)
 	if _, err := c.Status(); err != nil {
 		t.Fatal(err)
 	}
+	// host.record exists; only root may call it.
 	if err := c.RecordHostChange(control.HostRecordParams{
 		Action: "demo.set", Result: control.HostResultApplied, SudoUID: 1000, JournalID: testJournalID,
-	}); err != nil {
+	}); os.Geteuid() != 0 {
+		wantCode(t, err, control.CodeNotRoot)
+	} else if err != nil {
 		t.Fatal(err)
 	}
 	if res, err := c.LogEntries(control.LogListParams{}); err != nil || len(res.Entries) == 0 {

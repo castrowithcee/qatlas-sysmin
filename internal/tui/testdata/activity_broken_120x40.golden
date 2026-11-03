@@ -1,11 +1,12 @@
 qsysmin                                                                                    [esc] back  [?] help  [:] cmd
-   1 Overview   2 Host  [3 Activity]  4 Settings 
+   1 Overview   2 Host  [3 Activity]  4 Settings                                                                        
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-⚠ Chain broken · 2026-10-27 entry 31 · hash mismatch · +1 more
-  signatures not checked
+⚠ Chain broken · 2026-10-27 entry 31 · hash mismatch · +1 more                                                          
+  signatures not checked                                                                                                
+   Period: All ▾      Action: all ▾      Result: all ▾                                                                  
 Log (12)                                                         1/12 ╭─ 12 ───────────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
-║   Time                 Action          Result   Duration   UID    ║ │                                                │
+║   TIME                 ACTION          RESULT   DURATION   UID    ║ │                                                │
 ║ > 2026-10-28 12:00:00  Config read     success      3 ms     0    ║ │ Time    2026-10-28 12:00:00                    │
 ║   2026-10-28 11:59:00  Host change     success     10 ms  1000    ║ │ Action  Config read                            │
 ║   2026-10-28 11:58:00  Status read     success     17 ms  1000    ║ │ Result  success                                │
@@ -19,22 +20,21 @@ Log (12)                                                         1/12 ╭─ 12 
 ║   2026-10-28 11:50:00  Config read     success     73 ms  1000    ║ │                                                │
 ║   2026-10-28 11:49:00  Host change     success     80 ms  1000    ║ │                                                │
 ╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
 enter details  f filter  t verify  ctrl+r reload  / search  esc back  i info  c copy  ? help  : cmds  q quit        1/12

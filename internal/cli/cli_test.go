@@ -3,8 +3,24 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
+
+	kitcli "github.com/castrowithcee/qatlas-kit/cli"
+	kithelp "github.com/castrowithcee/qatlas-kit/helptopics"
+	"github.com/castrowithcee/qatlas-kit/i18n"
+	"github.com/castrowithcee/qatlas-kit/output"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
+)
+
+const (
+	exitOK      = kitcli.ExitSuccess
+	exitRuntime = kitcli.ExitRuntime
+	exitUsage   = kitcli.ExitUsage
 )
 
 func runCLI(t *testing.T, args ...string) (code int, stdout, stderr string) {
@@ -113,24 +129,102 @@ func TestVersionFlag(t *testing.T) {
 	}
 }
 
-func TestFormatAliasWarnsAndMatchesOutput(t *testing.T) {
-	code, want, _ := runCLI(t, "version", "--output", "json")
-	if code != exitOK {
-		t.Fatalf("code = %d", code)
-	}
-	code, got, stderr := runCLI(t, "version", "--format", "json")
-	if code != exitOK || got != want {
-		t.Errorf("code = %d, stdout = %q, want %q", code, got, want)
-	}
-	if !strings.Contains(stderr, "--format is deprecated") {
-		t.Errorf("stderr = %q, want a notice", stderr)
+func TestFormatFlagIsGone(t *testing.T) {
+	code, stdout, stderr := runCLI(t, "version", "--format", "json")
+	if code != exitUsage || stdout != "" || !strings.HasPrefix(stderr, "qsysmin: usage: unknown flag: --format\n") {
+		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 }
 
-func TestOutputAndFormatTogetherIsUsageError(t *testing.T) {
-	code, stdout, stderr := runCLI(t, "version", "--output", "json", "--format", "json")
-	if code != exitUsage || stdout != "" || !strings.Contains(stderr, "cannot be used together") {
-		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+func TestAgentFlagSelectsCompact(t *testing.T) {
+	_, want, _ := runCLI(t, "version", "--output", "compact")
+	code, got, stderr := runCLI(t, "version", "--agent")
+	if code != exitOK || stderr != "" || got != want {
+		t.Errorf("code = %d, stdout = %q, want %q, stderr = %q", code, got, want, stderr)
+	}
+}
+
+// A failure is two lines: the code with the message, then the next step, which differs for an agent.
+func TestFailureHasCodeAndNextStep(t *testing.T) {
+	h := newFakeHost(t, nil)
+	_, _, human := h.run(t, "", "uninstall")
+	_, _, agent := h.run(t, "", "uninstall", "--agent")
+	for _, stderr := range []string{human, agent} {
+		if lines := strings.Split(strings.TrimSuffix(stderr, "\n"), "\n"); len(lines) != 2 ||
+			lines[0] != "qsysmin: confirmation-required: this request needs --confirm" {
+			t.Errorf("stderr = %q", stderr)
+		}
+	}
+	h.root = false
+	_, _, human = h.run(t, "", "uninstall", "--confirm")
+	_, _, agent = h.run(t, "", "uninstall", "--confirm", "--agent")
+	if !strings.Contains(human, "Repeat the command with sudo.") || !strings.Contains(agent, "Do not run this yourself") {
+		t.Errorf("human = %q, agent = %q", human, agent)
+	}
+	_, _, agent = runCLI(t, "tui", "--agent")
+	_, _, human = runCLI(t, "tui")
+	if !strings.Contains(human, "Run 'qsysmin tui' in a terminal.") || !strings.Contains(agent, "Do not run the terminal interface") {
+		t.Errorf("human = %q, agent = %q", human, agent)
+	}
+}
+
+// Every command checks its arguments and the tree follows the conventions, or no command runs at all.
+func TestEveryCommandRejectsUnexpectedArguments(t *testing.T) {
+	root, err := newRootCommand(&Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var visit func(c *cobra.Command, path []string)
+	visit = func(c *cobra.Command, path []string) {
+		for _, sub := range c.Commands() {
+			visit(sub, append(path[:len(path):len(path)], sub.Name()))
+		}
+		if !c.Runnable() {
+			return // help topics print their text and take no argument check of their own
+		}
+		switch c.Name() {
+		case "qsysmin", "help", "completion", "user", "group", "folder", "apply", "undo":
+			return // the root, help and the commands with their own argument check
+		}
+		code, stdout, stderr := runCLI(t, append(append([]string{}, path...), "unexpected", "--agent")...)
+		if code != exitUsage || stdout != "" || !strings.HasPrefix(stderr, "qsysmin: usage: ") {
+			t.Errorf("%v: code = %d, stdout = %q, stderr = %q", path, code, stdout, stderr)
+		}
+	}
+	visit(root, nil)
+}
+
+func TestAgentsGuide(t *testing.T) {
+	code, stdout, stderr := runCLI(t, "agents")
+	if code != exitOK || stderr != "" || stdout != agentsGuide {
+		t.Fatalf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+	for _, want := range []string{"--agent", "qsysmin host users", "qsysmin help <topic>", "Never run: host apply, host undo",
+		"qsysmin tui", "Exit code 0", "usage", "confirmation-required", "admin-required", "runtime"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("the guide lacks %q", want)
+		}
+	}
+	if code, _, _ := runCLI(t, "agents", "extra"); code != exitUsage {
+		t.Errorf("agents with an argument: code = %d", code)
+	}
+}
+
+// The guide names each code qsysmin can emit exactly once, and the codes are valid and distinct.
+func TestAgentsGuideNamesEveryCode(t *testing.T) {
+	shared := []output.Code{output.CodeUsage, output.CodeConfirmationRequired, output.CodeConfirmationDeclined,
+		output.CodeAdminRequired, output.CodeUnreachable, output.CodeRuntime}
+	codes, err := output.AllCodes(ownCodes...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, code := range append(shared, ownCodes...) {
+		if !slices.Contains(codes, code) {
+			t.Errorf("code %q is not a valid code", code)
+		}
+		if n := strings.Count(agentsGuide, "\n  "+string(code)+" "); n != 1 {
+			t.Errorf("the guide names %q %d times, want once", code, n)
+		}
 	}
 }
 
@@ -138,5 +232,35 @@ func TestOutputUnknownValueIsUsageError(t *testing.T) {
 	code, _, _ := runCLI(t, "version", "--output", "yaml")
 	if code != exitUsage {
 		t.Errorf("code = %d, want %d", code, exitUsage)
+	}
+}
+
+// The command line serves the topics of the shared list, the one the help of the terminal interface shows.
+func TestHelpTopicsAreTheSharedList(t *testing.T) {
+	shared := helptopics.Topics(i18n.English)
+	if !slices.Equal(helpTopics, shared) {
+		t.Fatalf("the command line has topics %v, the shared list %v", helpTopics, shared)
+	}
+	for _, topic := range shared {
+		code, out, _ := runCLI(t, topic.Name)
+		if code != exitOK || !strings.Contains(out, kithelp.CLIText(topic)) {
+			t.Errorf("qsysmin %s: code %d, output does not hold the topic:\n%s", topic.Name, code, out)
+		}
+	}
+}
+
+// The topics are plain ASCII, so a rune is a cell wherever they are shown, and each has a unique name.
+func TestHelpTopicsArePlainAndDistinct(t *testing.T) {
+	names := map[string]bool{}
+	for _, topic := range helpTopics {
+		if names[topic.Name] || topic.Name == "" || topic.Short == "" || topic.Text == "" {
+			t.Errorf("topic %q is unnamed, repeated, or empty", topic.Name)
+		}
+		names[topic.Name] = true
+		for i, r := range topic.Text {
+			if r > '~' || (r < ' ' && r != '\n') {
+				t.Errorf("topic %s has the character %q at byte %d", topic.Name, r, i)
+			}
+		}
 	}
 }
