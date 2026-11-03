@@ -14,7 +14,7 @@ import (
 // about the path last asked for. The line takes letters only while editing is set (enter or /), so help, info
 // and the command line stay reachable; esc stops the editing, a second esc goes on to the bar.
 type hostFoldersState struct {
-	in      projectPathInput
+	in      pathInput
 	ready   bool
 	editing bool
 	asked   string
@@ -32,8 +32,8 @@ type hostFolderMsg struct {
 func (m *Model) foldersReady() *hostFoldersState {
 	f := &m.hst.fold
 	if !f.ready {
-		f.in, f.ready = newProjectPathInput(), true
-		f.in.open("", projectPathFile, "/")
+		f.in, f.ready = newPathInput(), true
+		f.in.open("", pathFile, "/")
 	}
 	return f
 }
@@ -42,7 +42,7 @@ func (m *Model) foldersReady() *hostFoldersState {
 func (m *Model) enterFolders() tea.Cmd {
 	f := m.foldersReady()
 	f.editing = false
-	f.in.open(f.in.Value(), projectPathFile, "/")
+	f.in.open(f.in.Value(), pathFile, "/")
 	return m.folderCmd(f.asked)
 }
 

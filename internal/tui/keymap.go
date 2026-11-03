@@ -57,14 +57,10 @@ const (
 	actEdit       action = "edit"
 	actRename     action = "rename"
 	actFilter     action = "filter"
-	actLogs       action = "logs"
 	actDuplicate  action = "duplicate"
 	actTest       action = "test"
-	actUpdate     action = "update"
 	actSelfUpdate action = "selfupdate"
-	actSetup      action = "setup"
 
-	actRemoveField action = "removefield"
 	actSuggestPrev action = "suggestprev"
 	actSuggestNext action = "suggestnext"
 	actReload      action = "reload"
@@ -113,15 +109,11 @@ var keyDefs = []struct {
 	{actEdit, levelLetter, []string{"e"}, tKeyHelpEdit},
 	{actRename, levelLetter, []string{"r"}, tKeyHelpRename},
 	{actFilter, levelLetter, []string{"f"}, tKeyHelpFilter},
-	{actLogs, levelLetter, []string{"o"}, tKeyHelpLogs},
 	{actDuplicate, levelLetter, []string{"p"}, tKeyHelpDuplicate},
 	{actTest, levelLetter, []string{"t"}, tKeyHelpTest},
-	{actUpdate, levelLetter, []string{"u"}, tKeyHelpUpdate},
 	{actSelfUpdate, levelLetter, []string{"U"}, tKeyHelpSelfUpdate},
-	{actSetup, levelLetter, []string{"s"}, tKeyHelpSetup},
 
 	// The control keys of text lines and of the target picker. None can be rebound to a global action.
-	{actRemoveField, levelCtrl, []string{"f8"}, tKeyHelpRemoveField},
 	{actSuggestPrev, levelCtrl, []string{"ctrl+p"}, tKeyHelpSuggestPrev},
 	{actSuggestNext, levelCtrl, []string{"ctrl+n"}, tKeyHelpSuggestNext},
 	{actReload, levelCtrl, []string{"ctrl+r"}, tKeyHelpReload},
@@ -263,7 +255,7 @@ var footerPlaceholders = []struct {
 }{
 	{"{save}", actSave}, {"{help}", actHelp}, {"{info}", actInfo}, {"{command}", actCommand},
 	{"{lock}", actLock}, {"{back}", actBack}, {"{delete}", actDelete}, {"{copy}", actCopy},
-	{"{approveall}", actApproveAll}, {"{remove}", actRemoveField},
+	{"{approveall}", actApproveAll},
 }
 
 // footerKeys replaces the key placeholders of a footer text with the current key names, so a footer

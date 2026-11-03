@@ -72,35 +72,10 @@ func TestKeyNameSpellsArrowsAsGlyphs(t *testing.T) {
 	}
 }
 
-func TestNewStartsTheFlowAndGDoesNothing(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 120, 40)
-	send(m, "g")
-	if m.prj.flow != nil || m.ov != nil {
-		t.Fatal("g does something in Projects")
-	}
-	send(m, "n", "enter")
-	if m.prj.flow == nil {
-		t.Fatal("n does not start the guided setup")
-	}
-}
-
-func TestProjectsFooterAndHelpNameNAndNotG(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 160, 40)
-	foot := footerOf(m)
-	if !strings.Contains(foot, "n new") || strings.Contains(foot, "g/n") || strings.Contains(foot, "g new") {
-		t.Errorf("footer = %q", foot)
-	}
-	send(m, "?")
-	help := plain(m)
-	if strings.Contains(help, "guided setup") {
-		t.Errorf("help names the removed setup key:\n%s", help)
-	}
-}
-
 func TestApproveAllNeedsCapitalAAndAsks(t *testing.T) {
 	fb := accessFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "4", "a")
+	send(m, "3", "a")
 	if m.screen == screenConfirm || fb.count("approve-all") != 0 {
 		t.Fatal("a acts in Access")
 	}
@@ -113,45 +88,23 @@ func TestApproveAllNeedsCapitalAAndAsks(t *testing.T) {
 	}
 }
 
-func TestF8RemovesTheRowOfTheFlowAndCtrlDEditsText(t *testing.T) {
-	fb := projectsFake()
-	flowFakeLists(fb)
-	m := flowModel(t, fb, 120, 40)
-	typed(m, "demo-app")
-	send(m, "f2")
-	flowAtStep(t, m, flowSource)
-	f := m.prj.flow
-	f.draft.images = append(f.draft.images, flowImage{name: "second"})
-	flowToRow(t, m, "images[1].name")
-	m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
-	if len(f.draft.images) != 2 {
-		t.Fatalf("ctrl+d removed a row: %d images", len(f.draft.images))
-	}
-	if f.draft.images[1].name != "second" {
-		t.Fatalf("ctrl+d at the end of the text changed it: %q", f.draft.images[1].name)
-	}
-	m.Update(tea.KeyPressMsg{Code: tea.KeyF8})
-	if len(f.draft.images) != 1 {
-		t.Fatalf("f8 left %d images, want 1", len(f.draft.images))
-	}
-}
-
 func TestCtrlDDeletesTheCharacterRightOfTheCursor(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 120, 40)
-	send(m, "n", "enter")
-	typed(m, "demo-app")
+	m := hostModel(t, 120, 40)
+	runCommand(m, "go host folders")
+	send(m, "enter")
+	typed(m, "/srv/demo-app")
 	for range 3 {
 		send(m, "left")
 	}
 	m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
-	if got := m.prj.flow.in.Value(); got != "demo-pp" {
+	if got := m.hst.fold.in.Value(); got != "/srv/demo-pp" {
 		t.Errorf("value = %q, want the character right of the cursor gone", got)
 	}
 }
 
 func TestVDoesNothingInTheLibrary(t *testing.T) {
 	m := appModel(t, accessFake(), 80, 24)
-	send(m, "5", "v")
+	send(m, "4", "v")
 	if m.status != "" || m.fail != "" {
 		t.Errorf("v answers: status %q fail %q", m.status, m.fail)
 	}

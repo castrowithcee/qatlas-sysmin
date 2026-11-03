@@ -13,19 +13,18 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
-// Activity shows what the service did: the action log here and the runs of the projects in runs.go. A page
-// is a constant, a state in activityState, a body and a key function, as in Library. The log is read when the page opens, when the filter changes and on the reload key, never on a
-// timer, because every request to the service is an entry of this log itself.
+// Activity shows what the service did: the action log. A page is a constant, a state in activityState, a body
+// and a key function, as in Library. The log is read when the page opens, when the filter changes and on the
+// reload key, never on a timer, because every request to the service is an entry of this log itself.
 const (
 	actLog = iota
-	actRuns
 	actPages
 )
 
 // actKey is the English name of an Activity page, the one commands are given by.
-func actKey(sub int) string { return [...]string{"log", "runs"}[sub] }
+func actKey(sub int) string { return [...]string{"log"}[sub] }
 
-func actTitle(sub int) string { return tr([...]textID{tSubLog, tSubRuns}[sub]) }
+func actTitle(sub int) string { return tr([...]textID{tSubLog}[sub]) }
 
 // logPageSize is how many entries one request asks for.
 const logPageSize = 100
@@ -85,7 +84,6 @@ func periodText(period int) string {
 // activityState is the Activity area.
 type activityState struct {
 	sub  int
-	runs runsState
 	page dataPage
 	// order lists the sequence numbers shown, newest first; items holds their entries.
 	order []string
@@ -433,17 +431,11 @@ func problemCodeText(code string) string {
 // activityBody is the page of Activity under the bars of the frame.
 func (m *Model) activityBody() string {
 	top := m.workspaceTop()
-	if m.act.sub == actRuns {
-		return m.runsBody(top)
-	}
 	lines := m.chainLines(m.usable(0))
 	return strings.Join(lines, "\n") + "\n" + m.dataBody(&m.act.page, m.logSpec(), top+len(lines))
 }
 
 func (m *Model) activityKeys() []string {
-	if m.act.sub == actRuns {
-		return m.runsKeys()
-	}
 	if m.detailFocus(&m.act.page) {
 		return []string{"←/→ tab", "↑/↓ scroll", "{back} back"}
 	}
@@ -452,9 +444,6 @@ func (m *Model) activityKeys() []string {
 
 // activityKey handles the keys of Activity that the table does not.
 func (m *Model) activityKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
-	if m.act.sub == actRuns {
-		return m.runsKey(key)
-	}
 	switch {
 	case keyIs(key, actTest):
 		m.clearMessages()
@@ -549,20 +538,4 @@ func (m *Model) setActSub(sub int) tea.Cmd {
 	m.closeDetails()
 	m.clearMessages()
 	return m.enterPage()
-}
-
-// openRunsProject opens the form that picks the project whose runs are shown.
-func (m *Model) openRunsProject() tea.Cmd {
-	r := &m.act.runs
-	if len(r.projects) == 0 {
-		return nil
-	}
-	f := &formDlg{title: tr(tRunsProjectTitle), saveText: "{save} apply", submit: func(m *Model, f *formDlg) tea.Cmd {
-		m.closeForm()
-		return m.runsCmd(f.row("project").value())
-	}}
-	row := choiceRow("project", tr(tColProject), r.projects, r.projects, max(slices.Index(r.projects, r.project), 0))
-	f.rows = []formRow{row}
-	m.openForm(f)
-	return nil
 }

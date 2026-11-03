@@ -16,7 +16,6 @@ type area int
 
 const (
 	areaOverview area = iota
-	areaProjects
 	areaActivity
 	areaAccess
 	areaLibrary
@@ -27,12 +26,12 @@ const (
 
 // key is the English name of the area, whatever language is drawn: the name commands are given by.
 func (a area) key() string {
-	return [...]string{"Overview", "Projects", "Activity", "Access", "Library", "Host", "Settings"}[a]
+	return [...]string{"Overview", "Activity", "Access", "Library", "Host", "Settings"}[a]
 }
 
 // title is the name of the area as drawn.
 func (a area) title() string {
-	return tr([...]textID{tAreaOverview, tAreaProjects, tAreaActivity, tAreaAccess, tAreaLibrary, tAreaHost, tAreaSettings}[a])
+	return tr([...]textID{tAreaOverview, tAreaActivity, tAreaAccess, tAreaLibrary, tAreaHost, tAreaSettings}[a])
 }
 
 // areaByName finds the area whose English name is name, ignoring case.
@@ -60,7 +59,6 @@ const (
 func (m *Model) enableAreas(backend Backend) {
 	m.backend = backend
 	m.home, m.screen, m.area, m.zone = screenArea, screenArea, areaOverview, zoneTabs
-	m.prj = newProjectsState()
 }
 
 // setArea shows an area, on its first page, with the focus in its content. Unsaved input of Settings is asked
@@ -103,13 +101,8 @@ func (m *Model) enterPage() tea.Cmd {
 	switch {
 	case m.area == areaOverview:
 		return m.overviewCmd()
-	case m.area == areaProjects:
-		m.prj.log, m.prj.upd, m.prj.focusDetail, m.prj.flow = nil, nil, false, nil
-		return m.projectListCmd()
 	case m.area == areaAccess:
 		return m.accessCmd()
-	case m.area == areaActivity && m.act.sub == actRuns:
-		return m.runsCmd(m.act.runs.project)
 	case m.area == areaActivity:
 		return m.activityCmd()
 	case m.area == areaLibrary:
@@ -138,12 +131,6 @@ func (m *Model) enterPage() tea.Cmd {
 // updateArea handles one key of the area screen.
 func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	if m.typing() {
-		switch {
-		case m.flowOpen():
-			return m.flowKey(key)
-		case m.area == areaProjects:
-			return m.projectsEditKey(key)
-		}
 		if p := m.currentPage(); p.filtering() {
 			return m.filterKey(p, key)
 		}
@@ -151,10 +138,6 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 			return m.foldersKey(key)
 		}
 		return m.editKey(key)
-	}
-	// The guided setup is a form: only help, the command line and the info leave it to the frame.
-	if m.flowOpen() && !keyIs(key, actHelp) && !keyIs(key, actCommand) && !m.infoKey(key) {
-		return m.flowKey(key)
 	}
 	switch {
 	case keyIs(key, actHelp):
@@ -188,11 +171,6 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.area == areaSettings {
 		if cmd, ok := m.settingsKey(key); ok {
-			return cmd
-		}
-	}
-	if m.area == areaProjects {
-		if cmd, ok := m.projectsKey(key); ok {
 			return cmd
 		}
 	}
@@ -256,20 +234,8 @@ func (m *Model) toBar() {
 // detailZoneAvailable reports whether the detail of the marked row stands beside the rows, which makes it a
 // zone of its own. Where it has the screen to itself it is an inner level of the content instead.
 func (m *Model) detailZoneAvailable() bool {
-	if m.flowOpen() {
-		return false
-	}
-	if m.area == areaProjects {
-		p := m.prj
-		if p == nil || p.log != nil || p.upd != nil || m.usable(0) < projectsDetailMinWidth {
-			return false
-		}
-		_, has := p.current()
-		return has
-	}
 	p := m.currentPage()
-	return p != nil && !p.open && !(m.area == areaActivity && m.act.runs.log.open) &&
-		m.usable(0) >= wideDetailMin && len(p.list.matches) > 0
+	return p != nil && !p.open && m.usable(0) >= wideDetailMin && len(p.list.matches) > 0
 }
 
 // zoneNow is the zone that takes the keys. An inner level of the content holds the focus whatever the zone
@@ -288,19 +254,10 @@ func (m *Model) zoneNow() zone {
 }
 
 // innerLevel reports whether the content shows a level that esc closes before it leaves the content: a
-// filter being typed, a field being edited, the guided setup, a log, an update or the detail of a row.
+// filter being typed, a field being edited or the detail of a row.
 func (m *Model) innerLevel() bool {
-	if m.typing() || m.flowOpen() {
+	if m.typing() {
 		return true
-	}
-	switch m.area {
-	case areaProjects:
-		p := m.prj
-		return p != nil && (p.log != nil || p.upd != nil || p.focusDetail)
-	case areaActivity:
-		if m.act.runs.log.open {
-			return true
-		}
 	}
 	p := m.currentPage()
 	return p != nil && p.open
@@ -360,21 +317,11 @@ func (m *Model) barKey(key tea.KeyPressMsg) tea.Cmd {
 func (m *Model) closeDetails() {
 	m.acc.page.open, m.lib.cred.page.open, m.lib.chans.page.open = false, false, false
 	m.lib.tmpls.page.open, m.act.page.open, m.lib.cred.problems = false, false, nil
-	m.act.runs.page.open = false
 	m.hst.users.page.open, m.hst.groups.page.open = false, false
-	if m.act.runs.log.open {
-		m.act.runs.log.open = false
-		m.act.runs.log.gen++
-	}
 }
 
 // dataKey handles a key of the pages with a table: the table and its detail first, then the page's own keys.
 func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
-	if m.area == areaActivity && m.act.runs.log.open {
-		if cmd, ok := m.runLogKey(key); ok {
-			return cmd, true
-		}
-	}
 	p := m.currentPage()
 	if p == nil {
 		// Folders has no table, only its path line.
@@ -390,10 +337,7 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 	}
 	if m.area == areaActivity && !p.open && keyIs(key, actFilter) {
-		// f is the filter of the log and the project of the runs here; the table is searched with /.
-		if m.act.sub == actRuns {
-			return m.openRunsProject(), true
-		}
+		// f is the filter of the log here; the table is searched with /.
 		return m.openLogFilter(), true
 	}
 	if cmd, ok := m.pageKey(p, key); ok {
@@ -562,11 +506,8 @@ func (m *Model) setSubPage(i int) tea.Cmd {
 
 // areaKeys is the key line of the area screen.
 func (m *Model) areaKeys() string {
-	if m.flowOpen() {
-		return m.flowKeyLine()
-	}
 	if m.typing() {
-		if m.area == areaProjects || m.currentPage().filtering() {
+		if m.currentPage().filtering() {
 			return "type to filter · ↑/↓ move · enter keep filter · {back} clear filter"
 		}
 		if m.hostTyping() {
@@ -587,8 +528,6 @@ func (m *Model) areaKeys() string {
 		}
 	case m.area == areaSettings:
 		keys = append(keys, m.settingsKeys()...)
-	case m.area == areaProjects:
-		keys = append(keys, m.projectsKeys()...)
 	case m.area == areaAccess:
 		keys = append(keys, m.accessKeys()...)
 	case m.area == areaLibrary:
@@ -628,8 +567,6 @@ func (m *Model) areaBody() string {
 		return m.overviewBody()
 	case areaSettings:
 		return m.settingsBody()
-	case areaProjects:
-		return m.projectsBody()
 	case areaAccess:
 		return m.accessBody()
 	case areaLibrary:

@@ -1,5 +1,5 @@
 sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
-   1 Overview   2 Projects   3 Activity   4 Access   5 Library  [6 Host]  7 Settings 
+   1 Overview   2 Activity   3 Access   4 Library  [5 Host]  6 Settings 
    Users   Groups  [Folders]  Changes 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Folders
@@ -37,4 +37,4 @@ Special       setgid: new entries take the group of this folder
 
 
 
-enter edit path  e change  s set up stacks  esc back  ctrl+l admin  i info  ? help  : cmds  q quit
+enter edit path  e change  esc back  ctrl+l admin  i info  ? help  : cmds  q quit

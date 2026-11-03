@@ -175,15 +175,13 @@ func (f *formDlg) wheelRow(up bool) {
 	}
 }
 
-// hitFormWheel makes the cells of the form, credential form or project prompt that is open take the wheel, with
+// hitFormWheel makes the cells of the form or credential form that is open take the wheel, with
 // the same precedence prompt gives them.
 func (m *Model) hitFormWheel(x0, y0, x1, y1 int) {
 	var scroll func(up bool)
 	switch {
 	case m.screen != screenPrompt || m.ov != nil:
 		return
-	case m.projectPromptOpen():
-		scroll = m.prj.prompt.wheelRow
 	case m.cred != nil:
 		scroll = m.cred.wheelRow
 	case m.form != nil && m.form.pick != nil:

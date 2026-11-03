@@ -2,9 +2,7 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"fmt"
 
-	"strings"
 	"testing"
 	"time"
 
@@ -147,7 +145,7 @@ func TestTheWheelOverTheDimmedBackgroundOfAFormDialogMovesNothing(t *testing.T) 
 func TestTheWheelMovesTheFocusOfTheCredentialForm(t *testing.T) {
 	m := appModel(t, accessFake(), 80, 24)
 	now := wheelClock(m)
-	send(m, "5", "n")
+	send(m, "4", "n")
 	if m.cred == nil {
 		t.Fatal("n opens no credential form")
 	}
@@ -162,7 +160,7 @@ func TestTheWheelMovesTheFocusOfTheCredentialForm(t *testing.T) {
 func TestTheWheelOfTheCredentialFormOfAnEditedEntryStaysOnTheFields(t *testing.T) {
 	m := appModel(t, accessFake(), 80, 24)
 	now := wheelClock(m)
-	send(m, "5")
+	send(m, "4")
 	send(m, "e")
 	if m.cred == nil || !m.cred.edit {
 		t.Fatalf("e opens no edit form:\n%s", plain(m))
@@ -171,77 +169,5 @@ func TestTheWheelOfTheCredentialFormOfAnEditedEntryStaysOnTheFields(t *testing.T
 	down, up := wheelWalk(t, m, now, x, y, func() int { return m.cred.focus })
 	if len(down) > 0 && m.cred.focus < 2 || len(up) > 0 && up[len(up)-1] < 2 {
 		t.Errorf("down %v and up %v reach the fixed rows", down, up)
-	}
-}
-
-func TestTheWheelMovesTheFieldOfAProjectPromptAndHoldsAtTheEnds(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 80, 24)
-	now := wheelClock(m)
-	m.openAdoptPrompt()
-	if !m.projectPromptOpen() {
-		t.Fatal("no prompt is open")
-	}
-	typed(m, "/srv")
-	x, y := wheelCell(t, m, func(wheelHit) bool { return true })
-	down, up := wheelWalk(t, m, now, x, y, func() int { return m.prj.prompt.focus })
-	wheelEnds(t, "prompt", down, up, 0, 1)
-	if got := m.prj.prompt.fields[0].in.Value(); got != "/srv" {
-		t.Errorf("the wheel changed the field to %q", got)
-	}
-}
-
-func TestTheWheelMovesTheRowsOfTheGuidedSetupAndHoldsAtTheEnds(t *testing.T) {
-	m := flowModel(t, projectsFake(), 120, 40)
-	now := wheelClock(m)
-	f := m.prj.flow
-	rows := f.shownRows(f.step)
-	index := func() int {
-		for i, r := range f.shownRows(f.step) {
-			if r.id == f.focus {
-				return i
-			}
-		}
-		return -1
-	}
-	x, y := wheelCell(t, m, func(wheelHit) bool { return true })
-	down, up := wheelWalk(t, m, now, x, y, index)
-	wheelEnds(t, "flow", down, up, 0, len(rows)-1)
-	if len(down) != len(rows)-1 {
-		t.Errorf("down went %v over %d rows, want one row at a time", down, len(rows))
-	}
-}
-
-func TestTheWheelScrollsTheSummaryOfTheGuidedSetupAndHoldsAtTheEnds(t *testing.T) {
-	m := flowModel(t, projectsFake(), 80, minimumHeight)
-	now := wheelClock(m)
-	flowMinimal(t, m)
-	f := m.prj.flow
-	for i := range 12 {
-		f.draft.composeFiles = append(f.draft.composeFiles, fmt.Sprintf("/srv/demo/app/compose-%02d.yaml", i))
-	}
-	x, y := wheelCell(t, m, func(wheelHit) bool { return true })
-	lines := m.flowSummaryLines(m.usable(0) - 4)
-	if m.render(); f.scroll != 0 || strings.Contains(plain(m), "Checks") {
-		t.Fatalf("the summary of %d lines does not need scrolling:\n%s", len(lines), plain(m))
-	}
-	notch(m, now, x, y, true)
-	if m.render(); f.scroll != 0 {
-		t.Errorf("the wheel up at the start moved to %d", f.scroll)
-	}
-	notch(m, now, x, y, false)
-	if m.render(); f.scroll != 1 {
-		t.Errorf("one notch moved to %d, want 1", f.scroll)
-	}
-	for range len(lines) {
-		notch(m, now, x, y, false)
-	}
-	m.render()
-	end := f.scroll
-	notch(m, now, x, y, false)
-	if m.render(); f.scroll != end || end == 0 || end >= len(lines) {
-		t.Errorf("the end held at %d then %d of %d lines", end, f.scroll, len(lines))
-	}
-	if !strings.Contains(plain(m), "Checks") {
-		t.Errorf("the end of the summary is not in view:\n%s", plain(m))
 	}
 }

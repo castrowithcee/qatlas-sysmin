@@ -62,7 +62,7 @@ func TestInfoDescribesTheFocusedEntry(t *testing.T) {
 	if view := plain(m); !strings.Contains(view, "Approvals") || !strings.Contains(view, "wait in Access") {
 		t.Errorf("no info for the focused row:\n%s", view)
 	}
-	send(m, "esc", "7", "down")
+	send(m, "esc", "6", "down")
 	send(m, "i")
 	if view := plain(m); !strings.Contains(view, "Theme") || !strings.Contains(view, "Colors of this interface") {
 		t.Errorf("no info for the focused field:\n%s", view)
@@ -146,7 +146,7 @@ func TestPanelKeysDoNotActWhereTextIsTyped(t *testing.T) {
 
 func TestFooterNamesTheKeysOfTheScreenAndKeepsHelpVisible(t *testing.T) {
 	for _, size := range [][2]int{{40, 14}, {60, 20}, {80, 24}, {120, 40}} {
-		for _, page := range []string{"1", "2", "7"} {
+		for _, page := range []string{"1", "2", "6"} {
 			m := appModel(t, overviewFake(), size[0], size[1])
 			send(m, page)
 			rows := strings.Split(plain(m), "\n")

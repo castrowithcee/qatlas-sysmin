@@ -1,6 +1,5 @@
 sysmin  ● vault open  ● admin off                  [esc] back  [?] help  [:] cmd
-   1 Overview  2 Projects [3 Activity] 4 Access  5 Library  6 Host  7 Settings 
-  [Log]  Runs 
+   1 Overview  [2 Activity]  3 Access   4 Library   5 Host   6 Settings 
 ────────────────────────────────────────────────────────────────────────────────
 ⚠ Chain broken · 2026-10-27 entry 31 · hash mismatch · +1 more
   signatures not checked (vault locked)
@@ -20,5 +19,6 @@ Log (12)                                                                    1/12
 ║   2026-10-28 11:50:00  config.read        demo-app  success     73 ms  1000  ║
 ║   2026-10-28 11:49:00  approval.grant     -         success     80 ms  1000  ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
+
 
 enter details  f filter  esc back  ctrl+l admin  ? help  : cmds  q quit

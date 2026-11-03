@@ -106,9 +106,7 @@ type Model struct {
 	// folderCount counts the entries a folder change touches (hostchange.CountFolderEntries unless a test stands in).
 	folderCount func(path string, recursive bool) (int, error)
 	set         settingsState
-	// prj is the state of the Projects area; see projects.go.
-	prj *projectsState
-	pop *popup
+	pop         *popup
 	// leave is the question before unsaved input is dropped, nil while there is none.
 	leave *leaveAsk
 	// prefsPath is the preferences file Settings writes; empty means there is none to write.
@@ -257,20 +255,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case verifyMsg:
 		m.takeVerify(msg)
 		return m, nil
-	case runsMsg:
-		m.takeRuns(msg)
-		return m, nil
-	case runLogMsg:
-		m.takeRunLog(msg)
-		return m, nil
 	case projectsMsg:
 		m.takeProjects(msg)
 		return m, nil
 	case updateMsg:
 		m.takeUpdate(msg)
 		return m, nil
-	case projectsAnswer:
-		return m, m.takeProjectsAnswer(msg)
 	}
 	return m, nil
 }
@@ -289,14 +279,8 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	if m.ov != nil {
 		return m.updateOverlay(key)
 	}
-	if m.projectPromptOpen() {
-		return m.projectPromptKey(key)
-	}
 	if m.screen == screenPopup {
 		return m.updatePopup(key)
-	}
-	if m.projectsDialogOpen() {
-		return m.updateProjectDialog(key)
 	}
 	if m.screen == screenConfirm && m.leave != nil {
 		return m.updateLeave(key)
@@ -447,7 +431,6 @@ func (m *Model) renderFrame() string {
 		view := m.frame(m.workspaceView())
 		m.footerHits()
 		m.hitFormLines(strings.Split(view, "\n"), 0, 0, m.termWidth)
-		m.hitPickerWheel(0, m.workspaceTop(), m.termWidth, m.termHeight)
 		m.hitFormWheel(0, m.workspaceTop(), m.termWidth, m.termHeight)
 		return view
 	}

@@ -1,8 +1,8 @@
 sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
-   1 Ove╔══════════════════════════════════════════════════════════════╗ttings  
+   1 Ove╔══════════════════════════════════════════════════════════════╗        
   [Users║ Help                                                         ║        
 ────────║                                                              ║────────
-Users (3║  secrets   channels   templates   audit-log   runs  [host]   ║     1/2
+Users (3║  unlock   secrets   channels   templates   audit-log  [host] ║     1/2
 ╔═══════║                                                              ║═══════╗
 ║   Name║ Host shows the users, groups and folder permissions of this  ║System ║
 ║   ▾ Us║ machine. Admin means sudo rights, Docker is practically      ║       ║
@@ -17,7 +17,7 @@ Users (3║  secrets   channels   templates   audit-log   runs  [host]   ║    
         ║ refused. Folders reads one path at a time: type it, tab      ║        
         ║ completes, enter reads. A path marked protected is a system  ║        
         ║ path. e changes the folder shown, after a confirmation that  ║        
-        ║ lines 1-15 of 48                                             ║        
+        ║ lines 1-15 of 47                                             ║        
         ║                                                              ║        
         ║ ↑/↓ scroll · ←/→ topic · esc close                           ║        
         ╚══════════════════════════════════════════════════════════════╝        

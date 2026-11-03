@@ -24,8 +24,8 @@ func TestStartsReadOnlyWithoutAPassphrase(t *testing.T) {
 	if m.area != areaOverview || m.screen != screenArea {
 		t.Fatalf("area %v screen %v, want the overview", m.area, m.screen)
 	}
-	if got := fb.log(); strings.Join(got, " ") != "status approvals projects" {
-		t.Errorf("calls = %v, want the status and the two reads of the overview, nothing that changes", got)
+	if got := fb.log(); strings.Join(got, " ") != "status approvals" {
+		t.Errorf("calls = %v, want the status and the read of the overview, nothing that changes", got)
 	}
 	if view := plain(m); !strings.Contains(view, "vault open") || !strings.Contains(view, "admin off") {
 		t.Errorf("header lacks the states:\n%s", view)
@@ -370,7 +370,7 @@ func TestAdminCountdownRunsLocally(t *testing.T) {
 
 func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 	m := appModel(t, newFake(control.VaultUnlocked), 80, 24)
-	for key, want := range map[string]area{"2": areaProjects, "3": areaActivity, "4": areaAccess, "5": areaLibrary, "6": areaHost, "7": areaSettings, "1": areaOverview} {
+	for key, want := range map[string]area{"2": areaActivity, "3": areaAccess, "4": areaLibrary, "5": areaHost, "6": areaSettings, "1": areaOverview} {
 		send(m, key)
 		if m.area != want {
 			t.Errorf("%s selects %v, want %v", key, m.area, want)
@@ -380,8 +380,8 @@ func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 	if m.zone != zoneContent {
 		t.Errorf("a digit leaves the focus on %v, want the content", m.zone)
 	}
-	// In the content neither the arrows nor tab change the area; tab goes through the zones to the tab line.
-	send(m, "right", "left", "tab", "tab")
+	// In the content neither the arrows nor tab change the area; tab goes on to the tab line.
+	send(m, "right", "left", "tab")
 	if m.area != areaOverview || m.zone != zoneTabs {
 		t.Errorf("right, left and tab reach area %v on %v, want the Overview with the tab line focused", m.area, m.zone)
 	}
@@ -390,7 +390,7 @@ func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 		t.Errorf("left on the tab line wraps to %v on %v", m.area, m.zone)
 	}
 	send(m, "right", "right")
-	if m.area != areaProjects {
+	if m.area != areaActivity {
 		t.Errorf("right on the tab line wraps to %v", m.area)
 	}
 	send(m, "end")

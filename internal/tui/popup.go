@@ -49,7 +49,6 @@ var helpTopics = []struct {
 	{"channels", tHelpChannels},
 	{"templates", tHelpTemplates},
 	{"audit-log", tHelpAuditLog},
-	{"runs", tHelpRuns},
 	{"host", tHelpHost},
 }
 
@@ -108,9 +107,6 @@ func (m *Model) updatePopup(key tea.KeyPressMsg) tea.Cmd {
 // infoOf is the title and the text of the entry under the focus, like a tooltip.
 func (m *Model) infoOf() (string, string) {
 	pick := func(label string, id textID) (string, string) { return label, tr(id) }
-	if m.flowOpen() {
-		return m.flowInfo()
-	}
 	switch m.area {
 	case areaOverview:
 		if item := m.overviewCurrent(); item.info != "" {
@@ -137,11 +133,11 @@ func (m *Model) infoOf() (string, string) {
 	case areaLibrary:
 		return pick(libTitle(m.lib.sub), []textID{tInfoLibCredentials, tInfoLibChannels, tInfoLibTemplates}[m.lib.sub])
 	case areaActivity:
-		return pick(actTitle(m.act.sub), []textID{tInfoActLog, tInfoActRuns}[m.act.sub])
+		return pick(actTitle(m.act.sub), []textID{tInfoActLog}[m.act.sub])
 	case areaHost:
 		return pick(hostTitle(m.hst.sub), []textID{tInfoHostUsers, tInfoHostGroups, tInfoHostFolders, tInfoHostChanges}[m.hst.sub])
 	default:
-		ids := map[area]textID{areaProjects: tInfoAreaProjects, areaActivity: tInfoAreaActivity, areaAccess: tInfoAreaAccess,
+		ids := map[area]textID{areaActivity: tInfoAreaActivity, areaAccess: tInfoAreaAccess,
 			areaLibrary: tInfoAreaLibrary}
 		if id, ok := ids[m.area]; ok {
 			return pick(m.area.title(), id)

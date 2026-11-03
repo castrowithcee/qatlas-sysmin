@@ -1,6 +1,5 @@
 sysmin  ● vault open  ● admin off                                                                      [?] help  [:] cmd
-   1 Overview   2 Projects  [3 Activity]  4 Access   5 Library   6 Host   7 Settings                                    
-  [Log]  Runs                                                                                                           
+   1 Overview  [2 Activity]  3 Access   4 Library   5 Host   6 Settings                                                 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ● Chain intact, 52 entries · signatures checked                                                                         
 Log (12)                                                         1/12 ╭─ 12 ───────────────────────────────────────────╮
@@ -12,13 +11,14 @@ Log (12)                                                         1/12 ╭─ 12 
 ║   2026-10-28 11:57:00  deploy.run         -         success       ║ │ Result   success                               │
 ║   2026-10-28 11:56:00  session.open       demo-app  failure       ║ │                                                │
 ║   2026-10-28 11:55:00  config.read        -         success       ║ │                                                │
-║   2026-10-28 11:54:00  app╔══════════════════════════════════════════════════════════════╗                           │
-║   2026-10-28 11:53:00  cre║ Filter the log                                               ║                           │
-║   2026-10-28 11:52:00  dep║                                                              ║                           │
-║   2026-10-28 11:51:00  ses║   Period:   7 days                                           ║                           │
-║   2026-10-28 11:50:00  con║ > Project:  < demo-app >                                     ║                           │
-║   2026-10-28 11:49:00  app║   Action:   all                                              ║                           │
-╚═══════════════════════════║   Result:   all                                              ║───────────────────────────╯
+║   2026-10-28 11:54:00  approval.grant     demo-app  success       ║ │                                                │
+║   2026-10-28 11:53:00  cre╔══════════════════════════════════════════════════════════════╗                           │
+║   2026-10-28 11:52:00  dep║ Filter the log                                               ║                           │
+║   2026-10-28 11:51:00  ses║                                                              ║                           │
+║   2026-10-28 11:50:00  con║   Period:   7 days                                           ║                           │
+║   2026-10-28 11:49:00  app║ > Project:  < demo-app >                                     ║                           │
+╚═══════════════════════════║   Action:   all                                              ║───────────────────────────╯
+                            ║   Result:   all                                              ║                            
                             ║                                                              ║                            
                             ║ [ Apply ]  [ Cancel ]                                        ║                            
                             ║                                                              ║                            

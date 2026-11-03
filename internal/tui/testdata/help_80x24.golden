@@ -1,21 +1,21 @@
 sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
-> [1 Overview] 2 Projects  3 Activity  4 Access  5 Library  6 Host  7 Settings  
+> [1 Overview]  2 Activity   3 Access   4 Library   5 Host   6 Settings         
 ────────╔══════════════════════════════════════════════════════════════╗────────
 Overview║ Help                                                         ║Oct 2026
         ║                                                              ║        
-╭─ Proje║ [keys]  vault   admin-session   approvals   unlock   secret… ║───────╮
+╭─ Appro║ [keys]  vault   admin-session   approvals   unlock   secret… ║───────╮
 │ 2     ║                                                              ║       │
 ╰───────║ This screen                                                  ║───────╯
 sysmin 0║   ←/→ area                                                   ║        
 ╭─ Next ║   ↓ open                                                     ║───────╮
 │   ⚠ Re║                                                              ║       │
-│   ⚠ Up║ Everywhere                                                   ║       │
-│   ✗ Ch║   ? help                                                     ║       │
-╰───────║   : cmds                                                     ║───────╯
-╭─ Recen║   i info                                                     ║───────╮
-│       ║   ctrl+l admin                                               ║       │
-│   10-2║   F2 save                                                    ║       │
-╰───────║   esc back                                                   ║───────╯
+╰───────║ Everywhere                                                   ║───────╯
+        ║   ? help                                                     ║        
+        ║   : cmds                                                     ║        
+        ║   i info                                                     ║        
+        ║   ctrl+l admin                                               ║        
+        ║   F2 save                                                    ║        
+        ║   esc back                                                   ║        
         ║   q quit                                                     ║        
         ║                                                              ║        
         ║ ↑/↓ scroll · ←/→ topic · esc close                           ║        

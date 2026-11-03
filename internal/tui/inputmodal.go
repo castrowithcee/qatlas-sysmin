@@ -94,9 +94,6 @@ func (m *Model) prompt() (promptDialog, bool) {
 	if m.screen == screenPrompt && m.ov != nil {
 		return m.overlayDialog(), true
 	}
-	if m.projectPromptOpen() {
-		return m.projectPromptDialog(), true
-	}
 	if m.screen == screenPrompt && m.cred != nil {
 		return m.credDialog(), true
 	}

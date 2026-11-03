@@ -18,7 +18,7 @@ func settingsModel(t *testing.T, fb *fakeBackend, page string) (*Model, string) 
 	// The keys and the language are process-wide; put them back when the test ends.
 	t.Cleanup(func() { applyKeys(uiprefs.DefaultKeys()) })
 	m.prefsPath = filepath.Join(t.TempDir(), "tui.yaml")
-	send(m, "7")
+	send(m, "6")
 	switch page {
 	case "vault":
 		send(m, "esc", "right", "enter")
@@ -53,7 +53,7 @@ func TestSettingsOpensOnGeneralWithTheThreePages(t *testing.T) {
 	if m.set.sub != subVault {
 		t.Errorf("right leads to page %d, want Vault", m.set.sub)
 	}
-	send(m, "5", "7")
+	send(m, "4", "6")
 	if m.set.sub != subGeneral {
 		t.Errorf("Settings reopens on page %d, want General", m.set.sub)
 	}
@@ -323,7 +323,7 @@ func TestUpdatePageShowsTheLookupOfThisRun(t *testing.T) {
 			var calls int
 			m := appModel(t, newFake(control.VaultUnlocked), 80, 24)
 			m.version, m.releases = "0.0.0-test", releases(c.info, c.err, &calls)
-			send(m, "7", "esc", "right", "right", "enter")
+			send(m, "6", "esc", "right", "right", "enter")
 			view := plain(m)
 			if calls != 1 || !strings.Contains(view, "0.0.0-test") {
 				t.Errorf("lookups %d:\n%s", calls, view)
@@ -374,7 +374,7 @@ func TestLeavingUnsavedInputAsksFirst(t *testing.T) {
 	if m.area != areaOverview {
 		t.Error("d does not discard and leave")
 	}
-	send(m, "7")
+	send(m, "6")
 	if m.set.gen.language != uiprefs.LanguageEnglish {
 		t.Error("the discarded choice came back")
 	}

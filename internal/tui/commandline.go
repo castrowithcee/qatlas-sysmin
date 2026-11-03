@@ -60,32 +60,6 @@ func inArea(a area) func(m *Model) string {
 	}
 }
 
-// noFlow is the check for a command whose key the open guided setup would take for itself.
-func noFlow(m *Model) string {
-	if m.flowOpen() {
-		return tr(tCmdFlowOpen, keyLabel(actBack))
-	}
-	return ""
-}
-
-// projectsIdle is the check for the list of Projects with no log or update over it.
-func projectsIdle(m *Model) string {
-	if m.prj != nil && (m.prj.log != nil || m.prj.upd != nil) {
-		return tr(tCmdLevelOpen)
-	}
-	return ""
-}
-
-func projectSelected(m *Model) string {
-	if m.prj == nil {
-		return tr(tProjNoSel)
-	}
-	if _, ok := m.prj.current(); !ok {
-		return tr(tProjNoSel)
-	}
-	return ""
-}
-
 // inContent is the check for a command whose key acts in the content only, not on the tab line or the page
 // strip.
 func inContent(m *Model) string {
@@ -103,18 +77,17 @@ func (m *Model) commands() []command {
 		title := strings.ToLower(a.key())
 		list = append(list, command{
 			name: "go " + title, desc: tr(tCmdGoArea, a.title()), aliases: []string{title},
-			shortcut: digits(a), unavailable: noFlow,
-			run: func(m *Model) tea.Cmd { return m.show(a, 0) },
+			shortcut: digits(a),
+			run:      func(m *Model) tea.Cmd { return m.show(a, 0) },
 		})
 		for _, p := range areaPages(a) {
 			list = append(list, command{
 				name: "go " + title + " " + p.key, desc: tr(tCmdGoPage, p.title, a.title()),
-				aliases: []string{title + " " + p.key}, hidden: true, unavailable: noFlow,
+				aliases: []string{title + " " + p.key}, hidden: true,
 				run: func(m *Model) tea.Cmd { return m.show(a, p.sub) },
 			})
 		}
 	}
-	list = append(list, m.projectCommands()...)
 	list = append(list,
 		command{name: "discard all", desc: tr(tCmdDiscardAll), aliases: []string{"access discard-all"},
 			unavailable: every(inArea(areaAccess), func(m *Model) string {
@@ -143,12 +116,12 @@ func (m *Model) commands() []command {
 			run: func(m *Model) tea.Cmd { return m.lockKey() }},
 		command{name: "reload", desc: tr(tCmdReload), aliases: []string{"refresh"},
 			shortcut: func() string { return keyLabel(actReload) },
-			unavailable: every(noFlow, func(m *Model) string {
+			unavailable: func(m *Model) string {
 				if _, ok := reloadPress(); !ok {
 					return tr(tCmdNoReloadKey)
 				}
 				return ""
-			}),
+			},
 			run: func(m *Model) tea.Cmd {
 				press, _ := reloadPress()
 				return m.updateArea(press)
@@ -156,8 +129,8 @@ func (m *Model) commands() []command {
 		command{name: "regroup", desc: tr(tCmdRegroup),
 			run: func(m *Model) tea.Cmd { return m.regroup() }},
 		command{name: "update", desc: tr(tCmdUpdate), aliases: []string{"upgrade"},
-			shortcut: func() string { return keyLabel(actSelfUpdate) }, unavailable: noFlow,
-			run: func(m *Model) tea.Cmd { return m.selfUpdate() }},
+			shortcut: func() string { return keyLabel(actSelfUpdate) },
+			run:      func(m *Model) tea.Cmd { return m.selfUpdate() }},
 		command{name: "help", desc: tr(tCmdHelp),
 			shortcut: func() string { return keyLabel(actHelp) },
 			run:      func(m *Model) tea.Cmd { m.openPopup(popHelp); return nil }},
@@ -165,8 +138,8 @@ func (m *Model) commands() []command {
 			shortcut: func() string { return keyLabel(actInfo) },
 			run:      func(m *Model) tea.Cmd { m.openPopup(popInfo); return nil }},
 		command{name: "quit", desc: tr(tCmdQuit), aliases: []string{"exit"},
-			shortcut: func() string { return keyLabel(actQuit) }, unavailable: noFlow,
-			run: func(m *Model) tea.Cmd { return m.guarded(m.quit) }},
+			shortcut: func() string { return keyLabel(actQuit) },
+			run:      func(m *Model) tea.Cmd { return m.guarded(m.quit) }},
 	)
 	return list
 }

@@ -22,7 +22,7 @@ func f2(m *Model) {
 
 // sample selects the second approval and opens its detail.
 func openSample(m *Model) {
-	send(m, "4", "down", "enter")
+	send(m, "3", "down", "enter")
 }
 
 // accessFake is a service with two open approvals, one of them with a free command, and three credentials.
@@ -53,7 +53,7 @@ func accessFake() *fakeBackend {
 func TestAccessListMarksFreeCommands(t *testing.T) {
 	for _, size := range [][2]int{{80, 24}, {120, 40}} {
 		m := appModel(t, accessFake(), size[0], size[1])
-		send(m, "4")
+		send(m, "3")
 		view := plain(m)
 		for _, want := range []string{"Approvals (2)", "demo-app", "sample-app", "⚠ free command", "Changes"} {
 			if !strings.Contains(view, want) {
@@ -99,7 +99,7 @@ func TestAccessDetailShowsOldNewAndFreeCommand(t *testing.T) {
 
 func TestAccessWideShowsDetailBesideTheList(t *testing.T) {
 	m := appModel(t, accessFake(), 120, 40)
-	send(m, "4", "down")
+	send(m, "3", "down")
 	view := plain(m)
 	if !strings.Contains(view, "Overview") || !strings.Contains(view, "Fingerprint") || !strings.Contains(view, "A free command line runs") {
 		t.Errorf("no detail beside the list:\n%s", view)
@@ -124,7 +124,7 @@ func TestAccessDiffValuesGoThroughTheRedactor(t *testing.T) {
 func TestApproveGivesTheShownFingerprintAndNeedsTheDetail(t *testing.T) {
 	fb := accessFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "4", "down")
+	send(m, "3", "down")
 	f2(m)
 	if fb.count("approve sample-app fp-sample-0000000002") != 0 || fb.count("change") != 0 || len(fb.approved) != 0 {
 		t.Fatalf("approved without the detail on the screen: %v", fb.log())
@@ -172,7 +172,7 @@ func TestDiscardAsksThenDiscardsAndReloads(t *testing.T) {
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
 	const call = "discard sample-app fp-sample-0000000002"
-	send(m, "4", "down", "d")
+	send(m, "3", "down", "d")
 	if m.screen != screenConfirm || fb.count(call) != 0 {
 		t.Fatal("no question before the discard")
 	}
@@ -191,7 +191,7 @@ func TestApproveAllAsksOnceForThePassphraseAndCallsOnce(t *testing.T) {
 		fb := accessFake()
 		fb.once = once
 		m := appModel(t, fb, 80, 24)
-		send(m, "4", "A")
+		send(m, "3", "A")
 		if m.screen != screenConfirm || !strings.Contains(plain(m), "Approve all 2 open approvals?") {
 			t.Fatalf("once=%v: no question:\n%s", once, plain(m))
 		}
@@ -215,7 +215,7 @@ func TestApproveAllShowsFailuresPerProject(t *testing.T) {
 	fb.session = true
 	fb.failApproveAll = []control.ApprovalFailure{{Project: "sample-app", Code: control.CodeChanged}}
 	m := appModel(t, fb, 80, 24)
-	send(m, "4", "A", "y")
+	send(m, "3", "A", "y")
 	if !strings.Contains(m.fail, "1 failed") || !strings.Contains(m.fail, "sample-app") || !strings.Contains(m.fail, "Changed meanwhile") {
 		t.Errorf("fail = %q", m.fail)
 	}
@@ -227,7 +227,7 @@ func TestApproveAllShowsFailuresPerProject(t *testing.T) {
 func TestEscInTheOverlayRunsNothing(t *testing.T) {
 	fb := accessFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "4", "A", "y")
+	send(m, "3", "A", "y")
 	typed(m, testPass)
 	send(m, "esc")
 	if m.ov != nil || fb.count("approve-all") != 0 || fb.count("session") != 0 {
@@ -243,7 +243,7 @@ func TestDiscardAllFromTheCommandLine(t *testing.T) {
 	fb := accessFake()
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
-	send(m, "4")
+	send(m, "3")
 	runCommand(m, "access discard-all")
 	if m.screen != screenConfirm || !strings.Contains(plain(m), "Discard all open approvals?") {
 		t.Fatalf("no question:\n%s", plain(m))
@@ -256,7 +256,7 @@ func TestDiscardAllFromTheCommandLine(t *testing.T) {
 
 func TestAccessFilterAndCopy(t *testing.T) {
 	m := appModel(t, accessFake(), 80, 24)
-	send(m, "4", "/")
+	send(m, "3", "/")
 	typed(m, "sample")
 	send(m, "enter")
 	if len(m.acc.page.list.matches) != 1 {
@@ -272,7 +272,7 @@ func TestAccessLockedVaultShowsNote(t *testing.T) {
 	fb := accessFake()
 	fb.vault = control.VaultLocked
 	m := appModel(t, fb, 80, 24)
-	send(m, "4")
+	send(m, "3")
 	if view := plain(m); !strings.Contains(view, "locked") {
 		t.Errorf("no note about the locked vault:\n%s", view)
 	}
@@ -304,11 +304,11 @@ func TestApproveAllAndDiscardAllPassTheShownApprovals(t *testing.T) {
 		want := append(slices.Clone(shownByAccessFake), control.ShownApproval{Project: "gone-app", Kind: "deleted"})
 		m := appModel(t, fb, 80, 24)
 		if discard {
-			send(m, "4")
+			send(m, "3")
 			runCommand(m, "discard all")
 			send(m, "y")
 		} else {
-			send(m, "4", "A", "y")
+			send(m, "3", "A", "y")
 		}
 		if len(fb.shownAll) != 1 || !slices.Equal(fb.shownAll[0], want) || len(m.acc.page.list.all) != 0 {
 			t.Errorf("discard=%v: shown = %v, want %v; calls %v", discard, fb.shownAll, want, fb.log())
@@ -319,7 +319,7 @@ func TestApproveAllAndDiscardAllPassTheShownApprovals(t *testing.T) {
 func TestApproveAllRefusesWhatChangedSinceTheQuestion(t *testing.T) {
 	fb := accessFake()
 	m := appModel(t, fb, 80, 24)
-	changeBetween(t, fb, m, "4", "A")
+	changeBetween(t, fb, m, "3", "A")
 	send(m, "y")
 	typed(m, testPass)
 	send(m, "enter")
@@ -338,7 +338,7 @@ func TestDiscardAllRefusesWhatChangedSinceTheQuestion(t *testing.T) {
 	fb := accessFake()
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
-	send(m, "4")
+	send(m, "3")
 	runCommand(m, "discard all")
 	changeBetween(t, fb, m)
 	send(m, "y")
@@ -354,7 +354,7 @@ func TestDiscardAllUnchangedCallsOnce(t *testing.T) {
 	fb := accessFake()
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
-	send(m, "4")
+	send(m, "3")
 	runCommand(m, "discard all")
 	send(m, "y")
 	if fb.count("discard-all") != 1 || len(m.acc.page.list.all) != 0 {
@@ -368,7 +368,7 @@ func TestAllAtOnceIsNotOfferedBeyondTheListedRows(t *testing.T) {
 		fb.approvals = append(fb.approvals, control.ApprovalSummary{Project: fmt.Sprintf("extra-%d", i), Kind: "new", Fingerprint: "fp"})
 	}
 	m := appModel(t, fb, 80, 24)
-	send(m, "4", "A")
+	send(m, "3", "A")
 	if m.screen == screenConfirm || !strings.Contains(m.status, "one by one") {
 		t.Errorf("status %q, screen %v", m.status, m.screen)
 	}

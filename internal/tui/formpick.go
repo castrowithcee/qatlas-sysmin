@@ -118,6 +118,13 @@ func (m *Model) pickKey(f *formDlg, key tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
+const (
+	// pickerRows is how many rows of a pick list show at once.
+	pickerRows = 8
+	// pickerField is the width of the search field and the base of the row width.
+	pickerField = 40
+)
+
 // pickDialog is the list as the dialog the modal draws, and registers its rows as click targets.
 func (m *Model) pickDialog(f *formDlg) promptDialog {
 	pk := f.pick

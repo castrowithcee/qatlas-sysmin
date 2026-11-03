@@ -35,8 +35,9 @@ func cursorBefore(t *testing.T, m *Model) string {
 
 func TestTheCursorStandsInTheFocusedFormField(t *testing.T) {
 	for name, p := range cursorProfiles {
-		m := flowModel(t, projectsFake(), 120, 40)
+		m, _, _, _ := userModel(t, 120, 40)
 		setProfile(p)
+		send(m, "n", "tab")
 		typed(m, "demo-app")
 		if before := cursorBefore(t, m); !strings.HasSuffix(before, "demo-app") {
 			t.Errorf("%s: text before the cursor = %q, want it to end with the value", name, before)
@@ -63,21 +64,22 @@ func TestTheCursorStandsInThePassphraseDialog(t *testing.T) {
 	}
 }
 
-func TestTheCursorStandsInTheAdoptPathInput(t *testing.T) {
+func TestTheCursorStandsInTheFolderPathInput(t *testing.T) {
 	for name, p := range cursorProfiles {
-		m := projectsModel(t, adoptFake(), 120, 40)
+		m, _, _, _ := userModel(t, 120, 40)
 		setProfile(p)
-		send(m, "n", "down", "enter", "enter")
-		typed(m, "/srv/demo-stack")
-		if before := cursorBefore(t, m); !strings.HasSuffix(before, "/srv/demo-stack") {
+		runCommand(m, "go host folders")
+		send(m, "enter")
+		typed(m, "/srv/demo-app")
+		if before := cursorBefore(t, m); !strings.HasSuffix(before, "/srv/demo-app") {
 			t.Errorf("%s: text before the cursor = %q, want it to end with the path", name, before)
 		}
 	}
 }
 
 func TestNoCursorWithoutAFocusedTextField(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 120, 40)
+	m := appModel(t, overviewFake(), 120, 40)
 	if c := m.View().Cursor; c != nil {
-		t.Errorf("project list: cursor at %v, want none", *c)
+		t.Errorf("overview: cursor at %v, want none", *c)
 	}
 }

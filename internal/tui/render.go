@@ -101,22 +101,6 @@ func truncateCells(text string, width int) string {
 	return clipCells(text, width-1) + "…"
 }
 
-func wrapCells(text string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-	var lines []string
-	for text != "" {
-		line := clipCells(text, width)
-		if line == "" {
-			break
-		}
-		lines = append(lines, line)
-		text = strings.TrimPrefix(text, line)
-	}
-	return strings.Join(lines, "\n")
-}
-
 func padLine(text string, width int) string {
 	return text + strings.Repeat(" ", max(width-lipgloss.Width(text), 0))
 }

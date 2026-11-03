@@ -8,7 +8,7 @@ import (
 
 // newSecret types a new credential of the kind "secret" named ci-token, up to the last field.
 func typeNewSecret(m *Model) {
-	send(m, "5", "n")
+	send(m, "4", "n")
 	typed(m, "ci-token")
 	send(m, "tab", "right", "right", "tab")
 	typed(m, secretValue)
@@ -17,7 +17,7 @@ func typeNewSecret(m *Model) {
 func TestCredentialsListShowsUsesWithTheirState(t *testing.T) {
 	for _, size := range [][2]int{{80, 24}, {120, 40}} {
 		m := appModel(t, accessFake(), size[0], size[1])
-		send(m, "5")
+		send(m, "4")
 		view := plain(m)
 		for _, want := range []string{"Credentials (3)", "registry-main", "smtp", "demo-app (current, approved)", "unused"} {
 			if size[0] == 80 && want == "demo-app (current, approved)" {
@@ -33,7 +33,7 @@ func TestCredentialsListShowsUsesWithTheirState(t *testing.T) {
 
 func TestLibraryPagesSwitchAndCommandsReachThem(t *testing.T) {
 	m := appModel(t, accessFake(), 80, 24)
-	send(m, "5", "esc", "right")
+	send(m, "4", "esc", "right")
 	if m.lib.sub != libChannels || !strings.Contains(plain(m), "Channels") {
 		t.Errorf("sub = %d", m.lib.sub)
 	}
@@ -51,7 +51,7 @@ func TestLibraryPagesSwitchAndCommandsReachThem(t *testing.T) {
 
 func TestCredentialDetailShowsNoValue(t *testing.T) {
 	m := appModel(t, accessFake(), 80, 24)
-	send(m, "5", "enter")
+	send(m, "4", "enter")
 	for range 3 {
 		view := plain(m)
 		if !strings.Contains(view, "registry-main") {
@@ -137,7 +137,7 @@ func TestEditCredentialKeepsNameAndKind(t *testing.T) {
 	fb := accessFake()
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
-	send(m, "5", "down", "e")
+	send(m, "4", "down", "e")
 	view := plain(m)
 	if !strings.Contains(view, "mail-relay") || !strings.Contains(view, "smtp") {
 		t.Fatalf("the form lacks name and kind:\n%s", view)
@@ -158,7 +158,7 @@ func TestEditCredentialKeepsNameAndKind(t *testing.T) {
 func TestFormRefusesEmptyFields(t *testing.T) {
 	fb := accessFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "5", "n")
+	send(m, "4", "n")
 	typed(m, "ci-token")
 	f2(m)
 	if m.cred == nil || !strings.Contains(plain(m), "Fill in the name") || m.ov != nil {
@@ -169,7 +169,7 @@ func TestFormRefusesEmptyFields(t *testing.T) {
 func TestRemoveCredentialAsksThenRemoves(t *testing.T) {
 	fb := accessFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "5", "down", "down", "d")
+	send(m, "4", "down", "down", "d")
 	if m.screen != screenConfirm || !strings.Contains(plain(m), "Remove credential unused-token?") {
 		t.Fatalf("no question:\n%s", plain(m))
 	}
@@ -185,7 +185,7 @@ func TestRemoveInUseShowsTheUses(t *testing.T) {
 	fb := accessFake()
 	fb.inUse, fb.session = true, true
 	m := appModel(t, fb, 80, 24)
-	send(m, "5", "d", "y")
+	send(m, "4", "d", "y")
 	view := plain(m)
 	if !strings.Contains(view, "the project demo-app uses the credential") || !strings.Contains(m.fail, "In use") {
 		t.Errorf("the uses are not shown (fail %q):\n%s", m.fail, view)
@@ -199,7 +199,7 @@ func TestCopyOfACredentialIsOnlyItsName(t *testing.T) {
 	fb := accessFake()
 	m := appModel(t, fb, 80, 24)
 	typeNewSecret(m)
-	send(m, "esc", "5")
+	send(m, "esc", "4")
 	_, cmd := m.Update(keyMsg("c"))
 	got := fmt.Sprint(cmd())
 	if !strings.Contains(got, "registry-main") || strings.Contains(got, secretValue) {
@@ -224,10 +224,10 @@ func TestTypedSecretIsNeverDrawn(t *testing.T) {
 		check("the passphrase entry")
 		typed(m, testPass)
 		send(m, "enter")
-		for _, key := range []string{"1", "2", "3", "4", "5", "6", "7"} {
+		for _, key := range []string{"1", "2", "3", "4", "5", "6"} {
 			send(m, key)
 			check("area " + key)
-			if key == "4" || key == "5" {
+			if key == "3" || key == "4" {
 				send(m, "enter")
 				for range 3 {
 					check("a detail of area " + key)
@@ -248,7 +248,7 @@ func TestTypedSecretIsNeverDrawn(t *testing.T) {
 
 func TestHelpAndInfoCoverTheNewScreens(t *testing.T) {
 	m := appModel(t, accessFake(), 80, 24)
-	send(m, "5", "i")
+	send(m, "4", "i")
 	if view := plain(m); !strings.Contains(view, "Secrets of registries") {
 		t.Errorf("no info of the credentials page:\n%s", view)
 	}
@@ -256,7 +256,7 @@ func TestHelpAndInfoCoverTheNewScreens(t *testing.T) {
 	if view := plain(m); !strings.Contains(view, "never shown or copied") {
 		t.Errorf("no help topic about credentials:\n%s", view)
 	}
-	send(m, "esc", "4", "?")
+	send(m, "esc", "3", "?")
 	if view := plain(m); !strings.Contains(view, "F2 approve") {
 		t.Errorf("the key help of Access lacks the approve key:\n%s", view)
 	}
@@ -265,14 +265,14 @@ func TestHelpAndInfoCoverTheNewScreens(t *testing.T) {
 func TestGermanTextsOfTheNewScreens(t *testing.T) {
 	m := appModel(t, accessFake(), 120, 40)
 	useLanguage(t, "de")
-	send(m, "4")
+	send(m, "3")
 	view := plain(m)
 	for _, want := range []string{"Freigaben (2)", "freier Befehl", "Änderungen"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the German Access lacks %q:\n%s", want, view)
 		}
 	}
-	send(m, "5")
+	send(m, "4")
 	if view := plain(m); !strings.Contains(view, "Verwendungen") || !strings.Contains(view, "ungenutzt") {
 		t.Errorf("the German credentials lack their words:\n%s", view)
 	}

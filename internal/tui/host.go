@@ -414,7 +414,7 @@ func (m *Model) hostKeys() []string {
 	if m.hst.sub == hostFolders {
 		keys := []string{"enter edit path"}
 		if _, ok := m.changeableFolder(); ok {
-			keys = append(keys, "e change", "s set up stacks")
+			keys = append(keys, "e change")
 		}
 		return keys
 	}
@@ -480,9 +480,6 @@ func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		if keyIs(key, actEdit) {
 			return m.openFolderChange(), true
-		}
-		if keyIs(key, actSetup) {
-			return m.askStackSetup(), true
 		}
 		return nil, false
 	}

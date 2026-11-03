@@ -81,7 +81,7 @@ func libFake() *fakeBackend {
 func TestChannelsListShowsStateAndNoSecret(t *testing.T) {
 	for _, size := range [][2]int{{80, 24}, {120, 40}} {
 		m := appModel(t, libFake(), size[0], size[1])
-		send(m, "5", "esc", "right", "enter")
+		send(m, "4", "esc", "right", "enter")
 		view := plain(m)
 		for _, want := range []string{"Channels (3)", "ops-hook", "ops-mail", "smtp.example.test", "pending approval", "approved"} {
 			if !strings.Contains(view, want) {
@@ -95,7 +95,7 @@ func TestChannelsListShowsStateAndNoSecret(t *testing.T) {
 func TestChannelTestNeedsNoSessionAndShowsAFixedText(t *testing.T) {
 	fb := libFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "5", "esc", "right", "enter", "down", "t")
+	send(m, "4", "esc", "right", "enter", "down", "t")
 	if fb.count("channel-test ops-hook") != 1 || fb.count("session") != 0 || m.ov != nil {
 		t.Fatalf("calls = %v", fb.log())
 	}
@@ -116,7 +116,7 @@ func TestChannelTestNeedsNoSessionAndShowsAFixedText(t *testing.T) {
 
 // typeChannel fills the form of an smtp channel up to its last row.
 func typeSMTPChannel(m *Model) {
-	send(m, "5", "esc", "right", "enter", "n")
+	send(m, "4", "esc", "right", "enter", "n")
 	typed(m, "team-mail")
 	send(m, "tab", "right", "tab")
 	typed(m, "smtp.example.test")
@@ -171,7 +171,7 @@ func TestNewChannelPendingWithoutApproval(t *testing.T) {
 
 func TestChannelFormOffersOnlyTheCredentialsOfTheRightKind(t *testing.T) {
 	m := appModel(t, libFake(), 80, 24)
-	send(m, "5", "esc", "right", "enter", "n")
+	send(m, "4", "esc", "right", "enter", "n")
 	f := m.form
 	_, shown := m.credentialChoices("webhook")
 	if strings.Join(shown, ",") != "none,demo-hmac,unused-token" {
@@ -220,7 +220,7 @@ func TestRemoveChannelAsksThenRemoves(t *testing.T) {
 	fb := libFake()
 	fb.session = true
 	m := appModel(t, fb, 80, 24)
-	send(m, "5", "esc", "right", "enter", "d")
+	send(m, "4", "esc", "right", "enter", "d")
 	if fb.count("channel-remove chat-ops") != 0 {
 		t.Fatal("removed without the answer")
 	}
@@ -239,7 +239,7 @@ func TestChannelFieldsAreMaskedAndSanitised(t *testing.T) {
 	fb.lib.channels[1].URL = "https://hooks.example.test/" + secretValue + "\x1b[2J\x07"
 	m := appModel(t, fb, 120, 40)
 	m.redactor.Add(secretValue)
-	send(m, "5", "esc", "right", "enter", "down")
+	send(m, "4", "esc", "right", "enter", "down")
 	for range 3 {
 		view := m.render()
 		if strings.Contains(view, secretValue) || strings.Contains(view, "\x1b[2J") || strings.Contains(view, "\x07") {
@@ -260,7 +260,7 @@ func TestTemplatesListAndDetailShowTheYAML(t *testing.T) {
 		fb.lib.files["compose-update"] += "# " + secretValue + "\x1b[31m\n"
 		m := appModel(t, fb, size[0], size[1])
 		m.redactor.Add(secretValue)
-		send(m, "5", "esc", "right", "right", "enter")
+		send(m, "4", "esc", "right", "right", "enter")
 		view := plain(m)
 		for _, want := range []string{"Templates (3)", "compose-update", "builtin", "custom"} {
 			if !strings.Contains(view, want) {
@@ -283,7 +283,7 @@ func TestTemplatesListAndDetailShowTheYAML(t *testing.T) {
 func TestDeriveTemplateCallsOnceAndShowsRefusals(t *testing.T) {
 	fb := libFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "5", "esc", "right", "right", "enter", "p")
+	send(m, "4", "esc", "right", "right", "enter", "p")
 	if m.form == nil {
 		t.Fatal("no form")
 	}
@@ -327,7 +327,7 @@ func TestActivityLoadsEntriesAndShowsAnIntactChain(t *testing.T) {
 	for _, size := range [][2]int{{80, 24}, {120, 40}} {
 		fb := libFake()
 		m := appModel(t, fb, size[0], size[1])
-		send(m, "3")
+		send(m, "2")
 		view := plain(m)
 		for _, want := range []string{"Log (12)", "● Chain intact, 52 entries", "signatures checked", "2026-10-28 12:00:00", "config.read", "demo-app"} {
 			if !strings.Contains(view, want) {
@@ -346,7 +346,7 @@ func TestActivityShowsABrokenChainWithSymbolAndText(t *testing.T) {
 	fb := libFake()
 	fb.lib.verify = brokenChain()
 	m := appModel(t, fb, 80, 24)
-	send(m, "3")
+	send(m, "2")
 	view := plain(m)
 	if !strings.Contains(view, "⚠ Chain broken · 2026-10-27 entry 31 · hash mismatch") || strings.Contains(view, "Chain intact") {
 		t.Errorf("no break shown:\n%s", view)
@@ -365,7 +365,7 @@ func TestActivityCountsDocumentedDamage(t *testing.T) {
 	fb.lib.verify = intactChain()
 	fb.lib.verify.Days[1].Damaged = 1
 	m := appModel(t, fb, 120, 40)
-	send(m, "3")
+	send(m, "2")
 	if view := plain(m); !strings.Contains(view, "● Chain intact, 52 entries · unreadable lines documented: 1 · signatures checked") {
 		t.Errorf("no documented damage shown:\n%s", view)
 	}
@@ -379,7 +379,7 @@ func TestActivityCountsDocumentedDamage(t *testing.T) {
 func TestActivityDoesNotPollTheLog(t *testing.T) {
 	fb := libFake()
 	m := appModel(t, fb, 80, 24)
-	send(m, "3")
+	send(m, "2")
 	logs, checks := fb.count("log"), fb.count("log-verify")
 	clock := clockModel(m, time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC))
 	for range 5 {
@@ -398,7 +398,7 @@ func TestActivityFilterSetsTheParametersAndReloads(t *testing.T) {
 	m := appModel(t, fb, 80, 24)
 	now := time.Date(2026, 10, 28, 15, 30, 0, 0, time.UTC)
 	clockModel(m, now)
-	send(m, "3", "f")
+	send(m, "2", "f")
 	if m.form == nil {
 		t.Fatal("no filter form")
 	}
@@ -428,7 +428,7 @@ func TestActivityLoadsFurtherPagesAtTheEnd(t *testing.T) {
 	fb := libFake()
 	fb.lib.entries = testLogEntries(250)
 	m := appModel(t, fb, 80, 24)
-	send(m, "3")
+	send(m, "2")
 	if got := len(m.act.order); got != logPageSize || m.act.next == "" {
 		t.Fatalf("first page: %d entries, next %q", got, m.act.next)
 	}
@@ -459,7 +459,7 @@ func TestActivityDrawsNoControlSequenceOfAnEntry(t *testing.T) {
 	m := appModel(t, fb, 120, 40)
 	m.redactor.Add(secretValue)
 	fb.lib.entries[1].Project = secretValue
-	send(m, "3")
+	send(m, "2")
 	for range 3 {
 		raw := m.render()
 		for _, bad := range []string{"\x1b]52", "\x1b[2J", "\x1b[31m", "\x07", secretValue} {
@@ -491,7 +491,7 @@ func TestLibraryAndActivityTextsAreTranslated(t *testing.T) {
 		fb := libFake()
 		fb.lib.verify = brokenChain()
 		m := appModel(t, fb, 120, 40)
-		for _, keys := range [][]string{{"3"}, {"3", "f"}, {"5", "right"}, {"5", "right", "n"}, {"5", "right", "right"}, {"5", "right", "right", "p"}} {
+		for _, keys := range [][]string{{"2"}, {"2", "f"}, {"4", "right"}, {"4", "right", "n"}, {"4", "right", "right"}, {"4", "right", "right", "p"}} {
 			m2 := appModel(t, fb, 120, 40)
 			send(m2, keys...)
 			assertViewFits(t, plain(m2), 120, 40)
@@ -507,7 +507,7 @@ func TestEveryFooterGroupOfThePagesIsTranslated(t *testing.T) {
 	utcClock(t)
 	useLanguage(t, "de")
 	fb := libFake()
-	for _, keys := range [][]string{{"3"}, {"5", "right"}, {"5", "right", "right"}} {
+	for _, keys := range [][]string{{"2"}, {"4", "right"}, {"4", "right", "right"}} {
 		m := appModel(t, fb, 120, 40)
 		send(m, keys...)
 		for _, group := range strings.Split(m.areaKeys(), " · ") {

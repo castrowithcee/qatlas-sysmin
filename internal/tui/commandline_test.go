@@ -43,32 +43,26 @@ func paletteRows(m *Model) []string {
 }
 
 func TestColonStaysTextWhereTextIsTyped(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 100, 30)
-	send(m, "/")
+	m := appModel(t, overviewFake(), 100, 30)
+	send(m, "2", "/")
 	typed(m, ":a")
-	if m.pop != nil || m.prj.list.query() != ":a" {
-		t.Errorf(": in the filter: palette %v, query %q, want text", m.pop != nil, m.prj.list.query())
+	if m.pop != nil || m.currentPage().list.query() != ":a" {
+		t.Errorf(": in the filter: palette %v, query %q, want text", m.pop != nil, m.currentPage().list.query())
 	}
 }
 
 func TestCommandSuggestionsMatchPrefixWordAliasAndCase(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 100, 30)
+	m := appModel(t, overviewFake(), 100, 30)
 	list := m.commands()
 	cases := []struct{ query, first string }{
 		{"", "go overview"},
 		{"QU", "quit"},
-		{"pau", "pause"},
-		{"run", "run now"},
-		{"restore", "restore backup"},
 		{"exit", "quit"},
 		{"access discard-all", "discard all"},
 		{"lock", "admin session"},
 		{"unlock", "admin session"},
 		{"refresh", "reload"},
 		{"upgrade", "update"},
-		{"adopt", "adopt stack"},
-		{"new from project", "duplicate project"},
-		{"new", "new project"},
 		{"settings", "go settings"},
 		{"Settings   Update", "go settings update"},
 		{"  activity   LOG ", "go activity log"},
@@ -98,7 +92,7 @@ func TestMatchRanksExactBeforePrefixBeforeWordBeforeMidWord(t *testing.T) {
 }
 
 func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 120, 40)
+	m := appModel(t, overviewFake(), 120, 40)
 	send(m, ":")
 	view := plain(m)
 	rows := paletteRows(m)
@@ -122,9 +116,9 @@ func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
 }
 
 func TestEmptyLineKeysFollowTheBindingAndDescriptionsNameNoKey(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 120, 40)
-	keys := map[string]string{"go overview": "1", "go settings": "7", "new project": keyLabel(actNew), "edit project": keyLabel(actEdit),
-		"duplicate project": keyLabel(actDuplicate), "admin session": keyLabel(actLock), "reload": keyLabel(actReload),
+	m := appModel(t, overviewFake(), 120, 40)
+	keys := map[string]string{"go overview": "1", "go settings": "6",
+		"admin session": keyLabel(actLock), "reload": keyLabel(actReload),
 		"update": keyLabel(actSelfUpdate), "help": keyLabel(actHelp), "info": keyLabel(actInfo), "quit": keyLabel(actQuit)}
 	for _, c := range matchCommands(m.commands(), "") {
 		want, has := keys[c.name]
@@ -147,7 +141,7 @@ func TestEmptyLineKeysFollowTheBindingAndDescriptionsNameNoKey(t *testing.T) {
 }
 
 func TestPaletteScrollKeepsTheChoiceVisible(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 120, 40)
+	m := appModel(t, overviewFake(), 120, 40)
 	send(m, ":")
 	all := matchCommands(m.commands(), "")
 	if len(all) <= paletteMaxRows {
@@ -183,13 +177,13 @@ func TestEnterRunsTheChosenMatchAndEscClosesWithoutEffect(t *testing.T) {
 	send(m, ":")
 	typed(m, "go")
 	send(m, "down", "enter")
-	if m.pop != nil || m.area != areaProjects {
+	if m.pop != nil || m.area != areaActivity {
 		t.Errorf("the second match did not run: area %v", m.area)
 	}
 	send(m, ":")
 	typed(m, "go access")
 	send(m, "esc")
-	if m.pop != nil || m.area != areaProjects {
+	if m.pop != nil || m.area != areaActivity {
 		t.Errorf("esc had an effect: area %v", m.area)
 	}
 }
@@ -212,7 +206,6 @@ func TestPageAliasesKeepTheOldNamesValid(t *testing.T) {
 		"settings vault":         func(m *Model) bool { return m.area == areaSettings && m.set.sub == subVault },
 		"Settings   Update":      func(m *Model) bool { return m.area == areaSettings && m.set.sub == subUpdate },
 		"settings general":       func(m *Model) bool { return m.area == areaSettings && m.set.sub == subGeneral },
-		"activity runs":          func(m *Model) bool { return m.area == areaActivity && m.act.sub == actRuns },
 		"activity log":           func(m *Model) bool { return m.area == areaActivity && m.act.sub == actLog },
 		"library channels":       func(m *Model) bool { return m.area == areaLibrary && m.lib.sub == libChannels },
 		"go library credentials": func(m *Model) bool { return m.area == areaLibrary && m.lib.sub == libCredentials },
@@ -223,48 +216,6 @@ func TestPageAliasesKeepTheOldNamesValid(t *testing.T) {
 		if m.pop != nil || !check(m) {
 			t.Errorf("%q: area %v, panel open %v", text, m.area, m.pop != nil)
 		}
-	}
-}
-
-func TestProjectControlsAreAliasesAndReachableOnlyOnAProject(t *testing.T) {
-	fb := projectsFake()
-	m := projectsModel(t, fb, 100, 30)
-	runCommand(m, "pause")
-	runCommand(m, "pin")
-	runCommand(m, "unpin")
-	runCommand(m, "resume")
-	runCommand(m, "run")
-	send(m, "y")
-	for _, want := range []string{"deploy.pause", "deploy.pin", "deploy.unpin", "deploy.resume"} {
-		found := false
-		for _, c := range fb.log() {
-			found = found || strings.Contains(c, want)
-		}
-		if !found {
-			t.Errorf("no %s call in %v", want, fb.log())
-		}
-	}
-	if m.pop != nil {
-		t.Error("a command that ran left the palette open")
-	}
-}
-
-func TestPauseOutsideProjectsAndWithoutAProjectStaysAndSaysWhy(t *testing.T) {
-	m := appModel(t, overviewFake(), 100, 30)
-	runCommand(m, "pause")
-	if m.pop == nil || m.pop.in.Value() != "pause" || !strings.Contains(plain(m), "pause: Works in Projects only.") {
-		t.Errorf("outside Projects:\n%s", plain(m))
-	}
-	m = projectsModel(t, newFake(control.VaultUnlocked), 100, 30)
-	runCommand(m, "pause")
-	if m.pop == nil || m.pop.in.Value() != "pause" || !strings.Contains(plain(m), "pause: No project selected.") {
-		t.Errorf("without a project:\n%s", plain(m))
-	}
-	m = projectsModel(t, projectsFake(), 100, 30)
-	send(m, "o")
-	runCommand(m, "pause")
-	if m.pop == nil || !strings.Contains(plain(m), "Close the open log or update first.") {
-		t.Errorf("with a log open:\n%s", plain(m))
 	}
 }
 
@@ -290,34 +241,19 @@ func TestUnknownCommandNamesTheInputAndTheNextStep(t *testing.T) {
 }
 
 func TestCommandsActOnlyWhereTheirKeyActs(t *testing.T) {
-	flow := projectsModel(t, projectsFake(), 100, 30)
-	send(flow, "n", "enter")
-	logOpen := projectsModel(t, projectsFake(), 100, 30)
-	send(logOpen, "o")
-	onTabs := projectsModel(t, projectsFake(), 100, 30)
-	onTabs.toBar()
 	access := appModel(t, accessFake(), 100, 30)
-	send(access, "4")
+	send(access, "3")
 	overview := appModel(t, overviewFake(), 100, 30)
 	noVault := appModel(t, newFake(control.VaultAbsent), 100, 30)
-	vault := projectsModel(t, projectsFake(), 100, 30)
-	empty := projectsModel(t, newFake(control.VaultUnlocked), 100, 30)
+	vault := appModel(t, overviewFake(), 100, 30)
+	send(vault, "2")
 
 	cases := []struct {
 		name   string
 		model  *Model
 		reason string
 	}{
-		{"go access", flow, "guided setup"}, {"quit", flow, "guided setup"}, {"update", flow, "guided setup"},
-		{"reload", flow, "guided setup"}, {"new project", flow, "guided setup"}, {"pause", flow, "guided setup"},
-		{"info", flow, ""}, {"help", flow, ""}, {"admin session", flow, ""},
-		{"pause", logOpen, "log or update"}, {"new project", logOpen, "log or update"}, {"adopt stack", logOpen, "log or update"},
-		{"new project", onTabs, "focus"}, {"edit project", onTabs, "focus"}, {"pause", onTabs, ""}, {"adopt stack", onTabs, ""},
-		{"restore backup", overview, "Projects only"}, {"edit project", overview, "Projects only"},
-		{"duplicate project", overview, "Projects only"}, {"adopt stack", overview, "Projects only"},
-		{"resume", overview, "Projects only"}, {"run now", overview, "Projects only"}, {"unpin", overview, "Projects only"},
-		{"edit project", empty, "No project selected"}, {"duplicate project", empty, "No project selected"},
-		{"restore backup", empty, "No project selected"}, {"new project", empty, ""},
+		{"info", vault, ""}, {"help", vault, ""}, {"admin session", vault, ""},
 		{"discard all", overview, "Access only"}, {"discard all", vault, "Access only"}, {"discard all", access, ""},
 		{"setup", vault, "A vault exists already."}, {"setup", noVault, ""},
 		{"go overview", overview, ""}, {"reload", overview, ""}, {"regroup", overview, ""}, {"quit", overview, ""},
@@ -331,38 +267,22 @@ func TestCommandsActOnlyWhereTheirKeyActs(t *testing.T) {
 }
 
 func TestCommandsRunTheFunctionOfTheirKey(t *testing.T) {
-	// reload is ctrl+r of the area shown, here the project list.
-	byKey, byCommand := projectsFake(), projectsFake()
-	x, y := projectsModel(t, byKey, 100, 30), projectsModel(t, byCommand, 100, 30)
+	byKey, byCommand := overviewFake(), overviewFake()
+	x, y := appModel(t, byKey, 100, 30), appModel(t, byCommand, 100, 30)
 	send(x, "ctrl+r")
 	runCommand(y, "reload")
 	if !slices.Equal(byKey.log(), byCommand.log()) {
 		t.Errorf("reload calls %v, key calls %v", byCommand.log(), byKey.log())
 	}
 
-	x, y = projectsModel(t, editFake(), 100, 30), projectsModel(t, editFake(), 100, 30)
-	send(x, "n")
-	runCommand(y, "new project")
-	if x.prj.dialog == nil || y.prj.dialog == nil || x.prj.dialog.kind != projDlgPick || y.prj.dialog.kind != projDlgPick {
-		t.Errorf("new project: dialog %+v, key n: dialog %+v", y.prj.dialog, x.prj.dialog)
-	}
-	for command, key := range map[string]string{"edit project": "e", "duplicate project": "p"} {
-		x, y := projectsModel(t, editFake(), 100, 30), projectsModel(t, editFake(), 100, 30)
-		send(x, key)
-		runCommand(y, command)
-		if x.prj.flow == nil || y.prj.flow == nil || x.prj.flow.draft.name != y.prj.flow.draft.name {
-			t.Errorf("%s: flow %+v, key %s: flow %+v", command, y.prj.flow, key, x.prj.flow)
-		}
-	}
-
-	x, y = projectsModel(t, projectsFake(), 100, 30), projectsModel(t, projectsFake(), 100, 30)
+	x, y = appModel(t, overviewFake(), 100, 30), appModel(t, overviewFake(), 100, 30)
 	send(x, "i")
 	runCommand(y, "info")
 	if x.pop == nil || y.pop == nil || y.pop.kind != popInfo || x.pop.kind != y.pop.kind {
 		t.Errorf("info: %v, key: %v", y.pop, x.pop)
 	}
 
-	y = projectsModel(t, projectsFake(), 100, 30)
+	y = appModel(t, overviewFake(), 100, 30)
 	runCommand(y, "exit")
 	if !y.quitting {
 		t.Error("exit does not quit")
@@ -371,7 +291,7 @@ func TestCommandsRunTheFunctionOfTheirKey(t *testing.T) {
 
 func TestPaletteClickRunsTheRow(t *testing.T) {
 	for _, size := range [][2]int{{120, 40}, {50, 24}} {
-		m := projectsModel(t, projectsFake(), size[0], size[1])
+		m := appModel(t, overviewFake(), size[0], size[1])
 		send(m, ":")
 		clickOn(t, m, "go access")
 		if m.pop != nil || m.area != areaAccess {
@@ -381,8 +301,8 @@ func TestPaletteClickRunsTheRow(t *testing.T) {
 	// A click on a command that cannot run keeps the line and names the reason.
 	m := appModel(t, overviewFake(), 120, 40)
 	send(m, ":")
-	clickOn(t, m, "pause")
-	if m.pop == nil || !strings.Contains(plain(m), "pause: Works in Projects only.") {
+	clickOn(t, m, "discard all")
+	if m.pop == nil || !strings.Contains(plain(m), "discard all: Works in Access only.") {
 		t.Errorf("click on an unavailable row:\n%s", plain(m))
 	}
 }
@@ -390,7 +310,7 @@ func TestPaletteClickRunsTheRow(t *testing.T) {
 func TestPaletteIsAnOverlayAndTakesTheWorkspaceWhereTheTerminalIsSmall(t *testing.T) {
 	eachLanguage(t, func(t *testing.T) {
 		for _, size := range [][2]int{{120, 40}, {80, 24}, {60, 20}, {59, 19}, {40, 14}} {
-			m := projectsModel(t, projectsFake(), size[0], size[1])
+			m := appModel(t, overviewFake(), size[0], size[1])
 			send(m, ":")
 			view := plain(m)
 			assertViewFits(t, view, size[0], size[1])
@@ -411,18 +331,24 @@ func TestPaletteIsAnOverlayAndTakesTheWorkspaceWhereTheTerminalIsSmall(t *testin
 
 func TestPaletteReadsWithoutColour(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
-	m := projectsModel(t, projectsFake(), 120, 40)
+	m := appModel(t, overviewFake(), 120, 40)
 	send(m, ":")
 	if view := plain(m); !strings.Contains(view, "> go overview") {
 		t.Errorf("the choice is not marked:\n%s", view)
 	}
 }
 
-func TestProjectsFooterHasNoCommandHint(t *testing.T) {
-	m := projectsModel(t, projectsFake(), 200, 30)
+func TestFooterHasNoCommandHint(t *testing.T) {
+	m := appModel(t, overviewFake(), 200, 30)
 	for _, line := range []string{m.footerLine(), plain(m)} {
-		if strings.Contains(line, "via :") || strings.Contains(line, "run/pause") {
+		if strings.Contains(line, "via :") {
 			t.Errorf("the footer hints at the commands: %q", line)
 		}
 	}
+}
+
+func runCommand(m *Model, name string) {
+	send(m, ":")
+	typed(m, name)
+	send(m, "enter")
 }

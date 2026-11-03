@@ -2,11 +2,7 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
@@ -26,7 +22,7 @@ func overlayCell(t *testing.T, m *Model) (x, y, outX, outY int) {
 func helpModels(t *testing.T, w, h int) map[string]*Model {
 	t.Helper()
 	list := frameModel(t, w, h)
-	area := projectsModel(t, projectsFake(), w, h)
+	area := appModel(t, overviewFake(), w, h)
 	if list.home != screenList || area.home != screenArea {
 		t.Fatalf("home screens %v and %v", list.home, area.home)
 	}
@@ -102,7 +98,7 @@ func TestTheWheelBesideThePanelMovesNothing(t *testing.T) {
 		}
 	}
 	m := appModel(t, accessFake(), 120, 40)
-	send(m, "4")
+	send(m, "3")
 	send(m, "?")
 	now := wheelClock(m)
 	_, _, ox, oy := overlayCell(t, m)
@@ -186,82 +182,5 @@ func TestTheWheelBesideTheDropdownMovesNothing(t *testing.T) {
 	notch(m, now, 1, m.workspaceTop(), false)
 	if m.dd == nil || m.dd.cursor != 0 || plain(m) != before {
 		t.Errorf("the wheel beside the list changed the screen:\n%s", plain(m))
-	}
-}
-
-// pickerModel is the Projects area with a picker of twelve versions open.
-func pickerModel(t *testing.T, w, h int) (*Model, *string) {
-	t.Helper()
-	m := projectsModel(t, projectsFake(), w, h)
-	var values []string
-	for i := range 12 {
-		values = append(values, fmt.Sprintf("v1.%02d", i))
-	}
-	picked := new(string)
-	m.openProjectPicker("Version", "note", values, 0, func(v string) tea.Cmd { *picked = v; return nil })
-	if !m.projectsDialogOpen() || m.prj.dialog.picker == nil {
-		t.Fatal("no picker")
-	}
-	return m, picked
-}
-
-func TestTheWheelStepsTheProjectPickerInTheModalAndTheSmallTerminal(t *testing.T) {
-	for _, size := range [][2]int{{120, 40}, {60, 19 + 5}, {80, 24}} {
-		m, picked := pickerModel(t, size[0], size[1])
-		now := wheelClock(m)
-		x, y, _, _ := overlayCell(t, m)
-		name := fmt.Sprintf("picker %dx%d", size[0], size[1])
-		stepsOf(t, name, m, now, x, y, func() int { return m.prj.dialog.picker.list.cursor }, 12)
-		if *picked != "" || !m.projectsDialogOpen() {
-			t.Errorf("%s: the wheel chose %q or closed the picker", name, *picked)
-		}
-		if !strings.Contains(plain(m), "11 of 12") && !strings.Contains(plain(m), "11/12") {
-			t.Errorf("%s: the picker does not show its mark:\n%s", name, plain(m))
-		}
-	}
-}
-
-func TestTheWheelBesideTheProjectPickerMovesNothing(t *testing.T) {
-	m, _ := pickerModel(t, 120, 40)
-	now := wheelClock(m)
-	_, _, ox, oy := overlayCell(t, m)
-	notch(m, now, ox, oy, false)
-	notch(m, now, 0, m.termHeight-1, false)
-	if m.prj.dialog.picker.list.cursor != 0 {
-		t.Errorf("the wheel beside the picker moved the mark to %d", m.prj.dialog.picker.list.cursor)
-	}
-}
-
-func TestTheWheelLeavesTheFilterOfThePickerAlone(t *testing.T) {
-	m, _ := pickerModel(t, 120, 40)
-	send(m, "/")
-	typed(m, "1.0")
-	now := wheelClock(m)
-	l := &m.prj.dialog.picker.list
-	x, y, _, _ := overlayCell(t, m)
-	before := l.input.Value()
-	notch(m, now, x, y, false)
-	if !l.editing || l.input.Value() != before || before != "1.0" || l.cursor != 1 || len(l.matches) < 3 {
-		t.Errorf("the wheel changed the filter being typed or did not step: editing %v, text %q, cursor %d", l.editing, l.input.Value(), l.cursor)
-	}
-	for range len(l.matches) + 2 {
-		notch(m, now, x, y, false)
-	}
-	if l.cursor != len(l.matches)-1 || !l.editing || l.input.Value() != before {
-		t.Errorf("the wheel at the end of the typed filter: cursor %d of %d, editing %v, text %q", l.cursor, len(l.matches), l.editing, l.input.Value())
-	}
-	for range len(l.matches) + 2 {
-		notch(m, now, x, y, true)
-	}
-	if l.cursor != 0 {
-		t.Errorf("the wheel up at the start of the typed filter went to %d", l.cursor)
-	}
-	send(m, "enter")
-	if l.editing || l.query() != "1.0" {
-		t.Fatalf("the filter is not kept: editing %v, query %q", l.editing, l.query())
-	}
-	notch(m, now, x, y, false)
-	if l.query() != "1.0" || l.cursor != 1 || !strings.Contains(ansi.Strip(m.render()), "/ 1.0") {
-		t.Errorf("the wheel changed the kept filter or did not step: query %q, cursor %d", l.query(), l.cursor)
 	}
 }

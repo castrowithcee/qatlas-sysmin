@@ -87,9 +87,6 @@ func (m *Model) endInput() {
 	if p := m.currentPage(); p.filtering() {
 		p.list.stopFilter()
 	}
-	if m.area == areaProjects && m.prj != nil && m.prj.list.editing {
-		m.prj.list.stopFilter()
-	}
 }
 
 // addFrameHit registers a click target of the header.
