@@ -14,7 +14,7 @@ import (
 )
 
 // Activity shows what the service did: the action log. A page is a constant, a state in activityState, a body
-// and a key function, as in Library. The log is read when the page opens, when the filter changes and on the
+// and a key function. The log is read when the page opens, when the filter changes and on the
 // reload key, never on a timer, because every request to the service is an entry of this log itself.
 const (
 	actLog = iota

@@ -83,9 +83,6 @@ func (m *Model) takeStatus(msg statusMsg) tea.Cmd {
 	if !m.serviceUp() {
 		m.ovr.clearLog()
 	}
-	if m.vaultState() != control.VaultUnlocked {
-		m.clearLists()
-	}
 	if isDenied(msg.err) {
 		m.denied = msg.err
 		return tea.Quit
@@ -222,31 +219,11 @@ func isCode(err error, code string) bool {
 	return errors.As(err, &ce) && ce.Code == code
 }
 
-// clearLists drops the lists of Access and Library, which the service reports only for an open vault.
-func (m *Model) clearLists() {
-	m.acc = accessState{page: dataPage{tab: m.acc.page.tab}}
-	m.lib.cred = credState{page: dataPage{tab: m.lib.cred.page.tab}}
-}
-
-// listsCmd reads the list of the page shown when it has none yet, such as after the vault was unlocked.
+// listsCmd reads the log when its page is shown and has not been read yet.
 func (m *Model) listsCmd() tea.Cmd {
 	// The log is read once when the page opens, not again on a timer: reading it is an entry of the log.
-	switch {
-	case m.area == areaActivity && m.act.sub == actLog && !m.act.asked:
+	if m.area == areaActivity && m.act.sub == actLog && !m.act.asked {
 		return m.activityCmd()
-	case m.area == areaLibrary && m.lib.sub == libChannels && !m.lib.chans.have:
-		return m.channelsCmd()
-	case m.area == areaLibrary && m.lib.sub == libTemplates && !m.lib.tmpls.have:
-		return m.templatesCmd()
-	}
-	if m.vaultState() != control.VaultUnlocked {
-		return nil
-	}
-	switch {
-	case m.area == areaAccess && !m.acc.have:
-		return m.accessCmd()
-	case m.area == areaLibrary && m.lib.sub == libCredentials && !m.lib.cred.have:
-		return m.credentialsCmd()
 	}
 	return nil
 }

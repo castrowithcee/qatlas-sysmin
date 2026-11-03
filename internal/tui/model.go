@@ -79,19 +79,15 @@ type Model struct {
 	// them.
 	ov    *passEntry
 	ovSeq int
-	// confirm is the question of screenConfirm that waits for y; cred is the form of a credential, drawn as the
-	// prompt of screenPrompt; both are nil while there is none.
+	// confirm is the question of screenConfirm that waits for y, nil while there is none.
 	confirm *confirmAsk
-	cred    *credForm
-	// form is a short form of Library or Activity, drawn as the prompt of screenPrompt like cred.
+	// form is a short form, drawn as the prompt of screenPrompt, nil while there is none.
 	form *formDlg
 
 	// The state of the areas: the rows of the overview, the pages of Settings, the popup over the screen, the
 	// question before unsaved input is dropped; see overview.go, settings.go, popup.go.
 	ovr overviewState
-	acc accessState
 	act activityState
-	lib libraryState
 	// hst is the Host area and hostSrc what it reads; see host.go.
 	hst     hostState
 	hostSrc HostSource
@@ -220,12 +216,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case settingsMsg:
 		m.takeSettings(msg)
 		return m, nil
-	case accessMsg:
-		m.takeAccess(msg)
-		return m, m.dataWant()
-	case accDetailMsg:
-		m.takeAccDetail(msg)
-		return m, nil
 	case hostUsersMsg:
 		m.takeHostUsers(msg)
 		return m, nil
@@ -237,21 +227,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case hostRanMsg:
 		return m, m.takeHostRan(msg)
-	case credentialsMsg:
-		m.takeCredentials(msg)
-		return m, nil
-	case channelsMsg:
-		m.takeChannels(msg)
-		return m, nil
-	case channelTestMsg:
-		m.takeChannelTest(msg)
-		return m, nil
-	case templatesMsg:
-		m.takeTemplates(msg)
-		return m, m.dataWant()
-	case templateDetailMsg:
-		m.takeTemplateDetail(msg)
-		return m, nil
 	case logMsg:
 		return m, m.takeLog(msg)
 	case verifyMsg:
@@ -289,9 +264,6 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.screen == screenConfirm && m.confirm != nil {
 		return m.updateConfirm(key)
-	}
-	if m.screen == screenPrompt && m.cred != nil {
-		return m.updateCred(key)
 	}
 	if m.screen == screenPrompt && m.form != nil {
 		return m.updateForm(key)

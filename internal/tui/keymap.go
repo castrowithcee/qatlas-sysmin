@@ -53,11 +53,9 @@ const (
 
 	actCopy       action = "copy"
 	actNew        action = "new"
-	actApproveAll action = "approveall"
 	actEdit       action = "edit"
 	actRename     action = "rename"
 	actFilter     action = "filter"
-	actDuplicate  action = "duplicate"
 	actTest       action = "test"
 	actSelfUpdate action = "selfupdate"
 
@@ -105,11 +103,9 @@ var keyDefs = []struct {
 	{actQuit, levelLetter, []string{"q"}, tKeyHelpQuit},
 	{actCopy, levelLetter, []string{"c"}, tKeyHelpCopy},
 	{actNew, levelLetter, []string{"n"}, tKeyHelpNew},
-	{actApproveAll, levelLetter, []string{"A"}, tKeyHelpApproveAll},
 	{actEdit, levelLetter, []string{"e"}, tKeyHelpEdit},
 	{actRename, levelLetter, []string{"r"}, tKeyHelpRename},
 	{actFilter, levelLetter, []string{"f"}, tKeyHelpFilter},
-	{actDuplicate, levelLetter, []string{"p"}, tKeyHelpDuplicate},
 	{actTest, levelLetter, []string{"t"}, tKeyHelpTest},
 	{actSelfUpdate, levelLetter, []string{"U"}, tKeyHelpSelfUpdate},
 
@@ -255,7 +251,6 @@ var footerPlaceholders = []struct {
 }{
 	{"{save}", actSave}, {"{help}", actHelp}, {"{info}", actInfo}, {"{command}", actCommand},
 	{"{lock}", actLock}, {"{back}", actBack}, {"{delete}", actDelete}, {"{copy}", actCopy},
-	{"{approveall}", actApproveAll},
 }
 
 // footerKeys replaces the key placeholders of a footer text with the current key names, so a footer

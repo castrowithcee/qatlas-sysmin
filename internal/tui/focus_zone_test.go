@@ -30,7 +30,7 @@ func TestTheInterfaceStartsOnTheOverviewWithTheTabLineFocused(t *testing.T) {
 			t.Errorf("the footer of the tab line lacks %q: %q", want, foot)
 		}
 	}
-	if strings.Contains(foot, "1-6") {
+	if strings.Contains(foot, "1-4") {
 		t.Errorf("the footer still names the digits: %q", foot)
 	}
 }
@@ -46,14 +46,12 @@ func TestEscLeadsFromEveryAreaToTheTabLineAndBackIn(t *testing.T) {
 	}{
 		{"1", areaOverview, false, 80, 24},
 		{"2", areaActivity, false, 80, 24},
-		{"3", areaAccess, false, 80, 24},
-		{"4", areaLibrary, true, 80, 24},
-		{"5", areaHost, true, 80, 24},
-		{"6", areaSettings, true, 80, 24},
+		{"3", areaHost, true, 80, 24},
+		{"4", areaSettings, true, 80, 24},
 	}
 	for _, c := range cases {
 		for _, in := range []string{"down", "enter", "tab"} {
-			m := appModel(t, libFake(), c.w, c.h)
+			m := appModel(t, overviewFake(), c.w, c.h)
 			send(m, c.digit)
 			name := c.area.key()
 			if m.area != c.area || m.zoneNow() != zoneContent {
@@ -125,24 +123,24 @@ func TestTheTabLineWrapsRoundAndHomeAndEndReachItsEnds(t *testing.T) {
 }
 
 func TestThePageStripWrapsRoundAndUpLeadsToTheTabLine(t *testing.T) {
-	m := appModel(t, libFake(), 80, 24)
-	send(m, "4", "esc", "left")
-	if m.lib.sub != libTemplates || m.zoneNow() != zoneSubs {
-		t.Errorf("left from the first page reaches %d on %v", m.lib.sub, m.zoneNow())
+	m := appModel(t, overviewFake(), 80, 24)
+	send(m, "3", "esc", "left")
+	if m.hst.sub != hostChanges || m.zoneNow() != zoneSubs {
+		t.Errorf("left from the first page reaches %d on %v", m.hst.sub, m.zoneNow())
 	}
 	send(m, "right")
-	if m.lib.sub != libCredentials || m.area != areaLibrary {
-		t.Errorf("right from the last page reaches %d in %v", m.lib.sub, m.area)
+	if m.hst.sub != hostUsers || m.area != areaHost {
+		t.Errorf("right from the last page reaches %d in %v", m.hst.sub, m.area)
 	}
 	send(m, "up")
-	if m.zoneNow() != zoneTabs || m.area != areaLibrary {
+	if m.zoneNow() != zoneTabs || m.area != areaHost {
 		t.Errorf("up on the page strip reaches %v in %v", m.zoneNow(), m.area)
 	}
 }
 
 func TestTabAndShiftTabChangeTheZoneAndNeverTheArea(t *testing.T) {
-	m := appModel(t, libFake(), 80, 24)
-	send(m, "4", "esc", "esc")
+	m := appModel(t, overviewFake(), 80, 24)
+	send(m, "3", "esc", "esc")
 	for _, step := range []struct {
 		key  string
 		want zone
@@ -151,65 +149,65 @@ func TestTabAndShiftTabChangeTheZoneAndNeverTheArea(t *testing.T) {
 		{"shift+tab", zoneContent}, {"shift+tab", zoneSubs}, {"shift+tab", zoneTabs},
 	} {
 		send(m, step.key)
-		if m.zoneNow() != step.want || m.area != areaLibrary {
-			t.Fatalf("%s reaches %v in %v, want %v in Library", step.key, m.zoneNow(), m.area, step.want)
+		if m.zoneNow() != step.want || m.area != areaHost {
+			t.Fatalf("%s reaches %v in %v, want %v in Host", step.key, m.zoneNow(), m.area, step.want)
 		}
 	}
-	m = appModel(t, accessFake(), 80, 24)
-	send(m, "3", "tab")
-	if m.zoneNow() != zoneTabs || m.area != areaAccess {
-		t.Errorf("tab from the content of Access reaches %v in %v, want the tab line", m.zoneNow(), m.area)
+	m = appModel(t, overviewFake(), 80, 24)
+	send(m, "2", "tab")
+	if m.zoneNow() != zoneTabs || m.area != areaActivity {
+		t.Errorf("tab from the content of Activity reaches %v in %v, want the tab line", m.zoneNow(), m.area)
 	}
 	send(m, "shift+tab")
-	if m.zoneNow() != zoneContent || m.area != areaAccess {
-		t.Errorf("shift+tab from the tab line of Access reaches %v in %v, want the content", m.zoneNow(), m.area)
+	if m.zoneNow() != zoneContent || m.area != areaActivity {
+		t.Errorf("shift+tab from the tab line of Activity reaches %v in %v, want the content", m.zoneNow(), m.area)
 	}
 }
 
 func TestArrowsInTheContentChangeNeitherTheAreaNorThePage(t *testing.T) {
-	m := appModel(t, libFake(), 80, 24)
-	send(m, "4", "right", "left")
-	if m.area != areaLibrary || m.lib.sub != libCredentials || m.zoneNow() != zoneContent {
-		t.Errorf("arrows in the content reach %v page %d on %v", m.area, m.lib.sub, m.zoneNow())
+	m := appModel(t, overviewFake(), 80, 24)
+	send(m, "3", "right", "left")
+	if m.area != areaHost || m.hst.sub != hostUsers || m.zoneNow() != zoneContent {
+		t.Errorf("arrows in the content reach %v page %d on %v", m.area, m.hst.sub, m.zoneNow())
 	}
 }
 
 func TestDigitsOpenTheAreaInItsContentButNotWhileTyping(t *testing.T) {
-	m := appModel(t, accessFake(), 80, 24)
-	send(m, "3")
-	if m.area != areaAccess || m.zoneNow() != zoneContent {
-		t.Fatalf("4 opens %v on %v", m.area, m.zoneNow())
+	m := appModel(t, overviewFake(), 80, 24)
+	send(m, "2")
+	if m.area != areaActivity || m.zoneNow() != zoneContent {
+		t.Fatalf("2 opens %v on %v", m.area, m.zoneNow())
 	}
 	send(m, "/")
-	typed(m, "2")
-	if m.area != areaAccess || m.acc.page.list.query() != "2" {
-		t.Errorf("a digit typed into the filter opens %v, filter %q", m.area, m.acc.page.list.query())
+	typed(m, "3")
+	if m.area != areaActivity || m.act.page.list.query() != "3" {
+		t.Errorf("a digit typed into the filter opens %v, filter %q", m.area, m.act.page.list.query())
 	}
 }
 
 func TestUpOnTheFirstRowLeadsToTheBarAndListsStopAtTheEnds(t *testing.T) {
-	m := appModel(t, accessFake(), 80, 24)
-	send(m, "3", "down", "down", "down")
-	if got := m.acc.page.list.cursor; got != 1 {
+	m := appModel(t, overviewFake(), 80, 24)
+	send(m, "2", "down", "down", "down")
+	if got := m.act.page.list.cursor; got != 1 {
 		t.Errorf("down past the last row reaches %d, want it to stay on 1", got)
 	}
 	send(m, "end", "pgdown")
-	if got := m.acc.page.list.cursor; got != 1 {
+	if got := m.act.page.list.cursor; got != 1 {
 		t.Errorf("end and pgdown reach %d, want 1", got)
 	}
 	send(m, "home", "pgup")
-	if got := m.acc.page.list.cursor; got != 0 || m.zoneNow() != zoneContent {
+	if got := m.act.page.list.cursor; got != 0 || m.zoneNow() != zoneContent {
 		t.Errorf("home and pgup reach %d on %v, want the first row in the content", got, m.zoneNow())
 	}
 	send(m, "up")
-	if m.zoneNow() != zoneTabs || m.area != areaAccess {
+	if m.zoneNow() != zoneTabs || m.area != areaActivity {
 		t.Errorf("up on the first row reaches %v in %v, want the tab line", m.zoneNow(), m.area)
 	}
 
-	m = appModel(t, libFake(), 80, 24)
-	send(m, "4", "up")
+	m = appModel(t, overviewFake(), 80, 24)
+	send(m, "3", "up", "up")
 	if m.zoneNow() != zoneSubs {
-		t.Errorf("up on the first row of Library reaches %v, want the page strip", m.zoneNow())
+		t.Errorf("up on the first row of Host reaches %v, want the page strip", m.zoneNow())
 	}
 
 	m = appModel(t, overviewFake(), 80, 24)
@@ -271,22 +269,22 @@ func TestCyclingOverSettingsAsksOnlyAboutUnsavedInput(t *testing.T) {
 }
 
 func TestClickOnTheBackButtonActsLikeEscAndTabClicksOpenTheArea(t *testing.T) {
-	m := appModel(t, libFake(), 120, 40)
-	send(m, "4")
+	m := appModel(t, overviewFake(), 120, 40)
+	send(m, "3")
 	clickOn(t, m, "[esc] back")
 	if m.zoneNow() != zoneSubs {
 		t.Errorf("the back button reaches %v, want the page strip", m.zoneNow())
 	}
 	clickOn(t, m, "[esc] back")
-	if m.zoneNow() != zoneTabs || m.area != areaLibrary {
+	if m.zoneNow() != zoneTabs || m.area != areaHost {
 		t.Errorf("the back button reaches %v in %v, want the tab line", m.zoneNow(), m.area)
 	}
 	if strings.Contains(headerOf(m), "[esc] back") {
 		t.Error("the tab line shows a back button")
 	}
-	clickOn(t, m, "Access")
-	if m.area != areaAccess || m.zoneNow() != zoneContent {
-		t.Errorf("a click on a tab opens %v on %v, want Access in its content", m.area, m.zoneNow())
+	clickOn(t, m, "Activity")
+	if m.area != areaActivity || m.zoneNow() != zoneContent {
+		t.Errorf("a click on a tab opens %v on %v, want Activity in its content", m.area, m.zoneNow())
 	}
 }
 
@@ -329,15 +327,13 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 		subs  bool
 		tab   func(m *Model) int
 	}{
-		{"Access", func() *Model { m := appModel(t, accessFake(), 120, 40); send(m, "3"); return m }, false, func(m *Model) int { return m.acc.page.tab }},
-		{"Activity", func() *Model { m := appModel(t, libFake(), 120, 40); send(m, "2"); return m }, false, func(m *Model) int { return m.act.page.tab }},
-		{"Credentials", func() *Model { m := appModel(t, libFake(), 120, 40); send(m, "4"); return m }, true, func(m *Model) int { return m.lib.cred.page.tab }},
-		{"Channels", func() *Model { m := appModel(t, libFake(), 120, 40); send(m, "4", "esc", "right", "enter"); return m }, true, func(m *Model) int { return m.lib.chans.page.tab }},
-		{"Templates", func() *Model {
-			m := appModel(t, libFake(), 120, 40)
-			send(m, "4", "esc", "right", "right", "enter")
+		{"Activity", func() *Model { m := appModel(t, overviewFake(), 120, 40); send(m, "2"); return m }, false, func(m *Model) int { return m.act.page.tab }},
+		{"Users", func() *Model { m := appModel(t, overviewFake(), 120, 40); send(m, "3"); return m }, true, func(m *Model) int { return m.hst.users.page.tab }},
+		{"Groups", func() *Model {
+			m := appModel(t, overviewFake(), 120, 40)
+			send(m, "3", "esc", "right", "enter")
 			return m
-		}, true, func(m *Model) int { return m.lib.tmpls.page.tab }},
+		}, true, func(m *Model) int { return m.hst.groups.page.tab }},
 	}
 	for _, c := range cases {
 		m := c.model()
@@ -400,22 +396,22 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 
 // Below 120 columns the detail has the screen to itself and is no zone beside the rows.
 func TestTheDetailIsNoZoneBelow120Columns(t *testing.T) {
-	m := appModel(t, accessFake(), 100, 30)
-	send(m, "3", "tab")
+	m := appModel(t, overviewFake(), 100, 30)
+	send(m, "2", "tab")
 	if m.zoneNow() != zoneTabs {
-		t.Errorf("tab from the rows of a narrow Access reaches %v, want the tab line", m.zoneNow())
+		t.Errorf("tab from the rows of a narrow Activity reaches %v, want the tab line", m.zoneNow())
 	}
 }
 
 // esc leads back from every inner level and the footer says so.
 func TestEscBackStandsOnEveryInnerLevel(t *testing.T) {
-	m := appModel(t, accessFake(), 100, 30)
-	send(m, "3", "down", "enter")
-	if !m.acc.page.open || !strings.Contains(headerOf(m), "[esc] back") || !strings.Contains(footerOf(m), "esc back") {
+	m := appModel(t, overviewFake(), 100, 30)
+	send(m, "2", "down", "enter")
+	if !m.act.page.open || !strings.Contains(headerOf(m), "[esc] back") || !strings.Contains(footerOf(m), "esc back") {
 		t.Errorf("the open page detail names no way back:\n%s", plain(m))
 	}
 	send(m, "esc", "/")
-	typed(m, "sam")
+	typed(m, "user")
 	send(m, "enter")
 	if !strings.Contains(headerOf(m), "[esc] back") || !strings.Contains(footerOf(m), "esc back") {
 		t.Errorf("an active filter names no way back:\n%s", plain(m))

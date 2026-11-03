@@ -43,11 +43,7 @@ var helpTopics = []struct {
 	{"keys", ""},
 	{"vault", tHelpVault},
 	{"admin-session", tHelpAdmin},
-	{"approvals", tHelpApprovals},
 	{"unlock", tHelpUnlock},
-	{"secrets", tHelpCredentials},
-	{"channels", tHelpChannels},
-	{"templates", tHelpTemplates},
 	{"audit-log", tHelpAuditLog},
 	{"host", tHelpHost},
 }
@@ -130,18 +126,10 @@ func (m *Model) infoOf() (string, string) {
 		default:
 			return pick(subTitle(subUpdate), tInfoSetUpdate)
 		}
-	case areaLibrary:
-		return pick(libTitle(m.lib.sub), []textID{tInfoLibCredentials, tInfoLibChannels, tInfoLibTemplates}[m.lib.sub])
 	case areaActivity:
 		return pick(actTitle(m.act.sub), []textID{tInfoActLog}[m.act.sub])
 	case areaHost:
 		return pick(hostTitle(m.hst.sub), []textID{tInfoHostUsers, tInfoHostGroups, tInfoHostFolders, tInfoHostChanges}[m.hst.sub])
-	default:
-		ids := map[area]textID{areaActivity: tInfoAreaActivity, areaAccess: tInfoAreaAccess,
-			areaLibrary: tInfoAreaLibrary}
-		if id, ok := ids[m.area]; ok {
-			return pick(m.area.title(), id)
-		}
 	}
 	return m.area.title(), tr(tListEmpty)
 }

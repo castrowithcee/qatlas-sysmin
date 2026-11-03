@@ -72,22 +72,6 @@ func TestKeyNameSpellsArrowsAsGlyphs(t *testing.T) {
 	}
 }
 
-func TestApproveAllNeedsCapitalAAndAsks(t *testing.T) {
-	fb := accessFake()
-	m := appModel(t, fb, 80, 24)
-	send(m, "3", "a")
-	if m.screen == screenConfirm || fb.count("approve-all") != 0 {
-		t.Fatal("a acts in Access")
-	}
-	send(m, "A")
-	if m.screen != screenConfirm {
-		t.Fatalf("A does not ask first:\n%s", plain(m))
-	}
-	if fb.count("approve-all") != 0 {
-		t.Fatal("A approved before the answer")
-	}
-}
-
 func TestCtrlDDeletesTheCharacterRightOfTheCursor(t *testing.T) {
 	m := hostModel(t, 120, 40)
 	runCommand(m, "go host folders")
@@ -102,9 +86,9 @@ func TestCtrlDDeletesTheCharacterRightOfTheCursor(t *testing.T) {
 	}
 }
 
-func TestVDoesNothingInTheLibrary(t *testing.T) {
-	m := appModel(t, accessFake(), 80, 24)
-	send(m, "4", "v")
+func TestVDoesNothingInTheHostUsers(t *testing.T) {
+	m := appModel(t, overviewFake(), 80, 24)
+	send(m, "3", "v")
 	if m.status != "" || m.fail != "" {
 		t.Errorf("v answers: status %q fail %q", m.status, m.fail)
 	}

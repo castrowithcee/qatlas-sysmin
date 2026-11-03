@@ -70,7 +70,7 @@ func footerGroupRank(group string, index int) (rank int, right bool) {
 	return footerOthers + index, false
 }
 
-// isSectionRange reports whether a key is a digit range ("1-6"), which opens an area.
+// isSectionRange reports whether a key is a digit range ("1-4"), which opens an area.
 func isSectionRange(key string) bool {
 	return len(key) >= 3 && key[0] >= '0' && key[0] <= '9' && key[1] == '-'
 }

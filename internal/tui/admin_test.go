@@ -370,7 +370,7 @@ func TestAdminCountdownRunsLocally(t *testing.T) {
 
 func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 	m := appModel(t, newFake(control.VaultUnlocked), 80, 24)
-	for key, want := range map[string]area{"2": areaActivity, "3": areaAccess, "4": areaLibrary, "5": areaHost, "6": areaSettings, "1": areaOverview} {
+	for key, want := range map[string]area{"2": areaActivity, "3": areaHost, "4": areaSettings, "1": areaOverview} {
 		send(m, key)
 		if m.area != want {
 			t.Errorf("%s selects %v, want %v", key, m.area, want)

@@ -141,33 +141,3 @@ func TestTheWheelOverTheDimmedBackgroundOfAFormDialogMovesNothing(t *testing.T) 
 		t.Errorf("form focus = %d, page focus = %d after the wheel over the background", m.form.focus, m.set.gen.focus)
 	}
 }
-
-func TestTheWheelMovesTheFocusOfTheCredentialForm(t *testing.T) {
-	m := appModel(t, accessFake(), 80, 24)
-	now := wheelClock(m)
-	send(m, "4", "n")
-	if m.cred == nil {
-		t.Fatal("n opens no credential form")
-	}
-	x, y := wheelCell(t, m, func(wheelHit) bool { return true })
-	down, up := wheelWalk(t, m, now, x, y, func() int { return m.cred.focus })
-	wheelEnds(t, "new", down, up, 0, m.cred.rows()-1)
-	if m.cred.kind != 0 || m.cred.name.Value() != "" {
-		t.Errorf("the wheel changed the form: kind = %d, name = %q", m.cred.kind, m.cred.name.Value())
-	}
-}
-
-func TestTheWheelOfTheCredentialFormOfAnEditedEntryStaysOnTheFields(t *testing.T) {
-	m := appModel(t, accessFake(), 80, 24)
-	now := wheelClock(m)
-	send(m, "4")
-	send(m, "e")
-	if m.cred == nil || !m.cred.edit {
-		t.Fatalf("e opens no edit form:\n%s", plain(m))
-	}
-	x, y := wheelCell(t, m, func(wheelHit) bool { return true })
-	down, up := wheelWalk(t, m, now, x, y, func() int { return m.cred.focus })
-	if len(down) > 0 && m.cred.focus < 2 || len(up) > 0 && up[len(up)-1] < 2 {
-		t.Errorf("down %v and up %v reach the fixed rows", down, up)
-	}
-}

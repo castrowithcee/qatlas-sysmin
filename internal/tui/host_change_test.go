@@ -161,7 +161,7 @@ func hostChangeModel(t *testing.T, w, h int) (*Model, *fakeSudo, *countingHost) 
 	host := &countingHost{fixtureHost: newFixtureHost()}
 	f := &fakeSudo{}
 	m.hostSrc, m.hostReg, m.hostRun, m.hostExec, m.hostBg = host, hostActions(t), f.run, f.exec, f.bg
-	send(m, "5")
+	send(m, "3")
 	return m, f, host
 }
 

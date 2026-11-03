@@ -1,15 +1,12 @@
 package tui
 
 import (
-	"errors"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // A form is a short overlay of text fields and choices. A field with a known set of values is a choice that
@@ -175,15 +172,13 @@ func (f *formDlg) wheelRow(up bool) {
 	}
 }
 
-// hitFormWheel makes the cells of the form or credential form that is open take the wheel, with
+// hitFormWheel makes the cells of the form that is open take the wheel, with
 // the same precedence prompt gives them.
 func (m *Model) hitFormWheel(x0, y0, x1, y1 int) {
 	var scroll func(up bool)
 	switch {
 	case m.screen != screenPrompt || m.ov != nil:
 		return
-	case m.cred != nil:
-		scroll = m.cred.wheelRow
 	case m.form != nil && m.form.pick != nil:
 		scroll = m.form.pick.wheel
 	case m.form != nil:
@@ -209,15 +204,6 @@ func (m *Model) openForm(f *formDlg) {
 func (m *Model) closeForm() {
 	m.form = nil
 	m.screen = m.home
-}
-
-// reopenForm shows a form again that a refusal of the service sent back, where nothing else is in the way.
-func (m *Model) reopenForm(f *formDlg) {
-	if m.screen != m.home || m.ov != nil || m.confirm != nil || m.pop != nil {
-		return
-	}
-	m.fail = ""
-	m.form, m.screen = f, screenPrompt
 }
 
 // updateForm handles one key of the form.
@@ -355,42 +341,4 @@ func (m *Model) formDialog() promptDialog {
 		d.notice = styles.fail.Render(warnMark + " " + f.notice)
 	}
 	return d
-}
-
-// fieldOf is the name of the field a problem of the service is about, without the place in its list: the
-// last part of "channels[3].to[0]" is "to".
-func fieldOf(field string) string {
-	if strings.HasPrefix(field, "channels[") {
-		if _, rest, ok := strings.Cut(field, "."); ok {
-			field = rest
-		}
-	}
-	if i := strings.Index(field, "["); i >= 0 {
-		field = field[:i]
-	}
-	return field
-}
-
-// formProblems puts the problems a refused input names under their rows; one that fits no row goes to the
-// notice. It reports whether the error carried any problem.
-func (m *Model) formProblems(f *formDlg, err error) bool {
-	var ce *control.Error
-	if !errors.As(err, &ce) || len(ce.Problems) == 0 {
-		return false
-	}
-	var rest []control.Problem
-	for _, p := range ce.Problems {
-		r := f.row(fieldOf(p.Field))
-		if r == nil || r.hidden {
-			rest = append(rest, p)
-			continue
-		}
-		if r.problem == "" {
-			r.problem = m.diffText(problemText([]control.Problem{p}))
-		}
-	}
-	if len(rest) > 0 {
-		f.notice = m.diffText(problemText(rest))
-	}
-	return true
 }

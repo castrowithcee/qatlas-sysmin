@@ -2,7 +2,7 @@ sysmin  ● vault open  ● admin off                                           
    1 Overview   2 Activity  ╔══════════════════════════════════════════════════════════════╗                            
   [Users]  Groups   Folders ║ Help                                                         ║                            
 ────────────────────────────║                                                              ║────────────────────────────
-Users (3)                   ║  unlock   secrets   channels   templates   audit-log  [host] ║───────────────────────────╮
+Users (3)                   ║  keys   vault   admin-session   unlock   audit-log  [host]   ║───────────────────────────╮
 ╔═══════════════════════════║                                                              ║  Raw                      │
 ║   Name        Admin       ║ Host shows the users, groups and folder permissions of this  ║                           │
 ║   ▾ Users (2)             ║ machine. Admin means sudo rights, Docker is practically      ║mo-admin                   │

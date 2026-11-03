@@ -13,15 +13,15 @@ func rowsOf(m *Model) []string { return strings.Split(plain(m), "\n") }
 func TestFrameOrderIsHeaderTabsPageStripRule(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
 	rows := rowsOf(m)
-	if !strings.Contains(rows[0], "[?] help  [:] cmd") || !strings.Contains(rows[1], "1 Overview") || !strings.Contains(rows[1], "6 Settings") {
+	if !strings.Contains(rows[0], "[?] help  [:] cmd") || !strings.Contains(rows[1], "1 Overview") || !strings.Contains(rows[1], "4 Settings") {
 		t.Fatalf("header and tab line:\n%s\n%s", rows[0], rows[1])
 	}
 	if !strings.HasPrefix(rows[2], "──") {
 		t.Errorf("the rule does not follow the tab line in an area without pages: %q", rows[2])
 	}
-	send(m, "6")
+	send(m, "4")
 	rows = rowsOf(m)
-	if !strings.Contains(rows[1], "6 Settings") || !strings.Contains(rows[2], "General") || !strings.HasPrefix(rows[3], "──") {
+	if !strings.Contains(rows[1], "4 Settings") || !strings.Contains(rows[2], "General") || !strings.HasPrefix(rows[3], "──") {
 		t.Errorf("Settings is not header, tabs, page strip, rule:\n%s", strings.Join(rows[:4], "\n"))
 	}
 	if m.workspaceTop() != 4 {
@@ -32,7 +32,7 @@ func TestFrameOrderIsHeaderTabsPageStripRule(t *testing.T) {
 // A bar with the focus has "> " in front of it; the bar without it has blanks, so nothing moves.
 func TestFocusedBarCarriesTheMarker(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "6")
+	send(m, "4")
 	m.zone = zoneTabs
 	rows := rowsOf(m)
 	if !strings.HasPrefix(rows[1], "> ") || !strings.HasPrefix(rows[2], "  ") {
@@ -49,11 +49,11 @@ func TestFocusedBarCarriesTheMarker(t *testing.T) {
 // stays whole.
 func TestNarrowTabLineClosesGapsThenShrinksInactiveTabs(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "4")
+	send(m, "3")
 	for w, check := range map[int]func(string) bool{
-		79: func(l string) bool { return strings.Contains(l, "1 Overview") && strings.Contains(l, "6 Settings") },
+		79: func(l string) bool { return strings.Contains(l, "1 Overview") && strings.Contains(l, "4 Settings") },
 		40: func(l string) bool {
-			return strings.Contains(l, "4 Library") && !strings.Contains(l, "Overview") && strings.Contains(l, " 1 ") && strings.Contains(l, " 5")
+			return strings.Contains(l, "3 Host") && !strings.Contains(l, "Overview") && strings.Contains(l, " 1 ") && strings.Contains(l, " 4")
 		},
 	} {
 		sizedModel(m, w, 24)
@@ -67,7 +67,7 @@ func TestNarrowTabLineClosesGapsThenShrinksInactiveTabs(t *testing.T) {
 // Under lack of space the key hints drop before the back button.
 func TestHeaderDropsKeyHintsBeforeTheBackButton(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	send(m, "4", "down")
+	send(m, "3", "down")
 	if m.zoneNow() == zoneTabs {
 		t.Fatal("expected focus below the tab line")
 	}
@@ -95,7 +95,7 @@ func TestHeaderDropsKeyHintsBeforeTheBackButton(t *testing.T) {
 // rows below the header.
 func TestBackAndBarClicksUseTheirRows(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	clickOn(t, m, "6 Settings")
+	clickOn(t, m, "4 Settings")
 	if m.area != areaSettings {
 		t.Fatalf("tab click reached area %v", m.area)
 	}
