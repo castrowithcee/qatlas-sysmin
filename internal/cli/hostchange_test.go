@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castrowithcee/qatlas-kit/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
-	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
 )
 
 type changeWorld struct {

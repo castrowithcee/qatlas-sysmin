@@ -8,7 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/i18n"
+	"github.com/castrowithcee/qatlas-kit/i18n"
 )
 
 func lipglossWidth(s string) int { return lipgloss.Width(s) }

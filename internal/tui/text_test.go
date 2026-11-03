@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/i18n"
+	"github.com/castrowithcee/qatlas-kit/i18n"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 

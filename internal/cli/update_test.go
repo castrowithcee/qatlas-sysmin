@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
+	"github.com/castrowithcee/qatlas-kit/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/release/releasetest"
 	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate"
 	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate/selfupdatetest"

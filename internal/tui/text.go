@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/i18n"
+	"github.com/castrowithcee/qatlas-kit/i18n"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // The editor's own texts live in a catalog of typed keys per language (text_keys.go, text_en.go,
-// text_de.go) on top of internal/i18n. A screen that is not translated yet keeps its English literals;
+// text_de.go) on top of the kit i18n package. A screen that is not translated yet keeps its English literals;
 // translating one means adding its keys to both catalogs and replacing the literals with tr.
 
 // textID is the key of one text of the catalog.

@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/castrowithcee/qatlas-kit/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
-	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
 )
 
 // hostFixture writes invented databases and returns the environment of a caller with the given UID.

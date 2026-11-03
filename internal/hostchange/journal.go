@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/filelock"
+	"github.com/castrowithcee/qatlas-kit/filelock"
 )
 
 // DefaultJournalDir is outside the state directory of the service, so the service cannot reach it.

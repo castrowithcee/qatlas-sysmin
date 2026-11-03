@@ -14,7 +14,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/filelock"
+	"github.com/castrowithcee/qatlas-kit/filelock"
 )
 
 const (

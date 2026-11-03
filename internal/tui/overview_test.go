@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castrowithcee/qatlas-kit/i18n"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/i18n"
 )
 
 // ovNow is the fixed clock of the overview tests: Wednesday, 28 October 2026, in UTC.

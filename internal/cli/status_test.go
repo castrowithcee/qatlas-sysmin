@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castrowithcee/qatlas-kit/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
-	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/service"
 )
 
