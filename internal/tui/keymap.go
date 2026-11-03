@@ -6,7 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/castrowithcee/qatlas-kit/i18n"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
@@ -127,29 +126,6 @@ func keyTable() []kittui.Action {
 		act(actNo, kittui.LevelConfirm, tKeyHelpNo, "n"),
 		act(actDiscard, kittui.LevelConfirm, tKeyHelpDiscard, "d"),
 	}
-}
-
-// uiContext is what the screens of one editor read keys with and draw their texts in. The model holds it, so
-// no state of the interface lives in the package.
-type uiContext struct {
-	keys *kittui.Keymap
-	// texts is the catalog; text draws it in lang.
-	texts i18n.Catalogs[textID]
-	lang  i18n.Lang
-	text  kittui.Translator
-}
-
-// newUIContext builds the context with the default keys, in English; charset decides how labels spell the
-// arrows. The key table and the catalog are fixed in the code, so one the kit refuses is a defect of this
-// package, never of the input.
-func newUIContext(charset kittui.CharsetMode) *uiContext {
-	keys, err := kittui.NewKeymap(keyTable(), charset)
-	if err != nil {
-		panic(fmt.Sprintf("the key table is invalid: %v", err))
-	}
-	u := &uiContext{keys: keys, texts: catalog()}
-	u.setLanguage(i18n.English)
-	return u
 }
 
 // bindKeys makes the keys of the preferences the keys in force. An entry the key table refuses keeps the

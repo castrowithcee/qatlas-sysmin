@@ -152,22 +152,24 @@ type Model struct {
 // New returns the frame with an empty list and the keys of prefs in force. A nil redactor is read as one that
 // knows no secret.
 func New(prefs uiprefs.Prefs, redactor *redact.Redactor) *Model {
-	m := newModel(prefs, redactor, kittui.CharsetUnicode)
+	m := newModel(prefs, redactor, kittui.ProfileNone, kittui.CharsetUnicode)
 	m.bindKeys()
 	return m
 }
 
-// newModel is New with the default keys, labelled for charset, in the language of prefs.
-func newModel(prefs uiprefs.Prefs, redactor *redact.Redactor, charset kittui.CharsetMode) *Model {
+// newModel is New with the default keys, in the language and the theme of prefs, for a terminal of the given
+// colour profile and character set. A theme this version does not have draws the terminal theme.
+func newModel(prefs uiprefs.Prefs, redactor *redact.Redactor, profile kittui.ColorProfile, charset kittui.CharsetMode) *Model {
 	if prefs == (uiprefs.Prefs{}) {
 		prefs = uiprefs.Default()
 	}
 	if redactor == nil {
 		redactor = &redact.Redactor{}
 	}
-	m := &Model{prefs: prefs, redactor: redactor, ui: newUIContext(charset),
+	m := &Model{prefs: prefs, redactor: redactor, ui: newUIContext(profile, charset),
 		list: newFilterList(func(name string) string { return name })}
 	m.ui.setLanguage(kitprefs.Language(prefs.Language))
+	m.ui.setTheme(prefs.Theme)
 	m.ovr.reset()
 	return m
 }
@@ -175,9 +177,9 @@ func newModel(prefs uiprefs.Prefs, redactor *redact.Redactor, charset kittui.Cha
 // Init asks the terminal for its colours where the theme mixes from them.
 func (m *Model) Init() tea.Cmd {
 	if m.backend == nil {
-		return terminalColourQuery(m.prefs.Theme)
+		return m.ui.terminalColorQuery()
 	}
-	return tea.Batch(terminalColourQuery(m.prefs.Theme), m.statusCmd(), tickCmd(), m.checkUpdate(false))
+	return tea.Batch(m.ui.terminalColorQuery(), m.statusCmd(), tickCmd(), m.checkUpdate(false))
 }
 
 // Update handles one message.
@@ -204,7 +206,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.dataWant()
 	case tea.BackgroundColorMsg, tea.ForegroundColorMsg:
-		m.takeTerminalColour(msg)
+		m.ui.takeTerminalColor(msg)
 		return m, nil
 	case tea.KeyPressMsg:
 		return m, m.updateKey(m.moveKey(legacyKey(msg)))
@@ -363,10 +365,10 @@ func (m *Model) render() string {
 // renderCursor is render together with the cell of the terminal cursor, nil without a focused text field.
 func (m *Model) renderCursor() (string, *tea.Cursor) {
 	view, cursor := takeCursor(m.renderFrame())
-	if styles.filled && view != "" {
-		view = paintCanvas(view, styles.canvasPrefix(), m.termWidth, m.termHeight)
+	if view != "" {
+		view = m.ui.styles.Paint(view, m.termWidth, m.termHeight)
 	}
-	return shown(view), cursor
+	return m.ui.shown(view), cursor
 }
 
 // renderFrame is the frame before the base colour of the theme is applied.
@@ -427,10 +429,10 @@ func (m *Model) resizeView() string {
 	}
 	// The way out comes first, so it is the last thing a terminal of a single row loses.
 	lines := []string{
-		styles.key.Render(m.footerKeys(way)),
-		styles.warning.Render(warnMark + " " + m.tr(tResizeTitle)),
-		styles.hint.Render("  " + m.tr(tResizeNeed, minimumWidth, minimumHeight)),
-		styles.hint.Render("  " + m.tr(tResizeNow, m.termWidth, m.termHeight)),
+		m.ui.st(kittui.StyleKey).Render(m.footerKeys(way)),
+		m.ui.st(kittui.StyleWarn).Render(warnMark + " " + m.tr(tResizeTitle)),
+		m.ui.st(kittui.StyleHint).Render("  " + m.tr(tResizeNeed, minimumWidth, minimumHeight)),
+		m.ui.st(kittui.StyleHint).Render("  " + m.tr(tResizeNow, m.termWidth, m.termHeight)),
 	}
 	return m.boundTo(strings.Join(lines, "\n"), m.termWidth, m.termHeight)
 }
@@ -439,12 +441,12 @@ func (m *Model) resizeView() string {
 func (m *Model) notes() string {
 	out := ""
 	if m.busy != "" {
-		out += "\n\n" + m.wrapped(styles.hint, m.tr(tNoteRunning, m.busy))
+		out += "\n\n" + m.wrapped(m.ui.st(kittui.StyleHint), m.tr(tNoteRunning, m.busy))
 	}
 	if m.fail != "" {
-		out += "\n\n" + m.wrapped(styles.fail, m.tr(tNoteError, m.fail))
+		out += "\n\n" + m.wrapped(m.ui.st(kittui.StyleFail), m.tr(tNoteError, m.fail))
 	} else if m.status != "" {
-		out += "\n\n" + m.wrapped(styles.hint, m.status)
+		out += "\n\n" + m.wrapped(m.ui.st(kittui.StyleHint), m.status)
 	}
 	return out
 }

@@ -109,7 +109,7 @@ func (m *Model) loadForms() {
 	if g.language == "" {
 		g.language = uiprefs.LanguageEnglish
 	}
-	g.theme, _ = knownTheme(m.prefs.Theme)
+	g.theme, _ = m.ui.knownTheme(m.prefs.Theme)
 	if !m.prefs.MouseEnabled() {
 		g.mouse = uiprefs.ChoiceMouseOff
 	}
@@ -129,7 +129,7 @@ func (m *Model) generalDirty() bool {
 	if language == "" {
 		language = uiprefs.LanguageEnglish
 	}
-	theme, _ := knownTheme(prefs.Theme)
+	theme, _ := m.ui.knownTheme(prefs.Theme)
 	mouse := uiprefs.ChoiceMouseOn
 	if !prefs.MouseEnabled() {
 		mouse = uiprefs.ChoiceMouseOff
@@ -268,7 +268,7 @@ func (m *Model) generalKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		pick("language", []string{uiprefs.LanguageEnglish, uiprefs.LanguageGerman, uiprefs.LanguageSystem}, g.language,
 			func(v string) { g.language = v })
 	case genTheme:
-		pick("theme", themeNames(), g.theme, func(v string) { g.theme = v })
+		pick("theme", m.ui.themes.Names(), g.theme, func(v string) { g.theme = v })
 	case genMouse:
 		pick("mouse", []string{uiprefs.ChoiceMouseOn, uiprefs.ChoiceMouseOff}, g.mouse, func(v string) { g.mouse = v })
 	default:
@@ -378,11 +378,12 @@ func (m *Model) saveGeneral() tea.Cmd {
 		return nil
 	}
 	var query tea.Cmd
-	if before, _ := themeNamed(m.prefs.Theme); before.name != next.Theme {
-		query = terminalColourQuery(next.Theme)
-	}
+	before := m.ui.theme
 	m.prefs = next
-	applyTheme(next.Theme)
+	m.ui.setTheme(next.Theme)
+	if m.ui.theme != before {
+		query = m.ui.terminalColorQuery()
+	}
 	m.ui.setLanguage(kitprefs.Language(next.Language))
 	m.status = m.tr(tPrefsSaved)
 	if warnings := m.bindKeys(); len(warnings) > 0 {

@@ -186,8 +186,8 @@ func (p *dataPage) headingLine(ui *uiContext, row string) string {
 	if p.sec.folded[sec.key] {
 		arrow = "▸"
 	}
-	return styles.hint.Render(arrow) + " " + styles.active.Render(ui.tr(sec.title)) +
-		styles.hint.Render(fmt.Sprintf(" (%d)", len(sec.names)))
+	return ui.st(kittui.StyleHint).Render(arrow) + " " + ui.st(kittui.StyleActive).Render(ui.tr(sec.title)) +
+		ui.st(kittui.StyleHint).Render(fmt.Sprintf(" (%d)", len(sec.names)))
 }
 
 // headingKey handles the keys that act on a marked heading.

@@ -21,7 +21,7 @@ func testModel(prefs uiprefs.Prefs, redactor *redact.Redactor) *Model {
 }
 
 // testUI is the context of an editor with the default keys, in English.
-func testUI() *uiContext { return newUIContext(kittui.CharsetUnicode) }
+func testUI() *uiContext { return newUIContext(kittui.ProfileNone, kittui.CharsetUnicode) }
 
 // useLanguage draws m in the given language from now on.
 func useLanguage(t *testing.T, m *Model, lang i18n.Lang) {

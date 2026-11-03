@@ -103,7 +103,7 @@ func TestPreferenceKeysAreBound(t *testing.T) {
 func TestRefusedPreferenceKeysFallBackToTheStandard(t *testing.T) {
 	prefs := uiprefs.Default()
 	prefs.Keys = uiprefs.Keys{Save: "f3", Help: "ctrl+g", Command: ":"}
-	m := newModel(prefs, nil, kittui.CharsetUnicode)
+	m := newModel(prefs, nil, kittui.ProfileNone, kittui.CharsetUnicode)
 	warnings := m.bindKeys()
 	if len(warnings) != 1 || !strings.Contains(warnings[0], "keys.help ctrl+g") || !strings.Contains(warnings[0], "using ?") {
 		t.Fatalf("warnings = %v, want one for help", warnings)

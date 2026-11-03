@@ -5,6 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // A pick row is a form row for a long multi-selection: the form shows a short summary of what is chosen, and
@@ -140,11 +142,11 @@ func (m *Model) pickDialog(f *formDlg) promptDialog {
 		}
 		plain := truncateCells(tickText(pk.ticked[name])+" "+safeText(name)+note, pickerField+8)
 		if i == l.cursor {
-			lines = append(lines, styles.title.Render("  > "+plain))
+			lines = append(lines, m.ui.st(kittui.StyleTitle).Render("  > "+plain))
 		} else {
-			text := colourTick(plain, styles.cell)
+			text := colourTick(m.ui, plain, m.ui.st(kittui.StyleText))
 			if note != "" {
-				text = strings.TrimSuffix(text, note) + styles.hint.Render(note)
+				text = strings.TrimSuffix(text, note) + m.ui.st(kittui.StyleHint).Render(note)
 			}
 			lines = append(lines, "    "+text)
 		}
@@ -158,9 +160,9 @@ func (m *Model) pickDialog(f *formDlg) promptDialog {
 		}})
 	}
 	if len(l.matches) == 0 {
-		lines = append(lines, styles.hint.Render("    "+m.tr(tPickNoMatch)))
+		lines = append(lines, m.ui.st(kittui.StyleHint).Render("    "+m.tr(tPickNoMatch)))
 	} else {
-		lines = append(lines, styles.hint.Render("    "+m.tr(tPickPosition, l.cursor+1, len(l.matches))))
+		lines = append(lines, m.ui.st(kittui.StyleHint).Render("    "+m.tr(tPickPosition, l.cursor+1, len(l.matches))))
 	}
 	return promptDialog{title: f.rows[pk.row].label, input: strings.Join(lines, "\n"),
 		keys: "↑/↓ move · space tick · enter keep · {back} discard"}

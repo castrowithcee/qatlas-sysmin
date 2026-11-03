@@ -7,6 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // A data page is a table of an area with the detail of the marked row: beside the table from wideDetailMin
@@ -90,7 +92,7 @@ func tabStripLine(ui *uiContext, p *dataPage, width int, focused bool) (string, 
 	for i := range words {
 		words[i] = tabTitle(ui, i)
 	}
-	strip, spans := tabStrip(words, p.tab, focused)
+	strip, spans := tabStrip(ui, words, p.tab, focused)
 	return clipCells(strip, width), spans
 }
 
@@ -146,7 +148,7 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	} else {
 		sec, _ := p.section(marked)
 		title = m.tr(sec.title)
-		content = wrapIndented(styles.hint, "", m.tr(tSectionHint), inner)
+		content = wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tSectionHint), inner)
 		strip, spans = "", nil
 	}
 	height := min(max(len(content)+2, len(left)-2), avail-2)
@@ -156,7 +158,7 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	if !have {
 		body = content[:min(room, len(content))]
 	}
-	right := panel(truncateCells(title, inner-2), body, inner, height, panelOpts{focused: detailFocus})
+	right := panel(m.ui, truncateCells(title, inner-2), body, inner, height, panelOpts{focused: detailFocus})
 	left0 := tableWidth + 1
 	m.addZone(0, top, tableWidth, top+len(left), zoneContent)
 	m.addWheel(0, top, tableWidth, top+len(left), rowsWheel)
@@ -193,12 +195,12 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 		if !framed {
 			return text
 		}
-		return panelSide(text, room, focused)
+		return panelSide(m.ui, text, room, focused)
 	}
 	total, shown := p.entries(), len(p.list.matches)
-	lines := []string{titleLine(fmt.Sprintf("%s (%d)", v.title, total), position, width)}
+	lines := []string{titleLine(m.ui, fmt.Sprintf("%s (%d)", v.title, total), position, width)}
 	if framed {
-		lines = append(lines, panelTop("", "", room, focused))
+		lines = append(lines, panelTop(m.ui, "", "", room, focused))
 	}
 	if p.list.editing || p.list.query() != "" {
 		lines = append(lines, inside(m.searchLineIn(room, &p.list, m.tr(tFormFilter))))
@@ -207,13 +209,13 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 	_, cells := m.fitIn(room, entryIndent)
 	layout := t.layout(cells)
 	if total > 0 {
-		lines = append(lines, inside(styles.hint.Render(clipCells(entryIndent+t.header(layout), room))))
+		lines = append(lines, inside(m.ui.st(kittui.StyleHint).Render(clipCells(entryIndent+t.header(layout), room))))
 	}
 	switch {
 	case total == 0:
-		lines = append(lines, inside(styles.hint.Render(truncateCells(v.empty, room))))
+		lines = append(lines, inside(m.ui.st(kittui.StyleHint).Render(truncateCells(v.empty, room))))
 	case shown == 0:
-		lines = append(lines, inside(styles.hint.Render(truncateCells(m.tr(tFormNoEntryMatchesPressEsc, p.list.query()), room))))
+		lines = append(lines, inside(m.ui.st(kittui.StyleHint).Render(truncateCells(m.tr(tFormNoEntryMatchesPressEsc, p.list.query()), room))))
 	}
 	foot := 0
 	if framed {
@@ -252,7 +254,7 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 		lines = append(lines, inside(row))
 	}
 	if framed {
-		lines = append(lines, panelBottom(room, focused))
+		lines = append(lines, panelBottom(m.ui, room, focused))
 	}
 	return lines
 }
@@ -269,12 +271,12 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 	}
 	strip, spans := tabStripLine(m.ui, p, inner, true)
 	body := append([]string{strip, ""}, content[p.scroll:min(p.scroll+room, len(content))]...)
-	head := titleLine(v.title+" › "+truncateCells(name, max(width-lipgloss.Width(v.title)-4, 4)), note, width)
+	head := titleLine(m.ui, v.title+" › "+truncateCells(name, max(width-lipgloss.Width(v.title)-4, 4)), note, width)
 	for i, span := range spans {
 		m.addHit(2+span[0], top+2, 2+span[1], top+3, func() tea.Cmd { p.tab, p.scroll = i, 0; return nil })
 	}
 	m.addWheel(0, top, width, top+1+room+2, func(up bool) tea.Cmd { p.wheelDetail(up); return nil })
-	return head + "\n" + strings.Join(panel("", body, inner, room+2, panelOpts{focused: true}), "\n")
+	return head + "\n" + strings.Join(panel(m.ui, "", body, inner, room+2, panelOpts{focused: true}), "\n")
 }
 
 // pageKey handles the keys that move through the table, and the keys of the open detail; up on the first row
@@ -449,14 +451,14 @@ func wrapIndented(style lipgloss.Style, lead, text string, width int) []string {
 }
 
 // factLines draws label/value pairs with aligned values.
-func factLines(pairs [][2]string, width int) []string {
+func factLines(ui *uiContext, pairs [][2]string, width int) []string {
 	lw := 0
 	for _, p := range pairs {
 		lw = max(lw, lipgloss.Width(p[0]))
 	}
 	var out []string
 	for _, p := range pairs {
-		out = append(out, wrapIndented(lipgloss.NewStyle(), styles.hint.Render(padLine(p[0], lw))+"  ", p[1], width)...)
+		out = append(out, wrapIndented(lipgloss.NewStyle(), ui.st(kittui.StyleHint).Render(padLine(p[0], lw))+"  ", p[1], width)...)
 	}
 	return out
 }

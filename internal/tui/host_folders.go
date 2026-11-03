@@ -8,6 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // hostFoldersState is the Folders page: a path line that completes on the file system, and what the host says
@@ -169,7 +171,7 @@ func (m *Model) folderLines(f hostadmin.Folder, width int) []string {
 	if f.Protected {
 		pairs = append(pairs, [2]string{m.tr(tHostProtected), m.tr(tHostProtectedNote)})
 	}
-	return factLines(pairs, width)
+	return factLines(m.ui, pairs, width)
 }
 
 // hostFoldersBody is the Folders page under the bars of the frame.
@@ -183,25 +185,25 @@ func (m *Model) hostFoldersBody() string {
 	if !f.editing {
 		in.Blur()
 	}
-	lines := []string{styles.title.Render(m.tr(tSubFolders)), "", prefix + inputView(fitInput(in, room))}
+	lines := []string{m.ui.st(kittui.StyleTitle).Render(m.tr(tSubFolders)), "", prefix + inputView(fitInput(in, room))}
 	if f.editing {
 		suggestions, mark := f.in.shown()
 		for j, s := range suggestions {
 			if f.in.marked && j == mark {
-				lines = append(lines, styles.title.Render(truncateCells("  > "+s, width-1)))
+				lines = append(lines, m.ui.st(kittui.StyleTitle).Render(truncateCells("  > "+s, width-1)))
 			} else {
-				lines = append(lines, styles.hint.Render(truncateCells("    "+s, width-1)))
+				lines = append(lines, m.ui.st(kittui.StyleHint).Render(truncateCells("    "+s, width-1)))
 			}
 		}
 	}
 	lines = append(lines, "")
 	switch {
 	case f.err != "":
-		lines = append(lines, strings.Split(render(styles.fail, width, f.err), "\n")...)
+		lines = append(lines, strings.Split(render(m.ui.st(kittui.StyleFail), width, f.err), "\n")...)
 	case f.folder != nil:
 		lines = append(lines, m.folderLines(*f.folder, width)...)
 	default:
-		lines = append(lines, strings.Split(render(styles.hint, width, m.tr(tHostFolderHint)), "\n")...)
+		lines = append(lines, strings.Split(render(m.ui.st(kittui.StyleHint), width, m.tr(tHostFolderHint)), "\n")...)
 	}
 	return strings.Join(lines, "\n")
 }

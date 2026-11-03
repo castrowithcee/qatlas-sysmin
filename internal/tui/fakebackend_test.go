@@ -76,9 +76,6 @@ func drain(m *Model, cmd tea.Cmd) {
 // appModel is the service interface of the given size over fb, past its first status.
 func appModel(t *testing.T, fb *fakeBackend, w, h int) *Model {
 	t.Helper()
-	restoreRenderer(t)
-	setProfile(profileNone)
-	applyTheme(uiprefs.ThemeTerminal)
 	every := tickEvery
 	tickEvery = time.Millisecond
 	t.Cleanup(func() { tickEvery = every })

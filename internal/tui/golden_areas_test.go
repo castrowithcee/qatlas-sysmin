@@ -16,7 +16,7 @@ func goldenApp(t *testing.T, fb *fakeBackend, w, h int) *Model {
 	t.Helper()
 	t.Setenv("NO_COLOR", "1")
 	m := appModel(t, fb, w, h)
-	if currentProfile() != profileNone {
+	if !m.ui.colorless() {
 		t.Fatal("the golden frames need a terminal without colour")
 	}
 	return m

@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // dialogPanel lays the text of a dialog screen (a list of entries, a preview, a result) into one panel when
@@ -35,12 +37,12 @@ func (p dialogPanel) chrome() int {
 // it; without a frame the bold title alone.
 func (p dialogPanel) top(title, note string) string {
 	if p.framed {
-		return p.m.titled(title, note, p.room+4) + panelTop("", "", p.room, true) + "\n"
+		return p.m.titled(title, note, p.room+4) + panelTop(p.m.ui, "", "", p.room, true) + "\n"
 	}
 	if note != "" {
 		title += "  " + note
 	}
-	return p.m.wrapped(styles.title, title) + "\n"
+	return p.m.wrapped(p.m.ui.st(kittui.StyleTitle), title) + "\n"
 }
 
 // bottom is the closing border, and nothing without a frame.
@@ -48,7 +50,7 @@ func (p dialogPanel) bottom() string {
 	if !p.framed {
 		return ""
 	}
-	return panelBottom(p.room, true) + "\n"
+	return panelBottom(p.m.ui, p.room, true) + "\n"
 }
 
 // side puts one finished line into the frame.
@@ -56,7 +58,7 @@ func (p dialogPanel) side(line string) string {
 	if !p.framed {
 		return line
 	}
-	return panelSide(line, p.room, true)
+	return panelSide(p.m.ui, line, p.room, true)
 }
 
 // blank is an empty line.
@@ -89,7 +91,7 @@ func (p dialogPanel) textLines(style lipgloss.Style, text string) []string {
 func (p dialogPanel) hint(text string) string {
 	indent, width := p.m.fitIn(p.room, hintIndent)
 	var b strings.Builder
-	for _, line := range strings.Split(render(styles.hint, width, text), "\n") {
+	for _, line := range strings.Split(render(p.m.ui.st(kittui.StyleHint), width, text), "\n") {
 		b.WriteString(p.side(indent+line) + "\n")
 	}
 	return b.String()
@@ -125,7 +127,7 @@ func (p dialogPanel) closing() string {
 
 // result is the state line of a finished step: the mark in its colour and its word.
 func (p dialogPanel) result(kind statusKind, word string) string {
-	return p.side(statusMark(kind, word)) + "\n"
+	return p.side(statusMark(p.m.ui, kind, word)) + "\n"
 }
 
 // framedChrome is the number of lines framedText adds around a question: the borders and the blank line under
@@ -153,7 +155,7 @@ func (m *Model) framedTitled(title string, build func() string) string {
 	text := build()
 	m.width, m.inPanel = width, false
 	lines := append([]string{""}, strings.Split(strings.TrimRight(text, "\n"), "\n")...)
-	return strings.Join(panel(truncateCells(title, width-6), lines, width-4, len(lines), panelOpts{focused: true}), "\n") + "\n"
+	return strings.Join(panel(m.ui, truncateCells(title, width-6), lines, width-4, len(lines), panelOpts{focused: true}), "\n") + "\n"
 }
 
 // framedQuestion is framedText for a screen that is a question only while questionScreen says so; the detail

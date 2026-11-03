@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // noGroup titles the group of entries that belong to none. It sorts last.
@@ -75,8 +77,8 @@ func (g *listGroups) rowText(ui *uiContext, row string, open bool) string {
 // colour and the count dimmed. Without colour it reads exactly as rowText does.
 func (g *listGroups) styledRow(ui *uiContext, row string, open bool) string {
 	key, title, arrow := g.rowParts(ui, row, open)
-	return styles.hint.Render(arrow) + groupMark(key) + " " + styles.active.Render(title) +
-		styles.hint.Render(fmt.Sprintf(" (%d)", len(g.members[key])))
+	return ui.st(kittui.StyleHint).Render(arrow) + ui.styles.CategoryMark(key) + " " + ui.st(kittui.StyleActive).Render(title) +
+		ui.st(kittui.StyleHint).Render(fmt.Sprintf(" (%d)", len(g.members[key])))
 }
 
 func (g *listGroups) rowParts(ui *uiContext, row string, open bool) (key, title, arrow string) {

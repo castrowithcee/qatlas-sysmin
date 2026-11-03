@@ -85,11 +85,12 @@ func TestGeneralPicksTheThemeFromAList(t *testing.T) {
 	m, path := settingsModel(t, newFake(), "general")
 	send(m, "down")
 	choose(t, m, 1)
-	if m.set.gen.theme != themes[1].name {
-		t.Fatalf("theme = %q, want %q", m.set.gen.theme, themes[1].name)
+	want := m.ui.themes.Names()[1]
+	if m.set.gen.theme != want {
+		t.Fatalf("theme = %q, want %q", m.set.gen.theme, want)
 	}
 	send(m, "f2")
-	if prefs, _ := uiprefs.Load(path); prefs.Theme != themes[1].name || m.prefs.Theme != themes[1].name {
+	if prefs, _ := uiprefs.Load(path); prefs.Theme != want || m.prefs.Theme != want || m.ui.theme != want {
 		t.Errorf("saved theme %q, model %q", prefs.Theme, m.prefs.Theme)
 	}
 }

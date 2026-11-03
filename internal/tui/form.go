@@ -7,6 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // A form is a short overlay of text fields and choices. A field with a known set of values is a choice that
@@ -99,7 +101,7 @@ func (r *formRow) multiText(ui *uiContext) string {
 	if len(r.values) == 0 {
 		return ui.tr(tHostFormNoGroups)
 	}
-	return tickBox(r.ticked[r.sel]) + " " + r.values[r.sel] + "  (" + ui.tr(tHostFormTicked, len(r.picked()), len(r.values)) + ")"
+	return tickBox(ui, r.ticked[r.sel]) + " " + r.values[r.sel] + "  (" + ui.tr(tHostFormTicked, len(r.picked()), len(r.values)) + ")"
 }
 
 // value is the text of a text row, or the value a choice stands for.
@@ -304,7 +306,7 @@ func (m *Model) formDialog() promptDialog {
 			if f.focus == i && !r.pick {
 				text = "< " + text + " >"
 			}
-			rows = append(rows, prefix+fieldStyle(f.focus == i).Render(" "+text+" "))
+			rows = append(rows, prefix+fieldStyle(m.ui, f.focus == i).Render(" "+text+" "))
 			if r.pick {
 				row := i
 				f.hits = append(f.hits, textHit{plain: ansi.Strip(rows[len(rows)-1]), act: func() tea.Cmd {
@@ -319,7 +321,7 @@ func (m *Model) formDialog() promptDialog {
 			rows = append(rows, prefix+inputView(fitInput(r.in, room)))
 		}
 		if r.problem != "" {
-			rows = append(rows, "    "+styles.fail.Render(truncateCells(warnMark+" "+r.problem, max(width-5, 1))))
+			rows = append(rows, "    "+m.ui.st(kittui.StyleFail).Render(truncateCells(warnMark+" "+r.problem, max(width-5, 1))))
 		}
 	}
 	keys := "enter next · tab next · " + f.saveText + " · {back} cancel"
@@ -332,7 +334,7 @@ func (m *Model) formDialog() promptDialog {
 	}
 	d := promptDialog{title: f.title, input: strings.Join(rows, "\n"), hint: f.hint, keys: keys}
 	if f.notice != "" {
-		d.notice = styles.fail.Render(warnMark + " " + f.notice)
+		d.notice = m.ui.st(kittui.StyleFail).Render(warnMark + " " + f.notice)
 	}
 	return d
 }

@@ -6,6 +6,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // A dropdown field is one line, "Label: Value ▾", on the field surface; the focused one is drawn in the accent
@@ -17,16 +19,16 @@ const dropdownArrow = "▾"
 
 // fieldStyle is the surface of a field: the field colour behind the text, the accent colour and bold while
 // the field has the focus. Without colour it names nothing; the marker carries the focus then.
-func fieldStyle(focused bool) lipgloss.Style {
-	p := styles.palette
+func fieldStyle(ui *uiContext, focused bool) lipgloss.Style {
+	p := ui.palette()
 	style := lipgloss.NewStyle()
-	if p.surface != "" {
-		style = style.Background(p.surface.lip()).Foreground(p.text.lip())
+	if p.Surface != "" {
+		style = style.Background(lip(p.Surface)).Foreground(lip(p.Text))
 	}
 	if focused {
 		style = style.Bold(true)
-		if p.accent != "" {
-			style = style.Foreground(p.accent.lip())
+		if p.Accent != "" {
+			style = style.Foreground(lip(p.Accent))
 		}
 	}
 	return style
@@ -45,8 +47,8 @@ func dropdownText(label, value string, width int) string {
 }
 
 // dropdownField draws a field of at most width cells (padded by one cell on each side).
-func dropdownField(label, value string, focused bool, width int) string {
-	return fieldStyle(focused).Render(dropdownText(label, value, width))
+func dropdownField(ui *uiContext, label, value string, focused bool, width int) string {
+	return fieldStyle(ui, focused).Render(dropdownText(label, value, width))
 }
 
 // dropdownWidth is the width of a field with its whole value.
@@ -72,13 +74,13 @@ const searchFieldMax = 30
 // content (the text after "/ ", or the input being typed, already drawn).
 func searchField(ui *uiContext, content string, width int) string {
 	if content == "" {
-		hint := styles.hint
-		if styles.palette.surface != "" {
-			hint = hint.Background(styles.palette.surface.lip())
+		hint := ui.st(kittui.StyleHint)
+		if ui.palette().Surface != "" {
+			hint = hint.Background(lip(ui.palette().Surface))
 		}
 		return hint.Render(padLine(clipCells(" "+ui.tr(tSearchField), width), width))
 	}
-	return fieldStyle(false).Render(padLine(clipCells(" "+content, width), width))
+	return fieldStyle(ui, false).Render(padLine(clipCells(" "+content, width), width))
 }
 
 // dropdown is the open list of a field.
@@ -139,7 +141,7 @@ func (m *Model) chooseDropdown(i int) tea.Cmd {
 }
 
 // lines draws the list as a framed block.
-func (d *dropdown) lines() []string {
+func (d *dropdown) lines(ui *uiContext) []string {
 	inner := 0
 	for _, v := range d.values {
 		inner = max(inner, lipgloss.Width(v))
@@ -149,11 +151,11 @@ func (d *dropdown) lines() []string {
 	for i, v := range d.values {
 		line := padLine(barMarker(i == d.cursor)+v, inner)
 		if i == d.cursor {
-			line = styles.activeRow.Render(line)
+			line = ui.st(kittui.StyleActiveRow).Render(line)
 		}
 		rows[i] = line
 	}
-	return panel("", rows, inner, len(rows), panelOpts{focused: true})
+	return panel(ui, "", rows, inner, len(rows), panelOpts{focused: true})
 }
 
 // overlayDropdown puts the open list over view, under its field, and registers its click targets. A list whose
@@ -167,7 +169,7 @@ func (m *Model) overlayDropdown(view string) string {
 		m.dd = nil
 		return view
 	}
-	box := d.lines()
+	box := d.lines(m.ui)
 	w := ansi.StringWidth(box[0])
 	x := max(min(d.x, m.termWidth-w), 0)
 	y := min(d.y+1, max(m.termHeight-1-len(box), 0))

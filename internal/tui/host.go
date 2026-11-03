@@ -10,6 +10,8 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // Host shows the users, groups and folder permissions of the machine qsysmin runs on. The data comes from the
@@ -171,25 +173,25 @@ func (m *Model) shownHost(v string) string {
 func (m *Model) hostSystemTone(system func(name string) bool) func(string) lipgloss.Style {
 	return func(cell string) lipgloss.Style {
 		if system(cell) {
-			return styles.hint
+			return m.ui.st(kittui.StyleHint)
 		}
-		return styles.cell
+		return m.ui.st(kittui.StyleText)
 	}
 }
 
 func (m *Model) hostUserColumns() []column {
 	warn := func(cell string) lipgloss.Style {
 		if cell == m.tr(tHostAdminOff) {
-			return styles.warning
+			return m.ui.st(kittui.StyleWarn)
 		}
-		return styles.cell
+		return m.ui.st(kittui.StyleText)
 	}
 	return []column{
 		{title: m.tr(tColName), tone: m.hostSystemTone(func(n string) bool { return m.hst.users.items[n].System })},
 		{title: m.tr(tHostColAdmin), shown: m.shownHost, short: map[string]string{hostAdminOff: m.tr(tHostAdminOffShort)}, tone: warn},
 		{title: m.tr(tHostColDocker), shown: m.shownHost},
 		{title: m.tr(tHostColGroups), flex: true, optional: true, drop: 2},
-		{title: m.tr(tHostColSystem), shown: m.shownHost, optional: true, drop: 1, tone: toneDim},
+		{title: m.tr(tHostColSystem), shown: m.shownHost, optional: true, drop: 1, tone: m.ui.toneDim},
 	}
 }
 
@@ -197,7 +199,7 @@ func (m *Model) hostGroupColumns() []column {
 	return []column{
 		{title: m.tr(tColName), tone: m.hostSystemTone(func(n string) bool { return m.hst.groups.items[n].System })},
 		{title: m.tr(tHostColMembers), right: true},
-		{title: m.tr(tHostColSystem), shown: m.shownHost, optional: true, tone: toneDim},
+		{title: m.tr(tHostColSystem), shown: m.shownHost, optional: true, tone: m.ui.toneDim},
 	}
 }
 
@@ -306,7 +308,7 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 	admin := m.shownHost(adminText(u))
 	switch tab {
 	case tabOverview:
-		lines := factLines([][2]string{
+		lines := factLines(m.ui, [][2]string{
 			{m.tr(tColName), m.diffText(u.Name)},
 			{m.tr(tColType), userKindText(m.ui, u.System)},
 			{m.tr(tHostColAdmin), admin},
@@ -318,16 +320,16 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 		}, width)
 		if u.Locked == nil {
 			lines = append(lines, "")
-			lines = append(lines, wrapIndented(styles.hint, "", m.tr(tHostReadHint, "ctrl+r"), width)...)
+			lines = append(lines, wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostReadHint, "ctrl+r"), width)...)
 		}
 		return lines
 	case tabDetails:
 		if u.SSHKeys == nil {
-			lines := wrapIndented(styles.hint, "", m.tr(tHostKeysUnknown), width)
-			return append(append(lines, ""), wrapIndented(styles.hint, "", m.tr(tHostReadHint, "ctrl+r"), width)...)
+			lines := wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostKeysUnknown), width)
+			return append(append(lines, ""), wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostReadHint, "ctrl+r"), width)...)
 		}
 		if len(u.SSHKeys) == 0 {
-			return []string{styles.hint.Render(m.tr(tHostNoKeys))}
+			return []string{m.ui.st(kittui.StyleHint).Render(m.tr(tHostNoKeys))}
 		}
 		var lines []string
 		for _, k := range u.SSHKeys {
@@ -355,7 +357,7 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 func (m *Model) hostChangesView(top int) string {
 	body := m.dataBody(&m.hst.chg.page, m.hostChangesSpec(), top)
 	if m.hst.chg.stale && m.hst.chg.have && !m.backdrop {
-		body += "\n" + m.wrapped(styles.warning, m.tr(tHostChangesStale, "ctrl+r"))
+		body += "\n" + m.wrapped(m.ui.st(kittui.StyleWarn), m.tr(tHostChangesStale, "ctrl+r"))
 	}
 	return body
 }
@@ -374,14 +376,14 @@ func (m *Model) hostGroupLines(name string, tab, width int) []string {
 	}
 	switch tab {
 	case tabOverview:
-		return factLines([][2]string{
+		return factLines(m.ui, [][2]string{
 			{m.tr(tColName), m.diffText(g.Name)},
 			{m.tr(tColType), hostKindText(m.ui, g.System)},
 			{m.tr(tHostColMembers), strconv.Itoa(len(g.Members))},
 		}, width)
 	case tabDetails:
 		if len(g.Members) == 0 {
-			return []string{styles.hint.Render(m.tr(tHostNoMembers))}
+			return []string{m.ui.st(kittui.StyleHint).Render(m.tr(tHostNoMembers))}
 		}
 		members := append([]string(nil), g.Members...)
 		sort.Strings(members)

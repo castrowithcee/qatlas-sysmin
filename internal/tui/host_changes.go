@@ -11,6 +11,8 @@ import (
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // The Changes page lists the latest changes to the host from the journal, which only root can read. It is
@@ -95,9 +97,9 @@ func (m *Model) shownResult(v string) string {
 func (m *Model) hostChangeColumns() []column {
 	tone := func(cell string) lipgloss.Style {
 		if cell == m.tr(tHostResFailed) || cell == m.tr(tHostResRestored) {
-			return styles.warning
+			return m.ui.st(kittui.StyleWarn)
 		}
-		return styles.cell
+		return m.ui.st(kittui.StyleText)
 	}
 	return []column{
 		{title: m.tr(tColTime)},
@@ -125,7 +127,7 @@ func (m *Model) hostChangeLines(id string, tab, width int) []string {
 	}
 	switch tab {
 	case tabOverview:
-		return factLines([][2]string{
+		return factLines(m.ui, [][2]string{
 			{m.tr(tColTime), hostTime(e.Time)},
 			{m.tr(tHostColChange), m.diffText(e.Sentence)},
 			{m.tr(tHostColResult), m.shownResult(e.Result)},
@@ -133,11 +135,11 @@ func (m *Model) hostChangeLines(id string, tab, width int) []string {
 		}, width)
 	case tabDetails:
 		if len(e.UndoCommands) == 0 {
-			return []string{styles.hint.Render(m.tr(tHostNoUndo))}
+			return []string{m.ui.st(kittui.StyleHint).Render(m.tr(tHostNoUndo))}
 		}
 		var lines []string
 		for _, c := range e.UndoCommands {
-			lines = append(lines, wrapIndented(styles.hint, "$ ", m.diffText(c), width)...)
+			lines = append(lines, wrapIndented(m.ui.st(kittui.StyleHint), "$ ", m.diffText(c), width)...)
 		}
 		return lines
 	}
@@ -233,7 +235,7 @@ func (m *Model) askReadUser() tea.Cmd {
 	}
 	m.askConfirm(question{
 		title: m.tr(tHostReadTitle, m.diffText(name)), consequence: m.tr(tHostReadNote),
-		details: planDetails([]string{"qsysmin host user " + shellWord(name)}), keys: "y read as root · n/{back} cancel",
+		details: planDetails(m.ui, []string{"qsysmin host user " + shellWord(name)}), keys: "y read as root · n/{back} cancel",
 	}, func() tea.Cmd { return m.readUser(name) })
 	return nil
 }

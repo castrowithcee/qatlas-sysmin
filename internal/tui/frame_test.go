@@ -14,9 +14,6 @@ import (
 // frameModel is a frame of the given size over a short list of invented entries, drawn without colour.
 func frameModel(t *testing.T, w, h int) *Model {
 	t.Helper()
-	restoreRenderer(t)
-	setProfile(profileNone)
-	applyTheme(uiprefs.ThemeTerminal)
 	m := testModel(uiprefs.Default(), nil)
 	m.title = "Entries"
 	m.table = table{

@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // listView draws the list screen: its frame, and between them as many rows as fit.
@@ -48,7 +50,7 @@ func (m *Model) listFrame() (string, string) {
 		}
 		var b strings.Builder
 		for _, line := range strings.Split(text, "\n") {
-			b.WriteString(panelSide(line, room, true) + "\n")
+			b.WriteString(panelSide(m.ui, line, room, true) + "\n")
 		}
 		return b.String()
 	}
@@ -71,9 +73,9 @@ func (m *Model) listFrame() (string, string) {
 	m.screenPos = position
 	if framed {
 		head.WriteString(m.titled(fmt.Sprintf("%s (%d)", m.title, total), position, room+4))
-		head.WriteString(panelTop("", "", room, true) + "\n")
+		head.WriteString(panelTop(m.ui, "", "", room, true) + "\n")
 	} else {
-		head.WriteString(styles.title.Render(m.title) + "\n")
+		head.WriteString(m.ui.st(kittui.StyleTitle).Render(m.title) + "\n")
 	}
 	switch {
 	case filtered:
@@ -84,13 +86,13 @@ func (m *Model) listFrame() (string, string) {
 	if total > 0 {
 		t := m.table
 		_, width := m.fitIn(room, entryIndent)
-		head.WriteString(inside(styles.hint.Render(clipCells(entryIndent+t.header(t.layout(width)), room))))
+		head.WriteString(inside(m.ui.st(kittui.StyleHint).Render(clipCells(entryIndent+t.header(t.layout(width)), room))))
 	}
 	switch {
 	case total == 0:
-		head.WriteString(note(styles.hint, m.tr(tListEmpty)))
+		head.WriteString(note(m.ui.st(kittui.StyleHint), m.tr(tListEmpty)))
 	case shown == 0:
-		head.WriteString(note(styles.hint, m.tr(tFormNoEntryMatchesPressEsc, m.list.query())))
+		head.WriteString(note(m.ui.st(kittui.StyleHint), m.tr(tFormNoEntryMatchesPressEsc, m.list.query())))
 	}
 
 	keys := "↑/↓ move · / filter · q quit"
@@ -100,7 +102,7 @@ func (m *Model) listFrame() (string, string) {
 	m.keyHint(keys)
 	foot := ""
 	if framed {
-		foot = panelBottom(room, true) + foot
+		foot = panelBottom(m.ui, room, true) + foot
 	}
 	return head.String(), foot + m.notes()
 }
@@ -132,7 +134,7 @@ func (m *Model) listRows() func(i int) string {
 			row = m.listRowIn(room, active, indent[2:]+t.line(t.rows[name], layout))
 		}
 		if m.tableFramed() {
-			return panelSide(row, room, true)
+			return panelSide(m.ui, row, room, true)
 		}
 		return row
 	}

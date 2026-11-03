@@ -71,7 +71,7 @@ func TestDropdownDrawsBelowItsFieldAndMarksTheCursorWithoutColour(t *testing.T) 
 	view := drawn(m)
 	assertViewFits(t, view, 80, 24)
 	lines := strings.Split(view, "\n")
-	if !strings.Contains(lines[5], "╭") || !strings.Contains(lines[6], "> One") ||
+	if !framed(lines[5]) || !strings.Contains(lines[6], "> One") ||
 		!strings.Contains(lines[7], "  Two") || !strings.Contains(lines[8], "  Three") {
 		t.Fatalf("the list is not drawn under its field:\n%s", view)
 	}
@@ -149,21 +149,19 @@ func TestChooseDropdownIgnoresAValueOutOfRange(t *testing.T) {
 }
 
 func TestDropdownFieldCutsItsValueAndKeepsLabelAndArrow(t *testing.T) {
-	restoreRenderer(t)
-	setProfile(profileNone)
-	full := ansi.Strip(dropdownField("Group", "Provider", false, 40))
+	full := ansi.Strip(dropdownField(testUI(), "Group", "Provider", false, 40))
 	if full != " Group: Provider ▾ " {
 		t.Errorf("field = %q", full)
 	}
 	if dropdownWidth("Group", "Provider") != lipgloss.Width(full) {
 		t.Errorf("dropdownWidth = %d, want %d", dropdownWidth("Group", "Provider"), lipgloss.Width(full))
 	}
-	got := ansi.Strip(dropdownField("Group", "Provider", false, 14))
+	got := ansi.Strip(dropdownField(testUI(), "Group", "Provider", false, 14))
 	if lipgloss.Width(got) > 14 || !strings.Contains(got, "Group: ") || !strings.Contains(got, "…") || !strings.Contains(got, "▾") {
 		t.Errorf("field at 14 = %q", got)
 	}
 	// Even a width that holds nothing keeps one cell of the value.
-	if got := ansi.Strip(dropdownField("Group", "Provider", false, 1)); !strings.Contains(got, "▾") || !strings.Contains(got, "Group:") {
+	if got := ansi.Strip(dropdownField(testUI(), "Group", "Provider", false, 1)); !strings.Contains(got, "▾") || !strings.Contains(got, "Group:") {
 		t.Errorf("field at 1 = %q", got)
 	}
 }
@@ -175,7 +173,7 @@ func TestDropdownFocusReadsWithoutColour(t *testing.T) {
 		t.Fatalf("markers = %q, %q", barMarker(true), barMarker(false))
 	}
 	for _, focused := range []bool{true, false} {
-		if field := dropdownField("Group", "Provider", focused, 40); colourSGR.MatchString(shown(field)) {
+		if field := dropdownField(m.ui, "Group", "Provider", focused, 40); colourSGR.MatchString(m.ui.shown(field)) {
 			t.Errorf("focused %v: the field carries a colour: %q", focused, field)
 		}
 	}
@@ -185,8 +183,6 @@ func TestDropdownFocusReadsWithoutColour(t *testing.T) {
 }
 
 func TestSearchFieldShowsPlaceholderWhileIdleAndTheContentOtherwise(t *testing.T) {
-	restoreRenderer(t)
-	setProfile(profileNone)
 	ui := testUI()
 	want := ui.tr(tSearchField)
 	if !strings.Contains(want, "…") || !strings.HasPrefix(want, "/ ") {
@@ -225,8 +221,6 @@ func TestSearchContentFollowsTheFilterState(t *testing.T) {
 }
 
 func TestFieldRowsWrapFieldsAndPlaceTheSearchFieldAtTheRightEdge(t *testing.T) {
-	restoreRenderer(t)
-	setProfile(profileNone)
 	ui := testUI()
 	search := func(int) string { return "" }
 	fields := []string{"Group: A ▾", "Sort: Name ▾"}

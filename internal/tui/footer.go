@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // The footer is the last line of every screen: the keys of the screen at the left, its navigation at the
@@ -191,9 +193,9 @@ func (m *Model) footerLine() string {
 			w := lipgloss.Width(item.text)
 			m.footerSpans = append(m.footerSpans, footerSpan{x, min(x+w, width), m.footerKey(item.text)})
 			if item.plain {
-				b.WriteString(styles.hint.Render(item.text))
+				b.WriteString(m.ui.st(kittui.StyleHint).Render(item.text))
 			} else {
-				b.WriteString(keyHintGroupFoot(item.text))
+				b.WriteString(keyHintGroupFoot(m.ui, item.text))
 			}
 			x += w
 		}
@@ -209,10 +211,10 @@ func (m *Model) footerLine() string {
 }
 
 // keyHintGroupFoot styles one "key action" group of the footer.
-func keyHintGroupFoot(group string) string {
+func keyHintGroupFoot(ui *uiContext, group string) string {
 	key, action, ok := strings.Cut(group, " ")
 	if !ok {
-		return styles.footKey.Render(key)
+		return ui.st(kittui.StyleFooterKey).Render(key)
 	}
-	return styles.footKey.Render(key) + styles.hint.Render(" "+action)
+	return ui.st(kittui.StyleFooterKey).Render(key) + ui.st(kittui.StyleHint).Render(" "+action)
 }

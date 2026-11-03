@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 var updateGolden = flag.Bool("update", false, "rewrite the golden files")
@@ -21,12 +23,9 @@ var colourSGR = regexp.MustCompile(`\x1b\[[0-9;:]*(?:3[0-9]|4[0-9]|9[0-9]|10[0-7
 func goldenFrame(t *testing.T) *Model {
 	t.Helper()
 	t.Setenv("NO_COLOR", "1")
-	restoreRenderer(t)
-	setProfile(detectProfile(os.Stdout))
-	if currentProfile() != profileNone {
+	if !kittui.DetectColorProfile(os.Stdout, os.Environ()).Colorless() {
 		t.Fatal("NO_COLOR does not switch the colour profile off")
 	}
-	applyTheme(uiprefs.ThemeTerminal)
 	m := testModel(uiprefs.Default(), nil)
 	m.title = "Services"
 	m.table = table{

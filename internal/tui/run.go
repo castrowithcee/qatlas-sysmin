@@ -63,15 +63,13 @@ func Run(opts Options) error {
 	if prefs == (uiprefs.Prefs{}) {
 		prefs = uiprefs.Default()
 	}
-	setProfile(detectProfile(opts.Out))
-	known, themeWarning := knownTheme(prefs.Theme)
-	prefs.Theme = known
-	applyTheme(prefs.Theme)
+	profile := kittui.DetectColorProfile(opts.Out, os.Environ())
+	model := newModel(prefs, opts.Redactor, profile, kittui.DetectCharsetMode(os.Environ()))
 	warnings := opts.PrefsWarnings
-	if themeWarning != "" {
-		warnings = append(warnings, themeWarning)
+	if known, warning := model.ui.knownTheme(prefs.Theme); warning != "" {
+		model.prefs.Theme = known
+		warnings = append(warnings, warning)
 	}
-	model := newModel(prefs, opts.Redactor, kittui.DetectCharsetMode(os.Environ()))
 	warnings = append(warnings, model.bindKeys()...)
 	model.prefsPath, model.version, model.releases = opts.PrefsPath, opts.Version, opts.Releases
 	model.hostSrc = opts.Host
@@ -88,7 +86,7 @@ func Run(opts Options) error {
 	}
 	fragments := newFragmentFilter(time.Now)
 	program := tea.NewProgram(model, tea.WithInput(opts.In), tea.WithOutput(newLegacyKeys(opts.Out)),
-		tea.WithFilter(fragments.filter), tea.WithColorProfile(toColorprofile(currentProfile())))
+		tea.WithFilter(fragments.filter), tea.WithColorProfile(toColorprofile(profile)))
 	fragments.send = program.Send
 	final, err := program.Run()
 	if fm, ok := final.(*Model); ok && err == nil {

@@ -14,6 +14,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // Changes to the host run as root through sudo: the interface builds the confirmation from the action's plan,
@@ -349,17 +351,17 @@ func hostLines(style lipgloss.Style, lead, text string) []string {
 }
 
 // planDetails are the exact commands of a plan, dimmed and wrapped.
-func planDetails(commands []string) []string {
+func planDetails(ui *uiContext, commands []string) []string {
 	var lines []string
 	for _, c := range commands {
-		lines = append(lines, hostLines(styles.hint, "$ ", c)...)
+		lines = append(lines, hostLines(ui.st(kittui.StyleHint), "$ ", c)...)
 	}
 	return []string{"\n" + strings.Join(lines, "\n")}
 }
 
 // planQuestion is the confirmation of a plan: the sentence, the commands, and the answers.
 func planQuestion(ui *uiContext, sentence string, commands []string, notReversible, verb string) question {
-	q := question{title: sentence, details: planDetails(commands), keys: "y " + verb + " · n/{back} cancel"}
+	q := question{title: sentence, details: planDetails(ui, commands), keys: "y " + verb + " · n/{back} cancel"}
 	if notReversible != "" {
 		q.consequence, q.warn, q.danger = ui.tr(tHostIrreversible, notReversible), true, true
 	} else {
@@ -509,16 +511,16 @@ func (m *Model) hostResult(r hostReport, asked string) {
 	}
 	var details []string
 	if r.Error != "" {
-		details = append(details, hostLines(styles.fail, "", m.diffText(r.Error))...)
+		details = append(details, hostLines(m.ui.st(kittui.StyleFail), "", m.diffText(r.Error))...)
 	}
 	switch r.Check {
 	case hostchange.CheckPassed:
-		details = append(details, hostLines(styles.hint, "", m.tr(tHostCheckPassed))...)
+		details = append(details, hostLines(m.ui.st(kittui.StyleHint), "", m.tr(tHostCheckPassed))...)
 	case hostchange.CheckFailed:
-		details = append(details, hostLines(styles.warning, "", m.tr(tHostCheckFailed, m.diffText(r.CheckError)))...)
+		details = append(details, hostLines(m.ui.st(kittui.StyleWarn), "", m.tr(tHostCheckFailed, m.diffText(r.CheckError)))...)
 	}
 	if r.Warning != "" {
-		details = append(details, hostLines(styles.warning, "", m.tr(tHostAuditWarning, m.diffText(r.Warning)))...)
+		details = append(details, hostLines(m.ui.st(kittui.StyleWarn), "", m.tr(tHostAuditWarning, m.diffText(r.Warning)))...)
 	}
 	if len(details) > 0 {
 		q.details = []string{"\n" + strings.Join(details, "\n")}

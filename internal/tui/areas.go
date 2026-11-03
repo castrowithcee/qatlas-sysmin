@@ -6,6 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // An area is a task the person came to do; the areas are the tab line. An area draws into the workspace under
@@ -354,9 +356,9 @@ func barFocusMark(focused bool) string {
 func (m *Model) barLine(words []string, active int, focused bool, shrink func(i int) string) (string, []navSpan) {
 	mark := barFocusMark(focused)
 	width := m.termWidth
-	line, cells := tabStripGap(words, active, focused, " ")
+	line, cells := tabStripGap(m.ui, words, active, focused, " ")
 	if lipgloss.Width(mark)+lipgloss.Width(line) > width {
-		line, cells = tabStripGap(words, active, focused, "")
+		line, cells = tabStripGap(m.ui, words, active, focused, "")
 	}
 	if shrink != nil && lipgloss.Width(mark)+lipgloss.Width(line) > width {
 		short := make([]string, len(words))
@@ -366,13 +368,13 @@ func (m *Model) barLine(words []string, active int, focused bool, shrink func(i 
 				short[i] = shrink(i)
 			}
 		}
-		line, cells = tabStripGap(short, active, focused, "")
+		line, cells = tabStripGap(m.ui, short, active, focused, "")
 	}
 	spans := make([]navSpan, len(cells))
 	for i, c := range cells {
 		spans[i] = navSpan{min(c[0]+len(mark), width), min(c[1]+len(mark), width)}
 	}
-	return clipCells(styles.active.Render(mark)+line, width), spans
+	return clipCells(m.ui.st(kittui.StyleActive).Render(mark)+line, width), spans
 }
 
 // tabLine draws the tab line, every area as "digit name", and the cells of each tab. Where the titles do not
@@ -519,5 +521,5 @@ func (m *Model) areaBody() string {
 	case areaHost:
 		return m.hostBody()
 	}
-	return m.wrapped(styles.hint, m.tr(tListEmpty))
+	return m.wrapped(m.ui.st(kittui.StyleHint), m.tr(tListEmpty))
 }

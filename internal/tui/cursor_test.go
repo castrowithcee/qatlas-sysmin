@@ -5,9 +5,13 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
-var cursorProfiles = map[string]colorProfile{"truecolor": profileTrueColor, "16": profile16, "none": profileNone}
+var cursorProfiles = map[string]kittui.ColorProfile{
+	"truecolor": kittui.ProfileTrueColor, "16": kittui.ProfileANSI16, "none": kittui.ProfileNone,
+}
 
 // cursorBefore draws the frame and returns the text left of the terminal cursor, read from the rendered image.
 // It fails when the view sets no cursor or no blinking one.
@@ -34,7 +38,7 @@ func cursorBefore(t *testing.T, m *Model) string {
 func TestTheCursorStandsInTheFocusedFormField(t *testing.T) {
 	for name, p := range cursorProfiles {
 		m, _, _, _ := userModel(t, 120, 40)
-		setProfile(p)
+		useProfile(m, p)
 		send(m, "n", "tab")
 		typed(m, "demo-app")
 		if before := cursorBefore(t, m); !strings.HasSuffix(before, "demo-app") {
@@ -46,7 +50,7 @@ func TestTheCursorStandsInTheFocusedFormField(t *testing.T) {
 func TestTheCursorStandsInTheFolderPathInput(t *testing.T) {
 	for name, p := range cursorProfiles {
 		m, _, _, _ := userModel(t, 120, 40)
-		setProfile(p)
+		useProfile(m, p)
 		runCommand(m, "go host folders")
 		send(m, "enter")
 		typed(m, "/srv/demo-app")

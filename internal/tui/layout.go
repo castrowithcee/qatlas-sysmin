@@ -7,6 +7,8 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // layoutWorkspace derives the room of the workspace from the terminal. It takes the full width; above it
@@ -23,7 +25,7 @@ func (m *Model) frame(workspace string) string {
 	lines, back := m.headerLayout()
 	m.registerBack(back)
 	lines = append(lines, m.barLines()...)
-	lines = append(lines, styles.quietBorder.Render(strings.Repeat("─", m.termWidth)))
+	lines = append(lines, m.ui.st(kittui.StyleBorder).Render(strings.Repeat("─", m.termWidth)))
 	body := strings.Split(workspace, "\n")
 	if len(body) > m.height {
 		body = body[:m.height]
@@ -105,7 +107,7 @@ func (m *Model) backButton() string {
 	if !m.backShown() {
 		return ""
 	}
-	return styles.hint.Render("[" + m.keyLabel(actBack) + "] " + m.tr(tHeaderBack))
+	return m.ui.st(kittui.StyleHint).Render("[" + m.keyLabel(actBack) + "] " + m.tr(tHeaderBack))
 }
 
 // fitParts lays styled parts out in one row of at most width cells, separated by headerSep, and returns the
@@ -132,9 +134,9 @@ const headerLogo = ""
 
 // headerStatus are the left parts of the header: the name.
 func (m *Model) headerStatus() []string {
-	name := styles.title.Render(m.tr(tHeaderTitle))
+	name := m.ui.st(kittui.StyleTitle).Render(m.tr(tHeaderTitle))
 	if m.prefs.Icons == uiprefs.IconsNerdFont {
-		name = styles.active.Render(headerLogo) + " " + name
+		name = m.ui.st(kittui.StyleActive).Render(headerLogo) + " " + name
 	}
 	return []string{name}
 }
@@ -168,7 +170,7 @@ func (m *Model) keyHints() string {
 		text textID
 	}{{actHelp, tHeaderHelp}, {actCommand, tHeaderCmd}} {
 		if key := m.keyLabel(h.act); key != "" {
-			parts = append(parts, styles.hint.Render("["+key+"] "+m.tr(h.text)))
+			parts = append(parts, m.ui.st(kittui.StyleHint).Render("["+key+"] "+m.tr(h.text)))
 		}
 	}
 	return strings.Join(parts, headerSep)
@@ -222,7 +224,7 @@ func (m *Model) headerMarks(level int) []string {
 		if level >= 1 {
 			text = m.tr(tUpdHeaderShort)
 		}
-		parts = append(parts, statusMark(statusWarn, text))
+		parts = append(parts, statusMark(m.ui, statusWarn, text))
 	}
 	return parts
 }
@@ -242,11 +244,11 @@ func (m *Model) stateMarks(level int) []string {
 	}
 	switch {
 	case !m.svc.known:
-		return append(parts, styles.hint.Render(m.tr(tHeaderChecking)))
+		return append(parts, m.ui.st(kittui.StyleHint).Render(m.tr(tHeaderChecking)))
 	case !m.svc.reachable && m.svc.noGroup:
-		return append(parts, statusMark(statusFail, pick(tServiceGroup, tServiceGroupShort)))
+		return append(parts, statusMark(m.ui, statusFail, pick(tServiceGroup, tServiceGroupShort)))
 	case !m.svc.reachable:
-		return append(parts, statusMark(statusFail, pick(tServiceDown, tServiceDownShort)))
+		return append(parts, statusMark(m.ui, statusFail, pick(tServiceDown, tServiceDownShort)))
 	}
 	return parts
 }

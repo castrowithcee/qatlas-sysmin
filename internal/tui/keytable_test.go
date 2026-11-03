@@ -11,7 +11,7 @@ import (
 
 // The kit checks the key table; the table holds, and a key a multiplexer takes is refused.
 func TestKeyTableHoldsAndRefusesATakenKey(t *testing.T) {
-	newUIContext(kittui.CharsetUnicode)
+	testUI()
 	table := keyTable()
 	for i := range table {
 		if table[i].ID == actReload {

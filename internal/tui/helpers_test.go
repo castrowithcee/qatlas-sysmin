@@ -11,7 +11,20 @@ import (
 )
 
 // testKeys is the key table with its default keys.
-func testKeys() *kittui.Keymap { return newUIContext(kittui.CharsetUnicode).keys }
+func testKeys() *kittui.Keymap { return testUI().keys }
+
+// lookUI is the context of an editor in the theme of a name, for a terminal of the colour profile.
+func lookUI(profile kittui.ColorProfile, theme string) *uiContext {
+	u := newUIContext(profile, kittui.CharsetUnicode)
+	u.setTheme(theme)
+	return u
+}
+
+// useProfile draws m for a terminal of the colour profile from now on.
+func useProfile(m *Model, profile kittui.ColorProfile) {
+	m.ui.profile = profile
+	m.ui.setTheme(m.ui.theme)
+}
 
 // keyMsg is the key press a test names the way the footers do.
 func keyMsg(k string) tea.KeyPressMsg {
@@ -71,17 +84,6 @@ func sizedModel(m *Model, w, h int) *Model {
 	return m
 }
 
-// restoreRenderer puts the theme, the colour profile and the terminal colours back when the test ends.
-func restoreRenderer(t *testing.T) {
-	t.Helper()
-	fg, bg, profile, saved := termFg, termBg, currentProfile(), styles
-	t.Cleanup(func() {
-		termFg, termBg = fg, bg
-		setProfile(profile)
-		setTheme(saved)
-	})
-}
-
 // screenOf is the workspace with the footer under it, as the terminal shows it, without the header.
 func screenOf(m *Model) string {
 	if m.quitting || m.terminalTooSmall() {
@@ -93,7 +95,7 @@ func screenOf(m *Model) string {
 
 // withFooter is a view drawn by a single screen function with the footer under it, which the keys of that
 // screen went to.
-func withFooter(m *Model, view string) string { return shown(view + "\n" + m.footerLine()) }
+func withFooter(m *Model, view string) string { return m.ui.shown(view + "\n" + m.footerLine()) }
 
 // flatText is a view as one line of words, where the spacing between groups of keys does not matter.
 func flatText(view string) string { return strings.Join(strings.Fields(view), " ") }

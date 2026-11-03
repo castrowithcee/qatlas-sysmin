@@ -8,6 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // Help, info and the command line stand as a panel over the screen they were opened from. None of them is
@@ -132,13 +134,13 @@ func (m *Model) helpBody(width int) []string {
 	var lines []string
 	if topic.id == "keys" {
 		everywhere := []string{"{help} help", "{command} cmds", "{info} info", "{save} save", "{back} back", "q quit"}
-		lines = append(lines, styles.title.Render(m.tr(tHelpKeysScreen)))
+		lines = append(lines, m.ui.st(kittui.StyleTitle).Render(m.tr(tHelpKeysScreen)))
 		for _, g := range strings.Split(m.areaKeys(), " · ") {
 			if !slices.Contains(everywhere, g) {
 				lines = append(lines, "  "+truncateCells(m.footerKeys(g), width-2))
 			}
 		}
-		lines = append(lines, "", styles.title.Render(m.tr(tHelpKeysEverywhere)))
+		lines = append(lines, "", m.ui.st(kittui.StyleTitle).Render(m.tr(tHelpKeysEverywhere)))
 		for _, g := range everywhere {
 			lines = append(lines, "  "+truncateCells(m.footerKeys(g), width-2))
 		}
@@ -170,7 +172,7 @@ func (m *Model) popupContent(inner int) (title string, body []string) {
 		// Topics before the first one that fits are left out, so the strip always shows the topic open.
 		first, strip := 0, ""
 		for ; first <= m.pop.topic; first++ {
-			strip, _ = tabStrip(ids[first:], m.pop.topic-first, true)
+			strip, _ = tabStrip(m.ui, ids[first:], m.pop.topic-first, true)
 			if lipgloss.Width(strip) <= inner {
 				break
 			}
@@ -178,7 +180,7 @@ func (m *Model) popupContent(inner int) (title string, body []string) {
 		return m.tr(tHelpTitle), append([]string{truncateCells(strip, inner), ""}, m.helpBody(inner)...)
 	}
 	label, text := m.infoOf()
-	return m.tr(tInfoTitle), append([]string{styles.title.Render(label), ""}, strings.Split(render(lipgloss.NewStyle(), inner, text), "\n")...)
+	return m.tr(tInfoTitle), append([]string{m.ui.st(kittui.StyleTitle).Render(label), ""}, strings.Split(render(lipgloss.NewStyle(), inner, text), "\n")...)
 }
 
 // popupFrame draws the panel: centred over the dimmed screen where the terminal has the room for it, and in
@@ -190,7 +192,7 @@ func (m *Model) popupFrame() string {
 		inner = min(modalMaxInner, m.termWidth-8)
 	}
 	keys := popupKeys(m.pop.kind)
-	keyLines := m.keyHintLinesWith(keys, keyHintGroupFoot)
+	keyLines := m.keyHintLinesWith(keys, func(g string) string { return keyHintGroupFoot(m.ui, g) })
 	room := m.height - 2
 	if modal {
 		room = m.termHeight - 4 - 2 - 1 - len(keyLines)
@@ -214,12 +216,12 @@ func (m *Model) popupFrame() string {
 			}
 		}
 		m.addWheel(0, m.workspaceTop(), m.termWidth, m.workspaceTop()+2+len(body), m.wheelPopup)
-		return m.frame(m.boundView(styles.title.Render(title) + "\n\n" + strings.Join(body, "\n")))
+		return m.frame(m.boundView(m.ui.st(kittui.StyleTitle).Render(title) + "\n\n" + strings.Join(body, "\n")))
 	}
-	lines := append([]string{styles.title.Render(title), ""}, body...)
+	lines := append([]string{m.ui.st(kittui.StyleTitle).Render(title), ""}, body...)
 	lines = append(lines, "")
 	lines = append(lines, keyLines...)
-	dialog := panel("", lines, inner, len(lines), panelOpts{focused: true})
+	dialog := panel(m.ui, "", lines, inner, len(lines), panelOpts{focused: true})
 	var background string
 	m.renderAs(m.baseScreen(), 0, func() {
 		m.backdrop = true
@@ -233,7 +235,7 @@ func (m *Model) popupFrame() string {
 		}
 	}
 	m.addWheel(left, top, left+ansi.StringWidth(dialog[0]), top+len(dialog), m.wheelPopup)
-	return overlay(background, dialog, m.termWidth, m.termHeight)
+	return overlay(m.ui, background, dialog, m.termWidth, m.termHeight)
 }
 
 // wheelPopup is a notch of the wheel over the panel. The help scrolls by wheelText lines and stops at both ends,
@@ -270,5 +272,5 @@ func (m *Model) scrolled(body []string, room, width int) []string {
 	p.last = len(body) - room
 	p.scroll = min(max(p.scroll, 0), p.last)
 	out := slices.Clone(body[p.scroll : p.scroll+room])
-	return append(out, styles.hint.Render(truncateCells(m.tr(tScrollPosition, p.scroll+1, p.scroll+room, len(body)), width)))
+	return append(out, m.ui.st(kittui.StyleHint).Render(truncateCells(m.tr(tScrollPosition, p.scroll+1, p.scroll+room, len(body)), width)))
 }

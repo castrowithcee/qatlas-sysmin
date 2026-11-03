@@ -9,19 +9,17 @@ import (
 )
 
 func TestTitleLinePlacesTheNoteAtTheRightEdgeOnlyWhereItFits(t *testing.T) {
-	restoreRenderer(t)
-	setProfile(profileNone)
-	got := ansi.Strip(titleLine("Entries (4)", "2/4", 30))
+	got := ansi.Strip(titleLine(testUI(), "Entries (4)", "2/4", 30))
 	if len(got) != 30 || !strings.HasPrefix(got, "Entries (4)") || !strings.HasSuffix(got, "2/4") {
 		t.Errorf("line = %q", got)
 	}
-	if got := ansi.Strip(titleLine("Entries (4)", "2/4", 13)); got != "Entries (4)" {
+	if got := ansi.Strip(titleLine(testUI(), "Entries (4)", "2/4", 13)); got != "Entries (4)" {
 		t.Errorf("a note without two cells of gap must be left out, got %q", got)
 	}
-	if got := ansi.Strip(titleLine("A very long title indeed", "", 8)); len([]rune(got)) > 8 {
+	if got := ansi.Strip(titleLine(testUI(), "A very long title indeed", "", 8)); len([]rune(got)) > 8 {
 		t.Errorf("the title is not cut to the width: %q", got)
 	}
-	if got := ansi.Strip(titleLine("T", "n", 0)); got == "" {
+	if got := ansi.Strip(titleLine(testUI(), "T", "n", 0)); got == "" {
 		t.Error("a zero width must still keep one cell of the title")
 	}
 }

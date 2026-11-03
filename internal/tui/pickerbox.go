@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // The picker screens (value pickers and tables) draw their table like a
@@ -30,9 +32,9 @@ func (m *Model) boxTop(title, note string) string {
 		if note != "" {
 			title += "  " + note
 		}
-		return m.wrapped(styles.title, title) + "\n"
+		return m.wrapped(m.ui.st(kittui.StyleTitle), title) + "\n"
 	}
-	return m.titled(title, note, m.boxRoom()+4) + panelTop("", "", m.boxRoom(), true) + "\n"
+	return m.titled(title, note, m.boxRoom()+4) + panelTop(m.ui, "", "", m.boxRoom(), true) + "\n"
 }
 
 // boxText is a message of a picker, wrapped into the room of its lines.
@@ -42,7 +44,7 @@ func (m *Model) boxText(style lipgloss.Style, text string) string {
 	}
 	var b strings.Builder
 	for _, line := range strings.Split(render(style, m.boxRoom(), text), "\n") {
-		b.WriteString(panelSide(line, m.boxRoom(), true) + "\n")
+		b.WriteString(panelSide(m.ui, line, m.boxRoom(), true) + "\n")
 	}
 	return b.String()
 }
@@ -52,7 +54,7 @@ func (m *Model) boxLine(text string) string {
 	if !m.boxed() {
 		return text + "\n"
 	}
-	return panelSide(text, m.boxRoom(), true) + "\n"
+	return panelSide(m.ui, text, m.boxRoom(), true) + "\n"
 }
 
 // boxSearch is the search line of a picker: the search field of the lists inside the panel, and the labelled
@@ -70,7 +72,7 @@ func (m *Model) boxRow(row string) string {
 	if !m.boxed() {
 		return row
 	}
-	return panelSide(row, m.boxRoom(), true)
+	return panelSide(m.ui, row, m.boxRoom(), true)
 }
 
 // boxBottom is the closing border of the panel, or nothing without one.
@@ -78,7 +80,7 @@ func (m *Model) boxBottom() string {
 	if !m.boxed() {
 		return ""
 	}
-	return panelBottom(m.boxRoom(), true)
+	return panelBottom(m.ui, m.boxRoom(), true)
 }
 
 // boxX is the column the content of a row starts at: behind the side border and its blank.
@@ -91,21 +93,21 @@ func (m *Model) boxX() int {
 
 // tickBox is the box of a ticked or unticked entry. The tick is coloured, and the characters alone tell the
 // states apart.
-func tickBox(ticked bool) string {
+func tickBox(ui *uiContext, ticked bool) string {
 	if ticked {
-		return styles.ok.Render("[x]")
+		return ui.st(kittui.StyleOK).Render("[x]")
 	}
 	return "[ ]"
 }
 
 // colourTick colours the first ticked box of a drawn row and sets the style of the cell it stands in again
 // behind it.
-func colourTick(row string, cell lipgloss.Style) string {
+func colourTick(ui *uiContext, row string, cell lipgloss.Style) string {
 	i := strings.Index(row, "[x]")
 	if i < 0 {
 		return row
 	}
 	set := cell.Render("x")
 	set = set[:strings.Index(set, "x")]
-	return row[:i] + styles.ok.Render("[x]") + set + row[i+3:]
+	return row[:i] + ui.st(kittui.StyleOK).Render("[x]") + set + row[i+3:]
 }

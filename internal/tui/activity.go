@@ -11,6 +11,8 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // Activity shows what the service did: the action log. A page is a constant, a state in activityState, a body
@@ -238,9 +240,9 @@ func logColumns(ui *uiContext) []column {
 		{title: ui.tr(tColAction)},
 		{title: ui.tr(tColResult), flex: true, tone: func(cell string) lipgloss.Style {
 			if cell == control.LogResultFailure {
-				return styles.warning
+				return ui.st(kittui.StyleWarn)
 			}
-			return styles.cell
+			return ui.st(kittui.StyleText)
 		}},
 		{title: ui.tr(tColDuration), right: true, optional: true},
 		{title: ui.tr(tColUID), right: true, optional: true},
@@ -309,13 +311,13 @@ func (m *Model) logLines(id string, tab, width int) []string {
 	when := e.Time.Local().Format("2006-01-02 15:04:05")
 	switch tab {
 	case tabOverview:
-		return factLines([][2]string{
+		return factLines(m.ui, [][2]string{
 			{m.tr(tColTime), when},
 			{m.tr(tColAction), m.actionText(e.Action)},
 			{m.tr(tColResult), result},
 		}, width)
 	case tabDetails:
-		return factLines([][2]string{
+		return factLines(m.ui, [][2]string{
 			{m.tr(tLblSeq), id},
 			{m.tr(tColUID), uid},
 			{m.tr(tColDuration), durationText(e.DurationMS)},
@@ -335,9 +337,9 @@ func (m *Model) chainLines(width int) []string {
 	c := m.act.chain
 	switch {
 	case c.err != "":
-		return []string{styles.hint.Render(truncateCells("○ "+m.tr(tLogChainUnknown)+": "+c.err, width))}
+		return []string{m.ui.st(kittui.StyleHint).Render(truncateCells("○ "+m.tr(tLogChainUnknown)+": "+c.err, width))}
 	case !c.have:
-		return []string{styles.hint.Render(truncateCells("○ "+m.tr(tLogChainChecking), width))}
+		return []string{m.ui.st(kittui.StyleHint).Render(truncateCells("○ "+m.tr(tLogChainChecking), width))}
 	}
 	r := c.res
 	// notes are what follows the verdict: documented damage, and old signatures that nobody checks.
@@ -363,7 +365,7 @@ func (m *Model) chainLines(width int) []string {
 		if signatures != "" {
 			text += " · " + signatures
 		}
-		return []string{styles.ok.Render("●") + " " + truncateCells(text, max(width-2, 1))}
+		return []string{m.ui.st(kittui.StyleOK).Render("●") + " " + truncateCells(text, max(width-2, 1))}
 	}
 	text := m.tr(tLogChainBroken)
 	if len(r.Problems) > 0 {
@@ -381,9 +383,9 @@ func (m *Model) chainLines(width int) []string {
 			text += " · " + m.tr(tLogMoreDays, more)
 		}
 	}
-	lines := []string{styles.fail.Render(truncateCells(warnMark+" "+text, width))}
+	lines := []string{m.ui.st(kittui.StyleFail).Render(truncateCells(warnMark+" "+text, width))}
 	if signatures != "" {
-		lines = append(lines, styles.fail.Render(truncateCells("  "+signatures, width)))
+		lines = append(lines, m.ui.st(kittui.StyleFail).Render(truncateCells("  "+signatures, width)))
 	}
 	return lines
 }

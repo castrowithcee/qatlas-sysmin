@@ -5,6 +5,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // boundView cuts plain text to the workspace.
@@ -152,7 +154,7 @@ func (m *Model) fitIn(room int, prefix string) (string, int) {
 // indented draws a hint under the row it belongs to and keeps its continuation lines there too, so a hint
 // that needs two lines still reads as one hint rather than as a stray sentence at the left margin.
 func (m *Model) indented(text string) string {
-	return m.indentedWith(styles.hint, text)
+	return m.indentedWith(m.ui.st(kittui.StyleHint), text)
 }
 
 func (m *Model) indentedWith(style lipgloss.Style, text string) string {
@@ -178,7 +180,7 @@ func (m *Model) rowIn(room int, active bool, text string) string {
 	}
 	style := lipgloss.NewStyle()
 	if active {
-		style = styles.active
+		style = m.ui.st(kittui.StyleActive)
 	}
 	lines := strings.Split(render(style, width, text), "\n")
 	for i, l := range lines {
@@ -209,24 +211,15 @@ func (m *Model) listRowIn(room int, active bool, text string) string {
 	body := padLine(text, width)
 	if len(blank) != 2 {
 		// No room for the mark: the bar alone shows the row.
-		return styles.activeRow.Render(keepStyle(blank+body, styles.activeRow))
+		return m.ui.st(kittui.StyleActiveRow).Render(keepStyle(blank+body, m.ui.st(kittui.StyleActiveRow)))
 	}
 	// The cells of the text may reset their own styles, so the bar is set again after each reset.
-	return styles.selMark.Render(selectionMark()) + styles.activeRow.Render(keepStyle(" "+body, styles.activeRow))
-}
-
-// selectionMark leads the marked row: a narrow accent bar where colour shows it, and '>' where it does not,
-// so the selection never depends on colour alone.
-func selectionMark() string {
-	if styles.palette.selection == "" || currentProfile() == profileNone {
-		return ">"
-	}
-	return "▌"
+	return m.ui.st(kittui.StyleSelectionMark).Render(m.ui.styles.SelectionMark()) + m.ui.st(kittui.StyleActiveRow).Render(keepStyle(" "+body, m.ui.st(kittui.StyleActiveRow)))
 }
 
 // hint is the key line of a screen. Like every other prose line it is wrapped into the terminal instead of
 // being cut off at its right edge.
-func (m *Model) hint(text string) string { return "\n" + m.wrapped(styles.hint, text) }
+func (m *Model) hint(text string) string { return "\n" + m.wrapped(m.ui.st(kittui.StyleHint), text) }
 
 // keyHint is the key line of a screen: groups of keys separated by " · ". It hands the line to the footer of
 // the frame (see footerLine) and returns nothing for the workspace; only while a modal dialog is drawn does
@@ -255,7 +248,9 @@ func (m *Model) dialogKeyHint(text string) string {
 }
 
 // keyHintLines is the footer text broken into lines of whole groups.
-func (m *Model) keyHintLines(text string) []string { return m.keyHintLinesWith(text, keyHintGroup) }
+func (m *Model) keyHintLines(text string) []string {
+	return m.keyHintLinesWith(text, func(g string) string { return keyHintGroup(m.ui, g) })
+}
 
 // keyHintLinesWith is keyHintLines with each group drawn by style.
 func (m *Model) keyHintLinesWith(text string, style func(group string) string) []string {
@@ -274,7 +269,7 @@ func (m *Model) keyHintLinesWith(text string, style func(group string) string) [
 			line, lineWidth, current = "", 0, nil
 		}
 		if lineWidth > 0 {
-			line += styles.hint.Render(" · ")
+			line += m.ui.st(kittui.StyleHint).Render(" · ")
 			lineWidth += lipgloss.Width(" · ")
 		}
 		current = append(current, footerSpan{lineWidth, lineWidth + gw, m.footerKey(group)})
@@ -293,10 +288,10 @@ func (m *Model) keyHintLinesWith(text string, style func(group string) string) [
 }
 
 // keyHintGroup styles one "key action" hint: the key (its first word) bold, the action after it faint.
-func keyHintGroup(group string) string {
+func keyHintGroup(ui *uiContext, group string) string {
 	key, action, ok := strings.Cut(group, " ")
 	if !ok {
-		return styles.key.Render(key)
+		return ui.st(kittui.StyleKey).Render(key)
 	}
-	return styles.key.Render(key) + styles.hint.Render(" "+action)
+	return ui.st(kittui.StyleKey).Render(key) + ui.st(kittui.StyleHint).Render(" "+action)
 }

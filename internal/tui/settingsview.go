@@ -6,6 +6,8 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // settingsBody is the page of Settings under the bars of the frame.
@@ -66,7 +68,7 @@ func (p *pageDraw) row(line string, i int, focus *int) {
 // problem appends the finding of a field under it.
 func (p *pageDraw) problem(text string) {
 	if text != "" {
-		p.add(p.m.indentedWith(styles.fail, warnMark+" "+text))
+		p.add(p.m.indentedWith(p.m.ui.st(kittui.StyleFail), warnMark+" "+text))
 	}
 }
 
@@ -93,7 +95,7 @@ func (m *Model) generalPage(p *pageDraw) {
 		var line string
 		if i < genKeys {
 			m.noteField(ids[i], 2, p.y)
-			line = barMarker(focused) + fieldStyle(focused).Render(truncateCells(
+			line = barMarker(focused) + fieldStyle(m.ui, focused).Render(truncateCells(
 				" "+padLine(label+":", lw+1)+" "+values[i]+" "+dropdownArrow+" ", room))
 		} else {
 			line = barMarker(focused) + m.keyField(label, lw, &g.keys[i-genKeys], focused, room)
@@ -108,7 +110,7 @@ func (m *Model) generalPage(p *pageDraw) {
 // keyField draws a text line of Settings: the label on the field surface, then the value, which is the field
 // itself while it takes the text.
 func (m *Model) keyField(label string, lw int, in *textinput.Model, focused bool, room int) string {
-	head := fieldStyle(focused).Render(" " + padLine(label+":", lw+1) + " ")
+	head := fieldStyle(m.ui, focused).Render(" " + padLine(label+":", lw+1) + " ")
 	value := strings.TrimSpace(in.Value())
 	if focused && m.set.editing {
 		return head + inputView(fitInput(*in, max(room-lipgloss.Width(head), 1)))
@@ -121,7 +123,7 @@ func (m *Model) keyField(label string, lw int, in *textinput.Model, focused bool
 
 // textRow is a read-only line of a page: the label on the field surface of a focused row, then the value.
 func (m *Model) textRow(label string, lw int, value string, focused bool, room int) string {
-	head := fieldStyle(focused).Render(" " + padLine(label+":", lw+1) + " ")
+	head := fieldStyle(m.ui, focused).Render(" " + padLine(label+":", lw+1) + " ")
 	return head + truncateCells(value, max(room-lipgloss.Width(head), 1))
 }
 
@@ -133,7 +135,7 @@ func (m *Model) updatePage(p *pageDraw) {
 	}
 	labels := []string{m.tr(tLblRunning), m.tr(tLblLatest)}
 	lw := labelWidth(labels)
-	p.add(statusRow(statusOK, padLine(labels[0], lw)+":  "+running))
+	p.add(statusRow(m.ui, statusOK, padLine(labels[0], lw)+":  "+running))
 	kind, state := statusDim, m.tr(tValNoData)
 	switch u.phase {
 	case updChecking:
@@ -150,7 +152,7 @@ func (m *Model) updatePage(p *pageDraw) {
 			kind, state = statusOK, m.tr(tUpdCurrent)
 		}
 	}
-	p.add(statusRow(kind, padLine(labels[1], lw)+":  "+state))
+	p.add(statusRow(m.ui, kind, padLine(labels[1], lw)+":  "+state))
 	if u.phase == updDone && u.info.Latest != "" && !u.info.Dev {
 		p.add(m.indented(m.tr(tUpdHint, m.keyLabel(actSelfUpdate))))
 	}

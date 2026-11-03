@@ -11,6 +11,8 @@ import (
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // The Overview: the host as key figures (cards), the next steps and the last changes to the host. The cards
@@ -356,38 +358,38 @@ func ovDate(ui *uiContext, t time.Time) string {
 }
 
 // ovMark is the leading mark of a step: its shape tells the kind as well as its colour.
-func ovMark(kind statusKind) string {
+func ovMark(ui *uiContext, kind statusKind) string {
 	switch kind {
 	case statusWarn:
-		return styles.warning.Render(warnMark)
+		return ui.st(kittui.StyleWarn).Render(warnMark)
 	case statusFail:
-		return styles.fail.Render("✗")
+		return ui.st(kittui.StyleFail).Render("✗")
 	case statusDim:
-		return styles.hint.Render("○")
+		return ui.st(kittui.StyleHint).Render("○")
 	}
-	return styles.ok.Render("●")
+	return ui.st(kittui.StyleOK).Render("●")
 }
 
 // ovLine is one entry line of width cells; the selected one carries the bar, which is ">" without colour.
-func ovLine(text string, selected bool, width int) string {
+func ovLine(ui *uiContext, text string, selected bool, width int) string {
 	room := max(width-2, 0)
 	if !selected {
 		return "  " + clipCells(text, room)
 	}
-	return styles.selMark.Render(selectionMark()) + styles.activeRow.Render(keepStyle(" "+padLine(clipCells(text, room), room), styles.activeRow))
+	return ui.st(kittui.StyleSelectionMark).Render(ui.styles.SelectionMark()) + ui.st(kittui.StyleActiveRow).Render(keepStyle(" "+padLine(clipCells(text, room), room), ui.st(kittui.StyleActiveRow)))
 }
 
 // ovValueStyle is the style of the figure on a card.
-func ovValueStyle(k statusKind) lipgloss.Style {
+func ovValueStyle(ui *uiContext, k statusKind) lipgloss.Style {
 	switch k {
 	case statusDim:
-		return styles.hint
+		return ui.st(kittui.StyleHint)
 	case statusWarn:
-		return styles.warning
+		return ui.st(kittui.StyleWarn)
 	case statusFail:
-		return styles.fail
+		return ui.st(kittui.StyleFail)
 	}
-	return styles.title
+	return ui.st(kittui.StyleTitle)
 }
 
 // overviewBody draws the Overview and registers its click targets. A click marks the entry and acts like
@@ -395,7 +397,7 @@ func ovValueStyle(k statusKind) lipgloss.Style {
 func (m *Model) overviewBody() string {
 	cards, steps, p := m.overviewNow()
 	if len(steps) == 0 {
-		return m.wrapped(styles.hint, m.tr(tChecking))
+		return m.wrapped(m.ui.st(kittui.StyleHint), m.tr(tChecking))
 	}
 	o := &m.ovr
 	width := m.usable(0)
@@ -427,7 +429,7 @@ func (m *Model) overviewBody() string {
 		})
 	}
 
-	lines = append(lines, titleLine(m.area.title(m.ui), ovDate(m.ui, m.timeNow()), width))
+	lines = append(lines, titleLine(m.ui, m.area.title(m.ui), ovDate(m.ui, m.timeNow()), width))
 	if p.blank {
 		lines = append(lines, "")
 	}
@@ -437,9 +439,9 @@ func (m *Model) overviewBody() string {
 		var parts []string
 		x := 0
 		for i, c := range cards {
-			text := c.label + " " + ovValueStyle(c.kind).Render(c.value)
+			text := c.label + " " + ovValueStyle(m.ui, c.kind).Render(c.value)
 			if sel(ovCards, i) {
-				text = styles.activeRow.Render(keepStyle("> "+c.label+" "+c.value, styles.activeRow))
+				text = m.ui.st(kittui.StyleActiveRow).Render(keepStyle("> "+c.label+" "+c.value, m.ui.st(kittui.StyleActiveRow)))
 			}
 			w := lipgloss.Width(text)
 			hit(len(lines), 1, x, x+w, ovCards, i, c.act)
@@ -463,8 +465,8 @@ func (m *Model) overviewBody() string {
 					label = "> " + c.label
 				}
 			}
-			value := ovValueStyle(c.kind).Render(truncateCells(c.value, inner))
-			panels = append(panels, panel(truncateCells(label, inner), []string{value}, inner, 1, panelOpts{focused: sel(ovCards, i)}))
+			value := ovValueStyle(m.ui, c.kind).Render(truncateCells(c.value, inner))
+			panels = append(panels, panel(m.ui, truncateCells(label, inner), []string{value}, inner, 1, panelOpts{focused: sel(ovCards, i)}))
 			hit(len(lines), ovCardRows, x, x+w, ovCards, i, c.act)
 			x += w + 1
 		}
@@ -494,24 +496,24 @@ func (m *Model) overviewBody() string {
 		for j, text := range piece {
 			lead := "  "
 			if j == 0 {
-				lead = ovMark(steps[i].kind) + " "
+				lead = ovMark(m.ui, steps[i].kind) + " "
 			}
-			body = append(body, ovLine(lead+text, sel(ovSteps, i), inner))
+			body = append(body, ovLine(m.ui, lead+text, sel(ovSteps, i), inner))
 		}
 		hit(first+len(body)-len(piece), len(piece), 0, width, ovSteps, i, steps[i].act)
 	}
 	stepsRow := len(lines)
 	if p.framed {
-		lines = append(lines, panel(m.tr(tOvSteps), body, inner, len(body), panelOpts{focused: focus && zone == ovSteps})...)
+		lines = append(lines, panel(m.ui, m.tr(tOvSteps), body, inner, len(body), panelOpts{focused: focus && zone == ovSteps})...)
 	} else {
-		lines = append(lines, styles.title.Render(m.tr(tOvSteps)))
+		lines = append(lines, m.ui.st(kittui.StyleTitle).Render(m.tr(tOvSteps)))
 		lines = append(lines, body...)
 	}
 	wheel(stepsRow, len(lines)-stepsRow, min(len(steps), p.steps), ovSteps)
 
 	if p.changes > 0 {
 		rows := m.changeLines(width - 4)[:p.changes]
-		lines = append(lines, panel(m.tr(tOvLastChanges), rows, width-4, len(rows), panelOpts{})...)
+		lines = append(lines, panel(m.ui, m.tr(tOvLastChanges), rows, width-4, len(rows), panelOpts{})...)
 	}
 
 	return strings.Join(lines, "\n")
@@ -523,10 +525,10 @@ func (m *Model) overviewBody() string {
 func (m *Model) changeLines(width int) []string {
 	o := &m.ovr
 	if !m.serviceUp() || !o.haveLog {
-		return []string{styles.hint.Render(clipCells(m.noData(), width))}
+		return []string{m.ui.st(kittui.StyleHint).Render(clipCells(m.noData(), width))}
 	}
 	if len(o.changes) == 0 {
-		return []string{styles.hint.Render(clipCells(m.tr(tOvNoChanges), width))}
+		return []string{m.ui.st(kittui.StyleHint).Render(clipCells(m.tr(tOvNoChanges), width))}
 	}
 	var lines []string
 	for _, e := range o.changes[:min(len(o.changes), ovMaxChanges)] {
@@ -549,9 +551,9 @@ func (m *Model) overviewVersionLine(width int) string {
 		version = m.svc.st.Version
 	}
 	name := strings.TrimSpace("qsysmin " + version)
-	text, plain := styles.hint.Render(name), name
+	text, plain := m.ui.st(kittui.StyleHint).Render(name), name
 	if latest := m.updateAvailable(); latest != "" {
-		text += styles.warning.Render(" → " + latest)
+		text += m.ui.st(kittui.StyleWarn).Render(" → " + latest)
 		plain += " → " + latest
 	}
 	return clipCells(text, width)
@@ -559,4 +561,6 @@ func (m *Model) overviewVersionLine(width int) string {
 
 // statusRow leads a line with a mark whose shape tells the kind as well as its colour: a dot for what is well,
 // a warning sign, a cross for what failed, a ring for what has no data.
-func statusRow(kind statusKind, text string) string { return ovMark(kind) + " " + text }
+func statusRow(ui *uiContext, kind statusKind, text string) string {
+	return ovMark(ui, kind) + " " + text
+}

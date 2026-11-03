@@ -101,7 +101,7 @@ func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
 	for _, line := range strings.Split(view, "\n") {
 		switch {
 		case strings.Contains(line, "go overview"):
-			if !strings.Contains(line, "Show Overview") || !strings.Contains(line, " 1 │") {
+			if !strings.Contains(line, "Show Overview") || !strings.Contains(line, " 1 │") && !strings.Contains(line, " 1 ║") {
 				t.Errorf("row lacks description or key: %q", line)
 			}
 		case strings.Contains(line, "go settings update"):
@@ -305,7 +305,7 @@ func TestPaletteIsAnOverlayAndTakesTheWorkspaceWhereTheTerminalIsSmall(t *testin
 			send(m, ":")
 			view := plain(m)
 			assertViewFits(t, view, size[0], size[1])
-			if modal := strings.Contains(view, "╭"); modal != (size[0] >= modalMinWidth && size[1] >= modalMinHeight) {
+			if modal := framed(view); modal != (size[0] >= modalMinWidth && size[1] >= modalMinHeight) {
 				t.Errorf("%dx%d: overlay = %v", size[0], size[1], modal)
 			}
 			if len(paletteRows(m)) == 0 {

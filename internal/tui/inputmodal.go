@@ -1,6 +1,10 @@
 package tui
 
-import "strings"
+import (
+	"strings"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+)
 
 // promptDialog is the one shape of every short input dialog and of the result of a connection test: a
 // title, an optional notice, the finished input rows, one hint under them and the key line. The modal and
@@ -28,7 +32,7 @@ func (m *Model) promptText(d promptDialog, titled bool) string {
 		if m.fail != "" && m.termHeight <= minimumHeight {
 			gap = "\n"
 		}
-		b.WriteString(m.wrapped(styles.title, d.title) + gap)
+		b.WriteString(m.wrapped(m.ui.st(kittui.StyleTitle), d.title) + gap)
 	}
 	if d.notice != "" {
 		b.WriteString(d.notice + "\n\n")
@@ -55,7 +59,7 @@ func (m *Model) promptText(d promptDialog, titled bool) string {
 func (m *Model) surfaced(input string) string {
 	first, rest, more := strings.Cut(input, "\n")
 	lead := len(first) - len(strings.TrimLeft(first, " "))
-	first = first[:lead] + surfaceRow(first[lead:], m.usable(lead))
+	first = first[:lead] + surfaceRow(m.ui, first[lead:], m.usable(lead))
 	if more {
 		return first + "\n" + rest
 	}
@@ -81,10 +85,10 @@ func (m *Model) promptScreenText(d promptDialog) string {
 func (m *Model) promptNotes() string {
 	var b strings.Builder
 	if m.busy != "" {
-		b.WriteString("\n" + m.wrapped(styles.hint, m.busy+" ..."))
+		b.WriteString("\n" + m.wrapped(m.ui.st(kittui.StyleHint), m.busy+" ..."))
 	}
 	if m.fail != "" {
-		b.WriteString("\n" + m.wrapped(styles.fail, m.tr(tNoteError, m.fail)))
+		b.WriteString("\n" + m.wrapped(m.ui.st(kittui.StyleFail), m.tr(tNoteError, m.fail)))
 	}
 	return b.String()
 }

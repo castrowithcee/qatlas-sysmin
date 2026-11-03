@@ -211,8 +211,8 @@ type column struct {
 }
 
 // toneText styles the cells that carry content, toneDim the ones that only add detail.
-func toneText(string) lipgloss.Style { return styles.cell }
-func toneDim(string) lipgloss.Style  { return styles.hint }
+func (u *uiContext) toneText(string) lipgloss.Style { return u.st(kittui.StyleText) }
+func (u *uiContext) toneDim(string) lipgloss.Style  { return u.st(kittui.StyleHint) }
 
 // flexFloor is the narrowest a free text column is cut to before anything else of the row gives way.
 const flexFloor = 12

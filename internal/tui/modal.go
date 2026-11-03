@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 const (
@@ -75,7 +77,7 @@ func (m *Model) modalView() (string, bool) {
 		m.renderAs(m.screen, inner, func() {
 			var d promptDialog
 			if d, ok = m.prompt(); ok {
-				text = m.wrapped(styles.title, d.title) + "\n\n" + m.promptText(d, false) + m.promptNotes()
+				text = m.wrapped(m.ui.st(kittui.StyleTitle), d.title) + "\n\n" + m.promptText(d, false) + m.promptNotes()
 			}
 		})
 		if !ok {
@@ -95,7 +97,7 @@ func (m *Model) modalView() (string, bool) {
 	for i, line := range lines {
 		lines[i] = ansi.Truncate(line, inner, "")
 	}
-	dialog := panel(title, lines, inner, len(lines), panelOpts{focused: true})
+	dialog := panel(m.ui, title, lines, inner, len(lines), panelOpts{focused: true})
 
 	var background string
 	m.renderAs(m.baseScreen(), 0, func() {
@@ -107,13 +109,13 @@ func (m *Model) modalView() (string, bool) {
 	m.hitDialog(lines, footers, top, left)
 	m.hitFormLines(lines, top+1, left+1, left+ansi.StringWidth(dialog[0])-1)
 	m.hitFormWheel(left, top, left+ansi.StringWidth(dialog[0]), top+len(dialog))
-	return overlay(background, dialog, m.termWidth, m.termHeight), true
+	return overlay(m.ui, background, dialog, m.termWidth, m.termHeight), true
 }
 
 // overlay draws dialog centred over background in a screen of width by height. The background is dimmed:
 // stripped of its colours and drawn faint, so it stays readable and only the dialog stands out, and still
 // does without colour, where its border marks the dialog.
-func overlay(background string, dialog []string, width, height int) string {
+func overlay(ui *uiContext, background string, dialog []string, width, height int) string {
 	rows := strings.Split(background, "\n")
 	for len(rows) < height {
 		rows = append(rows, "")
@@ -128,19 +130,19 @@ func overlay(background string, dialog []string, width, height int) string {
 		plain := ansi.Strip(row)
 		plain += strings.Repeat(" ", max(width-ansi.StringWidth(plain), 0))
 		if i < top || i >= top+len(dialog) {
-			rows[i] = dim(ansi.Cut(plain, 0, width))
+			rows[i] = dim(ui, ansi.Cut(plain, 0, width))
 			continue
 		}
-		rows[i] = dim(ansi.Cut(plain, 0, left)) + dialog[i-top] + dim(ansi.Cut(plain, left+dialogWidth, width))
+		rows[i] = dim(ui, ansi.Cut(plain, 0, left)) + dialog[i-top] + dim(ui, ansi.Cut(plain, left+dialogWidth, width))
 	}
 	return strings.Join(rows, "\n")
 }
 
-func dim(text string) string {
+func dim(ui *uiContext, text string) string {
 	if text == "" {
 		return ""
 	}
-	return styles.hint.Render(text)
+	return ui.st(kittui.StyleHint).Render(text)
 }
 
 // question is the one shape of every yes/no and leave question: the question itself, one sentence on what
@@ -164,11 +166,11 @@ type question struct {
 
 // questionHeading is the question of a modal with the warning mark at its left.
 func (m *Model) questionHeading(title string, calm bool) string {
-	lines := strings.Split(render(styles.title, m.usable(2), title), "\n")
+	lines := strings.Split(render(m.ui.st(kittui.StyleTitle), m.usable(2), title), "\n")
 	for i, line := range lines {
 		lead := "  "
 		if i == 0 && !calm {
-			lead = styles.warning.Render(warnMark) + " "
+			lead = m.ui.st(kittui.StyleWarn).Render(warnMark) + " "
 		}
 		lines[i] = lead + line
 	}
@@ -176,15 +178,15 @@ func (m *Model) questionHeading(title string, calm bool) string {
 }
 
 func (m *Model) questionText(q question) string {
-	style := styles.hint
+	style := m.ui.st(kittui.StyleHint)
 	if q.warn {
-		style = styles.warning
+		style = m.ui.st(kittui.StyleWarn)
 	}
 	var b strings.Builder
 	if m.inModal || m.inPanel {
 		b.WriteString(m.questionHeading(q.title, q.calm) + "\n\n")
 	} else {
-		b.WriteString(m.wrapped(styles.title, q.title) + "\n\n")
+		b.WriteString(m.wrapped(m.ui.st(kittui.StyleTitle), q.title) + "\n\n")
 	}
 	b.WriteString(m.indentedWith(style, q.consequence) + "\n")
 	for _, d := range q.details {

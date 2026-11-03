@@ -96,7 +96,7 @@ func (m *Model) buttonRows(buttons []dialogButton) string {
 	}
 	x := 0
 	for _, b := range buttons {
-		drawn := button(b.kind, b.label, b.focused)
+		drawn := button(m.ui, b.kind, b.label, b.focused)
 		w := lipgloss.Width(drawn)
 		if x > 0 && x+len(buttonGap)+w > width {
 			flush()

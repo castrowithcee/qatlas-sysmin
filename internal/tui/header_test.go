@@ -9,6 +9,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/castrowithcee/qatlas-kit/i18n"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 func lipglossWidth(s string) int { return lipgloss.Width(s) }
@@ -71,8 +73,8 @@ func TestHeaderNamesEveryStateInWordsWithoutColour(t *testing.T) {
 		"unknown": "checking", "unreachable": "service unreachable", "up": "qsysmin", "update": "9.9.9 available",
 	}
 	headerStates(t, func(name string, m *Model) {
-		setProfile(detectProfile(os.Stdout))
-		if currentProfile() != profileNone {
+		useProfile(m, kittui.DetectColorProfile(os.Stdout, os.Environ()))
+		if !m.ui.colorless() {
 			t.Fatal("NO_COLOR keeps the colours")
 		}
 		row := m.render()

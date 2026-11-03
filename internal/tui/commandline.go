@@ -7,6 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // The command line (':') runs the interface's actions by name. It is a register, not a second set of keys:
@@ -220,16 +222,16 @@ func (m *Model) paletteBody(inner, room int) ([]string, []int) {
 	p := m.pop
 	matches := matchCommands(m.commands(), p.in.Value())
 	field := fitInput(p.in, inner-3)
-	lines := []string{surfaceRow(" "+inputView(field), inner), ""}
+	lines := []string{surfaceRow(m.ui, " "+inputView(field), inner), ""}
 	index := []int{-1, -1}
 	var msg []string
 	if p.msg != "" {
-		msg = strings.Split(render(styles.fail, inner, m.tr(tNoteError, p.msg)), "\n")
+		msg = strings.Split(render(m.ui.st(kittui.StyleFail), inner, m.tr(tNoteError, p.msg)), "\n")
 	}
 	switch {
 	case len(matches) == 0 && p.msg != "":
 	case len(matches) == 0:
-		lines, index = append(lines, styles.hint.Render(truncateCells(m.tr(tCmdNoMatch), inner))), append(index, -1)
+		lines, index = append(lines, m.ui.st(kittui.StyleHint).Render(truncateCells(m.tr(tCmdNoMatch), inner))), append(index, -1)
 	default:
 		avail := max(room-len(lines)-len(msg), 1)
 		rows := min(avail, paletteMaxRows, len(matches))
@@ -251,7 +253,7 @@ func (m *Model) paletteBody(inner, room int) ([]string, []int) {
 			lines, index = append(lines, m.paletteRow(matches[i], i == cursor, nameW, keyW, inner)), append(index, i)
 		}
 		if len(matches) > end-start {
-			lines, index = append(lines, styles.hint.Render(truncateCells(m.tr(tCmdPosition, start+1, end, len(matches)), inner))), append(index, -1)
+			lines, index = append(lines, m.ui.st(kittui.StyleHint).Render(truncateCells(m.tr(tCmdPosition, start+1, end, len(matches)), inner))), append(index, -1)
 		}
 	}
 	for _, l := range msg {
@@ -276,13 +278,13 @@ func (m *Model) paletteRow(c command, chosen bool, nameW, keyW, width int) strin
 	left := padLine(truncateCells(fmt.Sprintf("%-*s  %s", nameW, c.name, c.desc), avail), avail)
 	switch {
 	case c.reason(m) != "":
-		left = styles.hint.Render(left)
+		left = m.ui.st(kittui.StyleHint).Render(left)
 	case chosen:
-		left = styles.active.Render(left)
+		left = m.ui.st(kittui.StyleActive).Render(left)
 	}
-	row := prefix + left + " " + styles.hint.Render(right)
+	row := prefix + left + " " + m.ui.st(kittui.StyleHint).Render(right)
 	if chosen {
-		return surfaceRow(row, width)
+		return surfaceRow(m.ui, row, width)
 	}
 	return row
 }
