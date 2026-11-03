@@ -17,7 +17,7 @@ Users (3)                                                         1/2 ╭─ dem
                             ║                                                              ║                           │
                             ║     This cannot be undone: the old content is not kept       ║ the fields only root can  │
                             ║                                                              ║                           │
-                            ║   $ demo-wipe '/srv/demo stack'                              ║───────────────────────────╯
+                            ║   $ demo-wipe '/srv/demo app'                                ║───────────────────────────╯
                             ║                                                              ║                            
                             ║ [ Apply ]  [ Cancel ]                                        ║                            
                             ║                                                              ║                            

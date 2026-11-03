@@ -11,9 +11,10 @@ import (
 	"time"
 )
 
-// TestInspectAgainstRealDocker checks that the inspect template works for containers with and without a
-// healthcheck and labels. It only runs when SYSMIN_DOCKER_TEST=1 and uses an image that must exist locally.
-func TestInspectAgainstRealDocker(t *testing.T) {
+// TestContainerCheckAgainstRealDocker checks the docker ps and inspect parsing for containers with and
+// without a healthcheck and labels. It only runs when SYSMIN_DOCKER_TEST=1 and uses an image that must exist
+// locally.
+func TestContainerCheckAgainstRealDocker(t *testing.T) {
 	if os.Getenv("SYSMIN_DOCKER_TEST") != "1" {
 		t.Skip("set SYSMIN_DOCKER_TEST=1 to run the test against a real Docker daemon")
 	}
@@ -32,7 +33,7 @@ func TestInspectAgainstRealDocker(t *testing.T) {
 	specs := map[string][]string{
 		"plain":       {},
 		"healthcheck": {"--health-cmd", "true", "--health-interval", "1s"},
-		"labeled":     {"--label", "example.test=1", "--label", "com.docker.compose.project.environment_file=/srv/demo/.env"},
+		"labeled":     {"--label", composeWorkingDirLabel + "=/srv/demo-app/deploy"},
 	}
 	ids := map[string]string{}
 	for name, extra := range specs {
@@ -48,7 +49,20 @@ func TestInspectAgainstRealDocker(t *testing.T) {
 	}
 	time.Sleep(3 * time.Second) // let the first health probe run
 
-	c := StackCheck{}
+	c := ContainerCheck{}
+	running, err := c.listRunning(context.Background())
+	if err != nil {
+		t.Fatalf("listRunning: %v", err)
+	}
+	for name, id := range ids {
+		found := false
+		for _, r := range running {
+			found = found || r == id
+		}
+		if !found {
+			t.Errorf("%s is missing from the running containers", name)
+		}
+	}
 	got, err := c.inspect(context.Background(), []string{ids["plain"], ids["healthcheck"], ids["labeled"]})
 	if err != nil {
 		t.Fatalf("inspect: %v", err)
@@ -64,7 +78,10 @@ func TestInspectAgainstRealDocker(t *testing.T) {
 	if h := got[ids["healthcheck"]].Health; h == "" {
 		t.Error("healthcheck: health is empty, want a status")
 	}
-	if e := got[ids["labeled"]].EnvFiles; e != "/srv/demo/.env" {
-		t.Errorf("labeled: envfiles %q", e)
+	if w := got[ids["labeled"]].WorkDir; w != "/srv/demo-app/deploy" {
+		t.Errorf("labeled: workdir %q", w)
+	}
+	if w := got[ids["plain"]].WorkDir; w != "" {
+		t.Errorf("plain: workdir %q, want empty", w)
 	}
 }

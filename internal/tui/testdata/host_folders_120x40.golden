@@ -4,7 +4,7 @@ sysmin  ● vault open  ● admin off                                           
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Folders
 
-Path: /srv/demo-stack 
+Path: /srv/demo-app 
 
 Type          folder
 Owner root    read and write

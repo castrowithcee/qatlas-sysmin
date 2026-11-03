@@ -9,7 +9,7 @@ Users (3)                                                                    1/2
 ║ > demo║                                                              ║       ║
 ║   demo║     This cannot be undone: the old content is not kept       ║       ║
 ║   ▸ Sy║                                                              ║       ║
-╚═══════║   $ demo-wipe '/srv/demo stack'                              ║═══════╝
+╚═══════║   $ demo-wipe '/srv/demo app'                                ║═══════╝
         ║                                                              ║        
         ║ [ Apply ]  [ Cancel ]                                        ║        
         ║                                                              ║        

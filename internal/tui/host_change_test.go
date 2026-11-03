@@ -127,7 +127,7 @@ func hostActions(t *testing.T) *hostchange.Registry {
 		}},
 		{ID: "demo.wipe", Plan: func([]string, []byte) (hostchange.Plan, error) {
 			return hostchange.Plan{Sentence: "Wipe the demo folder.", NotReversible: "the old content is not kept",
-				Commands: []hostchange.Command{{Argv: []string{"demo-wipe", "/srv/demo stack"}}}}, nil
+				Commands: []hostchange.Command{{Argv: []string{"demo-wipe", "/srv/demo app"}}}}, nil
 		}},
 		{ID: "demo.login", WantsSecret: true, Plan: func(_ []string, secret []byte) (hostchange.Plan, error) {
 			return hostchange.Plan{Sentence: "Set the login secret.", NotReversible: "the old one is not kept",
@@ -136,7 +136,7 @@ func hostActions(t *testing.T) *hostchange.Registry {
 		{ID: "demo.long", Inverse: inverse, Plan: func([]string, []byte) (hostchange.Plan, error) {
 			return hostchange.Plan{Sentence: "Run a long command.", Commands: []hostchange.Command{{Argv: []string{
 				"demo-tool", "--option-one", "value-number-one", "--option-two", "value-number-two", "--option-three",
-				"value number three with spaces", "--option-four", "/srv/demo-stack/a/very/long/path/that/keeps/going/on"}}}}, nil
+				"value number three with spaces", "--option-four", "/srv/demo-app/a/very/long/path/that/keeps/going/on"}}}}, nil
 		}},
 	} {
 		if err := reg.Register(d); err != nil {
@@ -203,7 +203,7 @@ func TestConfirmWrapsLongCommandsInsideTheModal(t *testing.T) {
 	drain(m, m.askHostChange("demo.long", nil))
 	view := plain(m)
 	assertViewFits(t, view, 80, 24)
-	for _, want := range []string{"--option-three", "'value number three", "with spaces'", "/srv/demo-stack/a/very/long/path/that/keeps/going/on"} {
+	for _, want := range []string{"--option-three", "'value number three", "with spaces'", "/srv/demo-app/a/very/long/path/that/keeps/going/on"} {
 		if !strings.Contains(flatText(view), want) {
 			t.Errorf("a wrapped command lost %q:\n%s", want, view)
 		}
@@ -217,7 +217,7 @@ func TestIrreversibleChangesAreDangerousAndSayTheyCannotBeUndone(t *testing.T) {
 	if m.ask == nil || !m.ask.danger || !m.ask.warn || !strings.Contains(flatText(view), "This cannot be undone: the old content is not kept") {
 		t.Errorf("ask %+v\n%s", m.ask, view)
 	}
-	if !strings.Contains(view, "'/srv/demo stack'") {
+	if !strings.Contains(view, "'/srv/demo app'") {
 		t.Errorf("the quoted argument is not shown as it runs:\n%s", view)
 	}
 }

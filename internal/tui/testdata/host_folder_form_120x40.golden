@@ -4,7 +4,7 @@ sysmin  ● vault open  ● admin off                                           
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Folders                                                                                                                 
                                                                                                                         
-Path: /srv/demo-stack                                                                                                   
+Path: /srv/demo-app                                                                                                     
                                                                                                                         
 Type          folder                                                                                                    
 Owner root    read and write                                                                                            
@@ -12,7 +12,7 @@ Group sysmin  read
 Others        nothing                                                                                                   
 Mode          2750                                                                                                      
 ACL           set: further r╔══════════════════════════════════════════════════════════════╗                            
-Special       setgid: new en║ Change /srv/demo-stack                                       ║                            
+Special       setgid: new en║ Change /srv/demo-app                                         ║                            
                             ║                                                              ║                            
                             ║ > Owner:                < root >                             ║                            
                             ║   Group:                sysmin                               ║                            

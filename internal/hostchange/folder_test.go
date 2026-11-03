@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -57,7 +56,7 @@ func newFolderFixture(t *testing.T) *folderFixture {
 	accounts := &hostadmin.Host{PasswdPath: passwd, GroupPath: group, ShadowPath: filepath.Join(dir, "shadow"), Now: time.Now}
 	f := &folderFixture{folderWorld: &folderWorld{}, docker: &fakeDocker{states: [][]fakeContainer{{}}}, root: root, accounts: accounts}
 	reg := NewRegistry()
-	if err := RegisterFolderActions(reg, FolderHost{Accounts: accounts, Stacks: newCheck(f.docker)}); err != nil {
+	if err := RegisterFolderActions(reg, FolderHost{Accounts: accounts, Containers: newCheck(f.docker)}); err != nil {
 		t.Fatal(err)
 	}
 	j, err := OpenJournal(filepath.Join(dir, "host", "journal"), os.Getuid())
@@ -192,7 +191,7 @@ func TestSystemPathsStayRefusedWhereAcknowledgementIsNotEnough(t *testing.T) {
 func TestIsSystemPath(t *testing.T) {
 	for p, want := range map[string]bool{
 		"/": true, "/etc": true, "/etc/x": true, "/usr/local": true, "/boot": true, "/proc/1": true, "/sys/x": true,
-		"/etcetera": false, "/srv/demo-stack": false, "/home": false, "/etc/../srv": false,
+		"/etcetera": false, "/srv/demo-app": false, "/home": false, "/etc/../srv": false,
 	} {
 		if got := IsSystemPath(p); got != want {
 			t.Errorf("IsSystemPath(%q) = %v", p, got)
@@ -358,9 +357,9 @@ func contains(list []string, s string) bool {
 
 func TestInverseChunksLongPathLists(t *testing.T) {
 	var st folderState
-	st.Path = "/srv/demo-stack"
+	st.Path = "/srv/demo-app"
 	for i := range 2500 {
-		st.Entries = append(st.Entries, folderEntry{Path: fmt.Sprintf("/srv/demo-stack/file-%04d", i), Kind: "file", UID: 1, GID: 2, Mode: 0o644})
+		st.Entries = append(st.Entries, folderEntry{Path: fmt.Sprintf("/srv/demo-app/file-%04d", i), Kind: "file", UID: 1, GID: 2, Mode: 0o644})
 	}
 	b, _ := jsonMarshal(st)
 	plan, err := folderActions{}.inverseSetPermissions(b)
@@ -383,11 +382,11 @@ func TestInverseChunksLongPathLists(t *testing.T) {
 
 func TestInverseRefusesAnUnusableRecord(t *testing.T) {
 	for name, st := range map[string]folderState{
-		"outside": {Path: "/srv/demo-stack", Entries: []folderEntry{{Path: "/srv/other/x", Kind: "file", Mode: 0o644}}},
-		"mode":    {Path: "/srv/demo-stack", Entries: []folderEntry{{Path: "/srv/demo-stack/x", Kind: "file", Mode: 0o17777}}},
-		"kind":    {Path: "/srv/demo-stack", Entries: []folderEntry{{Path: "/srv/demo-stack/x", Kind: "odd", Mode: 0o644}}},
-		"empty":   {Path: "/srv/demo-stack"},
-		"unclean": {Path: "/srv/demo-stack", Entries: []folderEntry{{Path: "/srv/demo-stack/../x", Kind: "file", Mode: 0o644}}},
+		"outside": {Path: "/srv/demo-app", Entries: []folderEntry{{Path: "/srv/other/x", Kind: "file", Mode: 0o644}}},
+		"mode":    {Path: "/srv/demo-app", Entries: []folderEntry{{Path: "/srv/demo-app/x", Kind: "file", Mode: 0o17777}}},
+		"kind":    {Path: "/srv/demo-app", Entries: []folderEntry{{Path: "/srv/demo-app/x", Kind: "odd", Mode: 0o644}}},
+		"empty":   {Path: "/srv/demo-app"},
+		"unclean": {Path: "/srv/demo-app", Entries: []folderEntry{{Path: "/srv/demo-app/../x", Kind: "file", Mode: 0o644}}},
 	} {
 		b, _ := jsonMarshal(st)
 		if _, err := (folderActions{}).inverseSetPermissions(b); err == nil {
@@ -396,26 +395,38 @@ func TestInverseRefusesAnUnusableRecord(t *testing.T) {
 	}
 }
 
-func TestFolderChangeBeforeAndAfterAffectedStacks(t *testing.T) {
+func TestFolderChangeBeforeAndAfterAffectedContainers(t *testing.T) {
 	f := newFolderFixture(t)
-	f.docker.stacks = stackRow(idWeb, "demo", f.root, filepath.Join(f.root, "compose.yml"))
-	f.docker.states = [][]fakeContainer{{healthy(idWeb, "demo-web-1")}}
+	f.docker.states = [][]fakeContainer{{webAt(f.root, func(*fakeContainer) {})}}
 	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root), nil)
 	if err != nil || res.Entry.Result != ResultApplied || res.Entry.Check != CheckPassed {
 		t.Fatalf("%v %+v", err, res.Entry)
 	}
 	if f.docker.inspects < 3 {
-		t.Errorf("the stack was looked at %d times", f.docker.inspects)
+		t.Errorf("the container was looked at %d times", f.docker.inspects)
 	}
 }
 
-func TestUnhealthyStackRestoresThePreviousState(t *testing.T) {
+func TestFolderChangeWithoutAffectedContainersDoesNotObserve(t *testing.T) {
+	f := newFolderFixture(t)
+	elsewhere := healthy(idWeb, "demo-web-1")
+	elsewhere.Mounts = []fakeMount{{"bind", f.root + "-other"}}
+	f.docker.states = [][]fakeContainer{{elsewhere}}
+	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root), nil)
+	if err != nil || res.Entry.Result != ResultApplied || res.Entry.Check != CheckPassed {
+		t.Fatalf("%v %+v", err, res.Entry)
+	}
+	if f.docker.inspects != 1 || f.docker.pses != 1 {
+		t.Errorf("docker was called %d times for ps and %d for inspect", f.docker.pses, f.docker.inspects)
+	}
+}
+
+func TestUnhealthyContainerRestoresThePreviousState(t *testing.T) {
 	f := newFolderFixture(t)
 	buildTree(t, f.root)
-	f.docker.stacks = stackRow(idWeb, "demo", f.root, filepath.Join(f.root, "compose.yml"))
-	bad := healthy(idWeb, "demo-web-1")
-	bad.Health = "unhealthy"
-	f.docker.states = [][]fakeContainer{{healthy(idWeb, "demo-web-1")}, {healthy(idWeb, "demo-web-1")}, {bad}}
+	ok := webAt(f.root, func(*fakeContainer) {})
+	bad := webAt(f.root, func(c *fakeContainer) { c.Health = "unhealthy" })
+	f.docker.states = [][]fakeContainer{{ok}, {ok}, {bad}}
 	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root, "recursive"), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -424,7 +435,7 @@ func TestUnhealthyStackRestoresThePreviousState(t *testing.T) {
 	if e.Result != ResultRestored || !e.Restored || e.Check != CheckFailed {
 		t.Fatalf("%+v", e)
 	}
-	if want := "stack demo, container demo-web-1: the container became unhealthy"; e.CheckError != want {
+	if want := "container demo-web-1: the container became unhealthy"; e.CheckError != want {
 		t.Errorf("check error %q", e.CheckError)
 	}
 	if len(f.calls) < 4 || !strings.HasPrefix(f.calls[2], "chown -h -- ") || !strings.HasPrefix(f.calls[len(f.calls)-1], "chmod -- 0") {
@@ -432,30 +443,25 @@ func TestUnhealthyStackRestoresThePreviousState(t *testing.T) {
 	}
 }
 
-func TestRestartedStackRestores(t *testing.T) {
+func TestStoppedContainerRestores(t *testing.T) {
 	f := newFolderFixture(t)
-	f.docker.stacks = stackRow(idWeb, "demo", "/srv/elsewhere", "")
 	ct := healthy(idWeb, "demo-web-1")
 	ct.Mounts = []fakeMount{{"bind", filepath.Join(f.root, "data")}}
-	again := ct
-	again.Restarts = 1
-	f.docker.states = [][]fakeContainer{{ct}, {ct}, {again}}
+	stopped := ct
+	stopped.Status, stopped.Running = "exited", false
+	f.docker.states = [][]fakeContainer{{ct}, {ct}, {stopped}}
 	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Entry.Result != ResultRestored || !strings.Contains(res.Entry.CheckError, "the container restarted (restart count 1, was 0)") {
+	if res.Entry.Result != ResultRestored || !strings.Contains(res.Entry.CheckError, "the container is not running (exited)") {
 		t.Fatalf("%+v", res.Entry)
 	}
 }
 
 func TestUnreachableDockerRefusesBeforeChanging(t *testing.T) {
 	f := newFolderFixture(t)
-	reg := NewRegistry()
-	if err := RegisterFolderActions(reg, FolderHost{Accounts: f.accounts, Stacks: StackCheck{Docker: failingDocker{err: errors.New("docker: cannot connect")}}}); err != nil {
-		t.Fatal(err)
-	}
-	f.runner.Registry = reg
+	f.docker.err = errors.New("docker: cannot connect")
 	_, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root), nil)
 	var ref *RefusedError
 	if !errors.As(err, &ref) || !strings.Contains(ref.Msg, "cannot be checked") || len(f.calls) != 0 {
@@ -463,14 +469,9 @@ func TestUnreachableDockerRefusesBeforeChanging(t *testing.T) {
 	}
 }
 
-func TestHostWithoutDockerHasNoStacksToCheck(t *testing.T) {
+func TestHostWithoutDockerHasNoContainersToCheck(t *testing.T) {
 	f := newFolderFixture(t)
-	reg := NewRegistry()
-	missing := fmt.Errorf("docker ps failed: %w", exec.ErrNotFound)
-	if err := RegisterFolderActions(reg, FolderHost{Accounts: f.accounts, Stacks: StackCheck{Docker: failingDocker{err: missing}}}); err != nil {
-		t.Fatal(err)
-	}
-	f.runner.Registry = reg
+	f.docker.err = fmt.Errorf("docker: %w", exec.ErrNotFound)
 	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root), nil)
 	if err != nil || res.Entry.Result != ResultApplied {
 		t.Fatalf("%v %+v", err, res.Entry)
@@ -479,8 +480,8 @@ func TestHostWithoutDockerHasNoStacksToCheck(t *testing.T) {
 
 func TestSpecialBitsMustStayUnchanged(t *testing.T) {
 	entries := []folderEntry{
-		{Path: "/srv/demo-stack", Kind: "dir", Mode: 0o2755},
-		{Path: "/srv/demo-stack/ln", Kind: "link", Mode: 0o777},
+		{Path: "/srv/demo-app", Kind: "dir", Mode: 0o2755},
+		{Path: "/srv/demo-app/ln", Kind: "link", Mode: 0o777},
 	}
 	same := func(p string) (folderEntry, error) {
 		for _, e := range entries {
@@ -501,12 +502,6 @@ func TestSpecialBitsMustStayUnchanged(t *testing.T) {
 }
 
 func jsonMarshal(v any) ([]byte, error) { return json.Marshal(v) }
-
-type failingDocker struct{ err error }
-
-func (d failingDocker) Run(context.Context, execute.Command) (execute.Result, error) {
-	return execute.Result{}, d.err
-}
 
 // failingRun fails the command whose display starts with prefix and records all.
 type failingRun struct {

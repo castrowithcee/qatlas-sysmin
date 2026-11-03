@@ -39,12 +39,12 @@ func newFixtureHost() *fixtureHost {
 	unlocked, yes := false, true
 	return &fixtureHost{
 		folders: map[string]hostadmin.Folder{
-			"/srv/demo-stack": {Path: "/srv/demo-stack", Resolved: "/srv/demo-stack", Kind: "directory", Owner: "root", Group: "sysmin",
+			"/srv/demo-app": {Path: "/srv/demo-app", Resolved: "/srv/demo-app", Kind: "directory", Owner: "root", Group: "sysmin",
 				Mode: "2750", OwnerAcc: hostadmin.AccessReadWrite, GroupAcc: hostadmin.AccessRead, OthersAcc: hostadmin.AccessNothing,
 				ACL: &yes, Setgid: true},
 			"/etc": {Path: "/etc", Resolved: "/etc", Kind: "directory", Owner: "root", Group: "root", Mode: "0755",
 				OwnerAcc: hostadmin.AccessReadWrite, GroupAcc: hostadmin.AccessRead, OthersAcc: hostadmin.AccessRead, ACL: &unlocked, Protected: true},
-			"/srv/demo-stack/app.conf": {Path: "/srv/demo-stack/app.conf", Resolved: "/srv/demo-stack/app.conf", Kind: "file", Owner: "demo-user",
+			"/srv/demo-app/app.conf": {Path: "/srv/demo-app/app.conf", Resolved: "/srv/demo-app/app.conf", Kind: "file", Owner: "demo-user",
 				Group: "demo-team", Mode: "0640", OwnerAcc: hostadmin.AccessReadWrite, GroupAcc: hostadmin.AccessRead, OthersAcc: hostadmin.AccessNothing},
 		},
 		users: []hostadmin.User{

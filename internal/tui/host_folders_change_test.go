@@ -9,7 +9,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
 
-const restoredFolderReport = `{"journal_id":"x","action":"folder.set-permissions","sentence":"Change /srv/demo-stack and everything below it: owner demo-user, group demo-team; the owner gets read and write, the group read, everyone else no access.","result":"restored","check":"failed","check_error":"stack demo, container demo-web-1: the container became unhealthy","restored":true,"reversible":false,"error":"check failed"}`
+const restoredFolderReport = `{"journal_id":"x","action":"folder.set-permissions","sentence":"Change /srv/demo-app and everything below it: owner demo-user, group demo-team; the owner gets read and write, the group read, everyone else no access.","result":"restored","check":"failed","check_error":"container demo-web-1: the container became unhealthy","restored":true,"reversible":false,"error":"check failed"}`
 
 // openFolderForm reads path on Folders and opens the change form of the folder; count stands in for the
 // file system.
@@ -28,9 +28,9 @@ func fixedCount(n int) func(string, bool) (int, error) {
 
 func TestFolderFormIsPrefilledWithTheCurrentValues(t *testing.T) {
 	m, _, _, _ := userModel(t, 120, 40)
-	openFolderForm(t, m, "/srv/demo-stack", fixedCount(1))
+	openFolderForm(t, m, "/srv/demo-app", fixedCount(1))
 	view := flat(m)
-	for _, want := range []string{"Change /srv/demo-stack", "Owner", "root", "Group", "sysmin", "Owner may", "read and write",
+	for _, want := range []string{"Change /srv/demo-app", "Owner", "root", "Group", "sysmin", "Owner may", "read and write",
 		"Group may", "read", "Others may", "nothing", "Everything below it", "no"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("form lacks %q:\n%s", want, plain(m))
@@ -48,16 +48,16 @@ func TestFolderChangeNeedsAFolderAndIsOfferedOnlyForOne(t *testing.T) {
 		t.Error("e is offered before a folder was read")
 	}
 	send(m, "enter")
-	typed(m, "/srv/demo-stack/app.conf")
+	typed(m, "/srv/demo-app/app.conf")
 	send(m, "enter", "esc", "e")
 	if m.form != nil || m.status == "" || strings.Contains(strings.Join(m.hostKeys(), "|"), "e change") {
 		t.Errorf("a file must not open the form: status %q keys %v", m.status, m.hostKeys())
 	}
 	send(m, "enter")
-	for range "/srv/demo-stack/app.conf" {
+	for range "/srv/demo-app/app.conf" {
 		send(m, "backspace")
 	}
-	typed(m, "/srv/demo-stack")
+	typed(m, "/srv/demo-app")
 	send(m, "enter", "esc")
 	if !strings.Contains(strings.Join(m.hostKeys(), "|"), "e change") || len(f.reqs) != 0 {
 		t.Errorf("keys %v", m.hostKeys())
@@ -66,7 +66,7 @@ func TestFolderChangeNeedsAFolderAndIsOfferedOnlyForOne(t *testing.T) {
 
 func TestRecursiveFolderChangeNamesTheCountAndRunsOnlyAfterYes(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
-	openFolderForm(t, m, "/srv/demo-stack", fixedCount(42))
+	openFolderForm(t, m, "/srv/demo-app", fixedCount(42))
 	send(m, "tab", "tab", "tab", "tab", "tab", "right") // everything below it: yes
 	save(m)
 	view := flat(m)
@@ -120,10 +120,10 @@ func TestTooManyEntriesRefuseInsteadOfAskingAndOtherCountErrorsToo(t *testing.T)
 		want string
 	}{
 		{hostchange.ErrTooManyEntries, "more than 5000 entries"},
-		{errors.New("/srv/demo-stack/x cannot be read"), "cannot be counted"},
+		{errors.New("/srv/demo-app/x cannot be read"), "cannot be counted"},
 	} {
 		m, f, _, _ := userModel(t, 120, 40)
-		openFolderForm(t, m, "/srv/demo-stack", func(string, bool) (int, error) { return 0, tc.err })
+		openFolderForm(t, m, "/srv/demo-app", func(string, bool) (int, error) { return 0, tc.err })
 		send(m, "tab", "tab", "tab", "tab", "tab", "right")
 		save(m)
 		if m.form == nil || m.ask != nil || len(f.reqs) != 0 || !strings.Contains(flat(m), tc.want) {
@@ -132,14 +132,14 @@ func TestTooManyEntriesRefuseInsteadOfAskingAndOtherCountErrorsToo(t *testing.T)
 	}
 }
 
-func TestARestoredFolderChangeNamesStackContainerAndFinding(t *testing.T) {
+func TestARestoredFolderChangeNamesContainerAndFinding(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
-	openFolderForm(t, m, "/srv/demo-stack", fixedCount(1))
+	openFolderForm(t, m, "/srv/demo-app", fixedCount(1))
 	save(m)
 	f.answer = func(HostRequest) (string, error) { return restoredFolderReport, exitError(t, "exit 1") }
 	send(m, "y")
 	view := flat(m)
-	for _, want := range []string{"previous state restored", "stack demo, container demo-web-1: the container became unhealthy"} {
+	for _, want := range []string{"previous state restored", "container demo-web-1: the container became unhealthy"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("result lacks %q:\n%s", want, plain(m))
 		}
@@ -149,7 +149,7 @@ func TestARestoredFolderChangeNamesStackContainerAndFinding(t *testing.T) {
 func TestFolderChangeSpeaksGerman(t *testing.T) {
 	m, _, _, _ := userModel(t, 120, 40)
 	useLanguage(t, "de")
-	openFolderForm(t, m, "/srv/demo-stack", fixedCount(1))
+	openFolderForm(t, m, "/srv/demo-app", fixedCount(1))
 	for _, want := range []string{"Besitzer darf", "Gruppe darf", "Andere dürfen", "Alles darunter"} {
 		if !strings.Contains(flat(m), want) {
 			t.Errorf("German form lacks %q:\n%s", want, plain(m))

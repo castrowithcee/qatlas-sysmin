@@ -4,23 +4,23 @@ sysmin  ● vault open  ● admin off                                           
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Folders                                                                                                                 
                                                                                                                         
-Path: /srv/demo-stack                                                                                                   
+Path: /srv/demo-app                                                                                                     
                                                                                                                         
 Type          folder                                                                                                    
 Owner root    read and write                                                                                            
 Group sysmin  read                                                                                                      
 Others        nothing       ╔══════════════════════════════════════════════════════════════╗                            
-Mode          2750          ║ ⚠ Failed, previous state restored: Change /srv/demo-stack    ║                            
-ACL           set: further r║   and everything below it: owner demo-user, group demo-team; ║                            
-Special       setgid: new en║   the owner gets read and write, the group read, everyone    ║                            
-                            ║   else no access.                                            ║                            
+Mode          2750          ║ ⚠ Failed, previous state restored: Change /srv/demo-app and  ║                            
+ACL           set: further r║   everything below it: owner demo-user, group demo-team; the ║                            
+Special       setgid: new en║   owner gets read and write, the group read, everyone else   ║                            
+                            ║   no access.                                                 ║                            
                             ║                                                              ║                            
                             ║     The change or its check failed and the previous state is ║                            
                             ║     back.                                                    ║                            
                             ║                                                              ║                            
                             ║   check failed                                               ║                            
-                            ║   Check failed: stack demo, container demo-web-1: the        ║                            
-                            ║   container became unhealthy                                 ║                            
+                            ║   Check failed: container demo-web-1: the container          ║                            
+                            ║   became unhealthy                                           ║                            
                             ║                                                              ║                            
                             ║ [ Close ]                                                    ║                            
                             ║                                                              ║                            

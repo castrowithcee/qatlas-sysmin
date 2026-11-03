@@ -297,7 +297,7 @@ func foldersModel(t *testing.T, w, h int, path string) *Model {
 }
 
 func TestFoldersShowsThreeLevelsInPlainWords(t *testing.T) {
-	m := foldersModel(t, 120, 40, "/srv/demo-stack")
+	m := foldersModel(t, 120, 40, "/srv/demo-app")
 	view := plain(m)
 	for _, want := range []string{"Owner root", "read and write", "Group sysmin", "Others", "nothing", "folder", "ACL", "setgid", "2750"} {
 		if !strings.Contains(view, want) {
@@ -326,7 +326,7 @@ func TestFoldersMarksProtectedAndUnknownACL(t *testing.T) {
 }
 
 func TestFoldersShowsAFileAndClearErrors(t *testing.T) {
-	m := foldersModel(t, 120, 40, "/srv/demo-stack/app.conf")
+	m := foldersModel(t, 120, 40, "/srv/demo-app/app.conf")
 	if view := plain(m); !strings.Contains(view, "file") || !strings.Contains(view, "Owner demo-user") {
 		t.Errorf("a file is not shown:\n%s", view)
 	}

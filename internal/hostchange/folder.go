@@ -121,8 +121,8 @@ func isPseudoFS(path string) bool {
 
 // FolderHost names what the folder action reads as root. Tests point it at an invented host.
 type FolderHost struct {
-	Accounts *hostadmin.Host
-	Stacks   StackCheck
+	Accounts   *hostadmin.Host
+	Containers ContainerCheck
 }
 
 // DefaultFolderHost is the real host.
@@ -303,7 +303,7 @@ func (f folderActions) planSetPermissions(args []string, _ []byte) (Plan, error)
 	}
 
 	var state folderState
-	var stacks []AffectedStack
+	var containers []ContainerState
 	return Plan{
 		Sentence: sentence,
 		Commands: []Command{{Argv: chown}, {Argv: chmod}},
@@ -333,8 +333,8 @@ func (f folderActions) planSetPermissions(args []string, _ []byte) (Plan, error)
 			if err != nil {
 				return nil, err
 			}
-			if stacks, err = f.h.Stacks.Affected(ctx, path); err != nil {
-				return nil, Refusef("the running stacks cannot be checked, so nothing was changed: %v", err)
+			if containers, err = f.h.Containers.Affected(ctx, path); err != nil {
+				return nil, Refusef("the running containers cannot be checked, so nothing was changed: %v", err)
 			}
 			state = folderState{Path: path, Recursive: recursive, Entries: entries}
 			return json.Marshal(state)
@@ -343,7 +343,7 @@ func (f folderActions) planSetPermissions(args []string, _ []byte) (Plan, error)
 			if err := specialBitsUnchanged(state.Entries, lstatEntry); err != nil {
 				return err
 			}
-			return f.h.Stacks.Watch(ctx, stacks)
+			return f.h.Containers.Watch(ctx, containers)
 		},
 	}, nil
 }

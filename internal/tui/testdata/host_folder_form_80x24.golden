@@ -4,7 +4,7 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
 ────────────────────────────────────────────────────────────────────────────────
 Folders                                                                         
         ╔══════════════════════════════════════════════════════════════╗        
-Path: /s║ Change /srv/demo-stack                                       ║        
+Path: /s║ Change /srv/demo-app                                         ║        
         ║                                                              ║        
 Type    ║ > Owner:                < root >                             ║        
 Owner ro║   Group:                sysmin                               ║        

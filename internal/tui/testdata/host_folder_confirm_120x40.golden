@@ -4,22 +4,22 @@ sysmin  ● vault open  ● admin off                                           
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Folders                                                                                                                 
                                                                                                                         
-Path: /srv/demo-stack                                                                                                   
+Path: /srv/demo-app                                                                                                     
                                                                                                                         
 Type          folder                                                                                                    
 Owner root    read and write                                                                                            
 Group sysmin  read                                                                                                      
 Others        nothing                                                                                                   
 Mode          2750          ╔══════════════════════════════════════════════════════════════╗                            
-ACL           set: further r║ ⚠ Change /srv/demo-stack and everything below it: owner      ║                            
-Special       setgid: new en║   root, group sysmin; the owner gets read and write, the     ║                            
-                            ║   group read, everyone else no access.                       ║                            
+ACL           set: further r║ ⚠ Change /srv/demo-app and everything below it: owner root,  ║                            
+Special       setgid: new en║   group sysmin; the owner gets read and write, the group     ║                            
+                            ║   read, everyone else no access.                             ║                            
                             ║                                                              ║                            
                             ║     42 entries are changed: the folder and everything below  ║                            
                             ║     it. You can undo this under Host > Changes.              ║                            
                             ║                                                              ║                            
-                            ║   $ chown -R -h -- root:sysmin /srv/demo-stack               ║                            
-                            ║   $ chmod -R -- u=rwX,g=rX,o= /srv/demo-stack                ║                            
+                            ║   $ chown -R -h -- root:sysmin /srv/demo-app                 ║                            
+                            ║   $ chmod -R -- u=rwX,g=rX,o= /srv/demo-app                  ║                            
                             ║                                                              ║                            
                             ║ [ Apply ]  [ Cancel ]                                        ║                            
                             ║                                                              ║                            

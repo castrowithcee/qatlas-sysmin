@@ -2,17 +2,17 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
    1 Overview   2 Activity   3 Access   4 Library  [5 Host]  6 Settings         
    Users   Groups  [Folders]  Changes                                           
 ────────╔══════════════════════════════════════════════════════════════╗────────
-Folders ║ ⚠ Failed, previous state restored: Change /srv/demo-stack    ║        
-        ║   and everything below it: owner demo-user, group demo-team; ║        
-Path: /s║   the owner gets read and write, the group read, everyone    ║        
-        ║   else no access.                                            ║        
+Folders ║ ⚠ Failed, previous state restored: Change /srv/demo-app and  ║        
+        ║   everything below it: owner demo-user, group demo-team; the ║        
+Path: /s║   owner gets read and write, the group read, everyone else   ║        
+        ║   no access.                                                 ║        
 Type    ║                                                              ║        
 Owner ro║     The change or its check failed and the previous state is ║        
 Group sy║     back.                                                    ║        
 Others  ║                                                              ║        
 Mode    ║   check failed                                               ║        
-ACL     ║   Check failed: stack demo, container demo-web-1: the        ║w       
-Special ║   container became unhealthy                                 ║        
+ACL     ║   Check failed: container demo-web-1: the container          ║w       
+Special ║   became unhealthy                                           ║        
         ║                                                              ║        
         ║ [ Close ]                                                    ║        
         ║                                                              ║        
