@@ -46,58 +46,6 @@ const (
 	OpSessionOpen = "session.open"
 	OpSessionEnd  = "session.end"
 
-	// OpApprovalsList and OpApprovalsShow read the open approvals of projects. The others change the
-	// approved state and need the admin session.
-	OpApprovalsList       = "approvals.list"
-	OpApprovalsShow       = "approvals.show"
-	OpApprovalsApprove    = "approvals.approve"
-	OpApprovalsApproveAll = "approvals.approve-all"
-	OpApprovalsDiscard    = "approvals.discard"
-	OpApprovalsDiscardAll = "approvals.discard-all"
-
-	// The project operations. The first three read the files and need no admin session. The others write
-	// a project file without one: the change is stored and stays an open approval, unless the connection
-	// has an admin session, which the change then uses up and which approves it at once.
-	OpProjectsList   = "projects.list"
-	OpProjectsShow   = "projects.show"
-	OpProjectsCheck  = "projects.check"
-	OpProjectsAdd    = "projects.add"
-	OpProjectsEdit   = "projects.edit"
-	OpProjectsRemove = "projects.remove"
-
-	// The credential operations. list reads without an admin session. set and remove change the vault
-	// without one as well: a credential that nothing uses is stored or removed at once, and what uses one
-	// stays an open approval, unless the connection has an admin session, which the change uses up.
-	OpCredentialsList   = "credentials.list"
-	OpCredentialsSet    = "credentials.set"
-	OpCredentialsRemove = "credentials.remove"
-
-	// The channel operations follow the rules of the project operations; the channels are approved as one
-	// unit.
-	OpChannelsList   = "channels.list"
-	OpChannelsAdd    = "channels.add"
-	OpChannelsRemove = "channels.remove"
-
-	// OpSourceTest reads the versions of the sources of a project's approved state from the registries and
-	// repositories it names. It changes nothing and needs no admin session.
-	OpSourceTest = "source.test"
-
-	// OpProjectsChangelog reads the GitHub releases between the current and the target version of the sources
-	// of a project's approved state. It changes nothing and needs no admin session.
-	OpProjectsChangelog = "projects.changelog"
-
-	// OpNotifyTest sends a test message to one approved channel. It reads and changes nothing, so it needs
-	// no admin session.
-	OpNotifyTest = "notify.test"
-
-	// OpProjectsAdopt proposes a project for a running stack and, unless asked only to propose, stores it
-	// as an open approval, on the terms of the project operations. It deploys nothing.
-	OpProjectsAdopt = "projects.adopt"
-
-	// OpProjectsStacks lists the running Compose stacks of the host, whether a project manages them or not.
-	// It only reads and needs neither an open vault nor an admin session.
-	OpProjectsStacks = "projects.stacks"
-
 	// OpHostRecord records a finished host change in the audit log. Only root may call it, and it needs
 	// neither an open vault nor an admin session: the sudo call that made the change is the proof.
 	OpHostRecord = "host.record"
@@ -127,31 +75,13 @@ const (
 	CodeAdminRequired   = "admin-required"
 	CodeWrongPassphrase = "wrong-passphrase"
 	CodeVaultAbsent     = "vault-absent"
-	// CodeNothingOpen answers an approval request for a project that has no open approval.
-	CodeNothingOpen = "nothing-open"
-	// CodeChanged answers an approval request whose project differs from what the client was shown.
+	// CodeChanged answers a settings change whose file was changed by someone else meanwhile.
 	CodeChanged = "changed"
-	// CodeCannotDiscard answers a discard of an open approval that restoring the project file cannot undo.
-	CodeCannotDiscard = "cannot-discard"
 	// CodeInvalid answers a change or check whose result fails the validation. The answer lists the
 	// problems.
 	CodeInvalid = "invalid"
-	// CodeNotFound and CodeExists answer a project operation for a project that is missing or already there.
-	CodeNotFound = "not-found"
-	CodeExists   = "exists"
-	// CodeInUse answers the removal of a credential that a project or channel names, without an admin
-	// session. The answer lists the uses as problems.
-	CodeInUse = "in-use"
-	// CodeNotApproved answers a request that needs the approved state of a project that has none.
-	CodeNotApproved = "not-approved"
-	// CodeKindMismatch answers a credential set whose kind differs from the stored credential of that name.
-	CodeKindMismatch = "kind-mismatch"
-	// CodeNotWritable answers the approval of a project whose deploy writes paths the service may not write.
-	// The answer lists the paths.
-	CodeNotWritable = "not-writable"
-	// CodeSendFailed answers a test message that the channel did not take. The reason is in the audit log
-	// of the service, not in the answer.
-	CodeSendFailed = "send-failed"
+	// CodeExists answers the creation of a vault that already exists.
+	CodeExists = "exists"
 )
 
 // Request is one line a client sends. Params is the operation's own object, if it takes one.
@@ -169,8 +99,6 @@ type Response struct {
 	Error  string          `json:"error,omitempty"`
 	// Problems accompanies the error CodeInvalid.
 	Problems []Problem `json:"problems,omitempty"`
-	// Paths accompanies the errors CodeNotWritable and CodeNoAccess.
-	Paths []string `json:"paths,omitempty"`
 }
 
 // The vault states and unlock modes an answer reports.
@@ -216,87 +144,10 @@ type PassphraseParams struct {
 	Passphrase string `json:"passphrase"`
 }
 
-// ApprovalParams are the parameters of OpApprovalsShow, OpApprovalsApprove and OpApprovalsDiscard.
-// Fingerprint is the one an earlier list or show reported; approving or discarding it handles exactly that
-// state. An empty one stands for a project whose file was shown as gone, or channels shown as removed.
-type ApprovalParams struct {
-	Project     string `json:"project"`
-	Fingerprint string `json:"fingerprint,omitempty"`
-}
-
-// ApprovalSummary is one open approval as OpApprovalsList reports it.
-type ApprovalSummary struct {
-	Project string `json:"project"`
-	// Kind is new, changed, deleted or credential.
-	Kind        string `json:"kind"`
-	Fingerprint string `json:"fingerprint,omitempty"`
-	Changes     int    `json:"changes"`
-	// FreeCommands is set when a free command line was added, changed or removed.
-	FreeCommands bool `json:"free_commands,omitempty"`
-	// Unverified means the approved state could not be checked, so the changes list the whole project.
-	Unverified bool `json:"unverified,omitempty"`
-}
-
-// Shown is the ShownApproval that names this approval as it was shown.
-func (a ApprovalSummary) Shown() ShownApproval {
-	return ShownApproval{Project: a.Project, Kind: a.Kind, Fingerprint: a.Fingerprint}
-}
-
-// ShownApproval names one open approval as a list reported it. Fingerprint is empty exactly for the kind
-// deleted.
-type ShownApproval struct {
-	Project     string `json:"project"`
-	Kind        string `json:"kind"`
-	Fingerprint string `json:"fingerprint,omitempty"`
-}
-
-// ApprovalsAllParams are the parameters of OpApprovalsApproveAll and OpApprovalsDiscardAll: every open
-// approval that was shown. Unless the service lists exactly these now, the answer is CodeChanged and
-// nothing changes; each approval or discard is then bound to its shown state.
-type ApprovalsAllParams struct {
-	Shown []ShownApproval `json:"shown"`
-}
-
-// ApprovalsListResult is the answer to OpApprovalsList.
-type ApprovalsListResult struct {
-	Approvals []ApprovalSummary `json:"approvals"`
-}
-
-// ApprovalChange is one differing field of an open approval. Old and New are empty when the field is absent
-// on that side; Free marks a free command line.
-type ApprovalChange struct {
-	Path string `json:"path"`
-	Old  string `json:"old,omitempty"`
-	New  string `json:"new,omitempty"`
-	Free bool   `json:"free,omitempty"`
-}
-
-// ApprovalDetail is the answer to OpApprovalsShow.
-type ApprovalDetail struct {
-	ApprovalSummary
-	Details []ApprovalChange `json:"details"`
-}
-
-// ApprovalFailure is a project an all-at-once operation could not handle, with the fixed code why.
-type ApprovalFailure struct {
-	Project string `json:"project"`
-	Code    string `json:"code"`
-	// Paths lists what the service may not write, with CodeNotWritable.
-	Paths []string `json:"paths,omitempty"`
-}
-
-// ApprovalsAllResult is the answer to OpApprovalsApproveAll and OpApprovalsDiscardAll.
-type ApprovalsAllResult struct {
-	Done   []string          `json:"done"`
-	Failed []ApprovalFailure `json:"failed,omitempty"`
-}
-
-// Error is a failed operation, carrying one of the fixed codes. Problems is set only with CodeInvalid and
-// Paths only with CodeNotWritable and CodeNoAccess.
+// Error is a failed operation, carrying one of the fixed codes. Problems is set only with CodeInvalid.
 type Error struct {
 	Code     string
 	Problems []Problem
-	Paths    []string
 }
 
 func (e *Error) Error() string { return "control: " + e.Code }

@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -119,35 +118,6 @@ func requestsOf(t *testing.T) (*client.Client, <-chan control.Request) {
 	}
 	t.Cleanup(func() { c.Close() })
 	return c, got
-}
-
-func TestAllAtOnceCallsCarryTheShownApprovals(t *testing.T) {
-	c, got := requestsOf(t)
-	shown := []control.ShownApproval{
-		{Project: "demo-app", Kind: "changed", Fingerprint: "fp-demo-0001"},
-		{Project: "gone-app", Kind: "deleted"},
-	}
-	if _, err := c.ApproveAll(shown); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := c.DiscardAll(shown); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.Discard("demo-app", "fp-demo-0001"); err != nil {
-		t.Fatal(err)
-	}
-	for _, op := range []string{control.OpApprovalsApproveAll, control.OpApprovalsDiscardAll} {
-		req := <-got
-		var p control.ApprovalsAllParams
-		if err := json.Unmarshal(req.Params, &p); err != nil || req.Op != op || !reflect.DeepEqual(p.Shown, shown) {
-			t.Errorf("request = %s %s, %v", req.Op, req.Params, err)
-		}
-	}
-	req := <-got
-	var p control.ApprovalParams
-	if err := json.Unmarshal(req.Params, &p); err != nil || req.Op != control.OpApprovalsDiscard || p != (control.ApprovalParams{Project: "demo-app", Fingerprint: "fp-demo-0001"}) {
-		t.Errorf("request = %s %s, %v", req.Op, req.Params, err)
-	}
 }
 
 // listen opens a socket in a short temp directory and hands every accepted connection to h.

@@ -13,7 +13,6 @@ import (
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
-	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
@@ -65,7 +64,6 @@ func newEnv(t *testing.T, create, bind bool, mods ...func(*Config)) *env {
 	e.cfg = Config{
 		ConfigDir: t.TempDir(), StateDir: state, SocketPath: filepath.Join(sock, "s.sock"),
 		Version: "test", Resolver: groupOfTests{}, Clock: e.clock.now,
-		WriteCheck: func(config.Project) []string { return nil },
 	}
 	if create {
 		v := vault.New(filepath.Join(state, "vault"))
@@ -113,6 +111,11 @@ func (e *env) dial(t *testing.T) *client.Client {
 	}
 	t.Cleanup(func() { c.Close() })
 	return c
+}
+
+func (e *env) exists(rel string) bool {
+	_, err := os.Stat(filepath.Join(e.cfg.ConfigDir, filepath.FromSlash(rel)))
+	return err == nil
 }
 
 func wantCode(t *testing.T, err error, code string) {
@@ -276,7 +279,6 @@ func TestAdminTimeoutFromSettings(t *testing.T) {
 
 func TestAuditEntriesAreSignedOnlyAfterUnlock(t *testing.T) {
 	e := newEnv(t, true, false)
-	e.svc.notifier.Wait() // the vault.locked report of the start, which finds no approved channels
 	e.start(t)
 	c := e.dial(t)
 	_, _ = c.Status()
@@ -298,7 +300,6 @@ func TestAuditEntriesAreSignedOnlyAfterUnlock(t *testing.T) {
 		action, result, code string
 		signed               bool
 	}{
-		{"notify.send", "failure", "no-approved-state", false},
 		{"control.status", "success", "", false},
 		{"vault.unlock", "failure", "wrong-passphrase", false},
 		{"vault.unlock", "success", "", true}, // the key is set before the request is recorded
@@ -451,5 +452,28 @@ func TestAdminTimeoutZeroAsksEveryTime(t *testing.T) {
 				wantCode(t, c.Call("change", nil, nil), control.CodeAdminRequired)
 			}
 		})
+	}
+}
+
+func TestServesOnlyChannelLogHostAndVaultOperations(t *testing.T) {
+	e := newEnv(t, true, true, asPeer(0))
+	e.start(t)
+	c := e.dial(t)
+	if st, err := c.Status(); err != nil || st.Vault != control.VaultUnlocked {
+		t.Fatalf("status = %+v, %v", st, err)
+	}
+	if err := c.RecordHostChange(control.HostRecordParams{
+		Action: "demo.set", Result: control.HostResultApplied, SudoUID: 1000, JournalID: testJournalID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := c.LogEntries(control.LogListParams{}); err != nil || len(res.Entries) == 0 {
+		t.Fatalf("log.list = %+v, %v", res, err)
+	}
+	if res, err := c.VerifyLog(); err != nil || !res.Intact {
+		t.Fatalf("log.verify = %+v, %v", res, err)
+	}
+	for _, op := range []string{"projects.list", "approvals.list", "credentials.list", "channels.list", "deploy.status", "templates.list"} {
+		wantCode(t, c.Call(op, nil, nil), control.CodeUnknownOp)
 	}
 }

@@ -31,29 +31,22 @@ type Conn struct {
 	Peer  Peer
 	State any
 
-	entries []projectEntry
+	hostEntry *hostEntry
 }
 
-// projectEntry is the outcome of a request for one project; code is empty for success. uid and host are
-// set only for a host change, which is logged for the human behind sudo.
-type projectEntry struct {
-	project, code string
-	uid           *uint32
-	host          *auditlog.Host
-}
-
-// Audit records the outcome of the running request for one project, with the error code that refused it or
-// an empty one. When a handler records any, the request is logged as one entry per project instead of one
-// without a project. A handler serves one request at a time per connection, so this needs no lock.
-func (c *Conn) Audit(project, code string) {
-	c.entries = append(c.entries, projectEntry{project: project, code: code})
+// hostEntry is the outcome of a host change, which is logged for the human behind sudo; code is empty for
+// success.
+type hostEntry struct {
+	uid  uint32
+	host auditlog.Host
+	code string
 }
 
 // AuditHost records the outcome of the running request as a host change made by the user uid, with the
 // error code of a change that did not stand or an empty one. The entry names uid as its client instead of
-// the peer, which is root.
+// the peer, which is root. A handler serves one request at a time per connection, so this needs no lock.
 func (c *Conn) AuditHost(uid uint32, host auditlog.Host, code string) {
-	c.entries = append(c.entries, projectEntry{code: code, uid: &uid, host: &host})
+	c.hostEntry = &hostEntry{uid: uid, host: host, code: code}
 }
 
 // HandlerFunc serves one request. A non-nil result is encoded as the answer's result. An error that is a
@@ -266,7 +259,7 @@ func (s *Server) refuse(conn net.Conn, code string) {
 	if p, err := s.cfg.Credentials(conn); err == nil {
 		uid = p.UID
 	}
-	s.record(uid, auditlog.OperationControlRefuse, "", time.Now(), code)
+	s.record(uid, auditlog.OperationControlRefuse, time.Now(), code)
 	s.write(conn, control.Response{V: control.Version, Error: code})
 }
 
@@ -274,12 +267,12 @@ func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 	// The peer is checked before anything is read from it.
 	peer, err := s.cfg.Credentials(conn)
 	if err != nil {
-		s.record(NoUID, auditlog.OperationControlRefuse, "", time.Now(), control.CodeRefused)
+		s.record(NoUID, auditlog.OperationControlRefuse, time.Now(), control.CodeRefused)
 		s.write(conn, control.Response{V: control.Version, Error: control.CodeRefused})
 		return
 	}
 	if code := admit(s.cfg.Resolver, peer); code != "" {
-		s.record(peer.UID, auditlog.OperationControlRefuse, "", time.Now(), code)
+		s.record(peer.UID, auditlog.OperationControlRefuse, time.Now(), code)
 		s.write(conn, control.Response{V: control.Version, Error: code})
 		return
 	}
@@ -312,7 +305,7 @@ func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 			case ctx.Err() != nil:
 				return
 			}
-			s.record(peer.UID, auditlog.OperationControlRequest, "", start, code)
+			s.record(peer.UID, auditlog.OperationControlRequest, start, code)
 			s.write(conn, control.Response{V: control.Version, Error: code})
 			return
 		}
@@ -320,23 +313,18 @@ func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 		// Admin rights are read again for every request: a revocation applies to an open connection too.
 		if !isAdmin(s.cfg.Resolver, peer) {
 			clear(line)
-			s.record(peer.UID, auditlog.OperationControlRefuse, "", start, control.CodeNotAdmin)
+			s.record(peer.UID, auditlog.OperationControlRefuse, start, control.CodeNotAdmin)
 			s.write(conn, control.Response{V: control.Version, Error: control.CodeNotAdmin})
 			return
 		}
 
-		c.entries = nil
+		c.hostEntry = nil
 		action, resp, code := s.dispatch(ctx, c, line)
 		clear(line) // a request may carry a passphrase
-		if len(c.entries) == 0 {
-			s.record(peer.UID, action, "", start, code)
-		}
-		for _, e := range c.entries {
-			uid := peer.UID
-			if e.uid != nil {
-				uid = *e.uid
-			}
-			s.recordFields(auditlog.Fields{ClientUID: uid, Action: action, Project: e.project, Host: e.host}, start, e.code)
+		if e := c.hostEntry; e != nil {
+			s.recordFields(auditlog.Fields{ClientUID: e.uid, Action: action, Host: &e.host}, start, e.code)
+		} else {
+			s.record(peer.UID, action, start, code)
 		}
 		if !s.write(conn, resp) {
 			return
@@ -380,9 +368,6 @@ func (s *Server) dispatch(ctx context.Context, c *Conn, line []byte) (string, co
 		if errors.As(err, &ce) && len(ce.Problems) > 0 {
 			return h.Action, control.Response{V: control.Version, Error: code, Problems: ce.Problems}, code
 		}
-		if errors.As(err, &ce) && len(ce.Paths) > 0 {
-			return h.Action, control.Response{V: control.Version, Error: code, Paths: ce.Paths}, code
-		}
 		return fail(h.Action, code)
 	}
 	resp := control.Response{V: control.Version, OK: true}
@@ -421,8 +406,8 @@ func (s *Server) write(conn net.Conn, resp control.Response) bool {
 }
 
 // record appends the one entry a request leaves. A failed write is reported and changes nothing else.
-func (s *Server) record(uid uint32, action, project string, start time.Time, code string) {
-	s.recordFields(auditlog.Fields{ClientUID: uid, Action: action, Project: project}, start, code)
+func (s *Server) record(uid uint32, action string, start time.Time, code string) {
+	s.recordFields(auditlog.Fields{ClientUID: uid, Action: action}, start, code)
 }
 
 func (s *Server) recordFields(f auditlog.Fields, start time.Time, code string) {

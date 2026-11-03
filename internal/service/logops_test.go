@@ -22,7 +22,7 @@ func logEnv(t *testing.T) (*env, *client.Client) {
 			t.Fatal(err)
 		}
 	}
-	_, _ = c.Project("missing")
+	_ = c.Call("no.such-op", nil, nil)
 	return e, c
 }
 

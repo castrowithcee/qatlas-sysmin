@@ -15,18 +15,11 @@ import (
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/admin"
-	"github.com/castrowithcee/qatlas-sysmin/internal/approval"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/autounlock"
-	"github.com/castrowithcee/qatlas-sysmin/internal/changelog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/config"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
-	"github.com/castrowithcee/qatlas-sysmin/internal/engine"
-	"github.com/castrowithcee/qatlas-sysmin/internal/execute"
-	"github.com/castrowithcee/qatlas-sysmin/internal/notify"
-	"github.com/castrowithcee/qatlas-sysmin/internal/source/gitrepo"
-	"github.com/castrowithcee/qatlas-sysmin/internal/source/registry"
 	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
 )
 
@@ -59,29 +52,8 @@ type Config struct {
 	Credentials func(net.Conn) (daemon.Peer, error)
 	// Clock is the admin sessions' clock; nil is time.Now.
 	Clock func() time.Time
-	// SourceRegistry and SourceGit configure how source.test reaches registries and repositories. The zero
-	// values are the production behavior (HTTPS registries, git over https and ssh); tests point them at
-	// local servers and repositories.
-	SourceRegistry registry.Options
-	SourceGit      gitrepo.Options
-	// Changelog configures how projects.changelog reaches GitHub; tests point BaseURL and HTTPClient at a
-	// local server. The service sets Token and CacheDir for each request.
-	Changelog changelog.Options
-	// Runner runs the read-only docker commands of project adoption; nil runs the real programs.
-	Runner execute.Runner
 	// OnLogError is told about audit log writes that failed; nil logs them with slog.
 	OnLogError func(error)
-	// DeployRunner runs the programs of a deploy; nil runs them for real. Tests install a fake one.
-	DeployRunner execute.Runner
-	// DeployWait is how long a request that starts a deploy waits for its end; zero means
-	// control.DeployWait.
-	DeployWait time.Duration
-	// WebhookRecheck is how often the service looks for an approved webhook that starts the listener;
-	// zero means ten seconds.
-	WebhookRecheck time.Duration
-	// WriteCheck returns the paths of a project that a deploy writes and the service may not; nil asks the
-	// kernel. Tests replace it, since their projects name paths that do not exist.
-	WriteCheck func(config.Project) []string
 }
 
 // connState is what a connection owns: its admin session. A connection serves one request at a time, so
@@ -94,29 +66,17 @@ type connState struct {
 
 // Service is the vault, the audit log and the control socket server around them.
 type Service struct {
-	cfg       Config
-	vault     *vault.Vault
-	store     *config.Store
-	approvals *approval.Manager
-	mode      autounlock.Mode
-	log       *auditlog.Logger
-	notifier  *notify.Notifier
-	server    *daemon.Server
-	engine    *engine.Engine
-
-	// base is the context of Serve; ops counts the deploys that requests started in the background.
-	base context.Context
-	ops  sync.WaitGroup
+	cfg    Config
+	vault  *vault.Vault
+	store  *config.Store
+	mode   autounlock.Mode
+	log    *auditlog.Logger
+	server *daemon.Server
 
 	unlockMu sync.Mutex
-	// credMu serializes the changes of credentials, which read the vault, change it and then settle the
-	// approvals that name the credential.
-	credMu   sync.Mutex
 	mu       sync.Mutex // guards logKey
 	logKey   *auditlog.Key
 	listener *net.UnixListener
-	// webhookWake asks the webhook supervisor to look again.
-	webhookWake chan struct{}
 }
 
 // Run opens the service, listens on the socket and serves until ctx ends.
@@ -143,10 +103,7 @@ func Open(cfg Config) (*Service, error) {
 	if cfg.SocketPath == "" {
 		cfg.SocketPath = control.DefaultSocketPath
 	}
-	if cfg.Runner == nil {
-		cfg.Runner = &execute.ExecRunner{MaxOutput: adoptMaxOutput}
-	}
-	s := &Service{cfg: cfg, webhookWake: make(chan struct{}, 1), log: auditlog.New(filepath.Join(cfg.StateDir, "logs"), auditlog.DefaultRetentionDays)}
+	s := &Service{cfg: cfg, log: auditlog.New(filepath.Join(cfg.StateDir, "logs"), auditlog.DefaultRetentionDays)}
 
 	vaultDir := filepath.Join(cfg.StateDir, "vault")
 	var st autounlock.Status
@@ -161,13 +118,6 @@ func Open(cfg Config) (*Service, error) {
 	}
 
 	s.store = config.NewStore(cfg.ConfigDir)
-	s.approvals = approval.New(s.store, s.vault, cfg.StateDir)
-	s.notifier = notify.New(s.approvals, s.vault, notifyAudit{s})
-	var err error
-	if s.engine, err = s.newEngine(); err != nil {
-		s.notifier.Close()
-		return nil, err
-	}
 
 	srv, err := daemon.New(daemon.Config{
 		Logger:      s.log,
@@ -185,19 +135,13 @@ func Open(cfg Config) (*Service, error) {
 	}
 	s.server = srv
 	if err := s.register(); err != nil {
-		s.notifier.Close()
 		return nil, err
 	}
 	if state, _ := s.vault.State(); state == vault.StateUnlocked {
 		if err := s.startSigning(); err != nil {
 			s.vault.Forget()
-			s.notifier.Close()
 			return nil, err
 		}
-		s.refreshNotifier()
-	} else if state == vault.StateLocked {
-		// Once per process start; the notifier works in the background and falls back to the snapshot.
-		s.notifier.Notify(notify.Event{Type: notify.EventVaultLocked})
 	}
 	return s, nil
 }
@@ -215,64 +159,21 @@ func (s *Service) Listen() error {
 	return nil
 }
 
-// Serve serves the control socket and runs the deploy planner until ctx ends. It then waits for the deploys
-// that are running, drops the vault's key and the log key.
+// Serve serves the control socket until ctx ends. It then drops the vault's key and the log key.
 func (s *Service) Serve(ctx context.Context) error {
 	defer s.shutdown()
 	if s.listener == nil {
 		return errors.New("the service is not listening")
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	s.base = ctx
-	planner := make(chan struct{})
-	go func() {
-		defer close(planner)
-		if err := s.engine.Run(ctx); err != nil {
-			slog.Warn("the deploy planner stopped", "error", err.Error())
-		}
-	}()
-	hooks := make(chan struct{})
-	go func() {
-		defer close(hooks)
-		s.superviseWebhook(ctx)
-	}()
-	err := s.server.Serve(ctx, s.listener)
-	// A deploy never stops half way; the planner and the requests that started one end when it has.
-	cancel()
-	<-hooks
-	<-planner
-	s.ops.Wait()
-	return err
+	return s.server.Serve(ctx, s.listener)
 }
 
 func (s *Service) shutdown() {
-	s.notifier.Close()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.vault.Forget()
 	s.logKey.Clear()
 	s.logKey = nil
-}
-
-// notifyAudit writes the notifier's entries with the current signing key, which changes when the vault is
-// unlocked.
-type notifyAudit struct{ s *Service }
-
-func (a notifyAudit) Append(f auditlog.Fields) error {
-	a.s.mu.Lock()
-	l := a.s.log.WithKey(a.s.logKey)
-	a.s.mu.Unlock()
-	return l.Append(f)
-}
-
-// refreshNotifier lets the notifier read the approved state again. A failure only costs the fallback for
-// vault.locked, so it is logged and nothing else.
-func (s *Service) refreshNotifier() {
-	// Without any approved channels there is nothing to remember yet.
-	if err := s.notifier.Refresh(); err != nil && !errors.Is(err, approval.ErrNotApproved) {
-		slog.Warn("cannot refresh the notifier", "error", err.Error())
-	}
 }
 
 // startSigning has the audit log sign its entries with the key derived from the unlocked vault.
@@ -364,40 +265,12 @@ func (s *Service) register() error {
 			return err
 		}
 	}
-	if err := s.registerApprovals(); err != nil {
-		return err
+	for _, reg := range []func() error{s.registerLog, s.registerVault, s.registerHost} {
+		if err := reg(); err != nil {
+			return err
+		}
 	}
-	if err := s.registerProjects(); err != nil {
-		return err
-	}
-	if err := s.registerCredentials(); err != nil {
-		return err
-	}
-	if err := s.registerChannels(); err != nil {
-		return err
-	}
-	if err := s.registerAdopt(); err != nil {
-		return err
-	}
-	if err := s.registerSources(); err != nil {
-		return err
-	}
-	if err := s.registerChangelog(); err != nil {
-		return err
-	}
-	if err := s.registerNotify(); err != nil {
-		return err
-	}
-	if err := s.registerLog(); err != nil {
-		return err
-	}
-	if err := s.registerTemplates(); err != nil {
-		return err
-	}
-	if err := s.registerVault(); err != nil {
-		return err
-	}
-	return errors.Join(s.registerDeploy(), s.registerRunLog(), s.registerHost())
+	return nil
 }
 
 func (s *Service) handleVaultStatus(context.Context, *daemon.Conn, json.RawMessage) (any, error) {
@@ -445,9 +318,6 @@ func (s *Service) handleUnlock(_ context.Context, _ *daemon.Conn, params json.Ra
 		s.vault.Forget()
 		return nil, &control.Error{Code: control.CodeInternal}
 	}
-	s.refreshNotifier()
-	s.wakeWebhook()
-	s.engine.Wake()
 	return nil, nil
 }
 

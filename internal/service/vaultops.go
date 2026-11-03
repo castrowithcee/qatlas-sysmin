@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
@@ -54,7 +55,6 @@ func (s *Service) handleVaultCreate(_ context.Context, _ *daemon.Conn, params js
 		s.vault.Forget()
 		return nil, &control.Error{Code: control.CodeInternal}
 	}
-	s.refreshNotifier()
 	return nil, nil
 }
 
@@ -119,7 +119,40 @@ func (s *Service) handleAdminTimeout(_ context.Context, _ *daemon.Conn, params j
 		return nil, &control.Error{Code: control.CodeInvalid, Problems: problemsOf(found)}
 	}
 	if _, err := s.store.SaveSettings(st, revs[config.SettingsPath()]); err != nil {
-		return nil, approvalError(err)
+		return nil, settingsError(err)
 	}
 	return control.SettingsResult{AdminTimeout: d.String(), Explicit: true}, nil
+}
+
+// settingsError maps a failed settings write to a fixed code; its text, which could name paths, stays in
+// the service's own log.
+func settingsError(err error) error {
+	switch {
+	case errors.Is(err, config.ErrConflict):
+		return &control.Error{Code: control.CodeChanged}
+	case errors.Is(err, vault.ErrLocked), errors.Is(err, vault.ErrAbsent):
+		return &control.Error{Code: control.CodeLocked}
+	}
+	return internalError("cannot save the settings", err)
+}
+
+func problemsOf(in []config.Problem) []control.Problem {
+	out := make([]control.Problem, len(in))
+	for i, p := range in {
+		out[i] = control.Problem{Field: p.Field, Code: p.Code, Message: p.Message, Hint: p.Hint}
+	}
+	return out
+}
+
+func internalError(what string, err error) error {
+	slog.Warn(what, "error", err.Error())
+	return &control.Error{Code: control.CodeInternal}
+}
+
+func (s *Service) loadModel() (*config.Model, config.Revisions, error) {
+	m, revs, err := s.store.Load()
+	if err != nil {
+		return nil, nil, internalError("cannot load the configuration", err)
+	}
+	return m, revs, nil
 }
