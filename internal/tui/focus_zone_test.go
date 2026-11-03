@@ -155,8 +155,8 @@ func TestTabAndShiftTabChangeTheZoneAndNeverTheArea(t *testing.T) {
 	}
 	m = appModel(t, overviewFake(), 80, 24)
 	send(m, "3", "tab")
-	if m.zoneNow() != zoneTabs || m.area != areaActivity {
-		t.Errorf("tab from the content of Activity reaches %v in %v, want the tab line", m.zoneNow(), m.area)
+	if m.zoneNow() != zoneFilters || m.area != areaActivity {
+		t.Errorf("tab from the content of Activity reaches %v in %v, want the filter bar", m.zoneNow(), m.area)
 	}
 	send(m, "shift+tab")
 	if m.zoneNow() != zoneContent || m.area != areaActivity {
@@ -293,13 +293,16 @@ func zonesOf(t *testing.T, m *Model, key string) []kittui.FocusZone {
 	t.Helper()
 	start := m.zoneNow()
 	out := []kittui.FocusZone{start}
-	for range 6 {
+	// The filter bar takes a step per field before the focus leaves it, so a zone counts once.
+	for range 10 {
 		send(m, key)
 		z := m.zoneNow()
 		if z == start {
 			return out
 		}
-		out = append(out, z)
+		if z != out[len(out)-1] {
+			out = append(out, z)
+		}
 	}
 	t.Fatalf("%s does not come round: %v", key, out)
 	return nil
@@ -340,7 +343,7 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 		if m.zoneNow() != zoneContent {
 			t.Fatalf("%s: starts on %v, want the rows", c.name, m.zoneNow())
 		}
-		want := []kittui.FocusZone{zoneContent, zoneDetail, zoneTabs}
+		want := []kittui.FocusZone{zoneContent, zoneDetail, zoneFilters, zoneTabs}
 		if c.subs {
 			want = []kittui.FocusZone{zoneContent, zoneDetail, zoneTabs, zoneSubs}
 		}
@@ -348,7 +351,7 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 			t.Errorf("%s: tab walks %v, want %v", c.name, got, want)
 		}
 		m.zone = zoneContent
-		back := []kittui.FocusZone{zoneContent, zoneTabs, zoneDetail}
+		back := []kittui.FocusZone{zoneContent, zoneTabs, zoneFilters, zoneDetail}
 		if c.subs {
 			back = []kittui.FocusZone{zoneContent, zoneSubs, zoneTabs, zoneDetail}
 		}
@@ -402,8 +405,8 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 func TestTheDetailIsNoZoneBelow120Columns(t *testing.T) {
 	m := appModel(t, overviewFake(), 100, 30)
 	send(m, "3", "tab")
-	if m.zoneNow() != zoneTabs {
-		t.Errorf("tab from the rows of a narrow Activity reaches %v, want the tab line", m.zoneNow())
+	if m.zoneNow() != zoneFilters {
+		t.Errorf("tab from the rows of a narrow Activity reaches %v, want the filter bar", m.zoneNow())
 	}
 }
 

@@ -139,6 +139,9 @@ func (m *Model) zones() []kittui.FocusZone {
 	if m.detailZoneAvailable() {
 		zones = append(zones, zoneDetail)
 	}
+	if m.filtersAvailable() {
+		zones = append(zones, zoneFilters)
+	}
 	return zones
 }
 
@@ -147,6 +150,12 @@ func (m *Model) cycleZone(step int) {
 	m.zone = kittui.CycleZone(m.zones(), m.zoneNow(), step)
 	if m.zone == zoneTabs || m.zone == zoneSubs {
 		m.hst.fold.editing = false
+	}
+	switch {
+	case m.zone == zoneFilters:
+		m.focusFilters(step < 0)
+	case m.act.bar != nil:
+		m.act.bar.Blur()
 	}
 }
 
@@ -208,6 +217,9 @@ func (m *Model) enterPage() tea.Cmd {
 
 // updateArea handles one key of the area screen.
 func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
+	if m.barOpen() {
+		return m.filterBarKey(key)
+	}
 	if m.typing() {
 		if p := m.currentPage(); p.filtering() {
 			return m.filterKey(p, key)
@@ -233,6 +245,9 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 		return m.selfUpdate()
 	case m.keyIs(key, actCopy) && m.copySource() != nil:
 		return m.copyCurrent()
+	}
+	if m.zoneNow() == zoneFilters {
+		return m.filterBarKey(key)
 	}
 	if z := m.zoneNow(); z != zoneContent && z != zoneDetail {
 		return m.barKey(key)
@@ -321,6 +336,8 @@ func (m *Model) zoneNow() kittui.FocusZone {
 		return zoneContent
 	case m.zone == zoneSubs && !m.hasSubs():
 		return zoneTabs
+	case m.zone == zoneFilters && !m.filtersAvailable():
+		return zoneContent
 	}
 	return m.zone
 }
@@ -395,8 +412,8 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 	}
 	if m.area == areaActivity && !p.open && m.keyIs(key, actFilter) {
-		// f is the filter of the log here; the table is searched with /.
-		m.openLogFilter()
+		// f is the filter bar of the log here; the table is searched with /.
+		m.focusFilters(false)
 		return nil, true
 	}
 	if cmd, ok := m.pageKey(p, key); ok {
@@ -436,6 +453,10 @@ func (m *Model) setSubPage(i int) tea.Cmd {
 
 // areaKeys is the key line of the area screen.
 func (m *Model) areaKeys() []kittui.Hint {
+	if m.barOpen() {
+		// The open list of values takes every key, so the line names no other.
+		return m.filterBarHints()
+	}
 	if m.typing() {
 		if m.currentPage().filtering() {
 			return keyLine(hint(tHintTypeToFilter), navHint(tHintMove, actUp, actDown), hint(tHintKeepFilter, actEnter),

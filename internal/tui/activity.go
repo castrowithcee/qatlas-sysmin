@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 
+	"github.com/castrowithcee/qatlas-kit/i18n"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
@@ -84,8 +84,11 @@ func (f logFilter) params(now time.Time, after string) control.LogListParams {
 	return p
 }
 
-func periodText(ui *uiContext, period int) string {
-	return ui.tr([...]textID{tPeriodAll, tPeriodHour, tPeriodToday, tPeriod7Days, tPeriod30Days}[period])
+func periodText(ui *uiContext, period int) string { return ui.tr(periodID(period)) }
+
+// periodID is the catalog key of the name of a period.
+func periodID(period int) textID {
+	return [...]textID{tPeriodAll, tPeriodHour, tPeriodToday, tPeriod7Days, tPeriod30Days}[period]
 }
 
 // activityState is the Activity area.
@@ -105,6 +108,9 @@ type activityState struct {
 	asked   bool
 	gen     int
 	filter  logFilter
+	// bar is the filter bar on filter, built in the language barLang; see logfilter.go.
+	bar     *kittui.FilterBar
+	barLang i18n.Lang
 	chain   chainState
 }
 
@@ -419,10 +425,13 @@ func (m *Model) activityBody() string {
 		m.act.rebuild(m)
 	}
 	lines := m.chainLines(m.usable(0))
-	return strings.Join(lines, "\n") + "\n" + m.dataBody(&m.act.page, m.logSpec(), top+len(lines))
+	return m.withFilterBar(lines, top, func(top int) string { return m.dataBody(&m.act.page, m.logSpec(), top) })
 }
 
 func (m *Model) activityKeys() []kittui.Hint {
+	if m.zoneNow() == zoneFilters {
+		return m.filterBarHints()
+	}
 	if m.detailFocus(&m.act.page) {
 		return detailKeys()
 	}
@@ -446,53 +455,6 @@ func (m *Model) activityKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return tea.Batch(m.statusCmd(), m.activityCmd()), true
 	}
 	return nil, false
-}
-
-// openLogFilter opens the form of the filter.
-func (m *Model) openLogFilter() {
-	a := &m.act
-	f := &formDlg{title: m.tr(tLogFilterTitle), saveText: answer(tHintApply, actSave), submit: submitLogFilter}
-	periods := make([]string, periodCount)
-	values := make([]string, periodCount)
-	for i := range periods {
-		periods[i], values[i] = periodText(m.ui, i), strconv.Itoa(i)
-	}
-	f.rows = []formRow{
-		choiceRow("period", m.tr(tColPeriod), values, periods, a.filter.period),
-		choiceRow("action", m.tr(tColAction), nil, nil, 0),
-		choiceRow("result", m.tr(tColResult), []string{"", control.LogResultSuccess, control.LogResultFailure},
-			[]string{m.tr(tFilterAll), control.LogResultSuccess, control.LogResultFailure}, 0),
-	}
-	setActionChoice(m.ui, f.row("action"), a.filter.action)
-	switch a.filter.result {
-	case control.LogResultSuccess:
-		f.row("result").sel = 1
-	case control.LogResultFailure:
-		f.row("result").sel = 2
-	}
-	m.openForm(f)
-}
-
-// setActionChoice offers all and the logged actions to the action row, each by its readable label, and selects
-// the current one.
-func setActionChoice(ui *uiContext, r *formRow, current string) {
-	r.values, r.shown = []string{""}, []string{ui.tr(tFilterAll)}
-	for _, action := range logActions() {
-		r.values, r.shown = append(r.values, action), append(r.shown, ui.trOr(actionID(action), action))
-	}
-	r.sel = slices.Index(r.values, current)
-	if r.sel < 0 {
-		r.sel = 0
-	}
-}
-
-// submitLogFilter takes the choices as the filter and reads the log anew.
-func submitLogFilter(m *Model, f *formDlg) tea.Cmd {
-	period, _ := strconv.Atoi(f.row("period").value())
-	m.act.filter = logFilter{period: period, action: f.row("action").value(),
-		result: f.row("result").value()}
-	m.closeForm()
-	return m.logCmd("")
 }
 
 // setActSub shows page sub of Activity.

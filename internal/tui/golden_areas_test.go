@@ -71,7 +71,7 @@ func TestGoldenAreas(t *testing.T) {
 		{"activity_filter", func(t *testing.T, w, h int) *Model {
 			utcClock(t)
 			m := goldenApp(t, activityFake(), w, h)
-			send(m, "3", "f", "right", "right", "right", "tab", "right")
+			send(m, "3", "f", "right", "right", "right", "tab", "enter", "down")
 			return m
 		}},
 		{"host_users", func(t *testing.T, w, h int) *Model {

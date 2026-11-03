@@ -1,24 +1,24 @@
-qsysmin                                                        [?] help  [:] cmd
+qsysmin                                            [esc] back  [?] help  [:] cmd
    1 Overview   2 Host  [3 Activity]  4 Settings                                
 ────────────────────────────────────────────────────────────────────────────────
 ● Chain intact, 52 entries                                                      
-Log (12)                                                                    1/12
-╔══════════════════════════════════════════════════════════════════════════════╗
-║   TIME╔══════════════════════════════════════════════════════════════╗       ║
-║ > 2026║ Filter the log                                               ║       ║
-║   2026║                                                              ║       ║
-║   2026║   Period:  7 days                                            ║       ║
-║   2026║ > Action:  < Config applied >                                ║       ║
-║   2026║   Result:  all                                               ║       ║
-║   2026║                                                              ║       ║
-║   2026║ [ Apply ]  [ Cancel ]                                        ║       ║
-║   2026║                                                              ║       ║
-║   2026║ ←/→ choose · tab next · F2 apply · esc cancel                ║       ║
-║   2026╚══════════════════════════════════════════════════════════════╝       ║
+   Period: 7 days ▾   >  Action: all ▾      Result: all ▾                       
+╔═ Action ══════════╗                                                       1/12
+║   all             ║══════════════════════════════════════════════════════════╗
+║ > Config applied  ║    ACTION          RESULT   DURATION   UID  SIGNED       ║
+║   Config read     ║00  Config read     success      3 ms     0  -            ║
+║   Control request ║00  Host change     success     10 ms  1000  ✓            ║
+║   Peer refused    ║00  Status read     success     17 ms  1000  ✓            ║
+║   Status read     ║00  Peer refused    success     24 ms     0  ✓            ║
+║   Host change     ║00  Config applied  failure     31 ms  1000  -            ║
+╚═══════════════════╝00  Config read     success     38 ms  1000  ✓            ║
+║   2026-10-28 11:54:00  Host change     success     45 ms     0  ✓            ║
+║   2026-10-28 11:53:00  Status read     success     52 ms  1000  ✓            ║
+║   2026-10-28 11:52:00  Peer refused    success     59 ms  1000  -            ║
+║   2026-10-28 11:51:00  Config applied  failure     66 ms     0  ✓            ║
 ║   2026-10-28 11:50:00  Config read     success     73 ms  1000  ✓            ║
 ║   2026-10-28 11:49:00  Host change     success     80 ms  1000  ✓            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
                                                                                 
                                                                                 
-                                                                                
-? help                                                                          
+enter choose  esc close                                           ↑/↓ move  1/12

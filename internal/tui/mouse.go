@@ -89,7 +89,12 @@ func (m *Model) focusZone(z kittui.FocusZone) tea.Cmd {
 	if m.screen != screenArea || m.innerLevel() {
 		return nil
 	}
-	if (z == zoneDetail && !m.detailZoneAvailable()) || (z == zoneSubs && !m.hasSubs()) {
+	if (z == zoneDetail && !m.detailZoneAvailable()) || (z == zoneSubs && !m.hasSubs()) ||
+		(z == zoneFilters && !m.filtersAvailable()) {
+		return nil
+	}
+	if z == zoneFilters && m.zone != zoneFilters {
+		m.focusFilters(false)
 		return nil
 	}
 	m.zone = z

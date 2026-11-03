@@ -164,27 +164,102 @@ func TestActivityFilterSetsTheParametersAndReloads(t *testing.T) {
 	now := time.Date(2026, 10, 28, 15, 30, 0, 0, time.UTC)
 	clockModel(m, now)
 	send(m, "3", "f")
-	if m.form == nil {
-		t.Fatal("no filter form")
+	if m.zoneNow() != zoneFilters || !m.act.bar.Focused() {
+		t.Fatalf("f does not focus the filter bar: %v", m.zoneNow())
 	}
-	// Period: 7 days; action: the first one; result: failure.
+	// Period: 7 days; action: the first one; result: failure. Every change reads the log anew.
+	before := fb.count("log")
 	send(m, "right", "right", "right", "tab", "right", "tab", "right", "right")
-	f2(m)
+	if got := fb.count("log") - before; got != 6 {
+		t.Errorf("%d reads for six changes", got)
+	}
 	last := fb.audit.calls[len(fb.audit.calls)-1]
 	want := control.LogListParams{From: now.AddDate(0, 0, -7).Format(time.RFC3339), Action: "config.apply",
 		Result: control.LogResultFailure, Limit: logPageSize}
 	if last != want {
 		t.Errorf("params = %+v, want %+v", last, want)
 	}
-	if view := plain(m); !strings.Contains(view, "Log · 7 days · Config applied · failure") {
-		t.Errorf("the filters are not in the title:\n%s", view)
+	view := plain(m)
+	for _, w := range []string{"Log · 7 days · Config applied · failure", "Period: 7 days", "Action: Config applied", "Result: failure"} {
+		if !strings.Contains(view, w) {
+			t.Errorf("view lacks %q:\n%s", w, view)
+		}
 	}
 	// The period "today" starts at midnight of the local day.
-	send(m, "f", "left")
-	f2(m)
+	send(m, "esc", "f", "left")
 	last = fb.audit.calls[len(fb.audit.calls)-1]
 	if last.From != "2026-10-28T00:00:00Z" {
 		t.Errorf("today = %q", last.From)
+	}
+}
+
+// Enter opens the values of a field, the arrows move in them and enter takes one; esc closes them unchanged.
+// While they are open they take every key.
+func TestActivityFilterValueListTakesAValueOrNone(t *testing.T) {
+	utcClock(t)
+	fb := activityFake()
+	m := appModel(t, fb, 80, 24)
+	send(m, "3", "f", "tab", "tab", "enter")
+	if !m.barOpen() {
+		t.Fatal("enter does not open the values of the field")
+	}
+	if view := plain(m); !strings.Contains(view, "success") || !strings.Contains(view, "failure") {
+		t.Errorf("the values are not drawn:\n%s", view)
+	}
+	if keys := footerOf(m); strings.Contains(keys, "help") || strings.Contains(keys, "quit") {
+		t.Errorf("the open values name keys they do not leave: %q", keys)
+	}
+	before := fb.count("log")
+	send(m, "down", "q", "?", "esc")
+	if m.barOpen() || m.quitting || m.pop != nil || fb.count("log") != before || m.act.filter.result != "" {
+		t.Errorf("esc does not close the values unchanged: open %v quit %v help %v", m.barOpen(), m.quitting, m.pop != nil)
+	}
+	send(m, "enter", "down", "enter")
+	if m.barOpen() || m.act.filter.result != control.LogResultSuccess || fb.count("log") != before+1 {
+		t.Errorf("enter does not take the value: result %q", m.act.filter.result)
+	}
+	send(m, "esc")
+	if m.zoneNow() != zoneContent || m.act.bar.Focused() {
+		t.Errorf("esc on the bar reaches %v", m.zoneNow())
+	}
+}
+
+// A click on a field opens its values, a click on a value takes it.
+func TestActivityFilterTakesAClickedValue(t *testing.T) {
+	utcClock(t)
+	fb := activityFake()
+	m := appModel(t, fb, 80, 24)
+	send(m, "3")
+	m.render()
+	clickOn(t, m, "Result: all")
+	if !m.barOpen() || m.zoneNow() != zoneFilters {
+		t.Fatalf("a click on a field does not open its values:\n%s", plain(m))
+	}
+	x, y := cellOf(t, m, "failure")
+	clickAt(m, x, y)
+	if m.barOpen() || m.act.filter.result != control.LogResultFailure {
+		t.Errorf("a click on a value does not take it: result %q", m.act.filter.result)
+	}
+}
+
+// The bar is a zone of its own: tab reaches it after the rows and leaves it for the tab line.
+func TestActivityFilterBarIsAZone(t *testing.T) {
+	m := appModel(t, activityFake(), 80, 24)
+	send(m, "3", "tab")
+	if m.zoneNow() != zoneFilters {
+		t.Fatalf("tab from the rows reaches %v", m.zoneNow())
+	}
+	send(m, "tab", "tab", "tab")
+	if m.zoneNow() != zoneTabs {
+		t.Errorf("tab past the last field reaches %v", m.zoneNow())
+	}
+	send(m, "shift+tab")
+	if m.zoneNow() != zoneFilters {
+		t.Errorf("shift+tab from the tab line reaches %v", m.zoneNow())
+	}
+	send(m, "down")
+	if m.zoneNow() != zoneContent {
+		t.Errorf("down on the bar reaches %v", m.zoneNow())
 	}
 }
 
@@ -262,7 +337,7 @@ func TestActivityShowsNoProject(t *testing.T) {
 	if view := plain(m); strings.Contains(view, "demo-app") || strings.Contains(view, "Project") {
 		t.Errorf("the details show a project:\n%s", view)
 	}
-	send(m, "esc", "f")
+	send(m, "esc", "f", "enter")
 	if view := plain(m); strings.Contains(view, "Project") {
 		t.Errorf("the filter offers a project:\n%s", view)
 	}

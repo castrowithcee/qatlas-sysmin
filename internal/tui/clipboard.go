@@ -15,7 +15,7 @@ import (
 // copySource is where the copy key takes its text from right now, or nil when there is nothing to copy: the
 // name of the marked row of the list. The text is built only when the key is pressed.
 func (m *Model) copySource() func() string {
-	if m.screen == screenArea && m.dd == nil && !m.typing() {
+	if m.screen == screenArea && m.dd == nil && !m.typing() && !m.barOpen() {
 		if p := m.currentPage(); p != nil {
 			// Only the name of the marked row. A log entry has no name, so its row is copied as drawn.
 			if name, ok := p.current(); ok {
