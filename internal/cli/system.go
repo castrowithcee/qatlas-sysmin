@@ -16,6 +16,7 @@ const (
 	serviceName  = "qsysmin"
 	unitPath     = "/etc/systemd/system/qsysmin.service"
 	binaryPath   = "/usr/local/bin/qsysmin"
+	manPath      = "/usr/local/share/man/man1/qsysmin.1"
 	stateDataDir = "/var/lib/qsysmin"
 )
 
@@ -30,6 +31,7 @@ type system struct {
 	updater    func(version, apiURL string) *selfupdate.Client
 	binaryPath string
 	unitPath   string
+	manPath    string
 	// dataDirs are the directories uninstall --purge removes.
 	dataDirs []string
 }
@@ -49,6 +51,7 @@ func defaultSystem() system {
 		updater:    newUpdateClient,
 		binaryPath: binaryPath,
 		unitPath:   unitPath,
+		manPath:    manPath,
 		dataDirs:   []string{stateDataDir},
 	}
 }

@@ -17,7 +17,7 @@ func newUninstallCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: "Remove the qsysmin installation from this host",
-		Long: "uninstall stops and disables the service and removes its unit, the program, and the user and\n" +
+		Long: "uninstall stops and disables the service and removes its unit, the program, its manpage, and the user and\n" +
 			"group qsysmin. The state directory stays in place unless\n" +
 			"--purge is given. Parts that are already gone are skipped. It needs root and --confirm, and asks\n" +
 			"for confirmation on a terminal; --yes answers the question.",
@@ -26,9 +26,9 @@ func newUninstallCommand(opts *Options) *cobra.Command {
 			if err := requireRoot(s, "uninstall"); err != nil {
 				return err
 			}
-			question := "Remove qsysmin: the service, its unit, the program, and the user and group qsysmin. Its state stays in place."
+			question := "Remove qsysmin: the service, its unit, the program, its manpage, and the user and group qsysmin. Its state stays in place."
 			if purge {
-				question = "Remove qsysmin including its data: the service, its unit, the program, the user and group qsysmin, and " +
+				question = "Remove qsysmin including its data: the service, its unit, the program, its manpage, the user and group qsysmin, and " +
 					"ALL of its state. This cannot be undone."
 			}
 			return gate.Run(cobracli.Request{Question: question, Changes: true}, func() error {
@@ -71,6 +71,9 @@ func uninstall(c *cobra.Command, s system, purge bool) error {
 		}
 	}
 	if err := removeIfPresent(s.binaryPath); err != nil {
+		return err
+	}
+	if err := removeIfPresent(s.manPath); err != nil {
 		return err
 	}
 	// Exit status 6 of userdel and groupdel means the user or group does not exist.

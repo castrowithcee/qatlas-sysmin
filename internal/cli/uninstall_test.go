@@ -12,6 +12,12 @@ func installFiles(t *testing.T, h *fakeHost) {
 	if err := os.WriteFile(h.unitPath, []byte("[Unit]\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Dir(h.manPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(h.manPath, []byte(".TH QSYSMIN 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	for _, d := range h.dataDirs {
 		if err := os.WriteFile(filepath.Join(d, "data"), []byte("example"), 0o600); err != nil {
 			t.Fatal(err)
@@ -28,8 +34,8 @@ func TestUninstallKeepsDataWithoutPurge(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("code = %d, stderr = %q", code, stderr)
 	}
-	if exists(h.unitPath) || exists(h.binaryPath) {
-		t.Error("unit or program left")
+	if exists(h.unitPath) || exists(h.binaryPath) || exists(h.manPath) {
+		t.Error("unit, program or manpage left")
 	}
 	for _, d := range h.dataDirs {
 		if !exists(filepath.Join(d, "data")) {

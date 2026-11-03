@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 
@@ -55,6 +56,7 @@ func newFakeHost(t *testing.T, server *fakeServer) *fakeHost {
 		},
 		binaryPath: filepath.Join(dir, "bin", "qsysmin"),
 		unitPath:   filepath.Join(dir, "qsysmin.service"),
+		manPath:    filepath.Join(dir, "share", "man", "man1", "qsysmin.1"),
 		dataDirs:   []string{filepath.Join(dir, "etc"), filepath.Join(dir, "var")},
 	}
 	h.system.updater = func(v, apiURL string) *selfupdate.Client {
@@ -120,6 +122,9 @@ func TestUpdateInstallsThenRestarts(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(h.unitPath); !strings.Contains(string(b), "v1.1.0") {
 		t.Errorf("unit = %q", b)
+	}
+	if b, _ := os.ReadFile(h.manPath); !strings.Contains(string(b), "v1.1.0") {
+		t.Errorf("manpage = %q", b)
 	}
 	for _, want := range []string{`"unit_updated":true`, `"previous":"v1.0.0"`, `"version":"v1.1.0"`, `"updated":true`, `"restarted":true`} {
 		if !strings.Contains(stdout, want) {
@@ -351,5 +356,54 @@ func TestUpdateRejectsReleaseURLFlag(t *testing.T) {
 	h := newFakeHost(t, newFakeServer(t, "amd64", fakeRelease{Tag: "v1.1.0", Program: "new"}))
 	if code, _, _ := h.run(t, "", "update", "--yes", "--confirm", "--release-url", h.server.API()); code != exitUsage {
 		t.Errorf("code = %d, want %d", code, exitUsage)
+	}
+}
+
+func TestUpdateWithUnchangedManpageLeavesItAndNeedsNoReload(t *testing.T) {
+	withVersion(t, "v1.0.0")
+	h := newFakeHost(t, newFakeServer(t, "amd64", fakeRelease{Tag: "v1.1.0", Program: "new", Unit: "same unit", Manpage: ".TH same 1\n"}))
+	for path, body := range map[string]string{h.unitPath: "same unit", h.manPath: ".TH same 1\n"} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := time.Unix(1_000_000_000, 0)
+	if err := os.Chtimes(h.manPath, old, old); err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := h.run(t, "", "update", "--yes", "--confirm", "--api-url", h.server.API())
+	info, err := os.Stat(h.manPath)
+	if err != nil || code != exitOK || !info.ModTime().Equal(old) || !slices.Equal(h.calls, []string{"systemctl restart qsysmin"}) {
+		t.Errorf("code = %d, calls = %v, stat = %v, %v, stderr = %q", code, h.calls, info, err, stderr)
+	}
+}
+
+func TestUpdateReplacesChangedManpageWithoutReload(t *testing.T) {
+	withVersion(t, "v1.0.0")
+	h := newFakeHost(t, newFakeServer(t, "amd64", fakeRelease{Tag: "v1.1.0", Program: "new", Unit: "same unit", Manpage: ".TH new 1\n"}))
+	if err := os.WriteFile(h.unitPath, []byte("same unit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(h.manPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(h.manPath, []byte(".TH old 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := h.run(t, "", "update", "--yes", "--confirm", "--api-url", h.server.API())
+	if b, _ := os.ReadFile(h.manPath); code != exitOK || string(b) != ".TH new 1\n" || !slices.Equal(h.calls, []string{"systemctl restart qsysmin"}) {
+		t.Errorf("code = %d, calls = %v, manpage = %q, stderr = %q", code, h.calls, b, stderr)
+	}
+}
+
+func TestUpdateWithoutManpageInArchiveChangesNothing(t *testing.T) {
+	withVersion(t, "v1.0.0")
+	h := newFakeHost(t, newFakeServer(t, "amd64", fakeRelease{Tag: "v1.1.0", Program: "new", NoManpage: true}))
+	code, _, _ := h.run(t, "", "update", "--yes", "--confirm", "--api-url", h.server.API())
+	if code != exitRuntime || binary(t, h) != "old program" || len(h.calls) != 0 || exists(h.manPath) {
+		t.Errorf("code = %d, calls = %v", code, h.calls)
 	}
 }
