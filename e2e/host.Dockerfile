@@ -4,7 +4,7 @@ FROM debian:12
 ENV container=docker DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends systemd systemd-sysv dbus ca-certificates curl tmux git \
+	&& apt-get install -y --no-install-recommends systemd systemd-sysv dbus ca-certificates curl \
 		openssh-client openssh-server sudo \
 	&& install -m 0755 -d /etc/apt/keyrings \
 	&& curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
@@ -20,7 +20,5 @@ RUN useradd --create-home --shell /bin/bash --groups sudo e2e-admin \
 	&& echo 'e2e-admin ALL=(ALL) NOPASSWD:ALL' >/etc/sudoers.d/e2e-admin \
 	&& chmod 0440 /etc/sudoers.d/e2e-admin
 
-# systemd leaves mount propagation to the container manager, and Docker makes every mount private. A real host
-# has shared mounts, which systemd needs to pass credentials to a service (LoadCredentialEncrypted).
 STOPSIGNAL SIGRTMIN+3
-CMD ["/bin/sh", "-c", "mount --make-rshared / && exec /sbin/init"]
+CMD ["/sbin/init"]

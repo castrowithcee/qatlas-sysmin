@@ -3,26 +3,28 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
+	"errors"
+	"os"
+	"path/filepath"
+	"time"
 )
 
-// runDemoApp is the application inside the demo images the scenario pushes to the test registry. It answers
-// GET / with its name and version and GET /health with 200, or with 500 when DEMO_HEALTH=fail, which is how
-// the scenario builds a release whose health check fails.
-func runDemoApp() error {
-	name, version := env("DEMO_NAME", "demo"), env("DEMO_VERSION", "unknown")
-	healthy := env("DEMO_HEALTH", "ok") != "fail"
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		if !healthy {
-			http.Error(w, "unhealthy", http.StatusInternalServerError)
-			return
+// runDemoApp is the application of the demo container. Without arguments it idles; "check" is the container's
+// health check and succeeds only while the process can list and read the mounted folder (DEMO_DIR), so a
+// permission change that locks it out makes the container unhealthy.
+func runDemoApp(args []string) error {
+	dir := os.Getenv("DEMO_DIR")
+	if len(args) == 1 && args[0] == "check" {
+		if dir == "" {
+			return errors.New("DEMO_DIR is not set")
 		}
-		fmt.Fprintln(w, "ok")
-	})
-	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprintf(w, "%s %s\n", name, version)
-	})
-	return http.ListenAndServe(env("DEMO_ADDR", ":8080"), mux)
+		if _, err := os.ReadDir(dir); err != nil {
+			return err
+		}
+		_, err := os.ReadFile(filepath.Join(dir, "data.txt"))
+		return err
+	}
+	for {
+		time.Sleep(time.Hour)
+	}
 }

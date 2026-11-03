@@ -1,5 +1,5 @@
 #!/bin/sh
-# End-to-end environment: a simulated Linux host (systemd + Docker) with local helper services, where sysmin
+# End-to-end environment: a simulated Linux host (systemd + Docker) with a local release server, where sysmin
 # is installed from locally signed test releases.
 #
 #   e2e/run.sh up                 build everything, start the environment, install sysmin v0.1.0 on the host
@@ -7,7 +7,6 @@
 #   e2e/run.sh status             show the environment and the installation
 #   e2e/run.sh exec [-u user] <command...>   run a command on the simulated host (default user e2e-admin)
 #   e2e/run.sh env                print the path of the file with the generated test values (source it)
-#   e2e/run.sh requests           print the requests the webhook receiver recorded (JSON lines)
 #   e2e/run.sh scenario           run the acceptance scenario once after up (see e2e/scenario.sh)
 #
 # Everything is named sysmine2e-* and labelled sysmin.e2e=1; down touches only what carries both. Nothing is
@@ -122,20 +121,16 @@ make_keys_and_certs() {
 	openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 2 \
 		-subj "/CN=$prefix test CA" -keyout "$work/keys/ca.key" -out "$ca/ca.crt" 2>/dev/null
 	openssl req -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
-		-subj "/CN=$prefix helper services" -keyout "$ca/server.key" -out "$work/keys/server.csr" 2>/dev/null
+		-subj "/CN=$prefix release server" -keyout "$ca/server.key" -out "$work/keys/server.csr" 2>/dev/null
 	cat >"$work/keys/server.ext" <<EXT
-subjectAltName = DNS:registry.$domain, DNS:git.$domain, DNS:hooks.$domain, DNS:releases.$domain, DNS:api.github.com, DNS:github.com
+subjectAltName = DNS:releases.$domain, DNS:api.github.com, DNS:github.com
 extendedKeyUsage = serverAuth
 EXT
 	openssl x509 -req -in "$work/keys/server.csr" -CA "$ca/ca.crt" -CAkey "$work/keys/ca.key" -CAcreateserial \
 		-days 2 -extfile "$work/keys/server.ext" -out "$ca/server.crt" 2>/dev/null
 }
 
-make_credentials() {
-	rand() { printf 'e2e-test-%s' "$(openssl rand -hex 12)"; }
-	registry_user=e2e-registry-user registry_password=$(rand)
-	git_user=e2e-git-user git_password=$(rand)
-	umask 077
+write_testenv() {
 	cat >"$work/testenv" <<ENV
 E2E_WORK=$work
 E2E_HOST_CONTAINER=$host
@@ -147,17 +142,7 @@ E2E_VERSIONS='$versions'
 E2E_INSTALL_URL=https://releases.$domain/install.sh
 E2E_RELEASES_URL=https://releases.$domain/releases
 E2E_GITHUB_API=https://api.github.com
-E2E_REGISTRY=registry.$domain
-E2E_REGISTRY_USER=$registry_user
-E2E_REGISTRY_PASSWORD=$registry_password
-E2E_GIT_URL=https://git.$domain/stacks.git
-E2E_GIT_USER=$git_user
-E2E_GIT_PASSWORD=$git_password
-E2E_WEBHOOK_URL=https://hooks.$domain/hook
-E2E_CHANGELOG_IMAGE_REPO=sysmine2e-org/demo-image
-E2E_CHANGELOG_GIT_REPO=sysmine2e-org/demo-stacks
 ENV
-	umask 022
 }
 
 # build_releases builds the test releases for the host architecture in the layout of scripts/release.sh and
@@ -200,13 +185,11 @@ build_releases() {
 }
 
 build_images() {
-	log 'building the fakes'
+	log 'building the release server'
 	(cd "$root" && CGO_ENABLED=0 go build -tags e2efakes -trimpath -o "$work/ctx/fakes" ./e2e/fakes)
-	printf '%s\n' "$registry_password" | "$work/ctx/fakes" htpasswd "$registry_user" >"$work/ctx/htpasswd"
 
 	log 'building the images (the simulated host takes a while on the first run)'
 	docker build -q --label "$label" -t "$prefix-fakes:latest" -f "$here/fakes.Dockerfile" "$work/ctx" >/dev/null
-	docker build -q --label "$label" -t "$prefix-registry:latest" -f "$here/registry.Dockerfile" "$work/ctx" >/dev/null
 	docker build -q --label "$label" -t "$prefix-host:latest" - <"$here/host.Dockerfile" >/dev/null
 }
 
@@ -215,12 +198,6 @@ start_services() {
 	docker volume create --label "$label" "$prefix-docker" >/dev/null
 	docker volume create --label "$label" "$prefix-containerd" >/dev/null
 
-	docker run -d --name "$prefix-registry" --label "$label" --network "$net" \
-		--network-alias "registry.$domain" "$prefix-registry:latest" >/dev/null
-	docker run -d --name "$prefix-git" --label "$label" --network "$net" --network-alias "git.$domain" \
-		-e GIT_USER="$git_user" -e GIT_PASSWORD="$git_password" "$prefix-fakes:latest" git >/dev/null
-	docker run -d --name "$prefix-hooks" --label "$label" --network "$net" --network-alias "hooks.$domain" \
-		"$prefix-fakes:latest" webhook >/dev/null
 	docker run -d --name "$prefix-releases" --label "$label" --network "$net" \
 		--network-alias "releases.$domain" --network-alias api.github.com --network-alias github.com \
 		"$prefix-fakes:latest" releases >/dev/null
@@ -251,33 +228,14 @@ prepare_host() {
 	wait_for 'the host to boot' 90 host_booted
 	docker cp "$work/ctx/certs/ca.crt" "$host:/usr/local/share/ca-certificates/$prefix-ca.crt"
 	docker exec "$host" update-ca-certificates >/dev/null
-	# The inner Docker daemon reads per-registry CAs without a restart.
-	docker exec "$host" mkdir -p "/etc/docker/certs.d/registry.$domain"
-	docker cp "$work/ctx/certs/ca.crt" "$host:/etc/docker/certs.d/registry.$domain/ca.crt"
 	wait_for 'the inner Docker daemon' 60 docker exec "$host" docker info
 }
 
-# http_code prints the status code the host gets for a URL; credentials come from stdin as a curl config.
-http_code() {
-	docker exec -i "$host" curl -sS -o /dev/null -w '%{http_code}' -K - "$@"
-}
-
 check_services() {
-	log 'checking the helper services from the host'
+	log 'checking the release server from the host'
 	api=$(docker exec "$host" curl -fsS https://api.github.com/repos/castrowithcee/qatlas-sysmin/releases/latest) ||
 		fail 'the releases fake is not reachable over trusted HTTPS'
 	printf '%s' "$api" | grep -q '"tag_name":"v0.2.0"' || fail 'the releases fake does not offer v0.2.0 as the latest release'
-	[ "$(printf '' | http_code "https://registry.$domain/v2/")" = 401 ] || fail 'the registry does not require authentication'
-	[ "$(printf 'user = "%s:%s"\n' "$registry_user" "$registry_password" | http_code "https://registry.$domain/v2/")" = 200 ] ||
-		fail 'the registry refuses the test credentials'
-	[ "$(printf '' | http_code "https://git.$domain/stacks.git/info/refs?service=git-upload-pack")" = 401 ] ||
-		fail 'the git server does not require authentication'
-	[ "$(printf 'user = "%s:%s"\n' "$git_user" "$git_password" | http_code "https://git.$domain/stacks.git/info/refs?service=git-upload-pack")" = 200 ] ||
-		fail 'the git server refuses the test credentials'
-	[ "$(printf '' | http_code -X POST -d '{"check":true}' "https://hooks.$domain/hook")" = 204 ] ||
-		fail 'the webhook receiver does not accept a request'
-	docker exec "$host" curl -fsS "https://hooks.$domain/_e2e/requests" | grep -q '"check\\":true' ||
-		fail 'the webhook receiver did not record the request'
 }
 
 install_sysmin() {
@@ -311,7 +269,7 @@ up() {
 	trap 'exit 1' HUP INT TERM
 
 	make_keys_and_certs
-	make_credentials
+	write_testenv
 	build_releases
 	build_images
 	start_services
@@ -343,10 +301,6 @@ main() {
 	env)
 		require_up
 		printf '%s\n' "$work/testenv"
-		;;
-	requests)
-		require_up
-		docker exec "$prefix-hooks" cat /data/requests.jsonl 2>/dev/null || true
 		;;
 	scenario)
 		require_up

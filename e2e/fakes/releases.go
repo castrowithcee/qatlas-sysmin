@@ -15,8 +15,8 @@ import (
 
 const releaseRoot = "/srv/releases"
 
-// sysminRepo is the repository whose releases come from the directories under releaseRoot (one directory per
-// tag holding the release assets); every other repository answers with the invented lists below.
+// sysminRepo is the only repository the fake knows; its releases come from the directories under releaseRoot
+// (one directory per tag holding the release assets).
 const sysminRepo = "castrowithcee/qatlas-sysmin"
 
 type apiAsset struct {
@@ -36,19 +36,6 @@ type apiRelease struct {
 	HTMLURL     string     `json:"html_url"`
 	PublishedAt string     `json:"published_at"`
 	Assets      []apiAsset `json:"assets"`
-}
-
-var inventedReleases = map[string][]apiRelease{
-	"sysmine2e-org/demo-image": {
-		{TagName: "v1.2.0", Name: "Demo image 1.2.0", Body: "Adds the invented health endpoint.\n\n- faster start\n- smaller layers", PublishedAt: "2026-03-01T10:00:00Z"},
-		{TagName: "v1.1.0", Name: "Demo image 1.1.0", Body: "Fixes an invented crash on empty input.", PublishedAt: "2026-02-01T10:00:00Z"},
-		{TagName: "v1.0.0", Name: "Demo image 1.0.0", Body: "First invented release.", PublishedAt: "2026-01-01T10:00:00Z"},
-	},
-	"sysmine2e-org/demo-stacks": {
-		{TagName: "v2.1.0", Name: "Demo stacks 2.1.0", Body: "Adds an invented cache service to the web stack.", PublishedAt: "2026-03-05T10:00:00Z"},
-		{TagName: "v2.0.0", Name: "Demo stacks 2.0.0", Body: "Breaking: the web stack moves to port 8081 (invented).", PublishedAt: "2026-02-05T10:00:00Z"},
-		{TagName: "v1.0.0", Name: "Demo stacks 1.0.0", Body: "First invented release.", PublishedAt: "2026-01-05T10:00:00Z"},
-	},
 }
 
 var (
@@ -142,8 +129,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // only trusts its configured origin follows them.
 func releasesOf(repo, host string) ([]apiRelease, bool) {
 	if repo != sysminRepo {
-		list, ok := inventedReleases[repo]
-		return list, ok
+		return nil, false
 	}
 	tags := tagDirs()
 	out := make([]apiRelease, 0, len(tags))
