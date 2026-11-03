@@ -81,8 +81,8 @@ func labelWidth(labels []string) int {
 
 func (m *Model) generalPage(p *pageDraw) {
 	g := &m.set.gen
-	labels := []string{tr(tLblLanguage), tr(tLblTheme), tr(tLblMouse), tr(tLblKeySave), tr(tLblKeyHelp), tr(tLblKeyCommand),
-		tr(tLblKeyInfo)}
+	labels := []string{m.tr(tLblLanguage), m.tr(tLblTheme), m.tr(tLblMouse), m.tr(tLblKeySave), m.tr(tLblKeyHelp), m.tr(tLblKeyCommand),
+		m.tr(tLblKeyInfo)}
 	// The actions come in the order of uiprefs.Actions: save, help, command, info.
 	lw := labelWidth(labels)
 	values := []string{g.language, g.theme, g.mouse}
@@ -131,27 +131,27 @@ func (m *Model) updatePage(p *pageDraw) {
 	if running == "" {
 		running = m.svc.st.Version
 	}
-	labels := []string{tr(tLblRunning), tr(tLblLatest)}
+	labels := []string{m.tr(tLblRunning), m.tr(tLblLatest)}
 	lw := labelWidth(labels)
 	p.add(statusRow(statusOK, padLine(labels[0], lw)+":  "+running))
-	kind, state := statusDim, tr(tValNoData)
+	kind, state := statusDim, m.tr(tValNoData)
 	switch u.phase {
 	case updChecking:
-		state = tr(tUpdChecking)
+		state = m.tr(tUpdChecking)
 	case updFailed:
-		kind, state = statusWarn, tr(tUpdFailed)
+		kind, state = statusWarn, m.tr(tUpdFailed)
 	case updDone:
 		switch {
 		case u.info.Dev:
-			state = tr(tUpdDev)
+			state = m.tr(tUpdDev)
 		case u.info.Latest != "":
-			kind, state = statusWarn, tr(tUpdAvailable, u.info.Latest)
+			kind, state = statusWarn, m.tr(tUpdAvailable, u.info.Latest)
 		default:
-			kind, state = statusOK, tr(tUpdCurrent)
+			kind, state = statusOK, m.tr(tUpdCurrent)
 		}
 	}
 	p.add(statusRow(kind, padLine(labels[1], lw)+":  "+state))
 	if u.phase == updDone && u.info.Latest != "" && !u.info.Dev {
-		p.add(m.indented(tr(tUpdHint, m.keyLabel(actSelfUpdate))))
+		p.add(m.indented(m.tr(tUpdHint, m.keyLabel(actSelfUpdate))))
 	}
 }

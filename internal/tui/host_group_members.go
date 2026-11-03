@@ -50,26 +50,26 @@ func (m *Model) openGroupMembers() tea.Cmd {
 		out := make([]string, len(names))
 		for i, n := range names {
 			if system[n] {
-				out[i] = tr(tHostSystem)
+				out[i] = m.tr(tHostSystem)
 			}
 		}
 		return out
 	}
-	f := &formDlg{title: tr(tHostMembersTitle, m.diffText(g.Name)), hint: tr(tHostMembersHint), saveText: "{save} continue"}
+	f := &formDlg{title: m.tr(tHostMembersTitle, m.diffText(g.Name)), hint: m.tr(tHostMembersHint), saveText: "{save} continue"}
 	switch g.Name {
 	case hostadmin.GroupAdmin:
-		f.hint = tr(tHostMembersSudoHint)
+		f.hint = m.tr(tHostMembersSudoHint)
 	case hostadmin.GroupDocker:
-		f.hint += " " + tr(tHostPowerWarn)
+		f.hint += " " + m.tr(tHostPowerWarn)
 	}
 	f.rows = []formRow{
-		pickRow("add", tr(tHostMembersAdd), add, notes(add)),
-		pickRow("remove", tr(tHostMembersRemove), remove, notes(remove)),
+		pickRow("add", m.tr(tHostMembersAdd), add, notes(add)),
+		pickRow("remove", m.tr(tHostMembersRemove), remove, notes(remove)),
 	}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
 		added, removed := f.row("add").picked(), f.row("remove").picked()
 		if len(added)+len(removed) == 0 {
-			f.row("add").problem = tr(tHostMembersTickOne)
+			f.row("add").problem = m.tr(tHostMembersTickOne)
 			return nil
 		}
 		if msg := m.guardMembers(g, added, removed); msg != "" {
@@ -115,7 +115,7 @@ func (m *Model) guardMembers(g hostadmin.Group, added, removed []string) string 
 	uid := hostUID()
 	for _, u := range m.hostUserList() {
 		if uid != 0 && u.UID == uid && slices.Contains(removed, u.Name) {
-			return tr(tHostSelfAdmin)
+			return m.tr(tHostSelfAdmin)
 		}
 	}
 	for _, u := range m.hostUserList() {
@@ -131,5 +131,5 @@ func (m *Model) guardMembers(g hostadmin.Group, added, removed []string) string 
 			return ""
 		}
 	}
-	return tr(tHostLastAdmin, m.diffText(strings.Join(removed, ", ")))
+	return m.tr(tHostLastAdmin, m.diffText(strings.Join(removed, ", ")))
 }

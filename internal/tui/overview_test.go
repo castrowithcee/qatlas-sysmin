@@ -431,7 +431,7 @@ func TestOverviewInASmallTerminalKeepsTitleAndSteps(t *testing.T) {
 
 func TestOverviewHeaderDateFollowsTheLanguage(t *testing.T) {
 	m := overviewModel(t, overviewFake(), 80, 24)
-	useLanguage(t, i18n.German)
+	useLanguage(t, m, i18n.German)
 	if view := plain(m); !strings.Contains(view, "Mi., 28. Okt. 2026") || !strings.Contains(view, "Nächste Schritte") {
 		t.Errorf("the German overview:\n%s", view)
 	}

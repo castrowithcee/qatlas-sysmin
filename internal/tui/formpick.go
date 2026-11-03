@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"maps"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -21,17 +20,17 @@ func pickRow(key, label string, values, notes []string) formRow {
 }
 
 // pickText is how a pick row is drawn: the first chosen values and how many more there are.
-func (r *formRow) pickText() string {
+func (r *formRow) pickText(ui *uiContext) string {
 	if len(r.values) == 0 {
-		return tr(tPickNothing)
+		return ui.tr(tPickNothing)
 	}
 	chosen := r.picked()
 	if len(chosen) == 0 {
-		return tr(tPickNone)
+		return ui.tr(tPickNone)
 	}
 	text := strings.Join(chosen[:min(len(chosen), pickSummaryNames)], ", ")
 	if more := len(chosen) - pickSummaryNames; more > 0 {
-		text += " " + tr(tPickMore, more)
+		text += " " + ui.tr(tPickMore, more)
 	}
 	return text
 }
@@ -130,7 +129,7 @@ func (m *Model) pickDialog(f *formDlg) promptDialog {
 	pk := f.pick
 	l := &pk.list
 	f.hits = nil
-	l.input.Placeholder = tr(tLogSearchPlaceholder)
+	l.input.Placeholder = m.tr(tLogSearchPlaceholder)
 	lines := []string{"  / " + inputView(fitInput(l.input, pickerField))}
 	start, end := l.window(pickerRows, func(int) int { return 1 })
 	for i := start; i < end; i++ {
@@ -159,9 +158,9 @@ func (m *Model) pickDialog(f *formDlg) promptDialog {
 		}})
 	}
 	if len(l.matches) == 0 {
-		lines = append(lines, styles.hint.Render("    "+tr(tPickNoMatch)))
+		lines = append(lines, styles.hint.Render("    "+m.tr(tPickNoMatch)))
 	} else {
-		lines = append(lines, styles.hint.Render("    "+tr(tPickPosition, l.cursor+1, len(l.matches))))
+		lines = append(lines, styles.hint.Render("    "+m.tr(tPickPosition, l.cursor+1, len(l.matches))))
 	}
 	return promptDialog{title: f.rows[pk.row].label, input: strings.Join(lines, "\n"),
 		keys: "↑/↓ move · space tick · enter keep · {back} discard"}
@@ -201,17 +200,19 @@ const (
 	tPickMore    textID = "PickMore"
 )
 
-func init() {
-	maps.Copy(textEN, map[textID]string{
+// pickTexts are the texts of the pick row and its list, in English and German.
+func pickTexts() (en, de map[textID]string) {
+	en = map[textID]string{
 		tPickNone:                  "none",
 		tPickNothing:               "nothing to choose",
 		tPickMore:                  "+%d",
 		footerID("{back} discard"): "{back} discard",
-	})
-	maps.Copy(textDE, map[textID]string{
+	}
+	de = map[textID]string{
 		tPickNone:                  "keine",
 		tPickNothing:               "nichts zur Auswahl",
 		tPickMore:                  "+%d",
 		footerID("{back} discard"): "{back} verwerfen",
-	})
+	}
+	return en, de
 }

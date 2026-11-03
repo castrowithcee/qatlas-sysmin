@@ -112,7 +112,7 @@ type ovItem struct {
 }
 
 // noData is the dimmed word a card shows without figures.
-func (m *Model) noData() string { return tr(tOvNone) }
+func (m *Model) noData() string { return m.tr(tOvNone) }
 
 // hostUserFigures counts the admins of the host and those of them who cannot use qsysmin yet.
 func (m *Model) hostUserFigures() (admins, notEnabled int) {
@@ -147,15 +147,15 @@ func (m *Model) overviewCards() []ovItem {
 	if o.more {
 		changes += "+"
 	}
-	service := ovItem{label: tr(tOvService), kind: statusOK, value: tr(tOvReachable), info: tInfoOvService}
+	service := ovItem{label: m.tr(tOvService), kind: statusOK, value: m.tr(tOvReachable), info: tInfoOvService}
 	if !m.serviceUp() {
-		service.kind, service.value = statusFail, tr(tOvUnreachable)
+		service.kind, service.value = statusFail, m.tr(tOvUnreachable)
 		service.key, service.act = "enter retry", m.statusCmd
 	}
 	return []ovItem{
-		figure(tr(tOvAdmins), fmt.Sprint(admins), haveUsers, false, tInfoOvAdmins, users),
-		figure(tr(tOvNotEnabled), fmt.Sprint(notEnabled), haveUsers, notEnabled > 0, tInfoOvNotEnabled, users),
-		figure(tr(tOvChanges), changes, o.haveLog, false, tInfoOvChanges,
+		figure(m.tr(tOvAdmins), fmt.Sprint(admins), haveUsers, false, tInfoOvAdmins, users),
+		figure(m.tr(tOvNotEnabled), fmt.Sprint(notEnabled), haveUsers, notEnabled > 0, tInfoOvNotEnabled, users),
+		figure(m.tr(tOvChanges), changes, o.haveLog, false, tInfoOvChanges,
 			func() tea.Cmd { return m.show(areaActivity, actLog) }),
 		service,
 	}
@@ -171,9 +171,9 @@ func (m *Model) overviewSteps() []ovItem {
 	}
 	if !m.serviceUp() {
 		if m.svc.noGroup {
-			return []ovItem{step(statusFail, tr(tOvRegroup), "enter restart", m.regroup)}
+			return []ovItem{step(statusFail, m.tr(tOvRegroup), "enter restart", m.regroup)}
 		}
-		retry := step(statusFail, tr(tOvRetry), "enter retry", m.statusCmd)
+		retry := step(statusFail, m.tr(tOvRetry), "enter retry", m.statusCmd)
 		if m.svc.foreign {
 			// The error carries the way out; it must stay readable.
 			retry.label += " · " + oneLine(m.svc.fail)
@@ -182,14 +182,14 @@ func (m *Model) overviewSteps() []ovItem {
 	}
 	var steps []ovItem
 	if latest := m.updateAvailable(); latest != "" {
-		steps = append(steps, step(statusWarn, tr(tOvInstall, latest), "enter update", m.selfUpdate))
+		steps = append(steps, step(statusWarn, m.tr(tOvInstall, latest), "enter update", m.selfUpdate))
 	}
 	if _, notEnabled := m.hostUserFigures(); m.hst.users.have && notEnabled > 0 {
-		steps = append(steps, step(statusWarn, tr(tOvStepEnable, notEnabled), "enter open",
+		steps = append(steps, step(statusWarn, m.tr(tOvStepEnable, notEnabled), "enter open",
 			func() tea.Cmd { return m.show(areaHost, hostUsers) }))
 	}
 	if len(steps) == 0 {
-		steps = append(steps, ovItem{label: tr(tOvNothing), kind: statusDim, info: tInfoOvSteps})
+		steps = append(steps, ovItem{label: m.tr(tOvNothing), kind: statusDim, info: tInfoOvSteps})
 	}
 	return steps
 }
@@ -349,10 +349,10 @@ func (m *Model) overviewKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 }
 
 // ovDate is the date of the header in the language of the interface.
-func ovDate(t time.Time) string {
+func ovDate(ui *uiContext, t time.Time) string {
 	t = t.Local()
-	days, months := strings.Split(tr(tOvWeekdays), ","), strings.Split(tr(tOvMonths), ",")
-	return tr(tOvDate, days[t.Weekday()], t.Day(), months[t.Month()-1], t.Year())
+	days, months := strings.Split(ui.tr(tOvWeekdays), ","), strings.Split(ui.tr(tOvMonths), ",")
+	return ui.tr(tOvDate, days[t.Weekday()], t.Day(), months[t.Month()-1], t.Year())
 }
 
 // ovMark is the leading mark of a step: its shape tells the kind as well as its colour.
@@ -395,7 +395,7 @@ func ovValueStyle(k statusKind) lipgloss.Style {
 func (m *Model) overviewBody() string {
 	cards, steps, p := m.overviewNow()
 	if len(steps) == 0 {
-		return m.wrapped(styles.hint, tr(tChecking))
+		return m.wrapped(styles.hint, m.tr(tChecking))
 	}
 	o := &m.ovr
 	width := m.usable(0)
@@ -427,7 +427,7 @@ func (m *Model) overviewBody() string {
 		})
 	}
 
-	lines = append(lines, titleLine(m.area.title(), ovDate(m.timeNow()), width))
+	lines = append(lines, titleLine(m.area.title(m.ui), ovDate(m.ui, m.timeNow()), width))
 	if p.blank {
 		lines = append(lines, "")
 	}
@@ -502,16 +502,16 @@ func (m *Model) overviewBody() string {
 	}
 	stepsRow := len(lines)
 	if p.framed {
-		lines = append(lines, panel(tr(tOvSteps), body, inner, len(body), panelOpts{focused: focus && zone == ovSteps})...)
+		lines = append(lines, panel(m.tr(tOvSteps), body, inner, len(body), panelOpts{focused: focus && zone == ovSteps})...)
 	} else {
-		lines = append(lines, styles.title.Render(tr(tOvSteps)))
+		lines = append(lines, styles.title.Render(m.tr(tOvSteps)))
 		lines = append(lines, body...)
 	}
 	wheel(stepsRow, len(lines)-stepsRow, min(len(steps), p.steps), ovSteps)
 
 	if p.changes > 0 {
 		rows := m.changeLines(width - 4)[:p.changes]
-		lines = append(lines, panel(tr(tOvLastChanges), rows, width-4, len(rows), panelOpts{})...)
+		lines = append(lines, panel(m.tr(tOvLastChanges), rows, width-4, len(rows), panelOpts{})...)
 	}
 
 	return strings.Join(lines, "\n")
@@ -526,7 +526,7 @@ func (m *Model) changeLines(width int) []string {
 		return []string{styles.hint.Render(clipCells(m.noData(), width))}
 	}
 	if len(o.changes) == 0 {
-		return []string{styles.hint.Render(clipCells(tr(tOvNoChanges), width))}
+		return []string{styles.hint.Render(clipCells(m.tr(tOvNoChanges), width))}
 	}
 	var lines []string
 	for _, e := range o.changes[:min(len(o.changes), ovMaxChanges)] {
@@ -534,7 +534,7 @@ func (m *Model) changeLines(width int) []string {
 		if e.Host != nil {
 			what = m.diffText(e.Host.ActionID)
 			if e.Host.UndoOf != "" {
-				what += " · " + tr(tOvUndo)
+				what += " · " + m.tr(tOvUndo)
 			}
 		}
 		lines = append(lines, clipCells(e.Time.Local().Format("2006-01-02 15:04")+"  "+what, width))

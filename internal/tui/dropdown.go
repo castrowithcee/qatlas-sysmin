@@ -70,13 +70,13 @@ const searchFieldMax = 30
 
 // searchField draws the search field of width cells: the placeholder, dimmed, while content is empty, else
 // content (the text after "/ ", or the input being typed, already drawn).
-func searchField(content string, width int) string {
+func searchField(ui *uiContext, content string, width int) string {
 	if content == "" {
 		hint := styles.hint
 		if styles.palette.surface != "" {
 			hint = hint.Background(styles.palette.surface.lip())
 		}
-		return hint.Render(padLine(clipCells(" "+tr(tSearchField), width), width))
+		return hint.Render(padLine(clipCells(" "+ui.tr(tSearchField), width), width))
 	}
 	return fieldStyle(false).Render(padLine(clipCells(" "+content, width), width))
 }
@@ -216,7 +216,7 @@ func searchContent(l *filterList, room int) string {
 // fieldRows sets styled fields, each led by its own two-cell marker column and two cells apart, into lines of width
 // cells, and the search field at the right end of the first line it fits (the last line otherwise). It returns
 // the lines and the plain search field.
-func fieldRows(fields []string, search func(room int) string, width int) ([]string, string) {
+func fieldRows(ui *uiContext, fields []string, search func(room int) string, width int) ([]string, string) {
 	var lines []string
 	cur, used := "", 0
 	flush := func() {
@@ -254,7 +254,7 @@ func fieldRows(fields []string, search func(room int) string, width int) ([]stri
 	if room < 4 {
 		return lines, ""
 	}
-	field := searchField(search(room), room)
+	field := searchField(ui, search(room), room)
 	lines[at] += strings.Repeat(" ", width-lipgloss.Width(lines[at])-room) + field
 	return lines, ansi.Strip(field)
 }

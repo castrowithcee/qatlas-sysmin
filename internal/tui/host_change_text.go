@@ -1,7 +1,5 @@
 package tui
 
-import "maps"
-
 // The texts of the host changes: the confirmation, the result, the messages of a run that gave no answer, and
 // the Changes page.
 const (
@@ -57,8 +55,9 @@ const (
 	tHostRefusedNote       textID = "HostRefusedNote"
 )
 
-func init() {
-	maps.Copy(textEN, map[textID]string{
+// hostChangeTexts are the texts of the host changes, in English and German.
+func hostChangeTexts() (en, de map[textID]string) {
+	en = map[textID]string{
 		tSubChanges:            "Changes",
 		tInfoHostChanges:       "The latest changes made to this host through qsysmin, from the journal that only root can read. Enter on a change that can be undone asks to undo it. Reading asks for your sudo password.",
 		tHostColChange:         "Change",
@@ -115,8 +114,8 @@ func init() {
 		footerID("y read as root"):      "y read as root",
 		footerID("enter undo"):          "enter undo",
 		footerID("ctrl+r read as root"): "ctrl+r read as root",
-	})
-	maps.Copy(textDE, map[textID]string{
+	}
+	de = map[textID]string{
 		tSubChanges:            "Änderungen",
 		tInfoHostChanges:       "Die letzten Änderungen, die über qsysmin an diesem Host gemacht wurden, aus dem Journal, das nur root lesen kann. Enter auf einer Änderung, die sich zurücknehmen lässt, fragt nach dem Rückgängigmachen. Zum Lesen wird dein sudo-Passwort gefragt.",
 		tHostColChange:         "Änderung",
@@ -173,5 +172,6 @@ func init() {
 		footerID("y read as root"):      "y als root lesen",
 		footerID("enter undo"):          "enter rückgängig",
 		footerID("ctrl+r read as root"): "ctrl+r als root lesen",
-	})
+	}
+	return en, de
 }

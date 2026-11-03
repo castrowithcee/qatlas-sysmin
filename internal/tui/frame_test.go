@@ -17,8 +17,7 @@ func frameModel(t *testing.T, w, h int) *Model {
 	restoreRenderer(t)
 	setProfile(profileNone)
 	applyTheme(uiprefs.ThemeTerminal)
-	useLanguage(t, "en")
-	m := New(uiprefs.Default(), nil)
+	m := testModel(uiprefs.Default(), nil)
 	m.title = "Entries"
 	m.table = table{
 		columns: []column{{title: "Name"}, {title: "Note", flex: true}},

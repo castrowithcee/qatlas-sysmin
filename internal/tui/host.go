@@ -23,8 +23,8 @@ const (
 	hostCount
 )
 
-func hostTitle(sub int) string {
-	return tr([...]textID{tSubUsers, tSubGroups, tSubFolders, tSubChanges}[sub])
+func hostTitle(ui *uiContext, sub int) string {
+	return ui.tr([...]textID{tSubUsers, tSubGroups, tSubFolders, tSubChanges}[sub])
 }
 
 // hostKey is the English name of a Host page, the one commands are given by.
@@ -154,16 +154,16 @@ const (
 	hostSystem   = "system"
 )
 
-func shownHost(v string) string {
+func (m *Model) shownHost(v string) string {
 	switch v {
 	case hostYes:
-		return tr(tHostYes)
+		return m.tr(tHostYes)
 	case hostNo:
-		return tr(tHostNo)
+		return m.tr(tHostNo)
 	case hostAdminOff:
-		return tr(tHostAdminOff)
+		return m.tr(tHostAdminOff)
 	case hostSystem:
-		return tr(tHostSystem)
+		return m.tr(tHostSystem)
 	}
 	return v
 }
@@ -179,25 +179,25 @@ func (m *Model) hostSystemTone(system func(name string) bool) func(string) lipgl
 
 func (m *Model) hostUserColumns() []column {
 	warn := func(cell string) lipgloss.Style {
-		if cell == tr(tHostAdminOff) {
+		if cell == m.tr(tHostAdminOff) {
 			return styles.warning
 		}
 		return styles.cell
 	}
 	return []column{
-		{title: tr(tColName), tone: m.hostSystemTone(func(n string) bool { return m.hst.users.items[n].System })},
-		{title: tr(tHostColAdmin), shown: shownHost, short: map[string]string{hostAdminOff: tr(tHostAdminOffShort)}, tone: warn},
-		{title: tr(tHostColDocker), shown: shownHost},
-		{title: tr(tHostColGroups), flex: true, optional: true, drop: 2},
-		{title: tr(tHostColSystem), shown: shownHost, optional: true, drop: 1, tone: toneDim},
+		{title: m.tr(tColName), tone: m.hostSystemTone(func(n string) bool { return m.hst.users.items[n].System })},
+		{title: m.tr(tHostColAdmin), shown: m.shownHost, short: map[string]string{hostAdminOff: m.tr(tHostAdminOffShort)}, tone: warn},
+		{title: m.tr(tHostColDocker), shown: m.shownHost},
+		{title: m.tr(tHostColGroups), flex: true, optional: true, drop: 2},
+		{title: m.tr(tHostColSystem), shown: m.shownHost, optional: true, drop: 1, tone: toneDim},
 	}
 }
 
 func (m *Model) hostGroupColumns() []column {
 	return []column{
-		{title: tr(tColName), tone: m.hostSystemTone(func(n string) bool { return m.hst.groups.items[n].System })},
-		{title: tr(tHostColMembers), right: true},
-		{title: tr(tHostColSystem), shown: shownHost, optional: true, tone: toneDim},
+		{title: m.tr(tColName), tone: m.hostSystemTone(func(n string) bool { return m.hst.groups.items[n].System })},
+		{title: m.tr(tHostColMembers), right: true},
+		{title: m.tr(tHostColSystem), shown: m.shownHost, optional: true, tone: toneDim},
 	}
 }
 
@@ -256,44 +256,44 @@ func hostYesNo(b bool) string {
 }
 
 // knownBool draws a value only root can read: nil is unknown, never "no".
-func hostKnownBool(b *bool) string {
+func hostKnownBool(ui *uiContext, b *bool) string {
 	switch {
 	case b == nil:
-		return tr(tHostUnknown)
+		return ui.tr(tHostUnknown)
 	case *b:
-		return tr(tHostYes)
+		return ui.tr(tHostYes)
 	}
-	return tr(tHostNo)
+	return ui.tr(tHostNo)
 }
 
 func (m *Model) hostUsersSpec() dataSpec {
-	empty := tr(tHostNoUsers)
+	empty := m.tr(tHostNoUsers)
 	if m.hst.users.err != "" {
 		empty = m.hst.users.err
 	}
-	return dataSpec{title: tr(tSubUsers), empty: empty, lines: m.hostUserLines}
+	return dataSpec{title: m.tr(tSubUsers), empty: empty, lines: m.hostUserLines}
 }
 
 func (m *Model) hostGroupsSpec() dataSpec {
-	empty := tr(tHostNoGroups)
+	empty := m.tr(tHostNoGroups)
 	if m.hst.groups.err != "" {
 		empty = m.hst.groups.err
 	}
-	return dataSpec{title: tr(tSubGroups), empty: empty, lines: m.hostGroupLines}
+	return dataSpec{title: m.tr(tSubGroups), empty: empty, lines: m.hostGroupLines}
 }
 
-func hostList(items []string) string {
+func hostList(ui *uiContext, items []string) string {
 	if len(items) == 0 {
-		return tr(tHostNone)
+		return ui.tr(tHostNone)
 	}
 	return strings.Join(items, ", ")
 }
 
-func hostKindText(system bool) string {
+func hostKindText(ui *uiContext, system bool) string {
 	if system {
-		return tr(tHostSystemRO)
+		return ui.tr(tHostSystemRO)
 	}
-	return tr(tHostRegular)
+	return ui.tr(tHostRegular)
 }
 
 // hostUserLines are the lines of one tab of a user. Keys are shown by type, comment and fingerprint, never as
@@ -303,31 +303,31 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 	if !ok {
 		return nil
 	}
-	admin := shownHost(adminText(u))
+	admin := m.shownHost(adminText(u))
 	switch tab {
 	case tabOverview:
 		lines := factLines([][2]string{
-			{tr(tColName), m.diffText(u.Name)},
-			{tr(tColType), userKindText(u.System)},
-			{tr(tHostColAdmin), admin},
-			{tr(tHostColDocker), shownHost(hostYesNo(u.Docker))},
-			{tr(tHostLblEnabled), shownHost(hostYesNo(u.Enabled))},
-			{tr(tHostColGroups), m.diffText(hostList(u.Groups))},
-			{tr(tHostLblHome), m.diffText(u.Home)},
-			{tr(tHostLblLocked), hostKnownBool(u.Locked)},
+			{m.tr(tColName), m.diffText(u.Name)},
+			{m.tr(tColType), userKindText(m.ui, u.System)},
+			{m.tr(tHostColAdmin), admin},
+			{m.tr(tHostColDocker), m.shownHost(hostYesNo(u.Docker))},
+			{m.tr(tHostLblEnabled), m.shownHost(hostYesNo(u.Enabled))},
+			{m.tr(tHostColGroups), m.diffText(hostList(m.ui, u.Groups))},
+			{m.tr(tHostLblHome), m.diffText(u.Home)},
+			{m.tr(tHostLblLocked), hostKnownBool(m.ui, u.Locked)},
 		}, width)
 		if u.Locked == nil {
 			lines = append(lines, "")
-			lines = append(lines, wrapIndented(styles.hint, "", tr(tHostReadHint, "ctrl+r"), width)...)
+			lines = append(lines, wrapIndented(styles.hint, "", m.tr(tHostReadHint, "ctrl+r"), width)...)
 		}
 		return lines
 	case tabDetails:
 		if u.SSHKeys == nil {
-			lines := wrapIndented(styles.hint, "", tr(tHostKeysUnknown), width)
-			return append(append(lines, ""), wrapIndented(styles.hint, "", tr(tHostReadHint, "ctrl+r"), width)...)
+			lines := wrapIndented(styles.hint, "", m.tr(tHostKeysUnknown), width)
+			return append(append(lines, ""), wrapIndented(styles.hint, "", m.tr(tHostReadHint, "ctrl+r"), width)...)
 		}
 		if len(u.SSHKeys) == 0 {
-			return []string{styles.hint.Render(tr(tHostNoKeys))}
+			return []string{styles.hint.Render(m.tr(tHostNoKeys))}
 		}
 		var lines []string
 		for _, k := range u.SSHKeys {
@@ -355,7 +355,7 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 func (m *Model) hostChangesView(top int) string {
 	body := m.dataBody(&m.hst.chg.page, m.hostChangesSpec(), top)
 	if m.hst.chg.stale && m.hst.chg.have && !m.backdrop {
-		body += "\n" + m.wrapped(styles.warning, tr(tHostChangesStale, "ctrl+r"))
+		body += "\n" + m.wrapped(styles.warning, m.tr(tHostChangesStale, "ctrl+r"))
 	}
 	return body
 }
@@ -375,13 +375,13 @@ func (m *Model) hostGroupLines(name string, tab, width int) []string {
 	switch tab {
 	case tabOverview:
 		return factLines([][2]string{
-			{tr(tColName), m.diffText(g.Name)},
-			{tr(tColType), hostKindText(g.System)},
-			{tr(tHostColMembers), strconv.Itoa(len(g.Members))},
+			{m.tr(tColName), m.diffText(g.Name)},
+			{m.tr(tColType), hostKindText(m.ui, g.System)},
+			{m.tr(tHostColMembers), strconv.Itoa(len(g.Members))},
 		}, width)
 	case tabDetails:
 		if len(g.Members) == 0 {
-			return []string{styles.hint.Render(tr(tHostNoMembers))}
+			return []string{styles.hint.Render(m.tr(tHostNoMembers))}
 		}
 		members := append([]string(nil), g.Members...)
 		sort.Strings(members)

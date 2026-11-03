@@ -55,7 +55,7 @@ func (m *Model) openPopup(kind popKind) {
 	if kind == popCommand {
 		p.in = newTextInput()
 		p.in.Prompt = commandPrompt
-		p.in.Placeholder = tr(tCmdPlaceholder)
+		p.in.Placeholder = m.tr(tCmdPlaceholder)
 		p.in.Focus()
 	}
 	m.pop, m.screen = p, screenPopup
@@ -99,7 +99,7 @@ func (m *Model) updatePopup(key tea.KeyPressMsg) tea.Cmd {
 
 // infoOf is the title and the text of the entry under the focus, like a tooltip.
 func (m *Model) infoOf() (string, string) {
-	pick := func(label string, id textID) (string, string) { return label, tr(id) }
+	pick := func(label string, id textID) (string, string) { return label, m.tr(id) }
 	switch m.area {
 	case areaOverview:
 		if item := m.overviewCurrent(); item.info != "" {
@@ -112,18 +112,18 @@ func (m *Model) infoOf() (string, string) {
 			ids := []textID{tInfoSetLanguage, tInfoSetTheme, tInfoSetMouse}
 			labels := []textID{tLblLanguage, tLblTheme, tLblMouse, tLblKeySave, tLblKeyHelp, tLblKeyCommand, tLblKeyInfo}
 			if g.focus < len(ids) {
-				return pick(tr(labels[g.focus]), ids[g.focus])
+				return pick(m.tr(labels[g.focus]), ids[g.focus])
 			}
-			return pick(tr(labels[g.focus]), tInfoSetKey)
+			return pick(m.tr(labels[g.focus]), tInfoSetKey)
 		default:
-			return pick(subTitle(subUpdate), tInfoSetUpdate)
+			return pick(subTitle(m.ui, subUpdate), tInfoSetUpdate)
 		}
 	case areaActivity:
-		return pick(actTitle(m.act.sub), []textID{tInfoActLog}[m.act.sub])
+		return pick(actTitle(m.ui, m.act.sub), []textID{tInfoActLog}[m.act.sub])
 	case areaHost:
-		return pick(hostTitle(m.hst.sub), []textID{tInfoHostUsers, tInfoHostGroups, tInfoHostFolders, tInfoHostChanges}[m.hst.sub])
+		return pick(hostTitle(m.ui, m.hst.sub), []textID{tInfoHostUsers, tInfoHostGroups, tInfoHostFolders, tInfoHostChanges}[m.hst.sub])
 	}
-	return m.area.title(), tr(tListEmpty)
+	return m.area.title(m.ui), m.tr(tListEmpty)
 }
 
 // helpBody is the text of the help topic shown, wrapped into width cells.
@@ -132,19 +132,19 @@ func (m *Model) helpBody(width int) []string {
 	var lines []string
 	if topic.id == "keys" {
 		everywhere := []string{"{help} help", "{command} cmds", "{info} info", "{save} save", "{back} back", "q quit"}
-		lines = append(lines, styles.title.Render(tr(tHelpKeysScreen)))
+		lines = append(lines, styles.title.Render(m.tr(tHelpKeysScreen)))
 		for _, g := range strings.Split(m.areaKeys(), " · ") {
 			if !slices.Contains(everywhere, g) {
 				lines = append(lines, "  "+truncateCells(m.footerKeys(g), width-2))
 			}
 		}
-		lines = append(lines, "", styles.title.Render(tr(tHelpKeysEverywhere)))
+		lines = append(lines, "", styles.title.Render(m.tr(tHelpKeysEverywhere)))
 		for _, g := range everywhere {
 			lines = append(lines, "  "+truncateCells(m.footerKeys(g), width-2))
 		}
 		return lines
 	}
-	return strings.Split(render(lipgloss.NewStyle(), width, tr(topic.text)), "\n")
+	return strings.Split(render(lipgloss.NewStyle(), width, m.tr(topic.text)), "\n")
 }
 
 // popupKeys is the key line of a panel.
@@ -175,10 +175,10 @@ func (m *Model) popupContent(inner int) (title string, body []string) {
 				break
 			}
 		}
-		return tr(tHelpTitle), append([]string{truncateCells(strip, inner), ""}, m.helpBody(inner)...)
+		return m.tr(tHelpTitle), append([]string{truncateCells(strip, inner), ""}, m.helpBody(inner)...)
 	}
 	label, text := m.infoOf()
-	return tr(tInfoTitle), append([]string{styles.title.Render(label), ""}, strings.Split(render(lipgloss.NewStyle(), inner, text), "\n")...)
+	return m.tr(tInfoTitle), append([]string{styles.title.Render(label), ""}, strings.Split(render(lipgloss.NewStyle(), inner, text), "\n")...)
 }
 
 // popupFrame draws the panel: centred over the dimmed screen where the terminal has the room for it, and in
@@ -199,7 +199,7 @@ func (m *Model) popupFrame() string {
 	var body []string
 	var index []int
 	if m.pop.kind == popCommand {
-		title = tr(tCmdTitle)
+		title = m.tr(tCmdTitle)
 		body, index = m.paletteBody(inner, room)
 	} else {
 		title, body = m.popupContent(inner)
@@ -270,5 +270,5 @@ func (m *Model) scrolled(body []string, room, width int) []string {
 	p.last = len(body) - room
 	p.scroll = min(max(p.scroll, 0), p.last)
 	out := slices.Clone(body[p.scroll : p.scroll+room])
-	return append(out, styles.hint.Render(truncateCells(tr(tScrollPosition, p.scroll+1, p.scroll+room, len(body)), width)))
+	return append(out, styles.hint.Render(truncateCells(m.tr(tScrollPosition, p.scroll+1, p.scroll+room, len(body)), width)))
 }

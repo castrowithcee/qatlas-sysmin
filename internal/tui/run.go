@@ -67,7 +67,6 @@ func Run(opts Options) error {
 	known, themeWarning := knownTheme(prefs.Theme)
 	prefs.Theme = known
 	applyTheme(prefs.Theme)
-	setLanguage(prefs.Language)
 	warnings := opts.PrefsWarnings
 	if themeWarning != "" {
 		warnings = append(warnings, themeWarning)

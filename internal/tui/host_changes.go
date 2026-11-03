@@ -78,40 +78,40 @@ func hostTime(rfc3339 string) string {
 	return t.Local().Format("2006-01-02 15:04:05")
 }
 
-func shownResult(v string) string {
+func (m *Model) shownResult(v string) string {
 	switch v {
 	case hostchange.ResultApplied:
-		return tr(tHostResApplied)
+		return m.tr(tHostResApplied)
 	case hostchange.ResultFailed:
-		return tr(tHostResFailed)
+		return m.tr(tHostResFailed)
 	case hostchange.ResultRestored:
-		return tr(tHostResRestored)
+		return m.tr(tHostResRestored)
 	case hostchange.ResultUndone:
-		return tr(tHostResUndone)
+		return m.tr(tHostResUndone)
 	}
 	return v
 }
 
 func (m *Model) hostChangeColumns() []column {
 	tone := func(cell string) lipgloss.Style {
-		if cell == tr(tHostResFailed) || cell == tr(tHostResRestored) {
+		if cell == m.tr(tHostResFailed) || cell == m.tr(tHostResRestored) {
 			return styles.warning
 		}
 		return styles.cell
 	}
 	return []column{
-		{title: tr(tColTime)},
-		{title: tr(tHostColChange), flex: true},
-		{title: tr(tHostColResult), shown: shownResult, tone: tone},
+		{title: m.tr(tColTime)},
+		{title: m.tr(tHostColChange), flex: true},
+		{title: m.tr(tHostColResult), shown: m.shownResult, tone: tone},
 	}
 }
 
 func (m *Model) hostChangesSpec() dataSpec {
-	empty := tr(tHostChangesHint, "ctrl+r")
+	empty := m.tr(tHostChangesHint, "ctrl+r")
 	if m.hst.chg.have {
-		empty = tr(tHostChangesNone)
+		empty = m.tr(tHostChangesNone)
 	}
-	return dataSpec{title: tr(tSubChanges), empty: empty, lines: m.hostChangeLines}
+	return dataSpec{title: m.tr(tSubChanges), empty: empty, lines: m.hostChangeLines}
 }
 
 func (m *Model) hostChangeLines(id string, tab, width int) []string {
@@ -119,21 +119,21 @@ func (m *Model) hostChangeLines(id string, tab, width int) []string {
 	if !ok {
 		return nil
 	}
-	undo := tr(tHostNoUndo)
+	undo := m.tr(tHostNoUndo)
 	if e.UndoSentence != "" {
 		undo = m.diffText(e.UndoSentence)
 	}
 	switch tab {
 	case tabOverview:
 		return factLines([][2]string{
-			{tr(tColTime), hostTime(e.Time)},
-			{tr(tHostColChange), m.diffText(e.Sentence)},
-			{tr(tHostColResult), shownResult(e.Result)},
-			{tr(tHostLblUndo), undo},
+			{m.tr(tColTime), hostTime(e.Time)},
+			{m.tr(tHostColChange), m.diffText(e.Sentence)},
+			{m.tr(tHostColResult), m.shownResult(e.Result)},
+			{m.tr(tHostLblUndo), undo},
 		}, width)
 	case tabDetails:
 		if len(e.UndoCommands) == 0 {
-			return []string{styles.hint.Render(tr(tHostNoUndo))}
+			return []string{styles.hint.Render(m.tr(tHostNoUndo))}
 		}
 		var lines []string
 		for _, c := range e.UndoCommands {
@@ -174,13 +174,13 @@ func (m *Model) askUndo() tea.Cmd {
 	}
 	e := m.hst.chg.items[id]
 	if !e.Reversible || e.UndoSentence == "" {
-		m.hostNotice(question{title: tr(tHostUndoRefused), consequence: tr(tHostUndoRefusedNote, m.diffText(e.Sentence)),
+		m.hostNotice(question{title: m.tr(tHostUndoRefused), consequence: m.tr(tHostUndoRefusedNote, m.diffText(e.Sentence)),
 			warn: true, keys: "{back} close"})
 		return nil
 	}
-	q := planQuestion(e.UndoSentence, e.UndoCommands, "", "undo")
+	q := planQuestion(m.ui, e.UndoSentence, e.UndoCommands, "", "undo")
 	q.title = m.diffText(e.UndoSentence)
-	q.consequence = tr(tHostUndoNote, m.diffText(e.Sentence))
+	q.consequence = m.tr(tHostUndoNote, m.diffText(e.Sentence))
 	argv := []string{"undo", "--yes", "--output", "json", "--", id}
 	m.askConfirm(q, func() tea.Cmd {
 		return m.runUndo(argv, id, e.UndoSentence)
@@ -232,7 +232,7 @@ func (m *Model) askReadUser() tea.Cmd {
 		return nil
 	}
 	m.askConfirm(question{
-		title: tr(tHostReadTitle, m.diffText(name)), consequence: tr(tHostReadNote),
+		title: m.tr(tHostReadTitle, m.diffText(name)), consequence: m.tr(tHostReadNote),
 		details: planDetails([]string{"qsysmin host user " + shellWord(name)}), keys: "y read as root · n/{back} cancel",
 	}, func() tea.Cmd { return m.readUser(name) })
 	return nil
@@ -262,7 +262,7 @@ func (m *Model) readUser(name string) tea.Cmd {
 			}
 		}
 		m.fillHostUsers()
-		m.status = tr(tHostReadDone, m.diffText(name))
+		m.status = m.tr(tHostReadDone, m.diffText(name))
 		return nil
 	})
 }

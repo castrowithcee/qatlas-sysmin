@@ -83,13 +83,13 @@ func TestTextScrollFollowsTheEndAndResetsToTheTop(t *testing.T) {
 
 func TestTextScrollPositionIsEmptyWhileEverythingFits(t *testing.T) {
 	var s textScroll
-	if got := s.position(5, 5); got != "" {
+	if got := s.position(testUI(), 5, 5); got != "" {
 		t.Errorf("position = %q, want none", got)
 	}
 	s.window(numberedLines(50), 10, false)
 	s.scroll(testKeys(), tea.KeyPressMsg{Code: tea.KeyPgDown}, 10)
 	s.window(numberedLines(50), 10, false)
-	if got := s.position(50, 10); got != "lines 11-20 of 50" {
+	if got := s.position(testUI(), 50, 10); got != "lines 11-20 of 50" {
 		t.Errorf("position = %q", got)
 	}
 }
@@ -105,31 +105,31 @@ func TestHalfPageIsAtLeastOneLine(t *testing.T) {
 func TestPaneScrollFitsTheBodyAndTheWheelMovesThreeLines(t *testing.T) {
 	var p paneScroll
 	body := numberedLines(30)
-	rows, position := p.fit("one", body, 10)
+	rows, position := p.fit(testUI(), "one", body, 10)
 	if len(rows) != 9 || position == "" || !p.more || p.page != 9 {
 		t.Fatalf("fit gave %d rows, position %q, more %v", len(rows), position, p.more)
 	}
 	p.wheel(false)
-	rows, _ = p.fit("one", body, 10)
+	rows, _ = p.fit(testUI(), "one", body, 10)
 	if rows[0] != "line 003" {
 		t.Errorf("one notch down starts at %q, want line 003", rows[0])
 	}
 	p.wheel(true)
 	p.wheel(true)
-	if rows, _ = p.fit("one", body, 10); rows[0] != "line 000" {
+	if rows, _ = p.fit(testUI(), "one", body, 10); rows[0] != "line 000" {
 		t.Errorf("the wheel up past the top starts at %q", rows[0])
 	}
 	p.wheel(false)
-	if rows, _ = p.fit("two", body, 10); rows[0] != "line 000" {
+	if rows, _ = p.fit(testUI(), "two", body, 10); rows[0] != "line 000" {
 		t.Errorf("another subject keeps the position: %q", rows[0])
 	}
 	// A body that fits is shown whole and the pane takes no wheel.
-	rows, position = p.fit("two", body[:5], 10)
+	rows, position = p.fit(testUI(), "two", body[:5], 10)
 	if len(rows) != 5 || position != "" || p.more {
 		t.Errorf("a body that fits: %d rows, position %q, more %v", len(rows), position, p.more)
 	}
 	// A pane of a single row only cuts.
-	if rows, _ = p.fit("two", body, 1); len(rows) != len(body) || p.more {
+	if rows, _ = p.fit(testUI(), "two", body, 1); len(rows) != len(body) || p.more {
 		t.Errorf("a one-row pane scrolls: %d rows, more %v", len(rows), p.more)
 	}
 }

@@ -94,12 +94,12 @@ func (t *textScroll) window(lines []string, height int, follow bool) []string {
 
 // position is the line that says which lines of total are in view, in the form of the help; it is empty
 // while all of them fit.
-func (t *textScroll) position(total, shown int) string {
+func (t *textScroll) position(ui *uiContext, total, shown int) string {
 	if shown >= total {
 		return ""
 	}
 	first := min(t.offset()+1, total)
-	return tr(tScrollPosition, first, min(t.offset()+shown, total), total)
+	return ui.tr(tScrollPosition, first, min(t.offset()+shown, total), total)
 }
 
 // paneScroll is the scroll state of a text pane that stands beside a screen (the detail pane of a list, the
@@ -118,7 +118,7 @@ type paneScroll struct {
 
 // fit lays body out in room rows and returns the rows to draw. A body that does not fit gets room-1 rows and
 // the position line below them; a pane of a single row keeps cutting, which is all it can show.
-func (p *paneScroll) fit(key string, body []string, room int) (rows []string, position string) {
+func (p *paneScroll) fit(ui *uiContext, key string, body []string, room int) (rows []string, position string) {
 	if key != p.key {
 		p.key = key
 		p.view.reset()
@@ -130,7 +130,7 @@ func (p *paneScroll) fit(key string, body []string, room int) (rows []string, po
 	}
 	p.page, p.more = room-1, true
 	rows = p.view.window(body, p.page, false)
-	return rows, p.view.position(len(body), p.page)
+	return rows, p.view.position(ui, len(body), p.page)
 }
 
 // at reports whether the cell is in the pane that was drawn last.

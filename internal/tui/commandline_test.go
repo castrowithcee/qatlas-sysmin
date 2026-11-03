@@ -227,7 +227,7 @@ func TestUnknownCommandNamesTheInputAndTheNextStep(t *testing.T) {
 	if strings.Contains(plain(m), "No command \"") && strings.Contains(plain(m), "Clear the line") {
 		t.Error("the note stays after the input changed")
 	}
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	typed(m, "x")
 	send(m, "enter")
 	if view := plain(m); !strings.Contains(view, `Kein Befehl "`) || !strings.Contains(view, "Leere die Zeile") {

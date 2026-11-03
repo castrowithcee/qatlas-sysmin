@@ -276,7 +276,7 @@ func TestHostReadFailureIsShownInTheTable(t *testing.T) {
 
 func TestHostTextsExistInGerman(t *testing.T) {
 	m := hostModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	view := plain(m)
 	for _, want := range []string{"Benutzer", "Gruppen", "Ordner", "ohne qsysmin", "System"} {
 		if !strings.Contains(view, want) {
@@ -370,7 +370,7 @@ func TestHostInfoExplainsAdminDockerAndEnabled(t *testing.T) {
 			t.Errorf("Host info lacks %q:\n%s", want, view)
 		}
 	}
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	if view := plain(m); !strings.Contains(view, "Freigeschaltet:") {
 		t.Errorf("German Host info lacks Freigeschaltet:\n%s", view)
 	}

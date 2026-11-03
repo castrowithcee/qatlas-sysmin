@@ -208,7 +208,7 @@ func TestCancellingTheGroupFormsRunsNothing(t *testing.T) {
 
 func TestGroupFormsSpeakGerman(t *testing.T) {
 	m, _, _ := groupsModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	selectGroup(m, "demo-ops")
 	send(m, "r")
 	for _, want := range []string{"demo-ops umbenennen", "Neuer Name", "sprechen eine Gruppe über ihren Namen an"} {
@@ -231,8 +231,10 @@ func TestGroupFormsSpeakGerman(t *testing.T) {
 
 func TestGroupsHelpAndInfoNoLongerCallSystemGroupsReadOnly(t *testing.T) {
 	eachLanguage(t, func(t *testing.T) {
+		ui := testUI()
+		ui.setLanguage(testLang)
 		for _, id := range []textID{tInfoHostGroups, tHelpHost} {
-			text := tr(id)
+			text := ui.tr(id)
 			if strings.Contains(text, "read-only") || strings.Contains(text, "nur lesbar") || !strings.Contains(text, "sudo") {
 				t.Errorf("%s: %q", id, text)
 			}

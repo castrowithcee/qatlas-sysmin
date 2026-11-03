@@ -88,9 +88,9 @@ func (m *Model) listFrame() (string, string) {
 	}
 	switch {
 	case total == 0:
-		head.WriteString(note(styles.hint, tr(tListEmpty)))
+		head.WriteString(note(styles.hint, m.tr(tListEmpty)))
 	case shown == 0:
-		head.WriteString(note(styles.hint, tr(tFormNoEntryMatchesPressEsc, m.list.query())))
+		head.WriteString(note(styles.hint, m.tr(tFormNoEntryMatchesPressEsc, m.list.query())))
 	}
 
 	keys := "↑/↓ move · / filter · q quit"
@@ -106,7 +106,7 @@ func (m *Model) listFrame() (string, string) {
 }
 
 // filterLine shows the filter of l: while it is typed with its cursor, afterwards as the text it holds.
-func (m *Model) filterLine(l *filterList) string { return m.searchLine(l, tr(tFormFilter)) }
+func (m *Model) filterLine(l *filterList) string { return m.searchLine(l, m.tr(tFormFilter)) }
 
 // entryIndent is what an entry row is indented by behind the focus marker.
 const entryIndent = "  "
@@ -127,7 +127,7 @@ func (m *Model) listRows() func(i int) string {
 		active := i == m.list.cursor
 		var row string
 		if isGroupRow(name) {
-			row = m.listRowIn(room, active, m.groups.styledRow(name, m.groups.open(name) || m.list.query() != ""))
+			row = m.listRowIn(room, active, m.groups.styledRow(m.ui, name, m.groups.open(name) || m.list.query() != ""))
 		} else {
 			row = m.listRowIn(room, active, indent[2:]+t.line(t.rows[name], layout))
 		}

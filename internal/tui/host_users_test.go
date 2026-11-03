@@ -565,7 +565,7 @@ func TestRemovingAKeyThatWasNotReadOffersTheRootReadFirst(t *testing.T) {
 
 func TestUserFormsSpeakGerman(t *testing.T) {
 	m, _, _, _ := userModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	send(m, "n")
 	view := flat(m)
 	for _, want := range []string{"Neuer Benutzer", "Passwort wiederholen", "Weitere Gruppen"} {
@@ -577,11 +577,11 @@ func TestUserFormsSpeakGerman(t *testing.T) {
 
 func TestParseUserKeyRefusesOptionsAndMultipleLines(t *testing.T) {
 	line, fp := demoKey(t, "c")
-	if k, problem := parseUserKey("  " + line + " "); problem != "" || k.fingerprint != fp {
+	if k, problem := parseUserKey(testUI(), "  "+line+" "); problem != "" || k.fingerprint != fp {
 		t.Errorf("valid key: %v %q", k, problem)
 	}
 	for _, bad := range []string{"", "ssh-ed25519", "command=\"x\" " + line, line + "\n" + line} {
-		if _, problem := parseUserKey(bad); problem == "" {
+		if _, problem := parseUserKey(testUI(), bad); problem == "" {
 			t.Errorf("%q must be refused", bad)
 		}
 	}
@@ -821,7 +821,7 @@ func TestDeletingRootOrASystemAccountNamesTheRisk(t *testing.T) {
 
 func TestDeleteSpeaksGerman(t *testing.T) {
 	m, _, _, _ := userModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	selectUser(m, "demo-user")
 	send(m, "d")
 	for _, want := range []string{"demo-user löschen", "Behalten", "lässt sich rückgängig machen"} {
@@ -885,7 +885,7 @@ func TestHomeRisksOfTheRealSourceAreRead(t *testing.T) {
 	if err := os.WriteFile(h.PasswdPath, []byte("demo-user:x:1001:1001::/usr/local/demo-gone:/bin/bash\ndemo-other:x:1002:1002::/usr/local/demo-gone/demo-other:/bin/bash\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	m := &Model{hostSrc: h}
+	m := &Model{hostSrc: h, ui: testUI()}
 	text := m.homeRiskText(hostadmin.User{Name: "demo-user", UID: 1001, Home: "/usr/local/demo-gone"})
 	if text != "/usr/local/demo-gone is a system path. /usr/local/demo-gone holds the home of demo-other." {
 		t.Errorf("%q", text)

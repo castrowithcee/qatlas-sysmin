@@ -105,7 +105,7 @@ func (m *Model) backButton() string {
 	if !m.backShown() {
 		return ""
 	}
-	return styles.hint.Render("[" + m.keyLabel(actBack) + "] " + tr(tHeaderBack))
+	return styles.hint.Render("[" + m.keyLabel(actBack) + "] " + m.tr(tHeaderBack))
 }
 
 // fitParts lays styled parts out in one row of at most width cells, separated by headerSep, and returns the
@@ -132,7 +132,7 @@ const headerLogo = ""
 
 // headerStatus are the left parts of the header: the name.
 func (m *Model) headerStatus() []string {
-	name := styles.title.Render(tr(tHeaderTitle))
+	name := styles.title.Render(m.tr(tHeaderTitle))
 	if m.prefs.Icons == uiprefs.IconsNerdFont {
 		name = styles.active.Render(headerLogo) + " " + name
 	}
@@ -168,7 +168,7 @@ func (m *Model) keyHints() string {
 		text textID
 	}{{actHelp, tHeaderHelp}, {actCommand, tHeaderCmd}} {
 		if key := m.keyLabel(h.act); key != "" {
-			parts = append(parts, styles.hint.Render("["+key+"] "+tr(h.text)))
+			parts = append(parts, styles.hint.Render("["+key+"] "+m.tr(h.text)))
 		}
 	}
 	return strings.Join(parts, headerSep)
@@ -218,9 +218,9 @@ func placeBlock(line string, block headerRight, width int) (string, navSpan, boo
 func (m *Model) headerMarks(level int) []string {
 	parts := m.stateMarks(level)
 	if latest := m.updateAvailable(); latest != "" && level < 2 {
-		text := tr(tUpdHeader, latest)
+		text := m.tr(tUpdHeader, latest)
 		if level >= 1 {
-			text = tr(tUpdHeaderShort)
+			text = m.tr(tUpdHeaderShort)
 		}
 		parts = append(parts, statusMark(statusWarn, text))
 	}
@@ -236,13 +236,13 @@ func (m *Model) stateMarks(level int) []string {
 	short := level >= 1
 	pick := func(full, brief textID) string {
 		if short {
-			return tr(brief)
+			return m.tr(brief)
 		}
-		return tr(full)
+		return m.tr(full)
 	}
 	switch {
 	case !m.svc.known:
-		return append(parts, styles.hint.Render(tr(tHeaderChecking)))
+		return append(parts, styles.hint.Render(m.tr(tHeaderChecking)))
 	case !m.svc.reachable && m.svc.noGroup:
 		return append(parts, statusMark(statusFail, pick(tServiceGroup, tServiceGroupShort)))
 	case !m.svc.reachable:

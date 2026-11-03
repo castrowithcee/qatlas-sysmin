@@ -10,6 +10,7 @@ import (
 
 	"github.com/castrowithcee/qatlas-kit/redact"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
@@ -156,7 +157,7 @@ func New(prefs uiprefs.Prefs, redactor *redact.Redactor) *Model {
 	return m
 }
 
-// newModel is New with the default keys, labelled for charset.
+// newModel is New with the default keys, labelled for charset, in the language of prefs.
 func newModel(prefs uiprefs.Prefs, redactor *redact.Redactor, charset kittui.CharsetMode) *Model {
 	if prefs == (uiprefs.Prefs{}) {
 		prefs = uiprefs.Default()
@@ -166,6 +167,7 @@ func newModel(prefs uiprefs.Prefs, redactor *redact.Redactor, charset kittui.Cha
 	}
 	m := &Model{prefs: prefs, redactor: redactor, ui: newUIContext(charset),
 		list: newFilterList(func(name string) string { return name })}
+	m.ui.setLanguage(kitprefs.Language(prefs.Language))
 	m.ovr.reset()
 	return m
 }
@@ -426,9 +428,9 @@ func (m *Model) resizeView() string {
 	// The way out comes first, so it is the last thing a terminal of a single row loses.
 	lines := []string{
 		styles.key.Render(m.footerKeys(way)),
-		styles.warning.Render(warnMark + " " + tr(tResizeTitle)),
-		styles.hint.Render("  " + tr(tResizeNeed, minimumWidth, minimumHeight)),
-		styles.hint.Render("  " + tr(tResizeNow, m.termWidth, m.termHeight)),
+		styles.warning.Render(warnMark + " " + m.tr(tResizeTitle)),
+		styles.hint.Render("  " + m.tr(tResizeNeed, minimumWidth, minimumHeight)),
+		styles.hint.Render("  " + m.tr(tResizeNow, m.termWidth, m.termHeight)),
 	}
 	return m.boundTo(strings.Join(lines, "\n"), m.termWidth, m.termHeight)
 }
@@ -437,10 +439,10 @@ func (m *Model) resizeView() string {
 func (m *Model) notes() string {
 	out := ""
 	if m.busy != "" {
-		out += "\n\n" + m.wrapped(styles.hint, tr(tNoteRunning, m.busy))
+		out += "\n\n" + m.wrapped(styles.hint, m.tr(tNoteRunning, m.busy))
 	}
 	if m.fail != "" {
-		out += "\n\n" + m.wrapped(styles.fail, tr(tNoteError, m.fail))
+		out += "\n\n" + m.wrapped(styles.fail, m.tr(tNoteError, m.fail))
 	} else if m.status != "" {
 		out += "\n\n" + m.wrapped(styles.hint, m.status)
 	}
@@ -455,7 +457,7 @@ func (m *Model) searchLine(l *filterList, label string) string {
 // searchLineIn is searchLine within the first room cells of the workspace.
 func (m *Model) searchLineIn(room int, l *filterList, label string) string {
 	prefix, width := m.fitIn(room, label)
-	l.input.Placeholder = tr(tLogSearchPlaceholder)
+	l.input.Placeholder = m.tr(tLogSearchPlaceholder)
 	if !l.editing {
 		return prefix + truncateCells(l.query(), width)
 	}

@@ -1,7 +1,5 @@
 package tui
 
-import "maps"
-
 // The texts of the Host area. The area names, the page names and the words of the account databases keep their
 // English form where the Linux tools do.
 const (
@@ -67,8 +65,9 @@ const (
 	tSectionHint         textID = "SectionHint"
 )
 
-func init() {
-	maps.Copy(textEN, map[textID]string{
+// hostTexts are the texts of the Host area, in English and German.
+func hostTexts() (en, de map[textID]string) {
+	en = map[textID]string{
 		tAreaHost:            "Host",
 		tSubUsers:            "Users",
 		tSubGroups:           "Groups",
@@ -136,8 +135,8 @@ func init() {
 		tHostSysAccounts:           "System accounts",
 		tHostSysGroups:             "System groups",
 		tSectionHint:               "Press enter or space to collapse or expand this section.",
-	})
-	maps.Copy(textDE, map[textID]string{
+	}
+	de = map[textID]string{
 		tAreaHost:            "Host",
 		tSubUsers:            "Benutzer",
 		tSubGroups:           "Gruppen",
@@ -205,5 +204,6 @@ func init() {
 		tHostSysGroups:             "Systemgruppen",
 		tSectionHint:               "Enter oder space klappt diesen Abschnitt ein oder aus.",
 		footerID("space tick"):     "space wählen",
-	})
+	}
+	return en, de
 }

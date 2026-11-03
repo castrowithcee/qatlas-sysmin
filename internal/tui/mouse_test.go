@@ -44,7 +44,7 @@ func wheel(m *Model, x, y int, button tea.MouseButton) {
 }
 
 func TestFooterKeyNamesMapToKeysOnlyForKeysAButtonCanPress(t *testing.T) {
-	m := New(uiprefs.Default(), nil)
+	m := testModel(uiprefs.Default(), nil)
 	for group, want := range map[string]string{
 		"y delete": "y", "n/esc cancel": "n", "enter save": "enter", "esc back": "esc", "tab next": "tab",
 		"F2 save": "F2", "1-4 area": "", "type to filter": "", "↑/↓ move": "", "": "",

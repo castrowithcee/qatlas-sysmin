@@ -187,20 +187,20 @@ func TestDropdownFocusReadsWithoutColour(t *testing.T) {
 func TestSearchFieldShowsPlaceholderWhileIdleAndTheContentOtherwise(t *testing.T) {
 	restoreRenderer(t)
 	setProfile(profileNone)
-	useLanguage(t, "en")
-	want := tr(tSearchField)
+	ui := testUI()
+	want := ui.tr(tSearchField)
 	if !strings.Contains(want, "…") || !strings.HasPrefix(want, "/ ") {
 		t.Fatalf("placeholder = %q", want)
 	}
-	idle := ansi.Strip(searchField("", 24))
+	idle := ansi.Strip(searchField(ui, "", 24))
 	if lipgloss.Width(idle) != 24 || !strings.Contains(idle, want) {
 		t.Errorf("idle field = %q", idle)
 	}
-	typed := ansi.Strip(searchField("/ wiki", 24))
+	typed := ansi.Strip(searchField(ui, "/ wiki", 24))
 	if lipgloss.Width(typed) != 24 || !strings.Contains(typed, "/ wiki") || strings.Contains(typed, want) {
 		t.Errorf("typed field = %q", typed)
 	}
-	if cut := ansi.Strip(searchField("/ "+strings.Repeat("x", 50), 20)); lipgloss.Width(cut) != 20 {
+	if cut := ansi.Strip(searchField(ui, "/ "+strings.Repeat("x", 50), 20)); lipgloss.Width(cut) != 20 {
 		t.Errorf("a long content is not cut to the field: %d cells", lipgloss.Width(cut))
 	}
 }
@@ -227,11 +227,11 @@ func TestSearchContentFollowsTheFilterState(t *testing.T) {
 func TestFieldRowsWrapFieldsAndPlaceTheSearchFieldAtTheRightEdge(t *testing.T) {
 	restoreRenderer(t)
 	setProfile(profileNone)
-	useLanguage(t, "en")
+	ui := testUI()
 	search := func(int) string { return "" }
 	fields := []string{"Group: A ▾", "Sort: Name ▾"}
 
-	lines, plainSearch := fieldRows(fields, search, 80)
+	lines, plainSearch := fieldRows(ui, fields, search, 80)
 	if len(lines) != 1 || lipgloss.Width(lines[0]) != 80 || plainSearch == "" || !strings.HasSuffix(ansi.Strip(lines[0]), plainSearch) {
 		t.Fatalf("one line expected, search field at the right edge:\n%q (%q)", lines, plainSearch)
 	}
@@ -241,7 +241,7 @@ func TestFieldRowsWrapFieldsAndPlaceTheSearchFieldAtTheRightEdge(t *testing.T) {
 
 	// A width that fits the fields but not a search field beside them puts it on a line of its own.
 	narrow := lipgloss.Width(fields[0]) + 2 + lipgloss.Width(fields[1]) + 2
-	lines, plainSearch = fieldRows(fields, search, narrow)
+	lines, plainSearch = fieldRows(ui, fields, search, narrow)
 	if len(lines) != 2 || plainSearch == "" {
 		t.Errorf("narrow: %d lines, search %q:\n%q", len(lines), plainSearch, lines)
 	}
@@ -252,12 +252,12 @@ func TestFieldRowsWrapFieldsAndPlaceTheSearchFieldAtTheRightEdge(t *testing.T) {
 	}
 
 	// Too narrow for a search field, the fields only wrap and it is left out.
-	lines, plainSearch = fieldRows(fields, search, 5)
+	lines, plainSearch = fieldRows(ui, fields, search, 5)
 	if plainSearch != "" || len(lines) < 2 {
 		t.Errorf("tiny: search %q, %d lines", plainSearch, len(lines))
 	}
 
-	if lines, _ := fieldRows(nil, search, 60); len(lines) != 1 {
+	if lines, _ := fieldRows(ui, nil, search, 60); len(lines) != 1 {
 		t.Errorf("no fields: %d lines, want the search field alone", len(lines))
 	}
 }

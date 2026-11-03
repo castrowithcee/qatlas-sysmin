@@ -26,8 +26,8 @@ func (a area) key() string {
 }
 
 // title is the name of the area as drawn.
-func (a area) title() string {
-	return tr([...]textID{tAreaOverview, tAreaHost, tAreaActivity, tAreaSettings}[a])
+func (a area) title(ui *uiContext) string {
+	return ui.tr([...]textID{tAreaOverview, tAreaHost, tAreaActivity, tAreaSettings}[a])
 }
 
 // areaByName finds the area whose English name is name, ignoring case.
@@ -380,7 +380,7 @@ func (m *Model) barLine(words []string, active int, focused bool, shrink func(i 
 func (m *Model) tabLine() (string, []navSpan) {
 	words := make([]string, areaCount)
 	for a := range words {
-		words[a] = fmt.Sprintf("%d %s", a+1, area(a).title())
+		words[a] = fmt.Sprintf("%d %s", a+1, area(a).title(m.ui))
 	}
 	return m.barLine(words, int(m.area), m.zoneNow() == zoneTabs, func(i int) string { return string(rune('1' + i)) })
 }
@@ -393,17 +393,17 @@ func (m *Model) subLine() (string, []navSpan) {
 	case areaSettings:
 		active = m.set.sub
 		for i := 0; i < subCount; i++ {
-			words = append(words, subTitle(i))
+			words = append(words, subTitle(m.ui, i))
 		}
 	case areaActivity:
 		active = m.act.sub
 		for i := 0; i < actPages; i++ {
-			words = append(words, actTitle(i))
+			words = append(words, actTitle(m.ui, i))
 		}
 	case areaHost:
 		active = m.hst.sub
 		for i := 0; i < hostCount; i++ {
-			words = append(words, hostTitle(i))
+			words = append(words, hostTitle(m.ui, i))
 		}
 	}
 	if !m.hasSubs() {
@@ -519,5 +519,5 @@ func (m *Model) areaBody() string {
 	case areaHost:
 		return m.hostBody()
 	}
-	return m.wrapped(styles.hint, tr(tListEmpty))
+	return m.wrapped(styles.hint, m.tr(tListEmpty))
 }

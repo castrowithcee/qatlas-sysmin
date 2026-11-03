@@ -24,7 +24,7 @@ func TestKeyTableHoldsAndRefusesATakenKey(t *testing.T) {
 }
 
 func TestNoTextNamesArrowsInWords(t *testing.T) {
-	for lang, cat := range map[string]map[textID]string{"en": textEN, "de": textDE} {
+	for lang, cat := range catalog() {
 		for id, text := range cat {
 			if strings.Contains(string(id), "up/down") || strings.Contains(string(id), "left/right") ||
 				strings.Contains(text, "up/down") || strings.Contains(text, "left/right") {

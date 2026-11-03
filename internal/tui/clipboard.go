@@ -69,7 +69,7 @@ func (m *Model) copyCurrent() tea.Cmd {
 		return nil
 	}
 	m.clearMessages()
-	m.status = tr(tCopyHandedOver)
+	m.status = m.tr(tCopyHandedOver)
 	return tea.SetClipboard(text)
 }
 

@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/castrowithcee/qatlas-kit/i18n"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
@@ -70,7 +71,7 @@ const (
 // only. The help level holds the keys only the help overlay knows; tab there steps through topics, not fields.
 func keyTable() []kittui.Action {
 	act := func(id action, level kittui.KeyLevel, help textID, keys ...string) kittui.Action {
-		return kittui.Action{ID: id, Level: level, DefaultKeys: keys, Help: kittui.TextID(help)}
+		return kittui.Action{ID: id, Level: level, DefaultKeys: keys, Help: help}
 	}
 	rebind := func(a kittui.Action, r kittui.Rebinding) kittui.Action { a.Rebind = r; return a }
 	second := func(a kittui.Action, of action) kittui.Action { a.SecondWayOf = of; return a }
@@ -128,20 +129,27 @@ func keyTable() []kittui.Action {
 	}
 }
 
-// uiContext is what the screens of one editor read keys with. The model holds it, so no state of the
-// interface lives in the package.
+// uiContext is what the screens of one editor read keys with and draw their texts in. The model holds it, so
+// no state of the interface lives in the package.
 type uiContext struct {
 	keys *kittui.Keymap
+	// texts is the catalog; text draws it in lang.
+	texts i18n.Catalogs[textID]
+	lang  i18n.Lang
+	text  kittui.Translator
 }
 
-// newUIContext builds the context with the default keys; charset decides how labels spell the arrows. The key
-// table is fixed in the code, so a table the kit refuses is a defect of this package, never of the input.
+// newUIContext builds the context with the default keys, in English; charset decides how labels spell the
+// arrows. The key table and the catalog are fixed in the code, so one the kit refuses is a defect of this
+// package, never of the input.
 func newUIContext(charset kittui.CharsetMode) *uiContext {
 	keys, err := kittui.NewKeymap(keyTable(), charset)
 	if err != nil {
 		panic(fmt.Sprintf("the key table is invalid: %v", err))
 	}
-	return &uiContext{keys: keys}
+	u := &uiContext{keys: keys, texts: catalog()}
+	u.setLanguage(i18n.English)
+	return u
 }
 
 // bindKeys makes the keys of the preferences the keys in force. An entry the key table refuses keeps the
@@ -220,18 +228,6 @@ func (u *uiContext) reloadPress() (tea.KeyPressMsg, bool) {
 	return tea.KeyPressMsg{}, false
 }
 
-// footerKeys replaces the key placeholders of a footer text with the current key names, so a footer
+// footerKeys translates a footer text and puts the keys in force in place of its placeholders, so a footer
 // follows the keymap while a screen-local key stays a plain literal in its text.
-func (m *Model) footerKeys(text string) string { return m.keyPlaceholders(footerText(text)) }
-
-// keyPlaceholders replaces the key placeholders of an already translated footer text, such as "{save} save".
-// Translating comes first because the catalog is keyed by the group with its placeholders.
-func (m *Model) keyPlaceholders(text string) string {
-	if !strings.Contains(text, "{") {
-		return text
-	}
-	for _, a := range []action{actSave, actHelp, actInfo, actCommand, actBack, actDelete, actCopy} {
-		text = strings.ReplaceAll(text, "{"+string(a)+"}", m.keyLabel(a))
-	}
-	return text
-}
+func (m *Model) footerKeys(text string) string { return m.ui.footerText(text) }

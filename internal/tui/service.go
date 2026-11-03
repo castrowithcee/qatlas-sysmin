@@ -74,7 +74,7 @@ func (m *Model) takeStatus(msg statusMsg) tea.Cmd {
 	var pe *client.PeerError
 	m.svc.foreign = errors.As(msg.err, &pe)
 	if msg.err != nil {
-		m.svc.reachable, m.svc.fail = false, errorText(msg.err)
+		m.svc.reachable, m.svc.fail = false, errorText(m.ui, msg.err)
 	} else {
 		m.svc.reachable, m.svc.fail = true, ""
 		m.svc.st, m.svc.at = msg.st, now
@@ -114,35 +114,35 @@ func isDenied(err error) bool {
 
 // errorText is the fixed, short text of a failure. It never repeats what the service or the system said, so a
 // secret cannot reach the screen through it.
-func errorText(err error) string {
+func errorText(ui *uiContext, err error) string {
 	switch {
 	case errors.Is(err, client.ErrReserved):
-		return tr(tErrReserved)
+		return ui.tr(tErrReserved)
 	case errors.Is(err, client.ErrNotEnabled):
-		return tr(tErrNotEnabled)
+		return ui.tr(tErrNotEnabled)
 	case errors.Is(err, client.ErrSessionGroup):
-		return tr(tErrSessionGroup)
+		return ui.tr(tErrSessionGroup)
 	}
 	var pe *client.PeerError
 	if errors.As(err, &pe) {
 		if pe.Silent {
-			return tr(tErrPeerSilent, pe.PID, pe.UID, pe.PID)
+			return ui.tr(tErrPeerSilent, pe.PID, pe.UID, pe.PID)
 		}
-		return tr(tErrPeer, pe.PID, pe.UID, pe.PID)
+		return ui.tr(tErrPeer, pe.PID, pe.UID, pe.PID)
 	}
 	var ce *control.Error
 	if !errors.As(err, &ce) {
-		return tr(tErrUnreachable)
+		return ui.tr(tErrUnreachable)
 	}
 	switch ce.Code {
 	case control.CodeBusy:
-		return tr(tErrBusy)
+		return ui.tr(tErrBusy)
 	case control.CodeTimeout:
-		return tr(tErrTimeout)
+		return ui.tr(tErrTimeout)
 	case control.CodeBadRequest:
-		return tr(tErrInvalid)
+		return ui.tr(tErrInvalid)
 	}
-	return tr(tErrService)
+	return ui.tr(tErrService)
 }
 
 // listsCmd reads the log when its page is shown and has not been read yet.

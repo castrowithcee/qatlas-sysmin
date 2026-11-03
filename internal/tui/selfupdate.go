@@ -17,12 +17,12 @@ func (m *Model) updateAvailable() string {
 func (m *Model) selfUpdate() tea.Cmd {
 	latest := m.updateAvailable()
 	if latest == "" {
-		m.status = tr(tUpdNone)
+		m.status = m.tr(tUpdNone)
 		return m.checkUpdate(true)
 	}
 	return m.guarded(func() tea.Cmd {
 		m.askConfirm(question{
-			title: tr(tUpdTitle, m.version, latest), consequence: tr(tUpdConsequence), warn: true,
+			title: m.tr(tUpdTitle, m.version, latest), consequence: m.tr(tUpdConsequence), warn: true,
 			keys: "y update · n/{back} cancel",
 		}, func() tea.Cmd {
 			m.updateTo = latest

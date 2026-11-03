@@ -137,7 +137,7 @@ func (m *Model) runHostSecret(req HostRequest, mask [][]byte, after func(out []b
 		if err != nil {
 			zeroAll(secret, mask)
 			kind, exit := classifyRun(nil, err)
-			m.hostFailNoticeAs(tr(tHostChangeFailed), kind, exit, err, false)
+			m.hostFailNoticeAs(m.tr(tHostChangeFailed), kind, exit, err, false)
 			return nil
 		}
 		var cmd *exec.Cmd
@@ -234,9 +234,9 @@ func (m *Model) hostNotice(q question) {
 // hostFailNotice explains a run that gave no usable answer. change says a host change was asked for, where an
 // interrupted or failed run leaves open what was done.
 func (m *Model) hostFailNotice(kind hostFailure, exit int, err error, change bool) {
-	title := tr(tHostReadFailed)
+	title := m.tr(tHostReadFailed)
 	if change {
-		title = tr(tHostChangeFailed)
+		title = m.tr(tHostChangeFailed)
 	}
 	m.hostFailNoticeAs(title, kind, exit, err, change)
 }
@@ -267,11 +267,11 @@ func (m *Model) hostFailNoticeAs(title string, kind hostFailure, exit int, err e
 	reason := stderrLines(err)
 	switch {
 	case noCredential(reason):
-		text = tr(tHostErrNoCredential)
+		text = m.tr(tHostErrNoCredential)
 	case change && reason != "" && !strings.HasPrefix(reason, "sudo:") && (kind == failDenied || kind == failExit):
 		// A line of sudo itself ("sudo: 3 incorrect password attempts") keeps the message about sudo; anything
 		// else is the reason qsysmin gave.
-		text = tr(tHostErrReported, m.diffText(reason))
+		text = m.tr(tHostErrReported, m.diffText(reason))
 	default:
 		text = m.hostFailText(kind, exit, err, change)
 	}
@@ -282,24 +282,24 @@ func (m *Model) hostFailText(kind hostFailure, exit int, err error, change bool)
 	var text string
 	switch kind {
 	case failNoSudo:
-		text = tr(tHostErrNoSudo)
+		text = m.tr(tHostErrNoSudo)
 		if err != nil && !errors.Is(err, ErrNoSudo) {
-			text = tr(tHostErrStart, err.Error())
+			text = m.tr(tHostErrStart, err.Error())
 		}
 	case failDenied:
-		text = tr(tHostErrDenied)
+		text = m.tr(tHostErrDenied)
 	case failAborted:
-		text = tr(tHostErrAbortedRead)
+		text = m.tr(tHostErrAbortedRead)
 		if change {
-			text = tr(tHostErrAbortedChange)
+			text = m.tr(tHostErrAbortedChange)
 		}
 	case failExit:
-		text = tr(tHostErrExitRead, exit)
+		text = m.tr(tHostErrExitRead, exit)
 		if change {
-			text = tr(tHostErrExitChange, exit)
+			text = m.tr(tHostErrExitChange, exit)
 		}
 	default:
-		text = tr(tHostErrOutput)
+		text = m.tr(tHostErrOutput)
 	}
 	return text
 }
@@ -358,12 +358,12 @@ func planDetails(commands []string) []string {
 }
 
 // planQuestion is the confirmation of a plan: the sentence, the commands, and the answers.
-func planQuestion(sentence string, commands []string, notReversible, verb string) question {
+func planQuestion(ui *uiContext, sentence string, commands []string, notReversible, verb string) question {
 	q := question{title: sentence, details: planDetails(commands), keys: "y " + verb + " · n/{back} cancel"}
 	if notReversible != "" {
-		q.consequence, q.warn, q.danger = tr(tHostIrreversible, notReversible), true, true
+		q.consequence, q.warn, q.danger = ui.tr(tHostIrreversible, notReversible), true, true
 	} else {
-		q.consequence = tr(tHostReversible)
+		q.consequence = ui.tr(tHostReversible)
 	}
 	return q
 }
@@ -397,9 +397,9 @@ func (m *Model) planHost(a hostAsk) (hostPlanned, string) {
 	def, ok := reg.Lookup(a.id)
 	switch {
 	case !ok:
-		return hostPlanned{}, tr(tHostUnknownAction, a.id)
+		return hostPlanned{}, m.tr(tHostUnknownAction, a.id)
 	case def.WantsSecret && len(a.secret) == 0:
-		return hostPlanned{}, tr(tHostSecretUnsupported)
+		return hostPlanned{}, m.tr(tHostSecretUnsupported)
 	}
 	plan, err := reg.Describe(a.id, a.args, a.secret)
 	if err != nil {
@@ -419,23 +419,23 @@ func (m *Model) confirmHost(p hostPlanned) {
 	if a.id == hostchange.ActionUserDelete || a.id == hostchange.ActionGroupDelete {
 		verb = "delete"
 	}
-	q := planQuestion(p.plan.Sentence, p.commands, p.plan.NotReversible, verb)
+	q := planQuestion(m.ui, p.plan.Sentence, p.commands, p.plan.NotReversible, verb)
 	if a.power {
 		q.warn = true
-		q.consequence = tr(tHostPowerWarn) + " " + q.consequence
+		q.consequence = m.tr(tHostPowerWarn) + " " + q.consequence
 	}
 	if a.id == hostchange.ActionUserCreateService {
-		q.consequence += " " + tr(tHostServiceKeepFiles)
+		q.consequence += " " + m.tr(tHostServiceKeepFiles)
 	}
 	if a.id == hostchange.ActionUserLock {
-		q.consequence += " " + tr(tHostLockStays)
+		q.consequence += " " + m.tr(tHostLockStays)
 	}
 	if a.id == hostchange.ActionUserDelete {
 		q.warn, q.danger = true, true
 		if p.plan.NotReversible != "" && a.final != "" {
 			q.consequence = a.final
 		} else if p.plan.NotReversible == "" {
-			q.consequence = tr(tHostDeleteKeeps) + " " + q.consequence
+			q.consequence = m.tr(tHostDeleteKeeps) + " " + q.consequence
 		}
 	}
 	if a.risk != "" {
@@ -455,7 +455,7 @@ func (m *Model) confirmHost(p hostPlanned) {
 func (m *Model) askHostChange(id string, args []string) tea.Cmd {
 	p, refusal := m.planHost(hostAsk{id: id, args: args})
 	if refusal != "" {
-		m.hostNotice(question{title: tr(tHostChangeRefused), consequence: refusal, warn: true, keys: "{back} close"})
+		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: "{back} close"})
 		return nil
 	}
 	m.confirmHost(p)
@@ -491,21 +491,21 @@ func (m *Model) hostResult(r hostReport, asked string) {
 	q := question{keys: "{back} close"}
 	switch r.Result {
 	case hostchange.ResultApplied:
-		q.title = tr(tHostDone, m.diffText(sentence))
-		q.consequence, q.calm = tr(tHostDoneUndoable), true
+		q.title = m.tr(tHostDone, m.diffText(sentence))
+		q.consequence, q.calm = m.tr(tHostDoneUndoable), true
 		if !r.Reversible {
-			q.consequence = tr(tHostDoneFinal)
+			q.consequence = m.tr(tHostDoneFinal)
 		}
 	case hostchange.ResultRefused:
-		q.title, q.warn = tr(tHostRefused, m.diffText(r.Error)), true
-		q.consequence = tr(tHostRefusedNote)
+		q.title, q.warn = m.tr(tHostRefused, m.diffText(r.Error)), true
+		q.consequence = m.tr(tHostRefusedNote)
 		r.Error = ""
 	case hostchange.ResultRestored:
-		q.title, q.warn, q.danger = tr(tHostFailedRestored, m.diffText(sentence)), true, true
-		q.consequence = tr(tHostRestoredNote)
+		q.title, q.warn, q.danger = m.tr(tHostFailedRestored, m.diffText(sentence)), true, true
+		q.consequence = m.tr(tHostRestoredNote)
 	default:
-		q.title, q.warn, q.danger = tr(tHostFailed, m.diffText(sentence)), true, true
-		q.consequence = tr(tHostFailedNote)
+		q.title, q.warn, q.danger = m.tr(tHostFailed, m.diffText(sentence)), true, true
+		q.consequence = m.tr(tHostFailedNote)
 	}
 	var details []string
 	if r.Error != "" {
@@ -513,12 +513,12 @@ func (m *Model) hostResult(r hostReport, asked string) {
 	}
 	switch r.Check {
 	case hostchange.CheckPassed:
-		details = append(details, hostLines(styles.hint, "", tr(tHostCheckPassed))...)
+		details = append(details, hostLines(styles.hint, "", m.tr(tHostCheckPassed))...)
 	case hostchange.CheckFailed:
-		details = append(details, hostLines(styles.warning, "", tr(tHostCheckFailed, m.diffText(r.CheckError)))...)
+		details = append(details, hostLines(styles.warning, "", m.tr(tHostCheckFailed, m.diffText(r.CheckError)))...)
 	}
 	if r.Warning != "" {
-		details = append(details, hostLines(styles.warning, "", tr(tHostAuditWarning, m.diffText(r.Warning)))...)
+		details = append(details, hostLines(styles.warning, "", m.tr(tHostAuditWarning, m.diffText(r.Warning)))...)
 	}
 	if len(details) > 0 {
 		q.details = []string{"\n" + strings.Join(details, "\n")}

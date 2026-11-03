@@ -57,13 +57,13 @@ func (m *Model) primaryUsers(group string) []string {
 func (m *Model) groupRisk(g hostadmin.Group) string {
 	var parts []string
 	if g.Name == "root" {
-		parts = append(parts, tr(tHostRiskGroupRoot))
+		parts = append(parts, m.tr(tHostRiskGroupRoot))
 	}
 	if g.Name == hostadmin.GroupDocker {
-		parts = append(parts, tr(tHostRiskGroupDocker))
+		parts = append(parts, m.tr(tHostRiskGroupDocker))
 	}
 	if g.System {
-		parts = append(parts, tr(tHostRiskGroup))
+		parts = append(parts, m.tr(tHostRiskGroup))
 	}
 	return strings.Join(parts, " ")
 }
@@ -87,18 +87,18 @@ func (m *Model) hostGroupsKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 func (m *Model) groupNameProblem(name string) string {
 	switch {
 	case name == "":
-		return tr(tHostFormNameEmpty)
+		return m.tr(tHostFormNameEmpty)
 	case !groupNameForm.MatchString(name):
-		return tr(tHostFormGroupBad)
+		return m.tr(tHostFormGroupBad)
 	case m.hostGroupExists(name):
-		return tr(tHostFormGroupTaken)
+		return m.tr(tHostFormGroupTaken)
 	}
 	return ""
 }
 
 func (m *Model) openGroupCreate() tea.Cmd {
-	f := &formDlg{title: tr(tHostGroupNewTitle), hint: tr(tHostGroupNewHint), saveText: "{save} save"}
-	f.rows = []formRow{textRow("name", tr(tColName), "")}
+	f := &formDlg{title: m.tr(tHostGroupNewTitle), hint: m.tr(tHostGroupNewHint), saveText: "{save} save"}
+	f.rows = []formRow{textRow("name", m.tr(tColName), "")}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
 		name := f.row("name").value()
 		if f.row("name").problem = m.groupNameProblem(name); f.row("name").problem != "" {
@@ -122,7 +122,7 @@ func (m *Model) refuseProtected(g hostadmin.Group, why textID) bool {
 	if !protectedGroup(g.Name) {
 		return false
 	}
-	m.hostNotice(question{title: tr(tHostChangeRefused), consequence: tr(why, m.diffText(g.Name)), warn: true, keys: "{back} close"})
+	m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: m.tr(why, m.diffText(g.Name)), warn: true, keys: "{back} close"})
 	return true
 }
 
@@ -131,15 +131,15 @@ func (m *Model) openGroupRename() tea.Cmd {
 	if !ok || m.refuseProtected(g, tHostGroupKeepName) {
 		return nil
 	}
-	f := &formDlg{title: tr(tHostGroupRenameTitle, m.diffText(g.Name)), hint: tr(tHostGroupRenameHint), saveText: "{save} continue"}
-	f.rows = []formRow{textRow("name", tr(tHostFormNewName), "")}
+	f := &formDlg{title: m.tr(tHostGroupRenameTitle, m.diffText(g.Name)), hint: m.tr(tHostGroupRenameHint), saveText: "{save} continue"}
+	f.rows = []formRow{textRow("name", m.tr(tHostFormNewName), "")}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
 		name := f.row("name").value()
 		if f.row("name").problem = m.groupNameProblem(name); f.row("name").problem != "" {
 			return nil
 		}
 		// A rename is always red: what addresses a group by its name keeps the old one.
-		risk := strings.TrimSpace(tr(tHostRiskRenameGroup) + " " + m.groupRisk(g))
+		risk := strings.TrimSpace(m.tr(tHostRiskRenameGroup) + " " + m.groupRisk(g))
 		p, refusal := m.planHost(hostAsk{id: hostchange.ActionGroupRename, args: []string{g.Name, name}, risk: risk})
 		if refusal != "" {
 			f.notice = refusal
@@ -159,13 +159,13 @@ func (m *Model) askGroupDelete() tea.Cmd {
 		return nil
 	}
 	if users := m.primaryUsers(g.Name); len(users) > 0 {
-		m.hostNotice(question{title: tr(tHostChangeRefused), consequence: tr(tHostGroupPrimary, m.diffText(g.Name), m.diffText(strings.Join(users, ", "))),
+		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: m.tr(tHostGroupPrimary, m.diffText(g.Name), m.diffText(strings.Join(users, ", "))),
 			warn: true, keys: "{back} close"})
 		return nil
 	}
 	p, refusal := m.planHost(hostAsk{id: hostchange.ActionGroupDelete, args: []string{g.Name}, risk: m.groupRisk(g)})
 	if refusal != "" {
-		m.hostNotice(question{title: tr(tHostChangeRefused), consequence: refusal, warn: true, keys: "{back} close"})
+		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: "{back} close"})
 		return nil
 	}
 	m.confirmHost(p)

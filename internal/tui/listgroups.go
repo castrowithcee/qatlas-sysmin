@@ -66,24 +66,24 @@ func (g *listGroups) items() []string {
 
 // rowText is how a group row reads: the fold marker, the mark of the group, the group and the number
 // of its entries.
-func (g *listGroups) rowText(row string, open bool) string {
-	key, title, arrow := g.rowParts(row, open)
+func (g *listGroups) rowText(ui *uiContext, row string, open bool) string {
+	key, title, arrow := g.rowParts(ui, row, open)
 	return fmt.Sprintf("%s■ %s (%d)", arrow, title, len(g.members[key]))
 }
 
 // styledRow is rowText drawn for the screen: the mark in the colour of the group, its name in the accent
 // colour and the count dimmed. Without colour it reads exactly as rowText does.
-func (g *listGroups) styledRow(row string, open bool) string {
-	key, title, arrow := g.rowParts(row, open)
+func (g *listGroups) styledRow(ui *uiContext, row string, open bool) string {
+	key, title, arrow := g.rowParts(ui, row, open)
 	return styles.hint.Render(arrow) + groupMark(key) + " " + styles.active.Render(title) +
 		styles.hint.Render(fmt.Sprintf(" (%d)", len(g.members[key])))
 }
 
-func (g *listGroups) rowParts(row string, open bool) (key, title, arrow string) {
+func (g *listGroups) rowParts(ui *uiContext, row string, open bool) (key, title, arrow string) {
 	key = strings.TrimPrefix(row, groupRowPrefix)
 	title = key
 	if key == "" {
-		title = wordText(noGroup)
+		title = ui.wordText(noGroup)
 	}
 	arrow = "▸ "
 	if open {

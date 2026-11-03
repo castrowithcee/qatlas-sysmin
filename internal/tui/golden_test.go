@@ -27,8 +27,7 @@ func goldenFrame(t *testing.T) *Model {
 		t.Fatal("NO_COLOR does not switch the colour profile off")
 	}
 	applyTheme(uiprefs.ThemeTerminal)
-	useLanguage(t, "en")
-	m := New(uiprefs.Default(), nil)
+	m := testModel(uiprefs.Default(), nil)
 	m.title = "Services"
 	m.table = table{
 		columns: []column{{title: "Name"}, {title: "State"}, {title: "Note", flex: true}},

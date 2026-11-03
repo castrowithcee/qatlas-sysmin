@@ -73,9 +73,9 @@ func (m *Model) takeHostFolder(msg hostFolderMsg) {
 	f.folder, f.err = nil, ""
 	switch {
 	case errors.Is(msg.err, hostadmin.ErrNotFound):
-		f.err = tr(tHostFolderNotFound, m.diffText(msg.path))
+		f.err = m.tr(tHostFolderNotFound, m.diffText(msg.path))
 	case errors.Is(msg.err, fs.ErrPermission):
-		f.err = tr(tHostFolderDenied, m.diffText(msg.path))
+		f.err = m.tr(tHostFolderDenied, m.diffText(msg.path))
 	case msg.err != nil:
 		f.err = m.diffText(msg.err.Error())
 	default:
@@ -114,44 +114,44 @@ func (m *Model) foldersKey(key tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-func hostAccessText(a hostadmin.Access) string {
+func hostAccessText(ui *uiContext, a hostadmin.Access) string {
 	switch a {
 	case hostadmin.AccessReadWrite:
-		return tr(tHostAccReadWrite)
+		return ui.tr(tHostAccReadWrite)
 	case hostadmin.AccessRead:
-		return tr(tHostAccRead)
+		return ui.tr(tHostAccRead)
 	}
-	return tr(tHostAccNothing)
+	return ui.tr(tHostAccNothing)
 }
 
-func hostFolderKind(kind string) string {
+func hostFolderKind(ui *uiContext, kind string) string {
 	switch {
 	case kind == "directory":
-		return tr(tHostKindFolder)
+		return ui.tr(tHostKindFolder)
 	case kind == "file":
-		return tr(tHostKindFile)
+		return ui.tr(tHostKindFile)
 	}
-	return tr(tHostKindOther)
+	return ui.tr(tHostKindOther)
 }
 
 // folderLines are the facts of a path in plain words.
 func (m *Model) folderLines(f hostadmin.Folder, width int) []string {
 	dir := f.Kind == "directory"
 	pairs := [][2]string{
-		{tr(tColType), hostFolderKind(f.Kind)},
-		{tr(tHostOwnerOf, m.diffText(f.Owner)), hostAccessText(f.OwnerAcc)},
-		{tr(tHostGroupOf, m.diffText(f.Group)), hostAccessText(f.GroupAcc)},
-		{tr(tHostOthers), hostAccessText(f.OthersAcc)},
-		{tr(tHostMode), m.diffText(f.Mode)},
+		{m.tr(tColType), hostFolderKind(m.ui, f.Kind)},
+		{m.tr(tHostOwnerOf, m.diffText(f.Owner)), hostAccessText(m.ui, f.OwnerAcc)},
+		{m.tr(tHostGroupOf, m.diffText(f.Group)), hostAccessText(m.ui, f.GroupAcc)},
+		{m.tr(tHostOthers), hostAccessText(m.ui, f.OthersAcc)},
+		{m.tr(tHostMode), m.diffText(f.Mode)},
 	}
 	if f.Resolved != "" && f.Resolved != f.Path {
-		pairs = append([][2]string{{tr(tHostResolved), m.diffText(f.Resolved)}}, pairs...)
+		pairs = append([][2]string{{m.tr(tHostResolved), m.diffText(f.Resolved)}}, pairs...)
 	}
 	switch {
 	case f.ACL == nil:
-		pairs = append(pairs, [2]string{tr(tHostACL), tr(tHostUnknown)})
+		pairs = append(pairs, [2]string{m.tr(tHostACL), m.tr(tHostUnknown)})
 	case *f.ACL:
-		pairs = append(pairs, [2]string{tr(tHostACL), tr(tHostACLSet)})
+		pairs = append(pairs, [2]string{m.tr(tHostACL), m.tr(tHostACLSet)})
 	}
 	special := func(on bool, folder, other textID) {
 		if !on {
@@ -161,13 +161,13 @@ func (m *Model) folderLines(f hostadmin.Folder, width int) []string {
 		if dir {
 			id = folder
 		}
-		pairs = append(pairs, [2]string{tr(tHostSpecial), tr(id)})
+		pairs = append(pairs, [2]string{m.tr(tHostSpecial), m.tr(id)})
 	}
 	special(f.Setuid, tHostSetuidDir, tHostSetuid)
 	special(f.Setgid, tHostSetgidDir, tHostSetgid)
 	special(f.Sticky, tHostStickyDir, tHostSticky)
 	if f.Protected {
-		pairs = append(pairs, [2]string{tr(tHostProtected), tr(tHostProtectedNote)})
+		pairs = append(pairs, [2]string{m.tr(tHostProtected), m.tr(tHostProtectedNote)})
 	}
 	return factLines(pairs, width)
 }
@@ -176,14 +176,14 @@ func (m *Model) folderLines(f hostadmin.Folder, width int) []string {
 func (m *Model) hostFoldersBody() string {
 	f := m.foldersReady()
 	width := m.usable(0)
-	prefix := tr(tHostPathLabel) + ": "
+	prefix := m.tr(tHostPathLabel) + ": "
 	room := max(width-len([]rune(prefix))-1, 1)
 	in := f.in.Model
-	in.Placeholder = tr(tHostPathPlaceholder)
+	in.Placeholder = m.tr(tHostPathPlaceholder)
 	if !f.editing {
 		in.Blur()
 	}
-	lines := []string{styles.title.Render(tr(tSubFolders)), "", prefix + inputView(fitInput(in, room))}
+	lines := []string{styles.title.Render(m.tr(tSubFolders)), "", prefix + inputView(fitInput(in, room))}
 	if f.editing {
 		suggestions, mark := f.in.shown()
 		for j, s := range suggestions {
@@ -201,7 +201,7 @@ func (m *Model) hostFoldersBody() string {
 	case f.folder != nil:
 		lines = append(lines, m.folderLines(*f.folder, width)...)
 	default:
-		lines = append(lines, strings.Split(render(styles.hint, width, tr(tHostFolderHint)), "\n")...)
+		lines = append(lines, strings.Split(render(styles.hint, width, m.tr(tHostFolderHint)), "\n")...)
 	}
 	return strings.Join(lines, "\n")
 }

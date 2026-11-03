@@ -41,7 +41,7 @@ func (c command) reason(m *Model) string {
 // strip.
 func inContent(m *Model) string {
 	if z := m.zoneNow(); z != zoneContent && z != zoneDetail {
-		return tr(tCmdFocusContent)
+		return m.tr(tCmdFocusContent)
 	}
 	return ""
 }
@@ -53,24 +53,24 @@ func (m *Model) commands() []command {
 	for a := area(0); a < areaCount; a++ {
 		title := strings.ToLower(a.key())
 		list = append(list, command{
-			name: "go " + title, desc: tr(tCmdGoArea, a.title()), aliases: []string{title},
+			name: "go " + title, desc: m.tr(tCmdGoArea, a.title(m.ui)), aliases: []string{title},
 			shortcut: digits(a),
 			run:      func(m *Model) tea.Cmd { return m.show(a, 0) },
 		})
-		for _, p := range areaPages(a) {
+		for _, p := range areaPages(m.ui, a) {
 			list = append(list, command{
-				name: "go " + title + " " + p.key, desc: tr(tCmdGoPage, p.title, a.title()),
+				name: "go " + title + " " + p.key, desc: m.tr(tCmdGoPage, p.title, a.title(m.ui)),
 				aliases: []string{title + " " + p.key}, hidden: true,
 				run: func(m *Model) tea.Cmd { return m.show(a, p.sub) },
 			})
 		}
 	}
 	list = append(list,
-		command{name: "reload", desc: tr(tCmdReload), aliases: []string{"refresh"},
+		command{name: "reload", desc: m.tr(tCmdReload), aliases: []string{"refresh"},
 			shortcut: func() string { return m.keyLabel(actReload) },
 			unavailable: func(m *Model) string {
 				if _, ok := m.ui.reloadPress(); !ok {
-					return tr(tCmdNoReloadKey)
+					return m.tr(tCmdNoReloadKey)
 				}
 				return ""
 			},
@@ -78,18 +78,18 @@ func (m *Model) commands() []command {
 				press, _ := m.ui.reloadPress()
 				return m.updateArea(press)
 			}},
-		command{name: "regroup", desc: tr(tCmdRegroup),
+		command{name: "regroup", desc: m.tr(tCmdRegroup),
 			run: func(m *Model) tea.Cmd { return m.regroup() }},
-		command{name: "update", desc: tr(tCmdUpdate), aliases: []string{"upgrade"},
+		command{name: "update", desc: m.tr(tCmdUpdate), aliases: []string{"upgrade"},
 			shortcut: func() string { return m.keyLabel(actSelfUpdate) },
 			run:      func(m *Model) tea.Cmd { return m.selfUpdate() }},
-		command{name: "help", desc: tr(tCmdHelp),
+		command{name: "help", desc: m.tr(tCmdHelp),
 			shortcut: func() string { return m.keyLabel(actHelp) },
 			run:      func(m *Model) tea.Cmd { m.openPopup(popHelp); return nil }},
-		command{name: "info", desc: tr(tCmdInfo),
+		command{name: "info", desc: m.tr(tCmdInfo),
 			shortcut: func() string { return m.keyLabel(actInfo) },
 			run:      func(m *Model) tea.Cmd { m.openPopup(popInfo); return nil }},
-		command{name: "quit", desc: tr(tCmdQuit), aliases: []string{"exit"},
+		command{name: "quit", desc: m.tr(tCmdQuit), aliases: []string{"exit"},
 			shortcut: func() string { return m.keyLabel(actQuit) },
 			run:      func(m *Model) tea.Cmd { return m.guarded(m.quit) }},
 	)
@@ -103,20 +103,20 @@ type areaPage struct {
 }
 
 // areaPages are the pages of an area; an area without a page strip has none.
-func areaPages(a area) []areaPage {
+func areaPages(ui *uiContext, a area) []areaPage {
 	var out []areaPage
 	switch a {
 	case areaSettings:
 		for sub := 0; sub < subCount; sub++ {
-			out = append(out, areaPage{sub, subKey(sub), subTitle(sub)})
+			out = append(out, areaPage{sub, subKey(sub), subTitle(ui, sub)})
 		}
 	case areaActivity:
 		for sub := 0; sub < actPages; sub++ {
-			out = append(out, areaPage{sub, actKey(sub), actTitle(sub)})
+			out = append(out, areaPage{sub, actKey(sub), actTitle(ui, sub)})
 		}
 	case areaHost:
 		for sub := 0; sub < hostCount; sub++ {
-			out = append(out, areaPage{sub, hostKey(sub), hostTitle(sub)})
+			out = append(out, areaPage{sub, hostKey(sub), hostTitle(ui, sub)})
 		}
 	}
 	return out
@@ -179,7 +179,7 @@ func (m *Model) commandKey(key tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case m.keyIs(key, actEnter):
 		if len(matches) == 0 {
-			p.msg = tr(tCmdUnknown, strings.Join(strings.Fields(p.in.Value()), " "))
+			p.msg = m.tr(tCmdUnknown, strings.Join(strings.Fields(p.in.Value()), " "))
 			return nil
 		}
 		c := matches[min(p.cursor, len(matches)-1)]
@@ -224,12 +224,12 @@ func (m *Model) paletteBody(inner, room int) ([]string, []int) {
 	index := []int{-1, -1}
 	var msg []string
 	if p.msg != "" {
-		msg = strings.Split(render(styles.fail, inner, tr(tNoteError, p.msg)), "\n")
+		msg = strings.Split(render(styles.fail, inner, m.tr(tNoteError, p.msg)), "\n")
 	}
 	switch {
 	case len(matches) == 0 && p.msg != "":
 	case len(matches) == 0:
-		lines, index = append(lines, styles.hint.Render(truncateCells(tr(tCmdNoMatch), inner))), append(index, -1)
+		lines, index = append(lines, styles.hint.Render(truncateCells(m.tr(tCmdNoMatch), inner))), append(index, -1)
 	default:
 		avail := max(room-len(lines)-len(msg), 1)
 		rows := min(avail, paletteMaxRows, len(matches))
@@ -251,7 +251,7 @@ func (m *Model) paletteBody(inner, room int) ([]string, []int) {
 			lines, index = append(lines, m.paletteRow(matches[i], i == cursor, nameW, keyW, inner)), append(index, i)
 		}
 		if len(matches) > end-start {
-			lines, index = append(lines, styles.hint.Render(truncateCells(tr(tCmdPosition, start+1, end, len(matches)), inner))), append(index, -1)
+			lines, index = append(lines, styles.hint.Render(truncateCells(m.tr(tCmdPosition, start+1, end, len(matches)), inner))), append(index, -1)
 		}
 	}
 	for _, l := range msg {

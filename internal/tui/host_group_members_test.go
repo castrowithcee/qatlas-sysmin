@@ -184,7 +184,7 @@ func TestGroupMembersLeaveOutPrimaryUsersAndHeadings(t *testing.T) {
 
 func TestGroupMembersFormSpeaksGerman(t *testing.T) {
 	m, _, _ := groupsModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	selectGroup(m, "docker")
 	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "e members") {
 		t.Errorf("keys %q", keys)

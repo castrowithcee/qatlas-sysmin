@@ -133,7 +133,7 @@ func TestActivityCountsDocumentedDamage(t *testing.T) {
 	if view := plain(m); !strings.Contains(view, "● Chain intact, 52 entries · unreadable lines documented: 1") {
 		t.Errorf("no documented damage shown:\n%s", view)
 	}
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	send(m, "t")
 	if view := plain(m); !strings.Contains(view, "unlesbare Zeilen dokumentiert: 1") {
 		t.Errorf("no German documented damage shown:\n%s", view)
@@ -280,7 +280,7 @@ func TestActivityShowsAHostChangeWithItsLabel(t *testing.T) {
 	}{{i18n.English, "Host change"}, {i18n.German, "Host-Änderung"}} {
 		t.Run(string(tc.lang), func(t *testing.T) {
 			m := appModel(t, fb, 120, 40)
-			useLanguage(t, tc.lang)
+			useLanguage(t, m, tc.lang)
 			send(m, "3")
 			if view := plain(m); !strings.Contains(view, tc.want) || strings.Contains(view, "host.change") {
 				t.Errorf("table lacks %q or shows the raw action:\n%s", tc.want, view)
@@ -291,7 +291,7 @@ func TestActivityShowsAHostChangeWithItsLabel(t *testing.T) {
 
 func TestEveryLogActionHasALabelInBothLanguages(t *testing.T) {
 	for _, a := range logActions {
-		for _, cat := range []map[textID]string{textEN, textDE} {
+		for _, cat := range catalog() {
 			if strings.TrimSpace(cat[actionID(a)]) == "" {
 				t.Errorf("action %q has no label", a)
 			}
@@ -319,14 +319,14 @@ func TestActivityTextsAreTranslated(t *testing.T) {
 
 func TestEveryFooterGroupOfThePagesIsTranslated(t *testing.T) {
 	utcClock(t)
-	useLanguage(t, "de")
 	m := appModel(t, activityFake(), 120, 40)
+	useLanguage(t, m, "de")
 	send(m, "3")
 	for _, group := range strings.Split(m.areaKeys(), " · ") {
 		if strings.HasPrefix(group, "{") || group == "1-4 area" {
 			continue
 		}
-		if _, ok := textDE[footerID(group)]; !ok {
+		if _, ok := catalog()[i18n.German][footerID(group)]; !ok {
 			t.Errorf("footer group %q has no German text", group)
 		}
 	}

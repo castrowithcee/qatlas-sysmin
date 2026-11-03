@@ -80,15 +80,15 @@ func (p *dataPage) current() (string, bool) {
 // filtering reports whether the filter takes the typed keys.
 func (p *dataPage) filtering() bool { return p != nil && p.list.editing }
 
-func tabTitle(tab int) string {
-	return tr([...]textID{tTabOverview, tTabDetails, tTabRaw}[tab])
+func tabTitle(ui *uiContext, tab int) string {
+	return ui.tr([...]textID{tTabOverview, tTabDetails, tTabRaw}[tab])
 }
 
 // tabStripLine is the strip of the detail tabs and the cells each takes.
-func tabStripLine(p *dataPage, width int, focused bool) (string, [][2]int) {
+func tabStripLine(ui *uiContext, p *dataPage, width int, focused bool) (string, [][2]int) {
 	words := make([]string, tabCount)
 	for i := range words {
-		words[i] = tabTitle(i)
+		words[i] = tabTitle(ui, i)
 	}
 	strip, spans := tabStrip(words, p.tab, focused)
 	return clipCells(strip, width), spans
@@ -138,15 +138,15 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 		return strings.Join(left, "\n")
 	}
 	inner := detailWidth - 4
-	strip, spans := tabStripLine(p, inner, detailFocus)
+	strip, spans := tabStripLine(m.ui, p, inner, detailFocus)
 	title := name
 	var content []string
 	if have {
 		content = v.lines(name, p.tab, inner)
 	} else {
 		sec, _ := p.section(marked)
-		title = tr(sec.title)
-		content = wrapIndented(styles.hint, "", tr(tSectionHint), inner)
+		title = m.tr(sec.title)
+		content = wrapIndented(styles.hint, "", m.tr(tSectionHint), inner)
 		strip, spans = "", nil
 	}
 	height := min(max(len(content)+2, len(left)-2), avail-2)
@@ -201,7 +201,7 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 		lines = append(lines, panelTop("", "", room, focused))
 	}
 	if p.list.editing || p.list.query() != "" {
-		lines = append(lines, inside(m.searchLineIn(room, &p.list, tr(tFormFilter))))
+		lines = append(lines, inside(m.searchLineIn(room, &p.list, m.tr(tFormFilter))))
 	}
 	t := table{columns: p.cols, rows: p.rows}
 	_, cells := m.fitIn(room, entryIndent)
@@ -213,7 +213,7 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 	case total == 0:
 		lines = append(lines, inside(styles.hint.Render(truncateCells(v.empty, room))))
 	case shown == 0:
-		lines = append(lines, inside(styles.hint.Render(truncateCells(tr(tFormNoEntryMatchesPressEsc, p.list.query()), room))))
+		lines = append(lines, inside(styles.hint.Render(truncateCells(m.tr(tFormNoEntryMatchesPressEsc, p.list.query()), room))))
 	}
 	foot := 0
 	if framed {
@@ -226,7 +226,7 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 		heading := isSectionRow(name)
 		text := ""
 		if heading {
-			text = p.headingLine(name)
+			text = p.headingLine(m.ui, name)
 		} else {
 			text = t.line(p.rows[name], layout)
 		}
@@ -265,9 +265,9 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 	p.scroll = min(max(p.scroll, 0), max(len(content)-room, 0))
 	note := ""
 	if len(content) > room {
-		note = tr(tScrollPosition, p.scroll+1, min(p.scroll+room, len(content)), len(content))
+		note = m.tr(tScrollPosition, p.scroll+1, min(p.scroll+room, len(content)), len(content))
 	}
-	strip, spans := tabStripLine(p, inner, true)
+	strip, spans := tabStripLine(m.ui, p, inner, true)
 	body := append([]string{strip, ""}, content[p.scroll:min(p.scroll+room, len(content))]...)
 	head := titleLine(v.title+" › "+truncateCells(name, max(width-lipgloss.Width(v.title)-4, 4)), note, width)
 	for i, span := range spans {

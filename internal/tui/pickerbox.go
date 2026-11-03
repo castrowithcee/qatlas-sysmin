@@ -61,8 +61,8 @@ func (m *Model) boxSearch(l *filterList, label string) string {
 	if !m.boxed() {
 		return m.searchLine(l, label) + "\n"
 	}
-	l.input.Placeholder = tr(tLogSearchPlaceholder)
-	return m.boxLine(searchField(searchContent(l, m.boxRoom()), m.boxRoom()))
+	l.input.Placeholder = m.tr(tLogSearchPlaceholder)
+	return m.boxLine(searchField(m.ui, searchContent(l, m.boxRoom()), m.boxRoom()))
 }
 
 // boxRow is a finished row of a picker table.

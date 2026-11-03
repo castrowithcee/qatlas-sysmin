@@ -1,7 +1,5 @@
 package tui
 
-import "maps"
-
 // The texts of the forms and messages that create, rename and delete host groups.
 const (
 	tHostGroupNewTitle    textID = "HostGroupNewTitle"
@@ -25,8 +23,9 @@ const (
 	tHostMembersTickOne   textID = "HostMembersTickOne"
 )
 
-func init() {
-	maps.Copy(textEN, map[textID]string{
+// hostGroupTexts are the texts of the host group forms, in English and German.
+func hostGroupTexts() (en, de map[textID]string) {
+	en = map[textID]string{
 		tHostGroupNewTitle:    "New group",
 		tHostGroupNewHint:     "The system gives the group a regular group number.",
 		tHostGroupRenameTitle: "Rename %s",
@@ -48,8 +47,8 @@ func init() {
 		tHostMembersTickOne:   "Choose at least one user.",
 		footerID("e members"): "e members",
 		footerID("r rename"):  "r rename",
-	})
-	maps.Copy(textDE, map[textID]string{
+	}
+	de = map[textID]string{
 		tHostGroupNewTitle:    "Neue Gruppe",
 		tHostGroupNewHint:     "Das System gibt der Gruppe eine reguläre Gruppennummer.",
 		tHostGroupRenameTitle: "%s umbenennen",
@@ -71,5 +70,6 @@ func init() {
 		tHostMembersTickOne:   "Wähle mindestens einen Benutzer.",
 		footerID("e members"): "e Mitglieder",
 		footerID("r rename"):  "r umbenennen",
-	})
+	}
+	return en, de
 }

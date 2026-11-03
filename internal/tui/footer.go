@@ -103,7 +103,7 @@ func (m *Model) footerItems(text string) []footerItem {
 	}
 	// A screen that names its keys without help does so on purpose: help is not reachable where text is typed.
 	if !hasHelp && len(items) == 0 && m.keyLabel(actHelp) != "" {
-		items = append(items, footerItem{text: m.keyLabel(actHelp) + " " + tr(tHeaderHelp), rank: footerHelp})
+		items = append(items, footerItem{text: m.keyLabel(actHelp) + " " + m.tr(tHeaderHelp), rank: footerHelp})
 	}
 	if m.screenPos != "" {
 		items = append(items, footerItem{text: m.screenPos, rank: footerPosition, right: true, plain: true})

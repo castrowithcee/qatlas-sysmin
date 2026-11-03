@@ -148,7 +148,7 @@ func TestARestoredFolderChangeNamesContainerAndFinding(t *testing.T) {
 
 func TestFolderChangeSpeaksGerman(t *testing.T) {
 	m, _, _, _ := userModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	openFolderForm(t, m, "/srv/demo-app", fixedCount(1))
 	for _, want := range []string{"Besitzer darf", "Gruppe darf", "Andere dürfen", "Alles darunter"} {
 		if !strings.Contains(flat(m), want) {

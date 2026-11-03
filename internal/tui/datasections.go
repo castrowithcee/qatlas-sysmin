@@ -180,13 +180,13 @@ func (p *dataPage) toggleHeading() {
 }
 
 // headingLine draws a heading: the fold mark, the title and the number of its entries.
-func (p *dataPage) headingLine(row string) string {
+func (p *dataPage) headingLine(ui *uiContext, row string) string {
 	sec, _ := p.section(row)
 	arrow := "▾"
 	if p.sec.folded[sec.key] {
 		arrow = "▸"
 	}
-	return styles.hint.Render(arrow) + " " + styles.active.Render(tr(sec.title)) +
+	return styles.hint.Render(arrow) + " " + styles.active.Render(ui.tr(sec.title)) +
 		styles.hint.Render(fmt.Sprintf(" (%d)", len(sec.names)))
 }
 

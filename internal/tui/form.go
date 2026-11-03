@@ -95,11 +95,11 @@ func (r *formRow) picked() []string {
 }
 
 // multiText is how a multi row is drawn: the value under the cursor with its box, and how many are ticked.
-func (r *formRow) multiText() string {
+func (r *formRow) multiText(ui *uiContext) string {
 	if len(r.values) == 0 {
-		return tr(tHostFormNoGroups)
+		return ui.tr(tHostFormNoGroups)
 	}
-	return tickBox(r.ticked[r.sel]) + " " + r.values[r.sel] + "  (" + tr(tHostFormTicked, len(r.picked()), len(r.values)) + ")"
+	return tickBox(r.ticked[r.sel]) + " " + r.values[r.sel] + "  (" + ui.tr(tHostFormTicked, len(r.picked()), len(r.values)) + ")"
 }
 
 // value is the text of a text row, or the value a choice stands for.
@@ -211,7 +211,7 @@ func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case m.keyIs(key, actBack):
 		m.closeForm()
-		m.status = tr(tCancelled)
+		m.status = m.tr(tCancelled)
 		return nil
 	case m.keyIs(key, actSave):
 		return f.submit(m, f)
@@ -295,10 +295,10 @@ func (m *Model) formDialog() promptDialog {
 		if r.choice {
 			shown := r.shownValue()
 			if r.multi {
-				shown = r.multiText()
+				shown = r.multiText(m.ui)
 			}
 			if r.pick {
-				shown = r.pickText()
+				shown = r.pickText(m.ui)
 			}
 			text := truncateCells(shown, max(room-6, 1))
 			if f.focus == i && !r.pick {

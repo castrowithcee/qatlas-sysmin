@@ -340,7 +340,7 @@ func TestRunsThatGiveNoAnswerChangeNothingAndSayWhy(t *testing.T) {
 
 func TestMessagesAreGerman(t *testing.T) {
 	m, f, _ := hostChangeModel(t, 120, 40)
-	useLanguage(t, "de")
+	useLanguage(t, m, "de")
 	f.answer = func(HostRequest) (string, error) { return "", exitError(t, "exit 1") }
 	drain(m, m.askHostChange("demo.set", []string{"alpha", "new"}))
 	send(m, "y")

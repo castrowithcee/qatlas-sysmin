@@ -100,7 +100,7 @@ func TestHeaderShortensBeforeItDropsTheKeyHints(t *testing.T) {
 func TestGermanHeader(t *testing.T) {
 	m := appModel(t, newFake(), 80, 20)
 	m.set.upd = updateState{phase: updDone, info: ReleaseInfo{Latest: "9.9.9"}}
-	useLanguage(t, i18n.German)
+	useLanguage(t, m, i18n.German)
 	if row := ansi.Strip(m.headerLines()[0]); !strings.Contains(row, "9.9.9 verfügbar") || !strings.Contains(row, "Hilfe") {
 		t.Errorf("header = %q", row)
 	}

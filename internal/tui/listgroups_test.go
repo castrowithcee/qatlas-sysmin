@@ -34,10 +34,10 @@ func TestGroupsAreOrderedAlphabeticallyWithTheGroupWithoutKeyLast(t *testing.T) 
 	if m.groups.of["delta"] != "" || m.groups.of["alpha"] != "web" {
 		t.Errorf("groups = %v", m.groups.of)
 	}
-	if got := m.groups.rowText(groupRow(""), true); got != "▾ ■ no group (1)" {
+	if got := m.groups.rowText(m.ui, groupRow(""), true); got != "▾ ■ no group (1)" {
 		t.Errorf("row of the group without key = %q", got)
 	}
-	if got := m.groups.rowText(groupRow("web"), false); got != "▸ ■ web (2)" {
+	if got := m.groups.rowText(m.ui, groupRow("web"), false); got != "▸ ■ web (2)" {
 		t.Errorf("folded row = %q", got)
 	}
 	if shown, total := len(m.list.matches), m.entryTotal(); shown != 7 || total != 4 {

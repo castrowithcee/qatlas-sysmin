@@ -79,11 +79,10 @@ func appModel(t *testing.T, fb *fakeBackend, w, h int) *Model {
 	restoreRenderer(t)
 	setProfile(profileNone)
 	applyTheme(uiprefs.ThemeTerminal)
-	useLanguage(t, "en")
 	every := tickEvery
 	tickEvery = time.Millisecond
 	t.Cleanup(func() { tickEvery = every })
-	m := New(uiprefs.Default(), nil)
+	m := testModel(uiprefs.Default(), nil)
 	m.enableAreas(fb)
 	m.hostSrc = newFixtureHost()
 	sizedModel(m, w, h)

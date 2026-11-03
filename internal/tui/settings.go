@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
@@ -19,8 +20,8 @@ const (
 )
 
 // subTitle is the name of a Settings page as drawn.
-func subTitle(sub int) string {
-	return tr([...]textID{tSubGeneral, tSubUpdate}[sub])
+func subTitle(ui *uiContext, sub int) string {
+	return ui.tr([...]textID{tSubGeneral, tSubUpdate}[sub])
 }
 
 // subKey is the English name of a Settings page, the one commands are given by.
@@ -367,13 +368,13 @@ func (m *Model) saveGeneral() tea.Cmd {
 		return nil
 	}
 	if m.prefsPath == "" {
-		m.fail = tr(tPrefsNoPath)
+		m.fail = m.tr(tPrefsNoPath)
 		return nil
 	}
 	next := m.prefs
 	next.Language, next.Theme, next.MouseOff, next.Keys = g.language, g.theme, g.mouse == uiprefs.ChoiceMouseOff, keys
 	if err := uiprefs.Save(m.prefsPath, next); err != nil {
-		m.fail = tr(tPrefsSaveFailed)
+		m.fail = m.tr(tPrefsSaveFailed)
 		return nil
 	}
 	var query tea.Cmd
@@ -382,8 +383,8 @@ func (m *Model) saveGeneral() tea.Cmd {
 	}
 	m.prefs = next
 	applyTheme(next.Theme)
-	setLanguage(next.Language)
-	m.status = tr(tPrefsSaved)
+	m.ui.setLanguage(kitprefs.Language(next.Language))
+	m.status = m.tr(tPrefsSaved)
 	if warnings := m.bindKeys(); len(warnings) > 0 {
 		m.status = "warning: " + warnings[0]
 	}
@@ -404,7 +405,7 @@ func (m *Model) guarded(next func() tea.Cmd) tea.Cmd {
 	}
 	m.set.editing = false
 	m.leave = &leaveAsk{next}
-	m.ask = &question{title: tr(tLeaveTitle), consequence: tr(tLeaveConsequence), warn: true,
+	m.ask = &question{title: m.tr(tLeaveTitle), consequence: m.tr(tLeaveConsequence), warn: true,
 		keys: "{save} save · d discard · {back} keep editing"}
 	m.screen = screenConfirm
 	return nil

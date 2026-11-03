@@ -35,7 +35,7 @@ func (m *Model) updateConfirm(key tea.KeyPressMsg) tea.Cmd {
 			cancel()
 		}
 		m.closeDialog()
-		m.status = tr(tCancelled)
+		m.status = m.tr(tCancelled)
 	}
 	return nil
 }

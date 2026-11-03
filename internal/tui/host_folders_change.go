@@ -70,12 +70,12 @@ func (m *Model) hostAccountNames() (users, groups []string) {
 	return users, groups
 }
 
-func levelRow(key, label string, current hostadmin.Access) formRow {
+func levelRow(ui *uiContext, key, label string, current hostadmin.Access) formRow {
 	values := make([]string, len(folderLevels))
 	shown := make([]string, len(folderLevels))
 	sel := 0
 	for i, l := range folderLevels {
-		values[i], shown[i] = string(l), hostAccessText(l)
+		values[i], shown[i] = string(l), hostAccessText(ui, l)
 		if l == current {
 			sel = i
 		}
@@ -87,24 +87,24 @@ func levelRow(key, label string, current hostadmin.Access) formRow {
 func (m *Model) openFolderChange() tea.Cmd {
 	folder, ok := m.changeableFolder()
 	if !ok {
-		m.status = tr(tHostFolderOnlyDir)
+		m.status = m.tr(tHostFolderOnlyDir)
 		return nil
 	}
 	path := realPath(folder)
 	users, groups := m.hostAccountNames()
 	owners, ownerSel := accountChoices(users, folder.Owner)
 	groupNames, groupSel := accountChoices(groups, folder.Group)
-	f := &formDlg{title: tr(tHostFolderChangeTitle, m.diffText(path)), saveText: "{save} save"}
+	f := &formDlg{title: m.tr(tHostFolderChangeTitle, m.diffText(path)), saveText: "{save} save"}
 	f.rows = []formRow{
-		choiceRow("owner", tr(tHostFolderOwner), owners, nil, ownerSel),
-		choiceRow("group", tr(tHostFolderGroup), groupNames, nil, groupSel),
-		levelRow("user", tr(tHostFolderOwnerMay), folder.OwnerAcc),
-		levelRow("groupacc", tr(tHostFolderGroupMay), folder.GroupAcc),
-		levelRow("other", tr(tHostFolderOthersMay), folder.OthersAcc),
-		choiceRow("recursive", tr(tHostFolderBelow), []string{hostNo, hostYes}, []string{tr(tHostNo), tr(tHostYes)}, 0),
+		choiceRow("owner", m.tr(tHostFolderOwner), owners, nil, ownerSel),
+		choiceRow("group", m.tr(tHostFolderGroup), groupNames, nil, groupSel),
+		levelRow(m.ui, "user", m.tr(tHostFolderOwnerMay), folder.OwnerAcc),
+		levelRow(m.ui, "groupacc", m.tr(tHostFolderGroupMay), folder.GroupAcc),
+		levelRow(m.ui, "other", m.tr(tHostFolderOthersMay), folder.OthersAcc),
+		choiceRow("recursive", m.tr(tHostFolderBelow), []string{hostNo, hostYes}, []string{m.tr(tHostNo), m.tr(tHostYes)}, 0),
 	}
 	if hostchange.IsSystemPath(path) {
-		f.hint = tr(tHostFolderSystemHint)
+		f.hint = m.tr(tHostFolderSystemHint)
 	}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd { return m.submitFolderChange(f, path) }
 	m.openForm(f)
@@ -125,10 +125,10 @@ func (m *Model) submitFolderChange(f *formDlg, path string) tea.Cmd {
 		n, err := m.countEntries(path, true)
 		switch {
 		case errors.Is(err, hostchange.ErrTooManyEntries):
-			f.notice = tr(tHostFolderTooMany, m.diffText(path), hostchange.MaxFolderEntries)
+			f.notice = m.tr(tHostFolderTooMany, m.diffText(path), hostchange.MaxFolderEntries)
 			return nil
 		case err != nil:
-			f.notice = tr(tHostFolderCountFailed, m.diffText(err.Error()))
+			f.notice = m.tr(tHostFolderCountFailed, m.diffText(err.Error()))
 			return nil
 		}
 		count = n
@@ -143,11 +143,11 @@ func (m *Model) submitFolderChange(f *formDlg, path string) tea.Cmd {
 	m.closeForm()
 	m.confirmHost(p)
 	if req.Recursive {
-		m.ask.consequence = tr(tHostFolderCount, count) + " " + m.ask.consequence
+		m.ask.consequence = m.tr(tHostFolderCount, count) + " " + m.ask.consequence
 	}
 	if req.SystemPath {
 		m.ask.warn, m.ask.danger = true, true
-		m.ask.consequence = tr(tHostFolderSystemWarn) + " " + m.ask.consequence
+		m.ask.consequence = m.tr(tHostFolderSystemWarn) + " " + m.ask.consequence
 	}
 	return nil
 }
