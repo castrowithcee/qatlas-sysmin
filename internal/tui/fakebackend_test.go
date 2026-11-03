@@ -34,7 +34,7 @@ func (f *fakeBackend) Status() (control.StatusResult, error) {
 	if f.down != nil {
 		return control.StatusResult{}, f.down
 	}
-	return control.StatusResult{Version: "0.0.0-test", ConfigDir: "/etc/sysmin-test"}, nil
+	return control.StatusResult{Version: "0.0.0-test"}, nil
 }
 
 func (f *fakeBackend) count(call string) int {

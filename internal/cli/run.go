@@ -20,12 +20,11 @@ func newRunCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run the sysmin service",
-		Long: "run is what the service unit starts: it holds the vault, opens it with the credential the service\n" +
-			"manager hands over (otherwise it stays locked until the passphrase arrives over the control\n" +
-			"socket), and serves the control socket until it receives SIGTERM or SIGINT.",
+		Long: "run is what the service unit starts: it serves the control socket to administrators until it\n" +
+			"receives SIGTERM or SIGINT.",
 		Args: noArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
-			// Keeps other processes from reading the vault's key out of this process's memory.
+			// Keeps other processes of the service user from attaching to or dumping this process.
 			if err := unix.Prctl(unix.PR_SET_DUMPABLE, 0, 0, 0, 0); err != nil {
 				return fmt.Errorf("cannot protect the service's memory: %w", err)
 			}
@@ -36,8 +35,7 @@ func newRunCommand(opts *Options) *cobra.Command {
 			return runService(ctx, cfg)
 		},
 	}
-	cmd.Flags().StringVar(&cfg.ConfigDir, "config-dir", service.DefaultConfigDir, "configuration directory")
-	cmd.Flags().StringVar(&cfg.StateDir, "state-dir", service.DefaultStateDir, "state directory holding the vault and the log")
+	cmd.Flags().StringVar(&cfg.StateDir, "state-dir", service.DefaultStateDir, "state directory holding the log")
 	cmd.Flags().StringVar(&cfg.SocketPath, "socket", control.DefaultSocketPath, "control socket path")
 	return cmd
 }

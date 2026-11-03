@@ -15,8 +15,7 @@
 // as an entry, chain and check value included, and counts it as documented damage; any other such line
 // breaks the chain. Only the last line of the newest day file is ever bridged this way.
 //
-// A logger given the log key (see Key and Logger.WithKey) also signs every entry it writes, markers
-// included, with a check value in Entry.MAC; see Key.mac for its exact definition. A logger without one
-// leaves MAC empty, which marks an entry unverified: Verify counts such an entry but never treats it as a
-// break, so the chain runs on through signed and unsigned entries alike.
+// Entries carry no signature. An entry that an earlier version signed keeps its mac field, which is not
+// checked: Verify counts such an entry as signed, and the chain over the stored bytes covers it like any
+// other, so signed and unsigned entries chain alike.
 package auditlog

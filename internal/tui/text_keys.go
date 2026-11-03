@@ -182,7 +182,6 @@ const (
 	tLogChainChecking           textID = "LogChainChecking"
 	tLogChainIntact             textID = "LogChainIntact"
 	tLogChainBroken             textID = "LogChainBroken"
-	tLogSigChecked              textID = "LogSigChecked"
 	tLogSigUnchecked            textID = "LogSigUnchecked"
 	tLogDamaged                 textID = "LogDamaged"
 	tLogLine                    textID = "LogLine"
@@ -192,7 +191,6 @@ const (
 	tLogProbGenesis             textID = "LogProbGenesis"
 	tLogProbMissing             textID = "LogProbMissing"
 	tLogProbChain               textID = "LogProbChain"
-	tLogProbMAC                 textID = "LogProbMAC"
 	tHelpAuditLog               textID = "HelpAuditLog"
 	tInfoActLog                 textID = "InfoActLog"
 )

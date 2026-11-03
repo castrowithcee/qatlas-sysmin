@@ -36,18 +36,11 @@ const (
 
 // The operations of the service.
 const (
-	// OpStatus asks for the service's versions, vault state and socket.
+	// OpStatus asks for the service's version and socket.
 	OpStatus = "status"
-	// OpVaultStatus asks for the vault's state and how it was unlocked.
-	OpVaultStatus = "vault.status"
-	// OpUnlock opens a locked vault with its passphrase.
-	OpUnlock = "unlock"
-	// OpSessionOpen and OpSessionEnd start and end the admin session of the connection.
-	OpSessionOpen = "session.open"
-	OpSessionEnd  = "session.end"
 
-	// OpHostRecord records a finished host change in the audit log. Only root may call it, and it needs
-	// neither an open vault nor an admin session: the sudo call that made the change is the proof.
+	// OpHostRecord records a finished host change in the audit log. Only root may call it: the sudo call
+	// that made the change is the proof.
 	OpHostRecord = "host.record"
 )
 
@@ -69,19 +62,6 @@ const (
 	// check for it is installed.
 	CodeUnavailable = "unavailable"
 	CodeInternal    = "internal"
-	// CodeLocked answers a changing request while the vault is locked or does not exist.
-	CodeLocked = "locked"
-	// CodeAdminRequired answers a changing request of a connection without an active admin session.
-	CodeAdminRequired   = "admin-required"
-	CodeWrongPassphrase = "wrong-passphrase"
-	CodeVaultAbsent     = "vault-absent"
-	// CodeChanged answers a settings change whose file was changed by someone else meanwhile.
-	CodeChanged = "changed"
-	// CodeInvalid answers a change or check whose result fails the validation. The answer lists the
-	// problems.
-	CodeInvalid = "invalid"
-	// CodeExists answers the creation of a vault that already exists.
-	CodeExists = "exists"
 )
 
 // Request is one line a client sends. Params is the operation's own object, if it takes one.
@@ -97,57 +77,18 @@ type Response struct {
 	OK     bool            `json:"ok"`
 	Result json.RawMessage `json:"result,omitempty"`
 	Error  string          `json:"error,omitempty"`
-	// Problems accompanies the error CodeInvalid.
-	Problems []Problem `json:"problems,omitempty"`
 }
 
-// The vault states and unlock modes an answer reports.
-const (
-	VaultAbsent   = "absent"
-	VaultLocked   = "locked"
-	VaultUnlocked = "unlocked"
-
-	UnlockManual = "manual"
-	UnlockTPM2   = "tpm2"
-	UnlockHost   = "host"
-)
-
-// StatusResult is the answer to OpStatus. The fields after Version are empty for a server without a vault.
+// StatusResult is the answer to OpStatus.
 type StatusResult struct {
 	Protocol int    `json:"protocol"`
 	Version  string `json:"version"`
-	Vault    string `json:"vault,omitempty"`
-	Unlock   string `json:"unlock,omitempty"`
-	Warning  string `json:"warning,omitempty"`
 	Socket   string `json:"socket,omitempty"`
-	// ConfigDir is the service's configuration directory.
-	ConfigDir string `json:"config_dir,omitempty"`
-	// Admin reports whether the asking connection has an admin session that covers a change now, without
-	// using it. AdminRemaining is the whole seconds (rounded up) it stays active while idle; it is 0 while
-	// the admin timeout is 0 (the passphrase covers one change). AdminTimeout is the effective admin timeout
-	// as a duration text such as "15m0s"; "0s" means every change asks for the passphrase.
-	Admin          bool   `json:"admin,omitempty"`
-	AdminRemaining int64  `json:"admin_remaining,omitempty"`
-	AdminTimeout   string `json:"admin_timeout,omitempty"`
 }
 
-// VaultStatusResult is the answer to OpVaultStatus. It never carries key material or entry values.
-type VaultStatusResult struct {
-	Vault   string `json:"vault"`
-	Unlock  string `json:"unlock"`
-	Warning string `json:"warning,omitempty"`
-}
-
-// PassphraseParams are the parameters of OpUnlock and OpSessionOpen. The passphrase travels only in the
-// request; no answer, log entry or error repeats it.
-type PassphraseParams struct {
-	Passphrase string `json:"passphrase"`
-}
-
-// Error is a failed operation, carrying one of the fixed codes. Problems is set only with CodeInvalid.
+// Error is a failed operation, carrying one of the fixed codes.
 type Error struct {
-	Code     string
-	Problems []Problem
+	Code string
 }
 
 func (e *Error) Error() string { return "control: " + e.Code }

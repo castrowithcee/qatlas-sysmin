@@ -320,7 +320,7 @@ func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 
 		c.hostEntry = nil
 		action, resp, code := s.dispatch(ctx, c, line)
-		clear(line) // a request may carry a passphrase
+		clear(line) // a request may carry a secret
 		if e := c.hostEntry; e != nil {
 			s.recordFields(auditlog.Fields{ClientUID: e.uid, Action: action, Host: &e.host}, start, e.code)
 		} else {
@@ -364,10 +364,6 @@ func (s *Server) dispatch(ctx context.Context, c *Conn, line []byte) (string, co
 	result, err := s.call(ctx, h, c, req.Params)
 	if err != nil {
 		code := codeOf(err)
-		var ce *control.Error
-		if errors.As(err, &ce) && len(ce.Problems) > 0 {
-			return h.Action, control.Response{V: control.Version, Error: code, Problems: ce.Problems}, code
-		}
 		return fail(h.Action, code)
 	}
 	resp := control.Response{V: control.Version, OK: true}

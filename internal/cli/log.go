@@ -32,14 +32,15 @@ func newLogVerifyCommand(opts *Options) *cobra.Command {
 		Long: "verify walks every day file of the action log and checks that its entries chain together without a\n" +
 			"change, a swap, or a deletion that no retention cut documents. An unreadable line, such as one torn\n" +
 			"by a crash, that a marker entry right after it documents leaves the chain intact and is counted as\n" +
-			"damaged. This command takes no key, so it reports signatures as not checked.",
+			"damaged. A signature that an earlier version wrote on an entry is not checked; the day reports it as\n" +
+			"not checked.",
 		Args: noLogArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			fromDay, toDay, err := parseLogRange(from, to)
 			if err != nil {
 				return newSyntaxError(err)
 			}
-			report, err := auditlog.Verify(dir, nil)
+			report, err := auditlog.Verify(dir)
 			if err != nil {
 				return fmt.Errorf("verify the action log: %w", err)
 			}
@@ -49,14 +50,17 @@ func newLogVerifyCommand(opts *Options) *cobra.Command {
 				if (fromDay != "" && d.Date < fromDay) || (toDay != "" && d.Date > toDay) {
 					continue
 				}
-				chain, detail := "intact", ""
+				chain, detail, signatures := "intact", "", ""
 				if d.Problem != "" {
 					chain, detail = "broken", d.Problem
 					broken = true
 				}
+				if d.Signed > 0 {
+					signatures = "not checked"
+				}
 				result.Rows = append(result.Rows, output.Row{
 					"day": d.Date, "entries": int64(d.Entries), "chain": chain, "damaged": int64(d.Damaged),
-					"signatures": d.SignatureState(report.Checked), "detail": detail,
+					"signatures": signatures, "detail": detail,
 				})
 			}
 			if err := emit(c, opts, result); err != nil {

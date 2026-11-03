@@ -41,13 +41,11 @@ docker) [ -z "$STUB_NO_DOCKER" ]; exit $? ;;
 sysmin) [ -f "$STUB_STATE/group" ]; exit $? ;;
 esac
 exit 2`,
-	"groupadd":        `echo "groupadd $*" >>"$STUB_LOG"; touch "$STUB_STATE/group"`,
-	"useradd":         `echo "useradd $*" >>"$STUB_LOG"; touch "$STUB_STATE/user" "$STUB_STATE/in-docker"`,
-	"usermod":         `echo "usermod $*" >>"$STUB_LOG"; [ "$2" != docker ] || touch "$STUB_STATE/in-docker"`,
-	"chown":           `echo "chown $*" >>"$STUB_LOG"`,
-	"systemctl":       `echo "systemctl $*" >>"$STUB_LOG"`,
-	"systemd-creds":   `exit 0`,
-	"systemd-analyze": `echo "$STUB_TPM2"`,
+	"groupadd":  `echo "groupadd $*" >>"$STUB_LOG"; touch "$STUB_STATE/group"`,
+	"useradd":   `echo "useradd $*" >>"$STUB_LOG"; touch "$STUB_STATE/user" "$STUB_STATE/in-docker"`,
+	"usermod":   `echo "usermod $*" >>"$STUB_LOG"; [ "$2" != docker ] || touch "$STUB_STATE/in-docker"`,
+	"chown":     `echo "chown $*" >>"$STUB_LOG"`,
+	"systemctl": `echo "systemctl $*" >>"$STUB_LOG"`,
 }
 
 type env struct {
@@ -62,7 +60,6 @@ type env struct {
 	uid     string
 	sudo    string // SUDO_USER; "" leaves it unset
 	noDock  bool
-	tpm2    string
 }
 
 func newEnv(t *testing.T) *env {
@@ -79,7 +76,7 @@ func newEnv(t *testing.T) *env {
 		}
 	}
 	dir := t.TempDir()
-	e := &env{t: t, server: releasetest.NewServer(t), signer: releasetest.NewSigner(t), uid: "0", tpm2: "no",
+	e := &env{t: t, server: releasetest.NewServer(t), signer: releasetest.NewSigner(t), uid: "0",
 		root: filepath.Join(dir, "root"), stubDir: filepath.Join(dir, "stubs"), state: filepath.Join(dir, "state"),
 		log: filepath.Join(dir, "calls.log")}
 	for _, d := range []string{e.root, e.stubDir, e.state} {
@@ -200,7 +197,7 @@ func (e *env) run(script string, stdin bool, args ...string) (string, error) {
 		"PATH=" + e.stubDir + string(os.PathListSeparator) + os.Getenv("PATH"),
 		"TMPDIR=" + e.t.TempDir(),
 		"SYSMIN_INSTALL_ROOT=" + e.root,
-		"STUB_LOG=" + e.log, "STUB_STATE=" + e.state, "STUB_UID=" + e.uid, "STUB_TPM2=" + e.tpm2,
+		"STUB_LOG=" + e.log, "STUB_STATE=" + e.state, "STUB_UID=" + e.uid,
 	}
 	if e.noDock {
 		cmd.Env = append(cmd.Env, "STUB_NO_DOCKER=1")
@@ -305,17 +302,20 @@ func TestInstallAndReinstall(t *testing.T) {
 	}
 	for path, want := range map[string]os.FileMode{
 		binary: 0o755, unit: 0o644,
-		filepath.Join(e.root, "etc/sysmin"): 0o750, filepath.Join(e.root, "var/lib/sysmin"): 0o700,
+		filepath.Join(e.root, "var/lib/sysmin"): 0o700,
 	} {
 		info, err := os.Stat(path)
 		if err != nil || info.Mode().Perm() != want {
 			t.Errorf("%s: %v, %v (want %v)", path, info, err, want)
 		}
 	}
+	if _, err := os.Stat(filepath.Join(e.root, "etc/sysmin")); !os.IsNotExist(err) {
+		t.Errorf("install created a configuration directory: %v", err)
+	}
 	calls := e.calls()
 	for _, want := range []string{
 		"groupadd --system sysmin", "useradd --system --gid sysmin --groups docker --no-create-home",
-		"chown sysmin:sysmin " + filepath.Join(e.root, "etc/sysmin"), "systemctl daemon-reload", "systemctl enable --now sysmin",
+		"chown sysmin:sysmin " + filepath.Join(e.root, "var/lib/sysmin"), "systemctl daemon-reload", "systemctl enable --now sysmin",
 	} {
 		if !strings.Contains(calls, want) {
 			t.Errorf("calls lack %q:\n%s", want, calls)
@@ -395,15 +395,15 @@ func TestInstallFromStdinWithOptions(t *testing.T) {
 	e := newEnv(t)
 	e.publish("v1.2.3-rc.1", "candidate", releaseOptions{})
 	e.publish("v1.0.0", "stable", releaseOptions{})
-	out, err := e.run("", true, "--version", "v1.2.3-rc.1", "--auto-unlock", "host")
+	out, err := e.run("", true, "--version", "v1.2.3-rc.1")
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	if got := readFile(t, filepath.Join(e.root, "usr/local/bin/sysmin")); got != "candidate" {
 		t.Errorf("binary = %q", got)
 	}
-	if !strings.Contains(out, "sudo sysmin vault bind") {
-		t.Errorf("no bind hint:\n%s", out)
+	if out, err := e.run("", false, "--auto-unlock", "host"); err == nil || !strings.Contains(out, "unknown argument") {
+		t.Errorf("removed option: %v\n%s", err, out)
 	}
 	if out, err := e.run("", false, "--version", "latest"); err == nil || !strings.Contains(out, "invalid version") {
 		t.Errorf("invalid version: %v\n%s", err, out)
@@ -426,33 +426,6 @@ func TestInstallPreflightFailuresChangeNothing(t *testing.T) {
 		}
 		e.assertUntouched()
 	})
-	t.Run("tpm2 requested without tpm2", func(t *testing.T) {
-		e := newEnv(t)
-		e.publish("v1.0.0", "program", releaseOptions{})
-		out, err := e.run("", false, "--auto-unlock", "tpm2")
-		if err == nil || !strings.Contains(out, "no usable TPM2") {
-			t.Fatalf("err = %v\n%s", err, out)
-		}
-		e.assertUntouched()
-	})
-	t.Run("invalid unlock mode", func(t *testing.T) {
-		e := newEnv(t)
-		e.publish("v1.0.0", "program", releaseOptions{})
-		if out, err := e.run("", false, "--auto-unlock", "magic"); err == nil || !strings.Contains(out, "invalid --auto-unlock") {
-			t.Fatalf("err = %v\n%s", err, out)
-		}
-		e.assertUntouched()
-	})
-}
-
-func TestInstallTPM2Hint(t *testing.T) {
-	e := newEnv(t)
-	e.tpm2 = "yes"
-	e.publish("v1.0.0", "program", releaseOptions{})
-	out, err := e.run("", false, "--auto-unlock", "tpm2")
-	if err != nil || !strings.Contains(out, "sudo sysmin vault bind") {
-		t.Fatalf("err = %v\n%s", err, out)
-	}
 }
 
 func TestReleaseIsReproducible(t *testing.T) {

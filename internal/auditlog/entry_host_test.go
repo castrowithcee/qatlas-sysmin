@@ -29,16 +29,15 @@ func TestHostChangeFieldsAreValidated(t *testing.T) {
 	}
 }
 
-func TestHostChangeEntryIsChainedAndSigned(t *testing.T) {
-	key := testKey(t, fakeVaultKey)
-	logger, _ := signedTestLogger(t, key, day(1))
+func TestHostChangeEntryIsChained(t *testing.T) {
+	logger, _ := newTestLogger(t, day(1), 90)
 	host := &Host{ActionID: "demo.set", JournalID: "20300102T030405.000000Z-0a1b2c"}
 	mustAppend(t, logger, OperationConfigRead)
 	if err := logger.Append(Fields{ClientUID: 1000, Action: OperationHostChange, Result: ResultSuccess, Host: host}); err != nil {
 		t.Fatal(err)
 	}
 	mustAppend(t, logger, OperationConfigRead)
-	if report := verify(t, logger.dir, key); report.Broken {
+	if report := verify(t, logger.dir); report.Broken {
 		t.Fatalf("report = %+v", report)
 	}
 	page, err := Read(logger.dir, Query{Limit: 10})
@@ -48,7 +47,7 @@ func TestHostChangeEntryIsChainedAndSigned(t *testing.T) {
 	var found bool
 	for _, e := range page.Entries {
 		if e.Action == OperationHostChange {
-			found = e.Host != nil && *e.Host == *host && e.MAC != "" && *e.ClientUID == 1000
+			found = e.Host != nil && *e.Host == *host && *e.ClientUID == 1000
 		}
 	}
 	if !found {

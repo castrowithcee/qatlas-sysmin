@@ -139,7 +139,7 @@ func errorText(err error) string {
 		return tr(tErrBusy)
 	case control.CodeTimeout:
 		return tr(tErrTimeout)
-	case control.CodeBadRequest, control.CodeInvalid:
+	case control.CodeBadRequest:
 		return tr(tErrInvalid)
 	}
 	return tr(tErrService)

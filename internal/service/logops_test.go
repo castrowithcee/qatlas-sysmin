@@ -15,10 +15,10 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
-// logEnv is a started service whose log already holds a few signed entries.
+// logEnv is a started service whose log already holds a few entries.
 func logEnv(t *testing.T) (*env, *client.Client) {
 	t.Helper()
-	e := newEnv(t, true, true)
+	e := newEnv(t)
 	e.start(t)
 	c := e.dial(t)
 	for i := 0; i < 4; i++ {
@@ -61,7 +61,7 @@ func TestLogListFiltersAndPages(t *testing.T) {
 	if top := all.Entries[0]; top.Action != "config.apply" || top.Result != "success" || top.ClientUID == nil || top.Time.IsZero() {
 		t.Fatalf("entry = %+v", top)
 	}
-	if last := all.Entries[len(all.Entries)-1]; last.Seq != 1 || !last.Signed {
+	if last := all.Entries[len(all.Entries)-1]; last.Seq != 1 || last.Signed {
 		t.Fatalf("oldest entry = %+v", last)
 	}
 
@@ -161,8 +161,8 @@ func TestLogListAnswerStaysSmall(t *testing.T) {
 func TestLogVerifyIntactAndTampered(t *testing.T) {
 	e, c := logEnv(t)
 	got, err := c.VerifyLog()
-	if err != nil || !got.Intact || !got.Checked || len(got.Problems) != 0 || len(got.Days) != 1 ||
-		got.Days[0].Signatures != control.LogSignaturesValid || !got.Days[0].Intact || got.Days[0].Entries < 5 {
+	if err != nil || !got.Intact || len(got.Problems) != 0 || len(got.Days) != 1 ||
+		got.Days[0].Signatures != "" || !got.Days[0].Intact || got.Days[0].Entries < 5 {
 		t.Fatalf("intact = %+v, %v", got, err)
 	}
 
@@ -178,7 +178,7 @@ func TestLogVerifyIntactAndTampered(t *testing.T) {
 		}
 	}
 
-	// A changed line keeps its position but no longer matches its check value.
+	// A changed line keeps its position but breaks the chain at the entry after it.
 	changed := append([]string(nil), lines...)
 	changed[2] = strings.Replace(changed[2], `"result":"success"`, `"result":"failure"`, 1)
 	if changed[2] == lines[2] {
@@ -189,10 +189,10 @@ func TestLogVerifyIntactAndTampered(t *testing.T) {
 	if err != nil || got.Intact || len(got.Problems) != 1 {
 		t.Fatalf("changed = %+v, %v", got, err)
 	}
-	if p := got.Problems[0]; p.Code != control.LogProblemMAC || p.Line != 3 || p.Seq != 3 || p.Date == "" {
+	if p := got.Problems[0]; p.Code != control.LogProblemChain || p.Line != 4 || p.Seq != 4 || p.Date == "" {
 		t.Fatalf("problem = %+v", p)
 	}
-	if d := got.Days[0]; d.Intact || d.Signatures != control.LogSignaturesInvalid {
+	if d := got.Days[0]; d.Intact {
 		t.Fatalf("day = %+v", d)
 	}
 
@@ -215,8 +215,7 @@ func TestLogVerifyIntactAndTampered(t *testing.T) {
 	// The verify request above was logged after the garbage line, which documents that line, so the day is
 	// intact again and counts the damage.
 	got, err = c.VerifyLog()
-	if err != nil || !got.Intact || len(got.Problems) != 0 || !got.Days[0].Intact || got.Days[0].Damaged != 1 ||
-		got.Days[0].Signatures != control.LogSignaturesValid {
+	if err != nil || !got.Intact || len(got.Problems) != 0 || !got.Days[0].Intact || got.Days[0].Damaged != 1 {
 		t.Fatalf("documented garbage = %+v, %v", got, err)
 	}
 }
@@ -247,26 +246,55 @@ func TestLogContinuesAfterATornLastLine(t *testing.T) {
 	}
 	got, err := c.VerifyLog()
 	if err != nil || !got.Intact || len(got.Problems) != 0 || len(got.Days) != 1 || !got.Days[0].Intact ||
-		got.Days[0].Damaged != 1 || got.Days[0].Signatures != control.LogSignaturesValid {
+		got.Days[0].Damaged != 1 {
 		t.Fatalf("verify = %+v, %v, want an intact day with one documented damage", got, err)
 	}
 }
 
-func TestLogVerifyWhileLockedDoesNotCheckSignatures(t *testing.T) {
-	e := newEnv(t, true, false)
-	e.start(t)
-	c := e.dial(t)
-	if _, err := c.Status(); err != nil {
+// Entries an earlier version signed stay in the chain; their signatures are reported as not checked.
+func TestLogVerifyReportsOldSignaturesAsNotChecked(t *testing.T) {
+	e, c := logEnv(t)
+	path := e.logFile(t)
+	data, err := os.ReadFile(path)
+	if err != nil {
 		t.Fatal(err)
 	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	last := lines[len(lines)-1]
+	var prev struct {
+		Seq  uint64 `json:"seq"`
+		Time string `json:"time"`
+	}
+	if err := json.Unmarshal([]byte(last), &prev); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte(last))
+	old := fmt.Sprintf(`{"seq":%d,"time":%q,"client_uid":1000,"action":"config.read","result":"success","prev_hash":%q,"mac":%q}`,
+		prev.Seq+1, prev.Time, hex.EncodeToString(sum[:]), strings.Repeat("ab", 32))
+	if err := os.WriteFile(path, append(data, []byte(old+"\n")...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// The next request is logged after the signed entry and chains from it without a break.
 	got, err := c.VerifyLog()
-	if err != nil || !got.Intact || got.Checked || (len(got.Days) == 1 && got.Days[0].Signatures != control.LogSignaturesNotChecked) {
-		t.Fatalf("locked = %+v, %v", got, err)
+	if err != nil || !got.Intact || len(got.Problems) != 0 || len(got.Days) != 1 ||
+		got.Days[0].Signatures != control.LogSignaturesNotChecked {
+		t.Fatalf("verify = %+v, %v, want an intact chain with signatures not checked", got, err)
+	}
+	list, err := c.LogEntries(control.LogListParams{Action: "config.read"})
+	signed := 0
+	for _, en := range list.Entries {
+		if en.Signed {
+			signed++
+		}
+	}
+	if err != nil || signed != 1 {
+		t.Fatalf("list = %+v, %v, want exactly the old entry marked signed", list, err)
 	}
 }
 
 func TestLogVerifyEmptyLog(t *testing.T) {
-	e := newEnv(t, false, false)
+	e := newEnv(t)
 	e.start(t)
 	got, err := e.dial(t).VerifyLog()
 	if err != nil || !got.Intact || got.Days == nil {

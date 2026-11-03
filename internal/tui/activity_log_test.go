@@ -41,17 +41,17 @@ func testLogEntries(n int) []control.LogEntry {
 }
 
 func intactChain() control.LogVerifyResult {
-	return control.LogVerifyResult{Intact: true, Checked: true, Days: []control.LogDay{
-		{Date: "2026-10-27", Entries: 40, Intact: true, Signatures: control.LogSignaturesValid},
-		{Date: "2026-10-28", Entries: 12, Intact: true, Signatures: control.LogSignaturesValid}}}
+	return control.LogVerifyResult{Intact: true, Days: []control.LogDay{
+		{Date: "2026-10-27", Entries: 40, Intact: true},
+		{Date: "2026-10-28", Entries: 12, Intact: true}}}
 }
 
 func brokenChain() control.LogVerifyResult {
-	return control.LogVerifyResult{Intact: false, Checked: false, Days: []control.LogDay{
+	return control.LogVerifyResult{Intact: false, Days: []control.LogDay{
 		{Date: "2026-10-27", Entries: 40, Intact: false, Signatures: control.LogSignaturesNotChecked},
 		{Date: "2026-10-28", Entries: 12, Intact: true, Signatures: control.LogSignaturesNotChecked}},
 		Problems: []control.LogProblem{{Date: "2026-10-27", Seq: 31, Line: 31, Code: control.LogProblemChain},
-			{Date: "2026-10-28", Line: 4, Code: control.LogProblemMAC}}}
+			{Date: "2026-10-28", Line: 4, Code: control.LogProblemUnparsable}}}
 }
 
 // secretValue is the invented secret the tests type; it must never be drawn, copied or reported.
@@ -78,7 +78,7 @@ func TestActivityLoadsEntriesAndShowsAnIntactChain(t *testing.T) {
 		m := appModel(t, fb, size[0], size[1])
 		send(m, "3")
 		view := plain(m)
-		for _, want := range []string{"Log (12)", "● Chain intact, 52 entries", "signatures checked", "2026-10-28 12:00:00", "Config read"} {
+		for _, want := range []string{"Log (12)", "● Chain intact, 52 entries", "2026-10-28 12:00:00", "Config read"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("%dx%d: lacks %q:\n%s", size[0], size[1], want, view)
 			}
@@ -87,7 +87,21 @@ func TestActivityLoadsEntriesAndShowsAnIntactChain(t *testing.T) {
 		if fb.count("log") != 2 || fb.count("log-verify") != 1 {
 			t.Errorf("calls = %v", fb.log())
 		}
+		if strings.Contains(view, "signatures") {
+			t.Errorf("%dx%d: names signatures although no entry is signed:\n%s", size[0], size[1], view)
+		}
 		assertViewFits(t, view, size[0], size[1])
+	}
+}
+
+func TestActivityNotesOldSignaturesAsNotChecked(t *testing.T) {
+	utcClock(t)
+	fb := activityFake()
+	fb.audit.verify.Days[0].Signatures = control.LogSignaturesNotChecked
+	m := appModel(t, fb, 120, 40)
+	send(m, "3")
+	if view := plain(m); !strings.Contains(view, "● Chain intact, 52 entries · signatures not checked") {
+		t.Errorf("old signatures not noted:\n%s", view)
 	}
 }
 
@@ -116,7 +130,7 @@ func TestActivityCountsDocumentedDamage(t *testing.T) {
 	fb.audit.verify.Days[1].Damaged = 1
 	m := appModel(t, fb, 120, 40)
 	send(m, "3")
-	if view := plain(m); !strings.Contains(view, "● Chain intact, 52 entries · unreadable lines documented: 1 · signatures checked") {
+	if view := plain(m); !strings.Contains(view, "● Chain intact, 52 entries · unreadable lines documented: 1") {
 		t.Errorf("no documented damage shown:\n%s", view)
 	}
 	useLanguage(t, "de")

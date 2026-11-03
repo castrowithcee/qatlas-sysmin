@@ -379,7 +379,7 @@ func TestInvalidRequestsAreLogged(t *testing.T) {
 func TestMutatingNeedsGuard(t *testing.T) {
 	var calls int
 	reg := func(t *testing.T, h *harness) {
-		err := h.srv.Register("change", Handler{Action: auditlog.OperationVaultLock, Mutating: true,
+		err := h.srv.Register("change", Handler{Action: auditlog.OperationConfigApply, Mutating: true,
 			Func: func(context.Context, *Conn, json.RawMessage) (any, error) { calls++; return nil, nil }})
 		if err != nil {
 			t.Fatal(err)
@@ -404,9 +404,9 @@ func TestMutatingNeedsGuard(t *testing.T) {
 
 func TestHandlerErrorsAndPanicsHideText(t *testing.T) {
 	h := start(t, Config{})
-	h.srv.Register("boom", Handler{Action: auditlog.OperationVaultStatus,
+	h.srv.Register("boom", Handler{Action: auditlog.OperationConfigRead,
 		Func: func(context.Context, *Conn, json.RawMessage) (any, error) { panic("secret-value") }})
-	h.srv.Register("fail", Handler{Action: auditlog.OperationVaultStatus,
+	h.srv.Register("fail", Handler{Action: auditlog.OperationConfigRead,
 		Func: func(context.Context, *Conn, json.RawMessage) (any, error) { return nil, errors.New("secret-value") }})
 	conn, br := h.raw(t)
 	for _, op := range []string{"boom", "fail"} {
@@ -415,7 +415,7 @@ func TestHandlerErrorsAndPanicsHideText(t *testing.T) {
 			t.Fatalf("%s: resp = %+v", op, r)
 		}
 	}
-	if err := h.srv.Register("fail", Handler{Action: auditlog.OperationVaultStatus, Func: func(context.Context, *Conn, json.RawMessage) (any, error) { return nil, nil }}); err == nil {
+	if err := h.srv.Register("fail", Handler{Action: auditlog.OperationConfigRead, Func: func(context.Context, *Conn, json.RawMessage) (any, error) { return nil, nil }}); err == nil {
 		t.Error("duplicate registration accepted")
 	}
 	if err := h.srv.Register("x", Handler{Action: "no.such", Func: func(context.Context, *Conn, json.RawMessage) (any, error) { return nil, nil }}); err == nil {
@@ -429,7 +429,7 @@ func TestConnStateAndClose(t *testing.T) {
 		NewState:   func(*Conn) any { return "state-1" },
 		ConnClosed: func(c *Conn) { closed <- c.State },
 	})
-	h.srv.Register("state", Handler{Action: auditlog.OperationVaultStatus,
+	h.srv.Register("state", Handler{Action: auditlog.OperationConfigRead,
 		Func: func(_ context.Context, c *Conn, _ json.RawMessage) (any, error) { return c.State, nil }})
 	conn, br := h.raw(t)
 	control.WriteLine(conn, control.Request{V: 1, Op: "state"})
@@ -636,7 +636,7 @@ func TestRootOnlyHandlerRefusesOthersBeforeItRuns(t *testing.T) {
 			h := start(t, Config{Resolver: fakeResolver{gid: 990}, Credentials: func(net.Conn) (Peer, error) {
 				return Peer{UID: tc.uid, GID: 990}, nil
 			}})
-			err := h.srv.Register("rooted", Handler{Action: auditlog.OperationVaultStatus, RootOnly: true,
+			err := h.srv.Register("rooted", Handler{Action: auditlog.OperationConfigRead, RootOnly: true,
 				Func: func(context.Context, *Conn, json.RawMessage) (any, error) { ran = true; return nil, nil }})
 			if err != nil {
 				t.Fatal(err)

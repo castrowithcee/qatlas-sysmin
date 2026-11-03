@@ -7,8 +7,6 @@
 # Options:
 #   --version <tag>        install this release (pre-releases such as v1.2.3-rc.1 included) instead of the
 #                          newest stable release
-#   --auto-unlock <mode>   tpm2 or host: prepare for automatic vault unlocking and print the command that
-#                          binds it. tpm2 aborts before any change when the TPM2 is not usable.
 #   --release-url <base>   releases URL to download from (default below); it only changes where files come
 #                          from, never which key is trusted
 #   -h, --help             show this help
@@ -32,31 +30,27 @@ fail() {
 
 usage() {
 	cat <<'USAGE'
-usage: install.sh [--version <tag>] [--auto-unlock tpm2|host] [--release-url <base>]
+usage: install.sh [--version <tag>] [--release-url <base>]
 
   --version <tag>        install this release instead of the newest stable one
-  --auto-unlock <mode>   tpm2 or host: prepare automatic vault unlocking and print the bind command
   --release-url <base>   releases URL to download from
 USAGE
 }
 
 main() {
 	version=
-	unlock=
 	base=$repo_url
 	while [ $# -gt 0 ]; do
 		case $1 in
-		--version | --auto-unlock | --release-url)
+		--version | --release-url)
 			[ $# -ge 2 ] || fail "$1 needs a value"
 			case $1 in
 			--version) version=$2 ;;
-			--auto-unlock) unlock=$2 ;;
 			--release-url) base=$2 ;;
 			esac
 			shift 2
 			;;
 		--version=*) version=${1#*=}; shift ;;
-		--auto-unlock=*) unlock=${1#*=}; shift ;;
 		--release-url=*) base=${1#*=}; shift ;;
 		-h | --help) usage; exit 0 ;;
 		*) fail "unknown argument '$1'" ;;
@@ -66,10 +60,6 @@ main() {
 	root=${SYSMIN_INSTALL_ROOT:-}
 	root=${root%/}
 
-	case $unlock in
-	'' | tpm2 | host) ;;
-	*) fail "invalid --auto-unlock '$unlock'; expected tpm2 or host" ;;
-	esac
 	if [ -n "$version" ] && ! printf '%s\n' "$version" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
 		fail "invalid version '$version'; expected a tag such as v1.2.3 or v1.2.3-rc.1"
 	fi
@@ -87,13 +77,6 @@ main() {
 	esac
 	getent group docker >/dev/null 2>&1 ||
 		fail 'the group docker does not exist; install Docker first, the service needs access to it'
-	if [ -n "$unlock" ]; then
-		command -v systemd-creds >/dev/null 2>&1 || fail 'systemd-creds is required for --auto-unlock'
-		if [ "$unlock" = tpm2 ]; then
-			[ "$(systemd-analyze has-tpm2 2>/dev/null || true)" = yes ] ||
-				fail 'no usable TPM2 on this host; use --auto-unlock host or unlock the vault by hand'
-		fi
-	fi
 
 	if [ -z "$version" ]; then
 		latest=$(curl -fsSIL -o /dev/null -w '%{url_effective}' "$base/latest") || fail 'could not determine the latest release'
@@ -137,7 +120,6 @@ main() {
 	# Verified: from here on the system is changed.
 	bin_dir=$root/usr/local/bin
 	unit_dir=$root/etc/systemd/system
-	config_dir=$root/etc/sysmin
 	state_dir=$root/var/lib/sysmin
 	if [ -f "$unit_dir/sysmin.service" ]; then fresh=; else fresh=1; fi
 
@@ -158,9 +140,8 @@ main() {
 		operator=$SUDO_USER
 	fi
 
-	mkdir -p "$config_dir" "$state_dir" "$bin_dir" "$unit_dir"
-	chown "$service_user:$service_user" "$config_dir" "$state_dir"
-	chmod 0750 "$config_dir"
+	mkdir -p "$state_dir" "$bin_dir" "$unit_dir"
+	chown "$service_user:$service_user" "$state_dir"
 	chmod 0700 "$state_dir"
 
 	# Temporary files sit next to their targets, so every mv is an atomic rename; the unit goes first so a
@@ -181,10 +162,6 @@ main() {
 		printf '\nAdded %s to the group %s, which may use sysmin. Sessions that started before take it up at the\n' \
 			"$operator" "$service_user"
 		printf 'next login; until then sysmin tui offers to restart itself with sudo -g %s.\n' "$service_user"
-	fi
-	if [ -n "$unlock" ]; then
-		printf '\nAutomatic vault unlocking (%s): once the vault exists, bind it with\n  sudo sysmin vault bind\n' "$unlock"
-		printf 'It asks for the vault passphrase and seals to the TPM2 when usable, otherwise to the host key.\n'
 	fi
 }
 

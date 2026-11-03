@@ -66,10 +66,9 @@ type Damage struct {
 
 // Entry is one line of a log file, in the field order it is written. Kind is empty for an action, KindCut
 // for a retention-cut marker, which carries only Cut beside the chain fields, and KindDamage for a
-// damaged-line marker, which carries only Damage beside them. MAC is the check
-// value of a signed entry and always the last field; it stays empty for an entry written without the log
-// key, which marks it unverified. No field ever holds an argument, a result payload, or a secret. Hash and MAC cover the
-// stored bytes, so a line with a field this struct no longer has, or an action sysmin no longer writes, still
+// damaged-line marker, which carries only Damage beside them. MAC is the signature of an entry that an
+// earlier version wrote; it is read, never written. No field ever holds an argument, a result payload, or a
+// secret. The hash covers the stored bytes, so a line with a field this struct no longer has, or an action sysmin no longer writes, still
 // reads and verifies.
 type Entry struct {
 	Seq  uint64    `json:"seq"`
@@ -86,11 +85,11 @@ type Entry struct {
 	// Host is set on the entries of OperationHostChange that name a change.
 	Host     *Host  `json:"host,omitempty"`
 	PrevHash string `json:"prev_hash"`
-	// MAC is the check value of a signed entry, empty for an unsigned one; see Key.mac.
-	MAC string `json:"mac"`
+	// MAC is the signature of an entry that an earlier version wrote.
+	MAC string `json:"mac,omitempty"`
 }
 
-// Fields is what a caller supplies for one completed action; Append computes Seq, Time, PrevHash, and MAC.
+// Fields is what a caller supplies for one completed action; Append computes Seq, Time, and PrevHash.
 type Fields struct {
 	ClientUID uint32
 	// Action is one of the Operation constants.

@@ -88,7 +88,7 @@ func TestOverviewShowsHeaderCardsAndSteps(t *testing.T) {
 		m := overviewModel(t, overviewFake(), size[0], size[1])
 		view := plain(m)
 		for _, want := range []string{"Overview", "Wed, 28 Oct 2026", "Admins", "Not enabled", "Changes 7 d", "Service",
-			"sysmin 0.0.0-test", "/etc/sysmin-test", "Next steps", "Admins to enable: 1", "Last changes", "user.add-key"} {
+			"sysmin 0.0.0-test", "Next steps", "Admins to enable: 1", "Last changes", "user.add-key"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("%dx%d: the overview lacks %q:\n%s", size[0], size[1], want, view)
 			}

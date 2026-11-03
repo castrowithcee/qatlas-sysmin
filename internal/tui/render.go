@@ -37,23 +37,6 @@ func (m *Model) boundKeepingKeys(view string, width, height int) string {
 	return m.boundTo(strings.Join(lines, "\n"), width, height)
 }
 
-// truncateLeft keeps the end of text within width and marks the cut at its start.
-func truncateLeft(text string, width int) string {
-	if lipgloss.Width(text) <= width {
-		return text
-	}
-	if width <= 1 {
-		return clipCells("…", max(width, 0))
-	}
-	runes := []rune(text)
-	for i := range runes {
-		if tail := string(runes[i:]); lipgloss.Width(tail) <= width-1 {
-			return "…" + tail
-		}
-	}
-	return "…"
-}
-
 // clipCells cuts text to width visible cells. Escape sequences count no cells and are never split; when
 // the cut leaves a style open, a reset ends it. Text without escapes stays a true prefix of its input.
 func clipCells(text string, width int) string {

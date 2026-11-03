@@ -39,8 +39,6 @@ var genesisHash = hashHex(nil)
 type Logger struct {
 	dir           string
 	retentionDays int
-	// key signs every entry written; nil leaves them unsigned.
-	key *Key
 	// now is the logger's clock; nil means time.Now. A test overrides it to move the clock across days
 	// without waiting.
 	now func() time.Time
@@ -51,17 +49,6 @@ type Logger struct {
 func New(dir string, retentionDays int) *Logger {
 	return &Logger{dir: dir, retentionDays: retentionDays}
 }
-
-// WithKey returns a logger like l that signs every entry it writes with key; see Key. A nil key signs
-// nothing, like l itself. The key stays the caller's, who clears it once no logger uses it any more.
-func (l *Logger) WithKey(key *Key) *Logger {
-	out := *l
-	out.key = key
-	return &out
-}
-
-// Signs reports whether l signs the entries it writes.
-func (l *Logger) Signs() bool { return l.key.usable() }
 
 func (l *Logger) clock() time.Time {
 	if l.now != nil {
@@ -139,7 +126,7 @@ func (l *Logger) Append(f Fields) error {
 			lines = append(lines, nil)
 		}
 		marker := Entry{Seq: seq, Time: now, Kind: KindDamage, Damage: &Damage{LineHash: hashHex(end.damaged)}, PrevHash: prevHash}
-		raw, err := l.encode(marker)
+		raw, err := json.Marshal(marker)
 		if err != nil {
 			return fmt.Errorf("encode damaged-line entry: %w", err)
 		}
@@ -148,7 +135,7 @@ func (l *Logger) Append(f Fields) error {
 	}
 	if removedRaw != nil {
 		cut := Entry{Seq: seq, Time: now, Kind: KindCut, Cut: &Cut{ThroughSeq: removed.Seq}, PrevHash: prevHash}
-		raw, err := l.encode(cut)
+		raw, err := json.Marshal(cut)
 		if err != nil {
 			return fmt.Errorf("encode retention cut entry: %w", err)
 		}
@@ -161,23 +148,13 @@ func (l *Logger) Append(f Fields) error {
 		Seq: seq, Time: now, ClientUID: &uid, Action: f.Action, Result: f.Result,
 		ErrorCode: f.ErrorCode, DurationMS: f.Duration.Milliseconds(), Host: f.Host, PrevHash: prevHash,
 	}
-	raw, err := l.encode(entry)
+	raw, err := json.Marshal(entry)
 	if err != nil {
 		return fmt.Errorf("encode log entry: %w", err)
 	}
 	lines = append(lines, raw)
 
 	return appendLines(todayPath, lines)
-}
-
-// encode is the line entry is stored as: its JSON encoding with an empty MAC, signed when l has a key.
-func (l *Logger) encode(entry Entry) ([]byte, error) {
-	entry.MAC = ""
-	raw, err := json.Marshal(entry)
-	if err != nil || !l.key.usable() {
-		return raw, err
-	}
-	return l.key.sign(raw)
 }
 
 // applyRetention removes every day file older than retentionDays, relative to now, and returns the last

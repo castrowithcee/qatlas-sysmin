@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -45,10 +46,9 @@ func assertMarker(t *testing.T, marker Entry, damaged string, prev []byte, seq u
 
 func TestAppendBridgesADamagedLastLine(t *testing.T) {
 	for _, terminated := range []bool{false, true} {
-		key := testKey(t, fakeVaultKey)
-		logger, _ := signedTestLogger(t, key, day(1))
+		logger, _ := newTestLogger(t, day(1), 90)
 		mustAppend(t, logger, OperationConfigApply)
-		mustAppend(t, logger, OperationVaultUnlock)
+		mustAppend(t, logger, OperationControlStatus)
 		path := filepath.Join(logger.dir, "2026-03-01.jsonl")
 		valid := readLines(t, path)
 		damaged := tornLine
@@ -58,7 +58,7 @@ func TestAppendBridgesADamagedLastLine(t *testing.T) {
 			appendRaw(t, path, damaged)
 		}
 
-		mustAppend(t, logger, OperationVaultLock)
+		mustAppend(t, logger, OperationControlRefuse)
 		mustAppend(t, logger, OperationConfigRead)
 
 		lines := readLines(t, path)
@@ -67,18 +67,14 @@ func TestAppendBridgesADamagedLastLine(t *testing.T) {
 		}
 		marker := parse(t, lines[3])
 		assertMarker(t, marker, damaged, valid[1], 3)
-		if marker.MAC == "" {
-			t.Fatalf("terminated=%v: the marker of a signing logger is not signed", terminated)
-		}
-		if e := parse(t, lines[4]); e.Seq != 4 || e.PrevHash != hashHex(lines[3]) || e.Action != OperationVaultLock {
+		if e := parse(t, lines[4]); e.Seq != 4 || e.PrevHash != hashHex(lines[3]) || e.Action != OperationControlRefuse {
 			t.Fatalf("terminated=%v: entry after the marker = %+v", terminated, e)
 		}
 
-		report := verify(t, logger.dir, key)
+		report := verify(t, logger.dir)
 		d := report.Days[0]
-		if report.Broken || d.Problem != "" || d.Damaged != 1 || d.Entries != 4 || d.Changed != 0 ||
-			d.SignatureState(report.Checked) != SignatureValid {
-			t.Fatalf("terminated=%v: report = %+v, want an intact day with one documented damage and valid signatures", terminated, report)
+		if report.Broken || d.Problem != "" || d.Damaged != 1 || d.Entries != 4 {
+			t.Fatalf("terminated=%v: report = %+v, want an intact day with one documented damage", terminated, report)
 		}
 		page, err := Read(logger.dir, Query{Limit: 10})
 		if err != nil || len(page.Entries) != 4 {
@@ -87,33 +83,32 @@ func TestAppendBridgesADamagedLastLine(t *testing.T) {
 	}
 }
 
-func TestAppendBridgesADamagedLastLineWithoutKey(t *testing.T) {
+func TestDamageMarkerIsUnsigned(t *testing.T) {
 	logger, _ := newTestLogger(t, day(1), 90)
 	mustAppend(t, logger, OperationConfigApply)
 	path := filepath.Join(logger.dir, "2026-03-01.jsonl")
 	appendRaw(t, path, tornLine)
-	mustAppend(t, logger, OperationVaultLock)
+	mustAppend(t, logger, OperationControlRefuse)
 
 	lines := readLines(t, path)
-	if marker := parse(t, lines[2]); marker.Kind != KindDamage || marker.MAC != "" {
+	if marker := parse(t, lines[2]); marker.Kind != KindDamage || marker.MAC != "" || strings.Contains(string(lines[2]), `"mac"`) {
 		t.Fatalf("marker = %+v, want an unsigned damaged-line marker", marker)
 	}
-	report := verify(t, logger.dir, nil)
-	if report.Broken || report.Days[0].Damaged != 1 || report.Days[0].Unverified != 3 {
-		t.Fatalf("report = %+v, want one documented damage and the marker counted as unverified", report)
+	report := verify(t, logger.dir)
+	if report.Broken || report.Days[0].Damaged != 1 || report.Days[0].Signed != 0 {
+		t.Fatalf("report = %+v, want one documented damage and no signature", report)
 	}
 }
 
 func TestAppendBridgesADamagedLastLineAcrossDays(t *testing.T) {
-	key := testKey(t, fakeVaultKey)
-	logger, moveTo := signedTestLogger(t, key, day(1))
+	logger, moveTo := newTestLogger(t, day(1), 90)
 	mustAppend(t, logger, OperationConfigApply)
 	first := filepath.Join(logger.dir, "2026-03-01.jsonl")
 	valid := readLines(t, first)
 	appendRaw(t, first, tornLine)
 
 	moveTo(day(3))
-	mustAppend(t, logger, OperationVaultLock)
+	mustAppend(t, logger, OperationControlRefuse)
 
 	if data, err := os.ReadFile(first); err != nil || !bytes.HasSuffix(data, []byte(tornLine)) {
 		t.Fatalf("the earlier day file must stay as it was: %q, %v", data, err)
@@ -123,7 +118,7 @@ func TestAppendBridgesADamagedLastLineAcrossDays(t *testing.T) {
 		t.Fatalf("lines = %q, want a marker and an entry", lines)
 	}
 	assertMarker(t, parse(t, lines[0]), tornLine, valid[0], 2)
-	report := verify(t, logger.dir, key)
+	report := verify(t, logger.dir)
 	if report.Broken || report.Days[0].Damaged != 1 || report.Days[1].Damaged != 0 || report.Days[1].Entries != 1 {
 		t.Fatalf("report = %+v, want the damage documented on the day that holds it", report)
 	}
@@ -137,7 +132,7 @@ func TestRetentionRemovesADamagedFile(t *testing.T) {
 
 	// Every file expires, the damaged one included: the cut runs through the last entry that parses.
 	moveTo(time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC))
-	mustAppend(t, logger, OperationVaultLock)
+	mustAppend(t, logger, OperationControlRefuse)
 	lines := readLines(t, filepath.Join(logger.dir, "2026-01-20.jsonl"))
 	if len(lines) != 2 {
 		t.Fatalf("lines = %q, want a cut and an entry", lines)
@@ -145,7 +140,7 @@ func TestRetentionRemovesADamagedFile(t *testing.T) {
 	if cut := parse(t, lines[0]); cut.Kind != KindCut || cut.Cut.ThroughSeq != 2 || cut.Seq != 3 {
 		t.Fatalf("cut = %+v, want a cut through seq 2", cut)
 	}
-	if report := verify(t, logger.dir, nil); report.Broken {
+	if report := verify(t, logger.dir); report.Broken {
 		t.Fatalf("report = %+v, want an intact chain", report)
 	}
 }
@@ -158,34 +153,33 @@ func TestRetentionRemovesADamagedFileWhoseMarkerSurvives(t *testing.T) {
 	mustAppend(t, logger, OperationConfigApply) // marker seq 2, entry seq 3
 
 	moveTo(time.Date(2026, 1, 8, 0, 0, 0, 0, time.UTC))
-	mustAppend(t, logger, OperationVaultLock) // removes the damaged day, cut through seq 1
+	mustAppend(t, logger, OperationControlRefuse) // removes the damaged day, cut through seq 1
 	lines := readLines(t, filepath.Join(logger.dir, "2026-01-08.jsonl"))
 	if cut := parse(t, lines[0]); cut.Kind != KindCut || cut.Cut.ThroughSeq != 1 {
 		t.Fatalf("cut = %+v, want a cut through seq 1", cut)
 	}
-	if report := verify(t, logger.dir, nil); report.Broken || len(report.Days) != 2 {
+	if report := verify(t, logger.dir); report.Broken || len(report.Days) != 2 {
 		t.Fatalf("report = %+v, want the surviving marker to continue the documented cut", report)
 	}
 }
 
-// bridgedLog returns a signed log whose second line was damaged and bridged, its key, and its lines.
-func bridgedLog(t *testing.T) (string, *Key, [][]byte) {
+// bridgedLog returns a log whose second line was damaged and bridged, and its lines.
+func bridgedLog(t *testing.T) (string, [][]byte) {
 	t.Helper()
-	key := testKey(t, fakeVaultKey)
-	logger, _ := signedTestLogger(t, key, day(1))
+	logger, _ := newTestLogger(t, day(1), 90)
 	mustAppend(t, logger, OperationConfigApply)
 	path := filepath.Join(logger.dir, "2026-03-01.jsonl")
 	appendRaw(t, path, tornLine)
-	mustAppend(t, logger, OperationVaultLock)
+	mustAppend(t, logger, OperationControlRefuse)
 	mustAppend(t, logger, OperationConfigRead)
-	return path, key, readLines(t, path)
+	return path, readLines(t, path)
 }
 
 func TestVerifyRejectsDamageThatNoMarkerDocuments(t *testing.T) {
-	path, key, lines := bridgedLog(t)
+	path, lines := bridgedLog(t)
 	// lines: entry 1, damaged line, marker 2, entry 3, entry 4
-	resign := func(e Entry) []byte {
-		raw, err := New("", 1).WithKey(key).encode(e)
+	remarshal := func(e Entry) []byte {
+		raw, err := json.Marshal(e)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -196,8 +190,6 @@ func TestVerifyRejectsDamageThatNoMarkerDocuments(t *testing.T) {
 	wrongHash.Damage = &Damage{LineHash: hashHex([]byte("something else"))}
 	unlinked := marker
 	unlinked.PrevHash = genesisHash
-	badMAC := bytes.Replace(lines[2], []byte(`"mac":"`), []byte(`"mac":"0`), 1)
-	badMAC = append(badMAC[:len(badMAC)-3], `"}`...)
 
 	cases := map[string]struct {
 		lines [][]byte
@@ -206,14 +198,13 @@ func TestVerifyRejectsDamageThatNoMarkerDocuments(t *testing.T) {
 	}{
 		"middle line without a marker": {[][]byte{lines[0], []byte("not json"), lines[2], lines[3]}, ProblemUnparsable, 2},
 		"marker removed":               {[][]byte{lines[0], lines[1], lines[3], lines[4]}, ProblemUnparsable, 2},
-		"marker with a wrong hash":     {[][]byte{lines[0], lines[1], resign(wrongHash), lines[3]}, ProblemUnparsable, 2},
-		"marker that does not chain":   {[][]byte{lines[0], lines[1], resign(unlinked), lines[3]}, ProblemUnparsable, 2},
-		"marker with a bad check":      {[][]byte{lines[0], lines[1], badMAC, lines[3]}, ProblemUnparsable, 2},
+		"marker with a wrong hash":     {[][]byte{lines[0], lines[1], remarshal(wrongHash), lines[3]}, ProblemUnparsable, 2},
+		"marker that does not chain":   {[][]byte{lines[0], lines[1], remarshal(unlinked), lines[3]}, ProblemUnparsable, 2},
 		"damage at the very end":       {[][]byte{lines[0], lines[1]}, ProblemUnparsable, 2},
 	}
 	for name, c := range cases {
 		writeLines(t, path, c.lines)
-		report := verify(t, filepath.Dir(path), key)
+		report := verify(t, filepath.Dir(path))
 		d := report.Days[0]
 		if !report.Broken || d.Damaged != 0 || d.ProblemCode != c.code || d.ProblemLine != c.line {
 			t.Errorf("%s: report = %+v, want a break at line %d", name, report, c.line)
@@ -221,7 +212,7 @@ func TestVerifyRejectsDamageThatNoMarkerDocuments(t *testing.T) {
 	}
 
 	writeLines(t, path, lines)
-	if report := verify(t, filepath.Dir(path), key); report.Broken || report.Days[0].Damaged != 1 {
+	if report := verify(t, filepath.Dir(path)); report.Broken || report.Days[0].Damaged != 1 {
 		t.Fatalf("restored: report = %+v, want an intact day with one documented damage", report)
 	}
 }

@@ -328,7 +328,7 @@ func (m *Model) logLines(id string, tab, width int) []string {
 }
 
 // chainLines is the result of the chain check: a dot and the word for an intact chain on one line; for a
-// broken one a warning sign and the first problem, and under it the state of the signatures. Unreadable
+// broken one a warning sign and the first problem, and under it the notes, if any. Unreadable
 // lines that a marker documents are counted before the signatures, in either case. Colour only repeats
 // what the mark and the word say.
 func (m *Model) chainLines(width int) []string {
@@ -340,23 +340,30 @@ func (m *Model) chainLines(width int) []string {
 		return []string{styles.hint.Render(truncateCells("○ "+tr(tLogChainChecking), width))}
 	}
 	r := c.res
-	signatures := tr(tLogSigUnchecked)
-	if r.Checked {
-		signatures = tr(tLogSigChecked)
-	}
-	damaged := 0
+	// notes are what follows the verdict: documented damage, and old signatures that nobody checks.
+	var notes []string
+	damaged, unchecked := 0, false
 	for _, d := range r.Days {
 		damaged += d.Damaged
+		unchecked = unchecked || d.Signatures == control.LogSignaturesNotChecked
 	}
 	if damaged > 0 {
-		signatures = tr(tLogDamaged, damaged) + " · " + signatures
+		notes = append(notes, tr(tLogDamaged, damaged))
 	}
+	if unchecked {
+		notes = append(notes, tr(tLogSigUnchecked))
+	}
+	signatures := strings.Join(notes, " · ")
 	if r.Intact {
 		entries := 0
 		for _, d := range r.Days {
 			entries += d.Entries
 		}
-		return []string{styles.ok.Render("●") + " " + truncateCells(tr(tLogChainIntact, entries)+" · "+signatures, max(width-2, 1))}
+		text := tr(tLogChainIntact, entries)
+		if signatures != "" {
+			text += " · " + signatures
+		}
+		return []string{styles.ok.Render("●") + " " + truncateCells(text, max(width-2, 1))}
 	}
 	text := tr(tLogChainBroken)
 	if len(r.Problems) > 0 {
@@ -374,15 +381,18 @@ func (m *Model) chainLines(width int) []string {
 			text += " · " + tr(tLogMoreDays, more)
 		}
 	}
-	return []string{styles.fail.Render(truncateCells(warnMark+" "+text, width)),
-		styles.fail.Render(truncateCells("  "+signatures, width))}
+	lines := []string{styles.fail.Render(truncateCells(warnMark+" "+text, width))}
+	if signatures != "" {
+		lines = append(lines, styles.fail.Render(truncateCells("  "+signatures, width)))
+	}
+	return lines
 }
 
 // problemCodeText is a problem word of the chain check in words; an unknown word is shown as it is, made safe.
 func problemCodeText(code string) string {
 	ids := map[string]textID{
 		control.LogProblemUnparsable: tLogProbUnparsable, control.LogProblemGenesis: tLogProbGenesis,
-		control.LogProblemMissing: tLogProbMissing, control.LogProblemChain: tLogProbChain, control.LogProblemMAC: tLogProbMAC,
+		control.LogProblemMissing: tLogProbMissing, control.LogProblemChain: tLogProbChain,
 	}
 	if id, ok := ids[code]; ok {
 		return tr(id)

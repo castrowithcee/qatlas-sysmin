@@ -75,9 +75,9 @@ func writeLines(t *testing.T, path string, lines [][]byte) {
 	}
 }
 
-func verify(t *testing.T, dir string, checker Checker) Report {
+func verify(t *testing.T, dir string) Report {
 	t.Helper()
-	report, err := Verify(dir, checker)
+	report, err := Verify(dir)
 	if err != nil {
 		t.Fatalf("Verify() error = %v", err)
 	}
@@ -89,20 +89,20 @@ func day(d int) time.Time { return time.Date(2026, 3, d, 10, 0, 0, 0, time.UTC) 
 func TestAppendChainsAcrossDays(t *testing.T) {
 	logger, moveTo := newTestLogger(t, day(1), 90)
 	mustAppend(t, logger, OperationConfigApply)
-	mustAppend(t, logger, OperationVaultUnlock)
+	mustAppend(t, logger, OperationControlStatus)
 	moveTo(day(3)) // a day without an action in between
-	mustAppend(t, logger, OperationVaultLock)
+	mustAppend(t, logger, OperationControlRefuse)
 
 	if _, err := os.Stat(filepath.Join(logger.dir, "2026-03-02.jsonl")); !os.IsNotExist(err) {
 		t.Fatalf("a day without an action must not get a file, stat error = %v", err)
 	}
-	report := verify(t, logger.dir, nil)
+	report := verify(t, logger.dir)
 	if report.Broken || len(report.Days) != 2 || report.Days[0].Entries != 2 || report.Days[1].Entries != 1 {
 		t.Fatalf("report = %+v, want an intact chain over two days with 2 and 1 entries", report)
 	}
 	for _, d := range report.Days {
-		if d.Unverified != d.Entries || d.SignatureState(report.Checked) != SignatureNotChecked {
-			t.Fatalf("day %+v: unsigned entries must count as unverified and not checked", d)
+		if d.Signed != 0 {
+			t.Fatalf("day %+v: new entries must carry no signature", d)
 		}
 	}
 	first := readLines(t, filepath.Join(logger.dir, "2026-03-03.jsonl"))[0]
@@ -114,15 +114,15 @@ func TestAppendChainsAcrossDays(t *testing.T) {
 
 func TestVerifyDetectsChangedLine(t *testing.T) {
 	logger, _ := newTestLogger(t, day(1), 90)
-	for _, a := range []string{OperationConfigApply, OperationVaultUnlock, OperationVaultLock} {
+	for _, a := range []string{OperationConfigApply, OperationControlStatus, OperationControlRefuse} {
 		mustAppend(t, logger, a)
 	}
 	path := filepath.Join(logger.dir, "2026-03-01.jsonl")
 	lines := readLines(t, path)
-	lines[1] = bytes.Replace(lines[1], []byte(`"vault.unlock"`), []byte(`"vault.rekey"`), 1)
+	lines[1] = bytes.Replace(lines[1], []byte(`"control.status"`), []byte(`"control.request"`), 1)
 	writeLines(t, path, lines)
 
-	report := verify(t, logger.dir, nil)
+	report := verify(t, logger.dir)
 	got := report.Days[0]
 	if !report.Broken || got.Date != "2026-03-01" || got.ProblemSeq != 3 {
 		t.Fatalf("report = %+v, want a break on 2026-03-01 at sequence 3", report)
@@ -131,14 +131,14 @@ func TestVerifyDetectsChangedLine(t *testing.T) {
 
 func TestVerifyDetectsDeletedLine(t *testing.T) {
 	logger, _ := newTestLogger(t, day(1), 90)
-	for _, a := range []string{OperationConfigApply, OperationVaultUnlock, OperationVaultLock} {
+	for _, a := range []string{OperationConfigApply, OperationControlStatus, OperationControlRefuse} {
 		mustAppend(t, logger, a)
 	}
 	path := filepath.Join(logger.dir, "2026-03-01.jsonl")
 	lines := readLines(t, path)
 	writeLines(t, path, append(lines[:1], lines[2:]...))
 
-	report := verify(t, logger.dir, nil)
+	report := verify(t, logger.dir)
 	got := report.Days[0]
 	if !report.Broken || got.ProblemSeq != 3 || got.Missing != 1 {
 		t.Fatalf("report = %+v, want a break at sequence 3 with 1 missing entry", report)
@@ -147,7 +147,7 @@ func TestVerifyDetectsDeletedLine(t *testing.T) {
 
 func TestVerifyDetectsSwappedLines(t *testing.T) {
 	logger, _ := newTestLogger(t, day(1), 90)
-	for _, a := range []string{OperationConfigApply, OperationVaultUnlock, OperationVaultLock, OperationVaultRekey} {
+	for _, a := range []string{OperationConfigApply, OperationControlStatus, OperationControlRefuse, OperationControlRequest} {
 		mustAppend(t, logger, a)
 	}
 	path := filepath.Join(logger.dir, "2026-03-01.jsonl")
@@ -155,7 +155,7 @@ func TestVerifyDetectsSwappedLines(t *testing.T) {
 	lines[1], lines[2] = lines[2], lines[1]
 	writeLines(t, path, lines)
 
-	report := verify(t, logger.dir, nil)
+	report := verify(t, logger.dir)
 	got := report.Days[0]
 	if !report.Broken || got.Date != "2026-03-01" || got.ProblemSeq != 3 {
 		t.Fatalf("report = %+v, want a break on 2026-03-01 at sequence 3", report)
@@ -173,7 +173,7 @@ func TestVerifyDetectsMissingDays(t *testing.T) {
 		if err := os.Remove(filepath.Join(logger.dir, removed)); err != nil {
 			t.Fatal(err)
 		}
-		report := verify(t, logger.dir, nil)
+		report := verify(t, logger.dir)
 		if !report.Broken {
 			t.Fatalf("removing %s: report = %+v, want a break", removed, report)
 		}
@@ -188,13 +188,13 @@ func TestVerifyDetectsMissingDays(t *testing.T) {
 func TestVerifyDetectsWrongGenesisHash(t *testing.T) {
 	logger, _ := newTestLogger(t, day(1), 90)
 	mustAppend(t, logger, OperationConfigApply)
-	mustAppend(t, logger, OperationVaultLock)
+	mustAppend(t, logger, OperationControlRefuse)
 	path := filepath.Join(logger.dir, "2026-03-01.jsonl")
 	lines := readLines(t, path)
 	lines[0] = bytes.Replace(lines[0], []byte(genesisHash), []byte(strings.Repeat("f", 64)), 1)
 	writeLines(t, path, lines)
 
-	if report := verify(t, logger.dir, nil); !report.Broken || report.Days[0].ProblemSeq != 1 {
+	if report := verify(t, logger.dir); !report.Broken || report.Days[0].ProblemSeq != 1 {
 		t.Fatalf("report = %+v, want seq 1 with a wrong genesis hash to break the chain", report)
 	}
 }
@@ -205,8 +205,8 @@ func TestRetentionCutIsNotAGap(t *testing.T) {
 	moveTo(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC))
 	mustAppend(t, logger, "config.apply")
 	moveTo(time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC))
-	mustAppend(t, logger, "vault.lock")
-	mustAppend(t, logger, "vault.lock")
+	mustAppend(t, logger, OperationControlRefuse)
+	mustAppend(t, logger, OperationControlRefuse)
 
 	for _, name := range []string{"2026-01-01.jsonl", "2026-01-02.jsonl"} {
 		if _, err := os.Stat(filepath.Join(logger.dir, name)); !os.IsNotExist(err) {
@@ -218,7 +218,7 @@ func TestRetentionCutIsNotAGap(t *testing.T) {
 		!bytes.Contains(lines[0], []byte(`"through_seq":2`)) {
 		t.Fatalf("lines = %q, want a cut marker through seq 2 and two entries", lines)
 	}
-	report := verify(t, logger.dir, nil)
+	report := verify(t, logger.dir)
 	if report.Broken || len(report.Days) != 1 || report.Days[0].Entries != 2 {
 		t.Fatalf("report = %+v, want a documented cut, not a break, and the marker not counted", report)
 	}
@@ -239,7 +239,7 @@ func TestRetentionCutTwiceStaysIntact(t *testing.T) {
 	if err := json.Unmarshal(lines[0], &marker); err != nil || marker.Seq != 5 {
 		t.Fatalf("second cut marker = %+v (%v), want seq 5: the counter must not restart", marker, err)
 	}
-	if report := verify(t, logger.dir, nil); report.Broken {
+	if report := verify(t, logger.dir); report.Broken {
 		t.Fatalf("report = %+v, want two cuts to stay intact", report)
 	}
 }
@@ -255,7 +255,7 @@ func TestVerifyDetectsGapAfterDocumentedCut(t *testing.T) {
 	if err := os.Remove(filepath.Join(logger.dir, "2026-01-08.jsonl")); err != nil {
 		t.Fatal(err)
 	}
-	if report := verify(t, logger.dir, nil); !report.Broken {
+	if report := verify(t, logger.dir); !report.Broken {
 		t.Fatalf("report = %+v, want the undocumented gap after a cut to break the chain", report)
 	}
 }
@@ -268,7 +268,7 @@ func TestVerifyDetectsOldestDayRemovedByHand(t *testing.T) {
 	if err := os.Remove(filepath.Join(logger.dir, "2026-03-01.jsonl")); err != nil {
 		t.Fatal(err)
 	}
-	report := verify(t, logger.dir, nil)
+	report := verify(t, logger.dir)
 	if !report.Broken || len(report.Days) != 1 || report.Days[0].Problem == "" {
 		t.Fatalf("report = %+v, want the surviving day to name the problem", report)
 	}
@@ -282,13 +282,13 @@ func TestAppendAcrossDayWithEmptyCurrentFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustAppend(t, logger, "config.apply")
-	if report := verify(t, logger.dir, nil); report.Broken {
+	if report := verify(t, logger.dir); report.Broken {
 		t.Fatalf("report = %+v, want an intact chain", report)
 	}
 }
 
 func TestVerifyMissingDirIsEmptyChain(t *testing.T) {
-	report := verify(t, filepath.Join(t.TempDir(), "absent"), nil)
+	report := verify(t, filepath.Join(t.TempDir(), "absent"))
 	if report.Broken || len(report.Days) != 0 {
 		t.Fatalf("report = %+v, want an intact, empty chain", report)
 	}
@@ -347,7 +347,7 @@ func TestAppendConcurrentProcesses(t *testing.T) {
 // chain verifies.
 func assertSequence(t *testing.T, dir string, want int) {
 	t.Helper()
-	if report := verify(t, dir, nil); report.Broken {
+	if report := verify(t, dir); report.Broken {
 		t.Fatalf("report = %+v, want an intact chain", report)
 	}
 	seen := map[uint64]bool{}
@@ -409,7 +409,7 @@ func TestAppendRefusesBadInput(t *testing.T) {
 
 func TestEntryFieldsAndFileMode(t *testing.T) {
 	logger, _ := newTestLogger(t, day(1), 90)
-	if err := logger.Append(Fields{ClientUID: 0, Action: OperationVaultLock,
+	if err := logger.Append(Fields{ClientUID: 0, Action: OperationControlRefuse,
 		Result: ResultFailure, ErrorCode: "denied", Duration: 1500 * time.Millisecond}); err != nil {
 		t.Fatal(err)
 	}
@@ -419,8 +419,8 @@ func TestEntryFieldsAndFileMode(t *testing.T) {
 	if err := json.Unmarshal(line, &got); err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]any{"seq": 1.0, "client_uid": 0.0, "action": "vault.lock",
-		"result": "failure", "error_code": "denied", "duration_ms": 1500.0, "mac": "", "prev_hash": genesisHash,
+	want := map[string]any{"seq": 1.0, "client_uid": 0.0, "action": "control.refuse",
+		"result": "failure", "error_code": "denied", "duration_ms": 1500.0, "prev_hash": genesisHash,
 		"time": "2026-03-01T10:00:00Z"}
 	if len(got) != len(want) {
 		t.Fatalf("entry = %s, want fields %v", line, want)

@@ -13,14 +13,8 @@ RuntimeDirectory=sysmin
 RuntimeDirectoryMode=0750
 StateDirectory=sysmin
 StateDirectoryMode=0700
-ConfigurationDirectory=sysmin
-ConfigurationDirectoryMode=0750
-# The blank default (systemd rejects an empty one) keeps a missing key file from failing the start; the vault then stays locked.
-LoadCredentialEncrypted=vault-key:/var/lib/sysmin/vault/key.cred
-SetCredential=vault-key:\n
 NoNewPrivileges=yes
 ProtectSystem=full
-ReadWritePaths=/etc/sysmin
 PrivateTmp=yes
 Restart=on-failure
 

@@ -542,8 +542,7 @@ func (m *Model) changeLines(width int) []string {
 	return lines
 }
 
-// overviewVersionLine is the running version, with the newer release where there is one, and the config path
-// cut at its start to the room left.
+// overviewVersionLine is the running version, with the newer release where there is one.
 func (m *Model) overviewVersionLine(width int) string {
 	version := m.version
 	if version == "" {
@@ -554,11 +553,6 @@ func (m *Model) overviewVersionLine(width int) string {
 	if latest := m.updateAvailable(); latest != "" {
 		text += styles.warning.Render(" → " + latest)
 		plain += " → " + latest
-	}
-	if path := m.svc.st.ConfigDir; path != "" {
-		if room := width - lipgloss.Width(plain) - 2; room >= 8 {
-			text += "  " + styles.hint.Render(truncateLeft(path, room))
-		}
 	}
 	return clipCells(text, width)
 }

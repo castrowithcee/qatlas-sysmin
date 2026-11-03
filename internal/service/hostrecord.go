@@ -16,7 +16,7 @@ const (
 )
 
 func (s *Service) registerHost() error {
-	// Not Mutating: the guard asks for an open vault and an admin session, which the sudo call replaces.
+	// Not Mutating: the sudo call is the proof, and only root may call it.
 	return s.server.Register(control.OpHostRecord, daemon.Handler{
 		Action: auditlog.OperationHostChange, RootOnly: true, Func: s.handleHostRecord,
 	})

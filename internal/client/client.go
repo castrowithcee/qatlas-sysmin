@@ -57,7 +57,7 @@ func Dial(path string) (*Client, error) {
 		}
 		return nil, fmt.Errorf("cannot reach the service: %w", err)
 	}
-	// Nothing is written before the peer is known: a request may carry a passphrase or a secret.
+	// Nothing is written before the peer is known: a request may carry a secret.
 	cred, err := peerOf(conn)
 	if err == nil && !peerAllowed(cred) {
 		err = &PeerError{PID: cred.PID, UID: cred.UID}
@@ -218,7 +218,7 @@ func (c *Client) Call(op string, params, result any) error {
 			return fmt.Errorf("cannot encode the parameters: %w", err)
 		}
 		req.Params = data
-		defer clear(data) // the parameters may carry a passphrase
+		defer clear(data) // the parameters may carry a secret
 	}
 	now := time.Now()
 	_ = c.conn.SetDeadline(now.Add(CallTimeout))
@@ -260,7 +260,7 @@ func (c *Client) Call(op string, params, result any) error {
 				return denial
 			}
 		}
-		return &control.Error{Code: resp.Error, Problems: resp.Problems}
+		return &control.Error{Code: resp.Error}
 	}
 	if result != nil && resp.Result != nil {
 		if err := json.Unmarshal(resp.Result, result); err != nil {
@@ -270,28 +270,11 @@ func (c *Client) Call(op string, params, result any) error {
 	return nil
 }
 
-// Status asks for the service's versions, vault state and socket.
+// Status asks for the service's version and socket.
 func (c *Client) Status() (control.StatusResult, error) {
 	var out control.StatusResult
 	err := c.Call(control.OpStatus, nil, &out)
 	return out, err
-}
-
-// VaultStatus asks for the vault's state and how it was unlocked.
-func (c *Client) VaultStatus() (control.VaultStatusResult, error) {
-	var out control.VaultStatusResult
-	err := c.Call(control.OpVaultStatus, nil, &out)
-	return out, err
-}
-
-// Unlock opens the service's vault with its passphrase. A wrong one is control.CodeWrongPassphrase.
-func (c *Client) Unlock(passphrase string) error {
-	return c.Call(control.OpUnlock, control.PassphraseParams{Passphrase: passphrase}, nil)
-}
-
-// OpenSession starts the admin session of this connection with the vault passphrase.
-func (c *Client) OpenSession(passphrase string) error {
-	return c.Call(control.OpSessionOpen, control.PassphraseParams{Passphrase: passphrase}, nil)
 }
 
 // RecordHostChange hands a finished host change to the service's audit log. Only root may call it; anyone
@@ -300,46 +283,16 @@ func (c *Client) RecordHostChange(p control.HostRecordParams) error {
 	return c.Call(control.OpHostRecord, p, nil)
 }
 
-// EndSession ends the admin session of this connection.
-func (c *Client) EndSession() error { return c.Call(control.OpSessionEnd, nil, nil) }
-
-// CreateVault creates the vault with its first passphrase and leaves it unlocked. It is control.CodeExists
-// once a vault exists.
-func (c *Client) CreateVault(passphrase string) error {
-	return c.Call(control.OpVaultCreate, control.PassphraseParams{Passphrase: passphrase}, nil)
-}
-
-// ChangePassphrase replaces the vault passphrase. It needs the admin session of this connection; a wrong
-// old passphrase is control.CodeWrongPassphrase.
-func (c *Client) ChangePassphrase(oldPassphrase, newPassphrase string) error {
-	return c.Call(control.OpVaultPassphrase, control.PassphraseChangeParams{Old: oldPassphrase, New: newPassphrase}, nil)
-}
-
-// Settings reads the effective admin timeout.
-func (c *Client) Settings() (control.SettingsResult, error) {
-	var out control.SettingsResult
-	err := c.Call(control.OpSettingsShow, nil, &out)
-	return out, err
-}
-
-// SetAdminTimeout sets vault.admin_timeout from a duration text such as "5m" or "0". It needs the admin
-// session of this connection.
-func (c *Client) SetAdminTimeout(timeout string) (control.SettingsResult, error) {
-	var out control.SettingsResult
-	err := c.Call(control.OpSettingsAdminTimeout, control.AdminTimeoutParams{AdminTimeout: timeout}, &out)
-	return out, err
-}
-
 // LogEntries reads one page of the action log, newest first. p.After continues from the Next of the
-// previous page. It needs no admin session.
+// previous page.
 func (c *Client) LogEntries(p control.LogListParams) (control.LogListResult, error) {
 	var out control.LogListResult
 	err := c.Call(control.OpLogList, p, &out)
 	return out, err
 }
 
-// VerifyLog checks the hash chain of the action log, and its check values while the vault is unlocked. A
-// broken chain is a result with Intact false, not a failed call.
+// VerifyLog checks the hash chain of the action log. A broken
+// chain is a result with Intact false, not a failed call.
 func (c *Client) VerifyLog() (control.LogVerifyResult, error) {
 	var out control.LogVerifyResult
 	err := c.Call(control.OpLogVerify, nil, &out)

@@ -11,22 +11,19 @@ import (
 )
 
 // seedLog writes entries to dir; the logger clock is not injectable from here, so every entry lands on the
-// current UTC day and the tests use a single day file.
+// current UTC day and the tests use a single day file. With signed set, the first entry carries a signature
+// of an earlier version, an invented value that nothing checks; the entries after it chain from that line.
 func seedLog(t *testing.T, dir string, signed bool, actions ...string) string {
 	t.Helper()
 	logger := auditlog.New(dir, auditlog.DefaultRetentionDays)
-	if signed {
-		key, err := auditlog.DeriveKey([]byte("invented-log-key-for-tests-0001"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		logger = logger.WithKey(key)
-	}
-	for _, action := range actions {
+	for i, action := range actions {
 		err := logger.Append(auditlog.Fields{ClientUID: 1000, Action: action,
 			Result: auditlog.ResultSuccess})
 		if err != nil {
 			t.Fatal(err)
+		}
+		if i == 0 && signed {
+			sign(t, dir)
 		}
 	}
 	files, err := filepath.Glob(filepath.Join(dir, "*.jsonl"))
@@ -34,6 +31,24 @@ func seedLog(t *testing.T, dir string, signed bool, actions ...string) string {
 		t.Fatalf("day files = %v (%v), want exactly one", files, err)
 	}
 	return files[0]
+}
+
+// sign adds an invented signature field to the only line of the day file in dir.
+func sign(t *testing.T, dir string) {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join(dir, "*.jsonl"))
+	if err != nil || len(files) != 1 {
+		t.Fatalf("day files = %v (%v), want exactly one", files, err)
+	}
+	data, err := os.ReadFile(files[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := strings.TrimSuffix(strings.TrimSuffix(string(data), "\n"), "}")
+	line += `,"mac":"` + strings.Repeat("ab", 32) + `"}` + "\n"
+	if err := os.WriteFile(files[0], []byte(line), 0o600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 type verifyRow struct {
@@ -57,7 +72,7 @@ func verifyJSON(t *testing.T, args ...string) (int, []verifyRow, string) {
 	return code, rows, stderr
 }
 
-func TestLogVerifyIntactSignedLogReportsSignaturesNotChecked(t *testing.T) {
+func TestLogVerifyOldSignedEntriesReportSignaturesNotChecked(t *testing.T) {
 	dir := t.TempDir()
 	seedLog(t, dir, true, auditlog.OperationConfigApply, auditlog.OperationControlStatus)
 
@@ -74,7 +89,7 @@ func TestLogVerifyUnsignedLogIsIntact(t *testing.T) {
 	dir := t.TempDir()
 	seedLog(t, dir, false, auditlog.OperationConfigApply, auditlog.OperationControlStatus)
 	code, rows, _ := verifyJSON(t, "--dir", dir)
-	if code != exitOK || len(rows) != 1 || rows[0].Chain != "intact" || rows[0].Signatures != "not checked" {
+	if code != exitOK || len(rows) != 1 || rows[0].Chain != "intact" || rows[0].Signatures != "" {
 		t.Errorf("code = %d, rows = %v", code, rows)
 	}
 }

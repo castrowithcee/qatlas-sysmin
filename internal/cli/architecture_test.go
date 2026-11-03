@@ -1,24 +1,19 @@
 package cli
 
-// Architecture guard: surfaces (the CLI and the TUI, including subpackages) reach the vault, the
-// configuration store and the state only through the client package. The checker reads the source of the
-// module as an fs.FS and looks at imports and qualified identifiers; build tags are ignored so every platform
-// checks the same files. Test files are not checked: they may build fixtures from the guarded packages.
+// Architecture guard: surfaces (the CLI and the TUI, including subpackages) reach the service and the
+// daemon only through the client package. The checker reads the source of the module as an fs.FS and looks
+// at imports; build tags are ignored so every platform checks the same files. Test files are not checked: they may build fixtures from the guarded packages.
 // Known violations are listed as exceptions. The list can only shrink: a new violation fails the test, and so
 // does an exception that no longer matches anything.
 //
-// Rules:
-//  1. Surfaces import none of the guarded packages.
-//  2. Surfaces use neither config.Store nor config.NewStore.
+// Rule: surfaces import none of the guarded packages.
 
 import (
 	"fmt"
-	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -27,10 +22,7 @@ import (
 	"testing/fstest"
 )
 
-const (
-	ruleImports = 1
-	ruleHandles = 2
-)
+const ruleImports = 1
 
 type archFinding struct {
 	Rule int
@@ -48,17 +40,8 @@ type archException struct {
 var surfaceDirs = []string{"internal/cli", "internal/tui"}
 
 var surfaceForbidden = map[string]bool{
-	"internal/vault":      true,
-	"internal/admin":      true,
-	"internal/state":      true,
-	"internal/service":    true,
-	"internal/autounlock": true,
-	"internal/daemon":     true,
-}
-
-// Qualified identifiers surfaces must not use, by module-relative package path.
-var storeHandles = map[string]map[string]bool{
-	"internal/config": {"Store": true, "NewStore": true},
+	"internal/service": true,
+	"internal/daemon":  true,
 }
 
 var architectureExceptions = []archException{
@@ -80,19 +63,19 @@ func TestArchitectureChecksDetectViolations(t *testing.T) {
 	const mod = "module example.com/m\n\ngo 1.26\n"
 	fsys := fstest.MapFS{
 		"go.mod":                 {Data: []byte(mod)},
-		"internal/cli/a.go":      {Data: []byte("package cli\n\nimport \"example.com/m/internal/vault\"\n\nvar _ = vault.X\n")},
-		"internal/tui/sub/b.go":  {Data: []byte("package sub\n\nimport (\n\tc \"example.com/m/internal/config\"\n)\n\nvar _ = c.NewStore\n")},
+		"internal/cli/a.go":      {Data: []byte("package cli\n\nimport \"example.com/m/internal/service\"\n\nvar _ = service.X\n")},
+		"internal/tui/sub/b.go":  {Data: []byte("package sub\n\nimport (\n\tc \"example.com/m/internal/daemon\"\n)\n\nvar _ = c.X\n")},
 		"internal/cli/ok.go":     {Data: []byte("package cli\n\nimport \"example.com/m/internal/client\"\n\nvar _ = client.X\n")},
-		"internal/cli/a_test.go": {Data: []byte("package cli\n\nimport \"example.com/m/internal/vault\"\n\nvar _ = vault.X\n")},
-		"internal/other/c.go":    {Data: []byte("package other\n\nimport \"example.com/m/internal/vault\"\n")},
+		"internal/cli/a_test.go": {Data: []byte("package cli\n\nimport \"example.com/m/internal/service\"\n\nvar _ = service.X\n")},
+		"internal/other/c.go":    {Data: []byte("package other\n\nimport \"example.com/m/internal/service\"\n")},
 	}
 	findings, err := architectureFindings(fsys)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []archFinding{
-		{ruleImports, "internal/cli/a.go", "internal/vault"},
-		{ruleHandles, "internal/tui/sub/b.go", "config.NewStore"},
+		{ruleImports, "internal/cli/a.go", "internal/service"},
+		{ruleImports, "internal/tui/sub/b.go", "internal/daemon"},
 	}
 	if len(findings) != len(want) {
 		t.Fatalf("findings = %v, want %v", findings, want)
@@ -106,17 +89,17 @@ func TestArchitectureChecksDetectViolations(t *testing.T) {
 		t.Errorf("unexcepted findings gave %d problems, want 2: %v", len(got), got)
 	}
 	excepted := []archException{
-		{ruleImports, "internal/cli/a.go", "internal/vault", "reason"},
-		{ruleHandles, "internal/tui/sub/b.go", "config.NewStore", "reason"},
+		{ruleImports, "internal/cli/a.go", "internal/service", "reason"},
+		{ruleImports, "internal/tui/sub/b.go", "internal/daemon", "reason"},
 	}
 	if got := architectureProblems(findings, excepted); len(got) != 0 {
 		t.Errorf("excepted findings gave problems: %v", got)
 	}
-	stale := append(excepted, archException{ruleImports, "internal/cli/gone.go", "internal/vault", "reason"})
+	stale := append(excepted, archException{ruleImports, "internal/cli/gone.go", "internal/service", "reason"})
 	if got := architectureProblems(findings, stale); len(got) != 1 || !strings.Contains(got[0], "stale") {
 		t.Errorf("stale exception not reported: %v", got)
 	}
-	noReason := []archException{{ruleImports, "internal/cli/a.go", "internal/vault", " "}}
+	noReason := []archException{{ruleImports, "internal/cli/a.go", "internal/service", " "}}
 	if got := architectureProblems(findings[:1], noReason); len(got) != 1 || !strings.Contains(got[0], "no reason") {
 		t.Errorf("missing reason not reported: %v", got)
 	}
@@ -169,12 +152,7 @@ func architectureProblems(findings []archFinding, exceptions []archException) []
 		if excepted[key{f.Rule, f.File, f.Item}] {
 			continue
 		}
-		switch f.Rule {
-		case ruleImports:
-			problems = append(problems, fmt.Sprintf("%s: rule 1: imports %s; go through internal/client", f.File, f.Item))
-		default:
-			problems = append(problems, fmt.Sprintf("%s: rule 2: uses %s; go through internal/client", f.File, f.Item))
-		}
+		problems = append(problems, fmt.Sprintf("%s: rule 1: imports %s; go through internal/client", f.File, f.Item))
 	}
 	sort.Strings(problems)
 	return problems
@@ -207,7 +185,6 @@ func architectureFindings(fsys fs.FS) ([]archFinding, error) {
 		if err != nil {
 			return fmt.Errorf("parse %s: %w", p, err)
 		}
-		byLocal := map[string]string{}
 		for _, imp := range file.Imports {
 			target, err := strconv.Unquote(imp.Path.Value)
 			if err != nil {
@@ -220,26 +197,7 @@ func architectureFindings(fsys fs.FS) ([]archFinding, error) {
 			if surfaceForbidden[rel] {
 				findings = append(findings, archFinding{ruleImports, p, rel})
 			}
-			if storeHandles[rel] != nil {
-				local := path.Base(rel)
-				if imp.Name != nil {
-					local = imp.Name.Name
-				}
-				byLocal[local] = rel
-			}
 		}
-		ast.Inspect(file, func(n ast.Node) bool {
-			sel, ok := n.(*ast.SelectorExpr)
-			if !ok {
-				return true
-			}
-			if id, ok := sel.X.(*ast.Ident); ok {
-				if rel, ok := byLocal[id.Name]; ok && storeHandles[rel][sel.Sel.Name] {
-					findings = append(findings, archFinding{ruleHandles, p, path.Base(rel) + "." + sel.Sel.Name})
-				}
-			}
-			return true
-		})
 		return nil
 	})
 	if err != nil {

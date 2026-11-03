@@ -13,7 +13,6 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
-	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
 )
 
 // maxLogActionFilter is the longest action filter. The filter is only checked for its shape, not against the
@@ -102,30 +101,20 @@ func (s *Service) handleLogList(_ context.Context, _ *daemon.Conn, params json.R
 	return out, nil
 }
 
-// handleLogVerify checks the check values only while the vault is unlocked, with a key of its own that it
-// clears afterwards; otherwise the days report their signatures as not checked.
+// handleLogVerify checks the hash chain. Signatures of entries that an earlier version wrote are not
+// checked and are reported as such.
 func (s *Service) handleLogVerify(context.Context, *daemon.Conn, json.RawMessage) (any, error) {
-	var checker auditlog.Checker
-	if s.vaultState() == control.VaultUnlocked {
-		key, err := s.vault.LogKey()
-		if err != nil && !errors.Is(err, vault.ErrLocked) {
-			return nil, internalError("cannot derive the audit log key", err)
-		}
-		if err == nil {
-			defer key.Clear()
-			checker = key
-		}
-	}
-	report, err := auditlog.Verify(s.logDir(), checker)
+	report, err := auditlog.Verify(s.logDir())
 	if err != nil {
 		return nil, internalError("cannot verify the action log", err)
 	}
-	out := control.LogVerifyResult{Intact: !report.Broken, Checked: report.Checked, Days: make([]control.LogDay, 0, len(report.Days))}
+	out := control.LogVerifyResult{Intact: !report.Broken, Days: make([]control.LogDay, 0, len(report.Days))}
 	for _, d := range report.Days {
-		out.Days = append(out.Days, control.LogDay{
-			Date: d.Date, Entries: d.Entries, Intact: d.Problem == "", Damaged: d.Damaged,
-			Signatures: strings.ReplaceAll(d.SignatureState(report.Checked), " ", "-"),
-		})
+		day := control.LogDay{Date: d.Date, Entries: d.Entries, Intact: d.Problem == "", Damaged: d.Damaged}
+		if d.Signed > 0 {
+			day.Signatures = control.LogSignaturesNotChecked
+		}
+		out.Days = append(out.Days, day)
 		if d.Problem == "" {
 			continue
 		}

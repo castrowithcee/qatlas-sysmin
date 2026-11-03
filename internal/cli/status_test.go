@@ -37,14 +37,13 @@ func startService(t *testing.T) string {
 // startServiceCfg also lets mod change the service's configuration before it starts.
 func startServiceCfg(t *testing.T, mod func(*service.Config)) string {
 	t.Helper()
-	t.Setenv("CREDENTIALS_DIRECTORY", "")
 	sockDir, err := os.MkdirTemp("", "sysmin-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(sockDir) })
 	cfg := service.Config{
-		ConfigDir: t.TempDir(), StateDir: t.TempDir(), SocketPath: filepath.Join(sockDir, "s.sock"),
+		StateDir: t.TempDir(), SocketPath: filepath.Join(sockDir, "s.sock"),
 		Version: "9.9.9", Resolver: testGroups{},
 	}
 	if mod != nil {
@@ -75,11 +74,6 @@ func TestStatusAgainstService(t *testing.T) {
 	for _, want := range []string{`"version":"9.9.9"`, `"socket":"` + sock + `"`} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout %q lacks %s", stdout, want)
-		}
-	}
-	for _, unwanted := range []string{"vault", "unlock", "warning"} {
-		if strings.Contains(stdout, unwanted) {
-			t.Errorf("stdout %q names %s", stdout, unwanted)
 		}
 	}
 }

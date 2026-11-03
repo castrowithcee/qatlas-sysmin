@@ -37,11 +37,11 @@ func hostEntries(t *testing.T, c *client.Client) []control.LogEntry {
 	return res.Entries
 }
 
-func TestHostRecordFromRootWritesASignedEntryForTheHuman(t *testing.T) {
-	e := newEnv(t, true, true, asPeer(0))
+func TestHostRecordFromRootWritesAnEntryForTheHuman(t *testing.T) {
+	e := newEnv(t, asPeer(0))
 	e.start(t)
 	c := e.dial(t)
-	// No admin session and no passphrase: the sudo call is the proof.
+	// Root needs no further proof: the sudo call is the proof.
 	err := c.RecordHostChange(control.HostRecordParams{
 		Action: "demo.set", Result: control.HostResultApplied, SudoUID: 1000, JournalID: testJournalID, UndoOf: testUndoID,
 	})
@@ -56,7 +56,7 @@ func TestHostRecordFromRootWritesASignedEntryForTheHuman(t *testing.T) {
 		}
 	}
 	if got == nil || got.ClientUID == nil || *got.ClientUID != 1000 || got.Result != "success" ||
-		!got.Signed || got.Host == nil || *got.Host != (control.LogHost{ActionID: "demo.set", JournalID: testJournalID, UndoOf: testUndoID}) {
+		got.Signed || got.Host == nil || *got.Host != (control.LogHost{ActionID: "demo.set", JournalID: testJournalID, UndoOf: testUndoID}) {
 		t.Fatalf("entry = %+v", got)
 	}
 	raw, err := os.ReadFile(e.logFile(t))
@@ -79,7 +79,7 @@ func TestHostRecordFromRootWritesASignedEntryForTheHuman(t *testing.T) {
 }
 
 func TestHostRecordOfAChangeThatDidNotStand(t *testing.T) {
-	e := newEnv(t, true, true, asPeer(0))
+	e := newEnv(t, asPeer(0))
 	e.start(t)
 	c := e.dial(t)
 	for _, res := range []string{control.HostResultFailed, control.HostResultRestored} {
@@ -99,7 +99,7 @@ func TestHostRecordOfAChangeThatDidNotStand(t *testing.T) {
 }
 
 func TestHostRecordRejectsAFreeFormRequest(t *testing.T) {
-	e := newEnv(t, true, true, asPeer(0))
+	e := newEnv(t, asPeer(0))
 	e.start(t)
 	c := e.dial(t)
 	for _, p := range []control.HostRecordParams{
@@ -122,7 +122,7 @@ func TestHostRecordRejectsAFreeFormRequest(t *testing.T) {
 }
 
 func TestHostRecordRefusesEveryPeerButRootAndLogsTheRefusal(t *testing.T) {
-	e := newEnv(t, true, true, asPeer(1000))
+	e := newEnv(t, asPeer(1000))
 	e.start(t)
 	c := e.dial(t)
 	err := c.RecordHostChange(control.HostRecordParams{Action: "demo.set", Result: "applied", SudoUID: 0, JournalID: testJournalID})

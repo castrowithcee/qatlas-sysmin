@@ -6,19 +6,11 @@ const (
 	OperationConfigApply = "config.apply"
 	OperationConfigRead  = "config.read"
 
-	OperationVaultUnlock = "vault.unlock"
-	OperationVaultLock   = "vault.lock"
-	OperationVaultRekey  = "vault.rekey"
-	OperationVaultCreate = "vault.create"
-
 	// The control socket: a request that names no known operation, is malformed, too large or too slow
 	// is logged as OperationControlRequest; a peer turned away as OperationControlRefuse.
 	OperationControlRequest = "control.request"
 	OperationControlRefuse  = "control.refuse"
 	OperationControlStatus  = "control.status"
-	OperationVaultStatus    = "vault.status"
-	OperationSessionOpen    = "session.open"
-	OperationSessionEnd     = "session.end"
 
 	// OperationHostChange is a change of the host that root made with a registered action. Its entry names
 	// the human behind sudo as the client and the action in Host, never an argument.
@@ -28,9 +20,7 @@ const (
 // knownOperations is every action Validate accepts, so a new one is added here.
 var knownOperations = map[string]bool{
 	OperationConfigApply: true, OperationConfigRead: true,
-	OperationVaultUnlock: true, OperationVaultLock: true, OperationVaultRekey: true, OperationVaultCreate: true,
 	OperationControlRequest: true, OperationControlRefuse: true, OperationControlStatus: true,
-	OperationVaultStatus: true, OperationSessionOpen: true, OperationSessionEnd: true,
 	OperationHostChange: true,
 }
 
