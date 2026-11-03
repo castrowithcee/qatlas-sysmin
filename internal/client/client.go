@@ -4,6 +4,7 @@ package client
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/castrowithcee/qatlas-kit/cli"
+	"github.com/castrowithcee/qatlas-kit/localipc"
 	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
@@ -28,7 +30,7 @@ const (
 )
 
 // ServiceUser is the system user the service runs as.
-const ServiceUser = "qsysmin"
+const ServiceUser = control.ServiceUser
 
 // firstAnswerTimeout bounds the wait for the answer to the first request of a connection, so a peer that
 // accepts but never answers is named in a few seconds instead of after CallTimeout. It is a variable only so
@@ -45,12 +47,20 @@ type Client struct {
 	answered bool
 }
 
-// Dial connects to the control socket at path; an empty path means control.DefaultSocketPath.
+// Dial connects to the control socket at path; an empty path means control.DefaultSocketPath. The channel
+// returns only once the socket's files and the listening process belong to the service user or the caller,
+// so nothing is written to anyone else: a request may carry a secret.
 func Dial(path string) (*Client, error) {
 	if path == "" {
 		path = control.DefaultSocketPath
 	}
-	conn, err := net.DialTimeout("unix", path, DialTimeout)
+	ep, err := control.Endpoint(path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot reach the service: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), DialTimeout)
+	defer cancel()
+	conn, err := ep.Dial(ctx)
 	if err != nil {
 		if errors.Is(err, syscall.EACCES) {
 			if denial := accessDenial(); denial != nil {
@@ -59,22 +69,19 @@ func Dial(path string) (*Client, error) {
 		}
 		return nil, fmt.Errorf("cannot reach the service: %w", err)
 	}
-	// Nothing is written before the peer is known: a request may carry a secret.
-	cred, err := peerOf(conn)
-	if err == nil && !peerAllowed(cred) {
-		err = &PeerError{PID: cred.PID, UID: cred.UID}
-	} else if err != nil {
-		err = fmt.Errorf("cannot verify who answers at the socket: %w", err)
-	}
-	if err != nil {
+	pid, pidErr := localipc.PeerPID(conn)
+	uid, uidErr := localipc.PeerUID(conn)
+	if err := errors.Join(pidErr, uidErr); err != nil {
 		_ = conn.Close()
-		return nil, err
+		return nil, fmt.Errorf("cannot verify who answers at the socket: %w", err)
 	}
-	return &Client{conn: conn, br: bufio.NewReader(conn), peer: cred}, nil
+	return &Client{conn: conn, br: bufio.NewReader(conn), peer: peerCred{PID: int32(pid), UID: uid}}, nil
 }
 
-// PeerError is a process at the socket that is neither the service user nor the caller, or one that does not
-// answer. It carries only what the kernel reported, nothing the peer sent.
+// PeerError names the process at the socket and the next step. Call reports one that the channel admitted
+// but that does not answer the first request in time (Silent); a process that is neither the service user
+// nor the caller is refused by the channel before Dial returns, with the channel's own error. It carries
+// only what the kernel reported, nothing the peer sent.
 type PeerError struct {
 	PID int32
 	UID uint32
@@ -90,52 +97,10 @@ func (e *PeerError) Error() string {
 	return fmt.Sprintf("the process at the socket (pid %d, uid %d) is not the %s service; %s", e.PID, e.UID, ServiceUser, next)
 }
 
-// peerAllowed reports whether the peer is the service user or the caller itself (a self-started service). A
-// missing service user leaves the caller alone.
-func peerAllowed(p peerCred) bool {
-	if p.UID == uint32(os.Geteuid()) {
-		return true
-	}
-	uid, ok := serviceUID()
-	return ok && p.UID == uid
-}
-
-// serviceUID resolves the service user by name. It is a variable so a test can stand in for the system.
-var serviceUID = func() (uint32, bool) {
-	u, err := user.Lookup(ServiceUser)
-	if err != nil {
-		return 0, false
-	}
-	id, err := strconv.ParseUint(u.Uid, 10, 32)
-	return uint32(id), err == nil
-}
-
+// peerCred is the listening process as the kernel reported it once the channel admitted it.
 type peerCred struct {
 	PID int32
 	UID uint32
-}
-
-// peerOf asks the kernel who is at the other end of conn. It is a variable so a test can name a stranger.
-var peerOf = func(conn net.Conn) (peerCred, error) {
-	unix, ok := conn.(*net.UnixConn)
-	if !ok {
-		return peerCred{}, errors.New("not a Unix socket connection")
-	}
-	raw, err := unix.SyscallConn()
-	if err != nil {
-		return peerCred{}, err
-	}
-	var cred *syscall.Ucred
-	var credErr error
-	if err := raw.Control(func(fd uintptr) {
-		cred, credErr = syscall.GetsockoptUcred(int(fd), syscall.SOL_SOCKET, syscall.SO_PEERCRED)
-	}); err != nil {
-		return peerCred{}, err
-	}
-	if credErr != nil {
-		return peerCred{}, credErr
-	}
-	return peerCred{PID: cred.Pid, UID: cred.Uid}, nil
 }
 
 // ReservedMessage is what every surface says to someone who may not use qsysmin. It is the only text for it.

@@ -8,20 +8,9 @@ import (
 	"testing"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
-	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
+	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/service"
 )
-
-// notAdminGroups lets the peer into the group qsysmin but knows it as no administrator.
-type notAdminGroups struct{ testGroups }
-
-func (notAdminGroups) IsAdmin(uint32) (bool, error) { return false, nil }
-
-// outsideGroups keeps the peer out of the group qsysmin.
-type outsideGroups struct{ testGroups }
-
-func (outsideGroups) GroupID(string) (uint32, error)           { return uint32(os.Getgid()) + 1, nil }
-func (outsideGroups) PeerGroups(daemon.Peer) ([]uint32, error) { return nil, nil }
 
 var (
 	reservedLines   = "qsysmin: admin-required: " + client.ReservedMessage + "\n" + client.ErrReserved.NextStep + "\n"
@@ -29,15 +18,48 @@ var (
 )
 
 func TestCommandsSayReservedOnANotAdminAnswer(t *testing.T) {
-	sock := startServiceCfg(t, func(c *service.Config) { c.Resolver = notAdminGroups{} })
+	if os.Geteuid() == 0 {
+		t.Skip("root needs no admin right")
+	}
+	sock := startServiceCfg(t, func(c *service.Config) { c.IsAdmin = func(uint32) (bool, error) { return false, nil } })
 	code, stdout, stderr := runCLIArgs("status", "--socket", sock)
 	if code != exitRuntime || stdout != "" || stderr != reservedLines {
 		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 }
 
+// refusingService answers every connection the way the service answers a peer its channel refused.
+func refusingService(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "qsysmin-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	sock := filepath.Join(dir, "s.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	if err := os.Chmod(sock, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = control.WriteLine(conn, control.Response{V: control.Version, Error: control.CodeRefused})
+			conn.Close()
+		}
+	}()
+	return sock
+}
+
 func TestCommandsNameTheStandingOnARefusedAnswer(t *testing.T) {
-	sock := startServiceCfg(t, func(c *service.Config) { c.Resolver = outsideGroups{} })
+	sock := refusingService(t)
 	for _, tc := range []struct {
 		name           string
 		admin, enabled bool

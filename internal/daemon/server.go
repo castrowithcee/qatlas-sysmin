@@ -1,5 +1,6 @@
-// Package daemon is the core of the service's control socket: it accepts connections, checks who connected,
-// reads requests within size and time limits, hands them to registered handlers, and logs every request.
+// Package daemon is the core of the service's control socket: it serves the service channel of localipc,
+// which admits only root and the service group, checks that the peer is an administrator, reads requests
+// within size and time limits, hands them to registered handlers, and logs every request and refusal.
 package daemon
 
 import (
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/castrowithcee/qatlas-kit/localipc"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
@@ -78,10 +80,8 @@ type Config struct {
 	// Status, if set, completes the answer of the built-in status operation with what only the owner of the
 	// server knows, including what belongs to the asking connection.
 	Status func(*Conn, *control.StatusResult)
-	// Resolver answers the peer check's group questions. Default: SystemResolver.
-	Resolver Resolver
-	// Credentials reads the peer of a connection. Default: SO_PEERCRED.
-	Credentials func(net.Conn) (Peer, error)
+	// IsAdmin reports whether a peer that is not root is an administrator. Default: the group database.
+	IsAdmin func(uid uint32) (bool, error)
 	// Guard runs before every mutating handler. With none installed, mutating operations are answered
 	// control.CodeUnavailable.
 	Guard Guard
@@ -116,11 +116,8 @@ func New(cfg Config) (*Server, error) {
 	if cfg.OnLogError == nil {
 		cfg.OnLogError = func(err error) { slog.Warn("cannot write the audit log", "error", err.Error()) }
 	}
-	if cfg.Resolver == nil {
-		cfg.Resolver = SystemResolver{}
-	}
-	if cfg.Credentials == nil {
-		cfg.Credentials = peerCred
+	if cfg.IsAdmin == nil {
+		cfg.IsAdmin = systemAdmin
 	}
 	if cfg.MaxRequestBytes <= 0 {
 		cfg.MaxRequestBytes = control.MaxRequestBytes
@@ -175,17 +172,23 @@ func (s *Server) SetLogger(l AuditLogger) {
 	s.mu.Unlock()
 }
 
-// ListenAndServe listens on path and serves until ctx ends; see Serve.
-func (s *Server) ListenAndServe(ctx context.Context, path string) error {
-	ln, err := Listen(path)
+// Listen opens the channel of ep. A peer the channel refuses is answered control.CodeRefused and logged; it
+// never reaches Serve.
+func (s *Server) Listen(ep localipc.ServiceEndpoint) (net.Listener, error) {
+	return ep.ListenWith(localipc.ListenOptions{Refused: s.refused})
+}
+
+// ListenAndServe listens on ep and serves until ctx ends; see Serve.
+func (s *Server) ListenAndServe(ctx context.Context, ep localipc.ServiceEndpoint) error {
+	ln, err := s.Listen(ep)
 	if err != nil {
 		return err
 	}
 	return s.Serve(ctx, ln)
 }
 
-// Serve accepts connections on ln until ctx ends, then closes ln (which removes a Unix socket file), closes
-// the open connections and waits for their handlers. It returns nil after a shutdown by ctx.
+// Serve accepts connections on ln until ctx ends, then closes ln (which removes its socket file), closes the
+// open connections and waits for their handlers. It returns nil after a shutdown by ctx.
 func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -216,7 +219,8 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 				return nil
 			}
 			var ne net.Error
-			if errors.As(err, &ne) && ne.Timeout() {
+			var refused *localipc.PeerError
+			if errors.As(err, &ne) && ne.Timeout() || errors.As(err, &refused) {
 				continue
 			}
 			return fmt.Errorf("cannot accept connections: %w", err)
@@ -252,28 +256,39 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	}
 }
 
-// refuse logs and answers a connection that is not served, with a fixed code and nothing else. The peer is
-// read again for the log, so the entry names who was turned away.
+// refuse logs and answers a connection that is not served, with a fixed code and nothing else.
 func (s *Server) refuse(conn net.Conn, code string) {
-	uid := NoUID
-	if p, err := s.cfg.Credentials(conn); err == nil {
-		uid = p.UID
-	}
-	s.record(uid, auditlog.OperationControlRefuse, time.Now(), code)
+	s.record(peerUID(conn), auditlog.OperationControlRefuse, time.Now(), code)
 	s.write(conn, control.Response{V: control.Version, Error: code})
+}
+
+// refused answers a peer the channel turned away. It runs under the channel's own short deadline, so it
+// writes without setting one.
+func (s *Server) refused(conn net.Conn, _ error) {
+	s.record(peerUID(conn), auditlog.OperationControlRefuse, time.Now(), control.CodeRefused)
+	_ = control.WriteLine(conn, control.Response{V: control.Version, Error: control.CodeRefused})
+}
+
+// peerUID is the user of the peer as the kernel reports it, or NoUID if it cannot be read.
+func peerUID(conn net.Conn) uint32 {
+	uid, err := localipc.PeerUID(conn)
+	if err != nil {
+		return NoUID
+	}
+	return uid
 }
 
 func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 	// The peer is checked before anything is read from it.
-	peer, err := s.cfg.Credentials(conn)
-	if err != nil {
+	peer := Peer{UID: peerUID(conn)}
+	if peer.UID == NoUID {
 		s.record(NoUID, auditlog.OperationControlRefuse, time.Now(), control.CodeRefused)
 		s.write(conn, control.Response{V: control.Version, Error: control.CodeRefused})
 		return
 	}
-	if code := admit(s.cfg.Resolver, peer); code != "" {
-		s.record(peer.UID, auditlog.OperationControlRefuse, time.Now(), code)
-		s.write(conn, control.Response{V: control.Version, Error: code})
+	if !isAdmin(s.cfg.IsAdmin, peer.UID) {
+		s.record(peer.UID, auditlog.OperationControlRefuse, time.Now(), control.CodeNotAdmin)
+		s.write(conn, control.Response{V: control.Version, Error: control.CodeNotAdmin})
 		return
 	}
 
@@ -311,7 +326,7 @@ func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 		}
 
 		// Admin rights are read again for every request: a revocation applies to an open connection too.
-		if !isAdmin(s.cfg.Resolver, peer) {
+		if !isAdmin(s.cfg.IsAdmin, peer.UID) {
 			clear(line)
 			s.record(peer.UID, auditlog.OperationControlRefuse, start, control.CodeNotAdmin)
 			s.write(conn, control.Response{V: control.Version, Error: control.CodeNotAdmin})

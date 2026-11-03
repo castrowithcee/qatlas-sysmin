@@ -14,9 +14,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castrowithcee/qatlas-kit/localipc"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+	"github.com/castrowithcee/qatlas-sysmin/internal/sockettest"
 )
 
 type memLog struct {
@@ -52,25 +54,19 @@ func (m *memLog) wait(t *testing.T, n int) []auditlog.Fields {
 	}
 }
 
-type fakeResolver struct {
-	gid      uint32
-	groups   []uint32
-	err      error
-	notAdmin bool
+func anyAdmin(uint32) (bool, error) { return true, nil }
+
+// endpoint is a channel in a fresh directory that admits the test process by its group.
+func endpoint(t *testing.T) localipc.ServiceEndpoint {
+	t.Helper()
+	path, group := sockettest.Path(t)
+	ep, err := control.Endpoint(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep.Group = group
+	return ep
 }
-
-func (f fakeResolver) IsAdmin(uint32) (bool, error) { return !f.notAdmin, nil }
-
-// revocable is a resolver whose admin right can be taken away while a connection is open.
-type revocable struct {
-	fakeResolver
-	revoked atomic.Bool
-}
-
-func (r *revocable) IsAdmin(uint32) (bool, error) { return !r.revoked.Load(), nil }
-
-func (f fakeResolver) GroupID(string) (uint32, error)    { return f.gid, f.err }
-func (f fakeResolver) PeerGroups(Peer) ([]uint32, error) { return f.groups, nil }
 
 type harness struct {
 	path   string
@@ -82,16 +78,22 @@ type harness struct {
 
 func start(t *testing.T, cfg Config) *harness {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "qsysmin-")
+	return startWith(t, cfg, nil)
+}
+
+// startWith also lets wrap stand between the channel's listener and Serve.
+func startWith(t *testing.T, cfg Config, wrap func(net.Listener) net.Listener) *harness {
+	t.Helper()
+	ep := endpoint(t)
+	path, err := ep.Path()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.RemoveAll(dir) })
-	h := &harness{path: filepath.Join(dir, "s.sock"), log: &memLog{}, done: make(chan error, 1)}
+	h := &harness{path: path, log: &memLog{}, done: make(chan error, 1)}
 	cfg.Logger = h.log
 	cfg.Version = "test"
-	if cfg.Resolver == nil {
-		cfg.Resolver = fakeResolver{gid: 990, groups: []uint32{990}}
+	if cfg.IsAdmin == nil {
+		cfg.IsAdmin = anyAdmin
 	}
 	h.srv, err = New(cfg)
 	if err != nil {
@@ -99,9 +101,12 @@ func start(t *testing.T, cfg Config) *harness {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
-	ln, err := Listen(h.path)
+	ln, err := h.srv.Listen(ep)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if wrap != nil {
+		ln = wrap(ln)
 	}
 	go func() { h.done <- h.srv.Serve(ctx, ln) }()
 	t.Cleanup(func() { cancel(); <-h.done })
@@ -150,57 +155,34 @@ func TestAllowedPeerIsServedViaClient(t *testing.T) {
 	if e.Action != auditlog.OperationControlStatus || e.Result != auditlog.ResultSuccess || e.ClientUID != uint32(os.Getuid()) {
 		t.Fatalf("entry = %+v", e)
 	}
-	info, err := os.Stat(h.path)
-	if err != nil || info.Mode().Perm() != SocketMode {
-		t.Fatalf("socket mode = %v, %v", info.Mode(), err)
+	info, err := os.Lstat(h.path)
+	if err != nil || info.Mode().Perm() != 0o660 {
+		t.Fatalf("socket = %v, %v", info, err)
 	}
-}
-
-func TestPeerCheck(t *testing.T) {
-	cases := []struct {
-		name string
-		peer Peer
-		res  fakeResolver
-		want bool
-	}{
-		{"root", Peer{UID: 0, GID: 5}, fakeResolver{err: errors.New("no group")}, true},
-		{"primary group", Peer{UID: 1234, GID: 990}, fakeResolver{gid: 990}, true},
-		{"supplementary group", Peer{UID: 1234, GID: 100}, fakeResolver{gid: 990, groups: []uint32{4, 990}}, true},
-		{"stranger", Peer{UID: 1234, GID: 100}, fakeResolver{gid: 990, groups: []uint32{4}}, false},
-		{"group missing", Peer{UID: 1234, GID: 100}, fakeResolver{err: errors.New("no group")}, false},
-	}
-	for _, tc := range cases {
-		if got := allowed(tc.res, tc.peer); got != tc.want {
-			t.Errorf("%s: allowed = %v, want %v", tc.name, got, tc.want)
-		}
+	if info, err := os.Lstat(h.path + ".lock"); err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 {
+		t.Fatalf("lock = %v, %v", info, err)
 	}
 }
 
 func TestAdminCheck(t *testing.T) {
-	member := fakeResolver{gid: 990, groups: []uint32{990}}
-	noAdmin := member
-	noAdmin.notAdmin = true
+	no := func(uint32) (bool, error) { return false, nil }
+	broken := func(uint32) (bool, error) { return true, errors.New("unreadable") }
 	for _, tc := range []struct {
-		name string
-		peer Peer
-		res  Resolver
-		want string
+		name       string
+		uid        uint32
+		inDatabase func(uint32) (bool, error)
+		want       bool
 	}{
-		{"root without database", Peer{UID: 0}, fakeResolver{err: errors.New("no group"), notAdmin: true}, ""},
-		{"admin in service group", Peer{UID: 1234, GID: 100}, member, ""},
-		{"service group without admin", Peer{UID: 1234, GID: 100}, noAdmin, control.CodeNotAdmin},
-		{"admin outside service group", Peer{UID: 1234, GID: 100}, fakeResolver{gid: 990, groups: []uint32{4}}, control.CodeRefused},
-		{"database error", Peer{UID: 1234, GID: 100}, errAdmin{member}, control.CodeNotAdmin},
+		{"root without database", 0, broken, true},
+		{"administrator", 1234, anyAdmin, true},
+		{"no administrator", 1234, no, false},
+		{"database error", 1234, broken, false},
 	} {
-		if got := admit(tc.res, tc.peer); got != tc.want {
-			t.Errorf("%s: admit = %q, want %q", tc.name, got, tc.want)
+		if got := isAdmin(tc.inDatabase, tc.uid); got != tc.want {
+			t.Errorf("%s: isAdmin = %v, want %v", tc.name, got, tc.want)
 		}
 	}
 }
-
-type errAdmin struct{ fakeResolver }
-
-func (errAdmin) IsAdmin(uint32) (bool, error) { return true, errors.New("unreadable") }
 
 func TestAdminInDatabase(t *testing.T) {
 	const accounts = "root:x:0:0::/root:/bin/sh\ndemo-user:x:1001:1001::/home/demo-user:/bin/sh\n" +
@@ -229,22 +211,29 @@ func TestAdminInDatabase(t *testing.T) {
 }
 
 func TestRevocationAppliesToOpenConnection(t *testing.T) {
-	res := &revocable{fakeResolver: fakeResolver{gid: 990, groups: []uint32{990}}}
-	h := start(t, Config{Resolver: res, Credentials: func(net.Conn) (Peer, error) { return Peer{UID: 4242, GID: 990}, nil }})
+	if os.Geteuid() == 0 {
+		t.Skip("root needs no admin right")
+	}
+	var revoked atomic.Bool
+	var asked atomic.Uint32
+	h := start(t, Config{IsAdmin: func(uid uint32) (bool, error) { asked.Store(uid); return !revoked.Load(), nil }})
 	conn, br := h.raw(t)
 	control.WriteLine(conn, control.Request{V: control.Version, Op: control.OpStatus})
 	if resp := readResp(t, br); !resp.OK {
 		t.Fatalf("first resp = %+v", resp)
 	}
 	h.log.wait(t, 1)
-	res.revoked.Store(true)
+	if asked.Load() != uint32(os.Getuid()) {
+		t.Fatalf("admin right asked for uid %d", asked.Load())
+	}
+	revoked.Store(true)
 	control.WriteLine(conn, control.Request{V: control.Version, Op: control.OpStatus})
 	resp := readResp(t, br)
 	if resp.OK || resp.Error != control.CodeNotAdmin || resp.Result != nil {
 		t.Fatalf("second resp = %+v", resp)
 	}
 	e := h.log.wait(t, 2)[1]
-	if e.Action != auditlog.OperationControlRefuse || e.ErrorCode != control.CodeNotAdmin || e.ClientUID != 4242 || e.Result != auditlog.ResultFailure {
+	if e.Action != auditlog.OperationControlRefuse || e.ErrorCode != control.CodeNotAdmin || e.ClientUID != uint32(os.Getuid()) || e.Result != auditlog.ResultFailure {
 		t.Fatalf("entry = %+v", e)
 	}
 	if _, err := br.ReadByte(); err == nil {
@@ -252,50 +241,100 @@ func TestRevocationAppliesToOpenConnection(t *testing.T) {
 	}
 }
 
-func TestSimulatedPeers(t *testing.T) {
+func TestNoAdminIsRefusedBeforeItSendsAnything(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root needs no admin right")
+	}
+	h := start(t, Config{IsAdmin: func(uint32) (bool, error) { return false, nil }})
+	_, br := h.raw(t)
+	if resp := readResp(t, br); resp.OK || resp.Error != control.CodeNotAdmin || resp.Result != nil {
+		t.Fatalf("resp = %+v", resp)
+	}
+	e := h.log.wait(t, 1)[0]
+	if e.Action != auditlog.OperationControlRefuse || e.ErrorCode != control.CodeNotAdmin || e.ClientUID != uint32(os.Getuid()) {
+		t.Fatalf("entry = %+v", e)
+	}
+	if _, err := br.ReadByte(); err == nil {
+		t.Error("connection stayed open")
+	}
+}
+
+// unixPair is a connected pair of Unix sockets, so the kernel reports a peer on either end.
+func unixPair(t *testing.T) (server, peer net.Conn) {
+	t.Helper()
+	ln, err := net.Listen("unix", filepath.Join(t.TempDir(), "p.sock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		c, _ := ln.Accept()
+		accepted <- c
+	}()
+	peer, err = net.Dial("unix", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	server = <-accepted
+	if server == nil {
+		t.Fatal("no connection accepted")
+	}
+	t.Cleanup(func() { server.Close(); peer.Close() })
+	return server, peer
+}
+
+func TestRefusedPeerIsAnsweredAndLogged(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
-		peer    Peer
-		wantOK  bool
+		pair    func(t *testing.T) (net.Conn, net.Conn)
 		wantUID uint32
 	}{
-		{"root", Peer{UID: 0, GID: 0}, true, 0},
-		{"group member", Peer{UID: 4242, GID: 990}, true, 4242},
-		{"stranger", Peer{UID: 4243, GID: 100}, false, 4243},
+		{"peer with credentials", unixPair, uint32(os.Getuid())},
+		{"peer without credentials", func(*testing.T) (net.Conn, net.Conn) { return net.Pipe() }, NoUID},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			h := start(t, Config{Resolver: fakeResolver{gid: 990}, Credentials: func(net.Conn) (Peer, error) { return tc.peer, nil }})
-			conn, br := h.raw(t)
-			if tc.wantOK {
-				control.WriteLine(conn, control.Request{V: control.Version, Op: control.OpStatus})
+			log := &memLog{}
+			srv, err := New(Config{Logger: log, IsAdmin: anyAdmin})
+			if err != nil {
+				t.Fatal(err)
 			}
-			resp := readResp(t, br)
-			e := h.log.wait(t, 1)[0]
-			if e.ClientUID != tc.wantUID {
-				t.Errorf("logged uid = %d", e.ClientUID)
+			server, peer := tc.pair(t)
+			_ = peer.SetDeadline(time.Now().Add(5 * time.Second))
+			go func() {
+				srv.refused(server, &localipc.PeerError{Err: localipc.ErrRefused})
+				server.Close()
+			}()
+			br := bufio.NewReader(peer)
+			if resp := readResp(t, br); resp.OK || resp.Error != control.CodeRefused || resp.Result != nil {
+				t.Fatalf("resp = %+v", resp)
 			}
-			if tc.wantOK {
-				if !resp.OK || e.Result != auditlog.ResultSuccess {
-					t.Errorf("resp = %+v entry = %+v", resp, e)
-				}
-				return
-			}
-			if resp.OK || resp.Error != control.CodeRefused || resp.Result != nil {
-				t.Errorf("resp = %+v", resp)
-			}
-			if e.Action != auditlog.OperationControlRefuse || e.Result != auditlog.ResultFailure || e.ErrorCode != control.CodeRefused {
-				t.Errorf("entry = %+v", e)
-			}
-			// The refused peer is disconnected.
-			if _, err := br.ReadByte(); err == nil {
-				t.Error("connection stayed open")
+			e := log.wait(t, 1)[0]
+			if e.Action != auditlog.OperationControlRefuse || e.Result != auditlog.ResultFailure ||
+				e.ErrorCode != control.CodeRefused || e.ClientUID != tc.wantUID {
+				t.Fatalf("entry = %+v", e)
 			}
 		})
 	}
 }
 
-func TestRealPeerCredentials(t *testing.T) {
-	h := start(t, Config{Resolver: fakeResolver{gid: uint32(os.Getgid())}})
+// refusingFirst is a listener whose first Accept reports a peer the channel refused.
+type refusingFirst struct {
+	net.Listener
+	once sync.Once
+}
+
+func (l *refusingFirst) Accept() (net.Conn, error) {
+	refused := false
+	l.once.Do(func() { refused = true })
+	if refused {
+		return nil, &localipc.PeerError{Err: localipc.ErrRefused}
+	}
+	return l.Listener.Accept()
+}
+
+func TestServeGoesOnAfterARefusedPeer(t *testing.T) {
+	h := startWith(t, Config{}, func(ln net.Listener) net.Listener { return &refusingFirst{Listener: ln} })
 	c, err := client.Dial(h.path)
 	if err != nil {
 		t.Fatal(err)
@@ -304,8 +343,21 @@ func TestRealPeerCredentials(t *testing.T) {
 	if _, err := c.Status(); err != nil {
 		t.Fatal(err)
 	}
-	if e := h.log.wait(t, 1)[0]; e.ClientUID != uint32(os.Getuid()) {
-		t.Fatalf("uid = %d", e.ClientUID)
+}
+
+func TestSecondListenerIsRefused(t *testing.T) {
+	ep := endpoint(t)
+	srv, err := New(Config{Logger: &memLog{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln, err := srv.Listen(ep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	if _, err := srv.Listen(ep); !errors.Is(err, localipc.ErrRunning) {
+		t.Fatalf("second listener: %v", err)
 	}
 }
 
@@ -498,13 +550,9 @@ func TestShutdownRemovesSocket(t *testing.T) {
 }
 
 func TestShutdownDuringAcceptDoesNotHang(t *testing.T) {
-	dir, err := os.MkdirTemp("", "qsysmin-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(dir) })
-	path := filepath.Join(dir, "s.sock")
-	srv, err := New(Config{Logger: &memLog{}, Resolver: fakeResolver{gid: 990, groups: []uint32{990}}})
+	ep := endpoint(t)
+	path, _ := ep.Path()
+	srv, err := New(Config{Logger: &memLog{}, IsAdmin: anyAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -512,7 +560,7 @@ func TestShutdownDuringAcceptDoesNotHang(t *testing.T) {
 	defer cancel()
 	// End the server after a connection is accepted and once the shutdown pass has finished.
 	srv.afterAccept = func(stopped <-chan struct{}) { cancel(); <-stopped }
-	ln, err := Listen(path)
+	ln, err := srv.Listen(ep)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -532,58 +580,6 @@ func TestShutdownDuringAcceptDoesNotHang(t *testing.T) {
 		t.Fatal("Serve did not return: a connection accepted during shutdown was left open")
 	}
 }
-
-func TestListenReplacesOnlyDeadSockets(t *testing.T) {
-	dir, _ := os.MkdirTemp("", "qsysmin-")
-	defer os.RemoveAll(dir)
-	path := filepath.Join(dir, "s.sock")
-
-	// A dead socket is replaced.
-	dead, _ := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
-	dead.SetUnlinkOnClose(false)
-	dead.Close()
-	ln, err := Listen(path)
-	if err != nil {
-		t.Fatalf("stale socket: %v", err)
-	}
-	// A live one is refused.
-	if _, err := Listen(path); !errors.Is(err, ErrRunning) {
-		t.Fatalf("live socket: %v", err)
-	}
-	ln.Close()
-
-	// A regular file is left alone.
-	if err := os.WriteFile(path, []byte("keep"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Listen(path); err == nil {
-		t.Fatal("regular file replaced")
-	}
-	if b, _ := os.ReadFile(path); string(b) != "keep" {
-		t.Fatal("file was changed")
-	}
-
-	if _, err := Listen(filepath.Join(dir, string(make([]byte, 120)))); err == nil {
-		t.Fatal("long path accepted")
-	}
-}
-
-func TestParseGroups(t *testing.T) {
-	got, err := parseGroups(stringsReader("Name:\tx\nGroups:\t4 24 990 \nUid:\t1\n"))
-	if err != nil || len(got) != 3 || got[2] != 990 {
-		t.Fatalf("got %v, %v", got, err)
-	}
-	if _, err := parseGroups(stringsReader("Groups:\tx\n")); err == nil {
-		t.Fatal("malformed list accepted")
-	}
-	g, err := SystemResolver{}.PeerGroups(Peer{PID: int32(os.Getpid())})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = g
-}
-
-func stringsReader(s string) *strings.Reader { return strings.NewReader(s) }
 
 func TestHandlerAuditsHostChangeForTheNamedUser(t *testing.T) {
 	h := start(t, Config{})
@@ -625,33 +621,25 @@ func TestHandlerAuditsHostChangeForTheNamedUser(t *testing.T) {
 	}
 }
 
+// The test process's own user decides the case: root runs the handler, everyone else is refused.
 func TestRootOnlyHandlerRefusesOthersBeforeItRuns(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		uid  uint32
-		ran  bool
-	}{{"root", 0, true}, {"member", 4242, false}} {
-		t.Run(tc.name, func(t *testing.T) {
-			var ran bool
-			h := start(t, Config{Resolver: fakeResolver{gid: 990}, Credentials: func(net.Conn) (Peer, error) {
-				return Peer{UID: tc.uid, GID: 990}, nil
-			}})
-			err := h.srv.Register("rooted", Handler{Action: auditlog.OperationConfigRead, RootOnly: true,
-				Func: func(context.Context, *Conn, json.RawMessage) (any, error) { ran = true; return nil, nil }})
-			if err != nil {
-				t.Fatal(err)
-			}
-			conn, br := h.raw(t)
-			control.WriteLine(conn, control.Request{V: control.Version, Op: "rooted"})
-			resp := readResp(t, br)
-			e := h.log.wait(t, 1)[0]
-			if ran != tc.ran || resp.OK != tc.ran {
-				t.Fatalf("ran = %v, resp = %+v", ran, resp)
-			}
-			if !tc.ran && (resp.Error != control.CodeNotRoot || e.Action != auditlog.OperationControlRefuse ||
-				e.ErrorCode != control.CodeNotRoot || e.ClientUID != tc.uid || e.Result != auditlog.ResultFailure) {
-				t.Fatalf("resp = %+v entry = %+v", resp, e)
-			}
-		})
+	uid, wantRan := uint32(os.Getuid()), os.Geteuid() == 0
+	var ran bool
+	h := start(t, Config{})
+	err := h.srv.Register("rooted", Handler{Action: auditlog.OperationConfigRead, RootOnly: true,
+		Func: func(context.Context, *Conn, json.RawMessage) (any, error) { ran = true; return nil, nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, br := h.raw(t)
+	control.WriteLine(conn, control.Request{V: control.Version, Op: "rooted"})
+	resp := readResp(t, br)
+	e := h.log.wait(t, 1)[0]
+	if ran != wantRan || resp.OK != wantRan {
+		t.Fatalf("ran = %v, resp = %+v", ran, resp)
+	}
+	if !wantRan && (resp.Error != control.CodeNotRoot || e.Action != auditlog.OperationControlRefuse ||
+		e.ErrorCode != control.CodeNotRoot || e.ClientUID != uid || e.Result != auditlog.ResultFailure) {
+		t.Fatalf("resp = %+v entry = %+v", resp, e)
 	}
 }
