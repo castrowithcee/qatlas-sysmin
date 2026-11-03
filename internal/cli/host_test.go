@@ -89,8 +89,8 @@ func TestHostAdminWithoutRootSeesUnknown(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, field := range []string{"locked", "expired", "ssh_keys"} {
-		if v, ok := got[field]; !ok || v != nil {
-			t.Errorf("%s = %v (present %v), want null", field, v, ok)
+		if v, ok := got[field]; ok {
+			t.Errorf("%s = %v, want it absent", field, v)
 		}
 	}
 	if got["admin"] != true || got["primary_group"] != "demo-admin" {
@@ -187,5 +187,61 @@ func TestHostUnknownTargets(t *testing.T) {
 	}
 	if code, _, _ := runHost(env, "host", "user"); code != 2 {
 		t.Errorf("missing argument exits %d, want 2", code)
+	}
+}
+
+// The group list reads as comma-separated text in the text formats and as a list in JSON; the host-admin
+// topic describes the same unknown value as the JSON output shows.
+func TestHostListsReadInEveryFormat(t *testing.T) {
+	env, _ := hostFixture(t, 1000)
+	group := "root:x:0:\nsudo:x:27:demo-admin,demo-user\ndemo-admin:x:1000:\n"
+	if err := os.WriteFile(env.Host.GroupPath, []byte(group), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, out, _ := runHost(env, "host", "group", "sudo", "--output", "json")
+	if !strings.Contains(out, `"members":["demo-admin","demo-user"]`) {
+		t.Errorf("json = %s", out)
+	}
+	_, out, _ = runHost(env, "host", "group", "sudo", "--output", "compact")
+	if !strings.Contains(out, "members=demo-admin,demo-user\n") {
+		t.Errorf("compact object = %s", out)
+	}
+	_, out, _ = runHost(env, "host", "groups", "--output", "compact")
+	if !strings.Contains(out, "sudo|27|demo-admin,demo-user|true\n") {
+		t.Errorf("compact collection = %s", out)
+	}
+	_, out, _ = runHost(env, "host", "groups")
+	if !strings.Contains(out, "demo-admin,demo-user") {
+		t.Errorf("table = %s", out)
+	}
+	_, out, _ = runHost(env, "host", "user", "demo-user")
+	if !strings.Contains(out, "GROUPS") {
+		t.Errorf("user table = %s", out)
+	}
+
+	for _, topic := range helpTopics {
+		if topic.Name != "host-admin" {
+			continue
+		}
+		if strings.Contains(topic.Text, "null in JSON") || !strings.Contains(topic.Text, "absent in JSON") {
+			t.Errorf("host-admin topic does not match the JSON output:\n%s", topic.Text)
+		}
+	}
+}
+
+func TestHostControlCharactersInNamesAreMasked(t *testing.T) {
+	env, _ := hostFixture(t, 1000)
+	group := "root:x:0:\nsudo:x:27:demo-admin,demo\x1buser\ndemo-admin:x:1000:\n"
+	if err := os.WriteFile(env.Host.GroupPath, []byte(group), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, format := range []string{"table", "compact", "json"} {
+		_, out, _ := runHost(env, "host", "group", "sudo", "--output", format)
+		if strings.ContainsRune(out, 0x1b) {
+			t.Errorf("%s: raw escape byte in output %q", format, out)
+		}
+		if !strings.Contains(out, "demo") || !strings.Contains(out, "user") {
+			t.Errorf("%s: name missing from %q", format, out)
+		}
 	}
 }

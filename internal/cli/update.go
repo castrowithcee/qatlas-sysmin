@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/output"
+	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate"
 )
 

@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 )
 
 // withService runs fn on a connection to the service at socket. Every failure is a runtime error with a

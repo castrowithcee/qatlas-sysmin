@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-kit/helptopics"
+	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-kit/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
-	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
-	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 )
 
 // version is overridden at build time with
@@ -123,9 +124,9 @@ func newRootCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newUpdateCommand(opts), newUninstallCommand(opts))
 	// A command without a run function is a help topic: 'qsysmin help <topic>' prints its text, and the
 	// root help lists it under the additional help topics.
-	for _, topic := range helptopics.All() {
+	for _, topic := range helpTopics {
 		cmd.AddCommand(&cobra.Command{
-			Use: topic.Name, Short: topic.Short, Long: helptopics.Wrap(topic.Text, 80),
+			Use: topic.Name, Short: topic.Short, Long: helptopics.CLIText(topic),
 		})
 	}
 	return cmd
@@ -149,7 +150,39 @@ func newVersionCommand(opts *Options) *cobra.Command {
 
 // emit redacts and encodes a result to stdout. Only payload data reaches stdout.
 func emit(c *cobra.Command, opts *Options, result output.Result) error {
-	return output.Encode(c.OutOrStdout(), opts.Format, redactResult(opts.Redactor, result))
+	return output.Encode(c.OutOrStdout(), opts.Format, joinLists(opts.Format, redactResult(opts.Redactor, result)))
+}
+
+// joinLists writes the lists of a result as comma-separated text for the text formats, which take only
+// scalars. JSON keeps them as lists.
+func joinLists(format output.Format, result output.Result) output.Result {
+	if format == output.FormatJSON {
+		return result
+	}
+	join := func(value any) any {
+		if list, ok := value.([]string); ok {
+			return strings.Join(list, ",")
+		}
+		return value
+	}
+	switch r := result.(type) {
+	case output.Collection:
+		rows := make([]output.Row, len(r.Rows))
+		for i, row := range r.Rows {
+			rows[i] = make(output.Row, len(row))
+			for name, value := range row {
+				rows[i][name] = join(value)
+			}
+		}
+		return output.Collection{Columns: r.Columns, Rows: rows}
+	case output.Object:
+		fields := make([]output.Field, len(r.Fields))
+		for i, field := range r.Fields {
+			fields[i] = output.Field{Name: field.Name, Value: join(field.Value)}
+		}
+		return output.Object{Fields: fields}
+	}
+	return result
 }
 
 // redactResult removes known secrets from string values before an encoder escapes or serializes them.

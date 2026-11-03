@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/output"
+	"github.com/castrowithcee/qatlas-kit/output"
 )
 
 func newUninstallCommand(opts *Options) *cobra.Command {

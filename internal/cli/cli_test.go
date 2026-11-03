@@ -140,3 +140,19 @@ func TestOutputUnknownValueIsUsageError(t *testing.T) {
 		t.Errorf("code = %d, want %d", code, exitUsage)
 	}
 }
+
+// The topics are plain ASCII, so a rune is a cell wherever they are shown, and each has a unique name.
+func TestHelpTopicsArePlainAndDistinct(t *testing.T) {
+	names := map[string]bool{}
+	for _, topic := range helpTopics {
+		if names[topic.Name] || topic.Name == "" || topic.Short == "" || topic.Text == "" {
+			t.Errorf("topic %q is unnamed, repeated, or empty", topic.Name)
+		}
+		names[topic.Name] = true
+		for i, r := range topic.Text {
+			if r > '~' || (r < ' ' && r != '\n') {
+				t.Errorf("topic %s has the character %q at byte %d", topic.Name, r, i)
+			}
+		}
+	}
+}

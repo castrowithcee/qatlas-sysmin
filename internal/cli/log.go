@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
-	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 )
 
 const logDateLayout = "2006-01-02"

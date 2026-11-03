@@ -11,10 +11,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
-	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 )
 
 // maxSecretInput bounds what apply reads from standard input.

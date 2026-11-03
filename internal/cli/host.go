@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
-	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 )
 
 // hostEnv is the caller and the databases the host commands work on.
@@ -207,7 +207,7 @@ func newHostFolderCommand(opts *Options) *cobra.Command {
 	}
 }
 
-// triState renders a value that may be unknown: null in JSON, "unknown" in the other formats.
+// triState renders a value that may be unknown: absent in JSON, "unknown" in the other formats.
 func triState(opts *Options, v *bool) any {
 	switch {
 	case v != nil:
@@ -218,7 +218,7 @@ func triState(opts *Options, v *bool) any {
 	return "unknown"
 }
 
-// keysValue renders the keys of a user: a list of objects in JSON, one text elsewhere. Unknown is null in
+// keysValue renders the keys of a user: a list of objects in JSON, one text elsewhere. Unknown is absent in
 // JSON and "unknown" elsewhere.
 func keysValue(opts *Options, keys []hostadmin.SSHKey) any {
 	if opts.Format == output.FormatJSON {
