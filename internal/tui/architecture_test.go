@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
+	"regexp"
 	"slices"
 	"testing"
 
@@ -79,6 +80,84 @@ func TestCatalogCoversEveryTextID(t *testing.T) {
 	if err := archtest.CheckCatalog(os.DirFS(root), "internal/tui", catalog(), archtest.Type{Name: "textID"}); err != nil {
 		t.Error(err)
 	}
+}
+
+// ruleTableKeys are the key names of the key table, the only place the TUI names a key.
+func ruleTableKeys() []string {
+	var keys []string
+	for _, a := range keyTable() {
+		for _, k := range a.DefaultKeys {
+			if !slices.Contains(keys, k) {
+				keys = append(keys, k)
+			}
+		}
+	}
+	return keys
+}
+
+// Packages the kit replaced or the product dropped; nothing comes back as a local copy.
+var (
+	forbiddenModules = []string{
+		"internal/admin", "internal/adopt", "internal/approval", "internal/autounlock", "internal/changelog",
+		"internal/config/...", "internal/engine", "internal/execute", "internal/filelock", "internal/i18n",
+		"internal/notify", "internal/output/...", "internal/redact", "internal/selfupdate/...", "internal/source/...",
+		"internal/vault", "internal/webhook", "internal/writecheck",
+	}
+	forbiddenLibraries = archtest.Pattern(regexp.MustCompile(`^(charm\.land|github\.com/charmbracelet)/bubbles(/|$)`))
+)
+
+// archRules are the rules that keep a copy of a kit building block from coming back. Key names live in the
+// key table, colours in the theme, and no widget library or dropped package returns.
+func archRules() []archtest.Rule {
+	return []archtest.Rule{
+		{
+			Name:  "key literals",
+			Files: archtest.Files{Under: []string{"internal/tui", "internal/uiprefs"}, Except: []string{"internal/tui/keymap.go"}},
+			Check: archtest.ForbidKeyLiterals(ruleTableKeys(), "String"),
+			Hint:  "ask the Keymap for the action instead of naming its key",
+		},
+		{
+			Name:  "colour literals",
+			Files: archtest.Files{Under: []string{"internal/tui", "internal/uiprefs"}},
+			Check: archtest.ForbidSelectors("charm.land/lipgloss/v2", "Color"),
+			Hint:  "colours come from the palette of the theme",
+		},
+		{
+			Name:  "widget libraries",
+			Files: archtest.Files{Under: []string{"."}, Tests: archtest.WithTests},
+			Check: archtest.ForbidImportPaths(forbiddenLibraries),
+			Hint:  "use the building blocks of the kit",
+		},
+		{
+			Name:  "dropped packages",
+			Files: archtest.Files{Under: []string{"."}, Tests: archtest.WithTests},
+			Check: archtest.ForbidImports(forbiddenModules...),
+			Hint:  "the package is gone; the kit or the client carries its job",
+		},
+	}
+}
+
+// archExceptions can only shrink. The function keys are the label table that turns a click on a dialog or
+// footer key into a key press; it goes with the own dialog mechanics.
+var archExceptions = append([]archtest.Exception{
+	{Rule: "colour literals", File: "internal/tui/ui.go", Item: "lipgloss.Color", Reason: "the one bridge from a palette colour to Lip Gloss"},
+}, functionKeyExceptions()...)
+
+func functionKeyExceptions() []archtest.Exception {
+	var out []archtest.Exception
+	for _, k := range []string{"F2", "F3", "F4", "F6", "F7", "F8", "F9"} {
+		out = append(out, archtest.Exception{Rule: "key literals", File: "internal/tui/mouse.go", Item: k,
+			Reason: "footer label of a function key, clicked in the own dialog mechanics"})
+	}
+	return out
+}
+
+func TestKitBuildingBlocksDoNotComeBack(t *testing.T) {
+	root, err := archtest.ModuleRoot(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	archtest.Check(t, os.DirFS(root), archRules(), archExceptions)
 }
 
 // The package-state rule finds what it forbids and lets the immutable values pass.
