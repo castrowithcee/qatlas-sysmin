@@ -21,6 +21,9 @@ const DefaultSocketPath = "/run/qsysmin/qsysmin.sock"
 // ServiceGroup is the group whose members may use the control socket, besides root.
 const ServiceGroup = "qsysmin"
 
+// ServiceUser is the system user the service runs as.
+const ServiceUser = "qsysmin"
+
 // The size and time limits of a connection. A request is small; an answer may carry a listing.
 const (
 	MaxRequestBytes  = 64 << 10

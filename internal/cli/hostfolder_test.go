@@ -23,7 +23,7 @@ func TestHostApplyRefusesASystemPathWithoutTheAcknowledgement(t *testing.T) {
 		Path: "/etc/demo-app", Owner: "demo-user", Group: "demo-group",
 		UserAccess: hostadmin.AccessReadWrite, GroupAccess: hostadmin.AccessRead, OtherAccess: hostadmin.AccessNothing,
 	})
-	cmd := append([]string{"host", "apply", "--yes", "--output", "json", "--", hostchange.ActionFolderSetPermissions}, args...)
+	cmd := append([]string{"host", "apply", "--confirm", "--output", "json", "--", hostchange.ActionFolderSetPermissions}, args...)
 	code, out, errOut := runChange(t, f, 0, "", cmd...)
 	if code != 1 {
 		t.Fatalf("code %d err %q", code, errOut)

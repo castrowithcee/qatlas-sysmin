@@ -12,9 +12,11 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
+	kitcli "github.com/castrowithcee/qatlas-kit/cli"
+	"github.com/castrowithcee/qatlas-kit/output"
+	"github.com/castrowithcee/qatlas-kit/selfupdate"
 	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate"
 	"github.com/castrowithcee/qatlas-sysmin/internal/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
@@ -40,16 +42,15 @@ func newTUICommand(opts *Options) *cobra.Command {
 			"It talks to the running service; without the service it still opens and says what to check.\n" +
 			"Device-local preferences are read from ~/.qatlas/qsysmin/tui.yaml; a missing file means\n" +
 			"the defaults.",
-		Args: func(_ *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				return newSyntaxError(fmt.Errorf("unexpected argument %q", args[0]))
-			}
-			return nil
-		},
 		RunE: func(c *cobra.Command, _ []string) error {
 			in, out, ok := terminalFiles(c)
 			if !ok {
-				return &UsageError{errors.New("the terminal interface needs a terminal on standard input and standard output")}
+				return &kitcli.Failure{
+					Code: output.CodeUsage, Message: "the terminal interface needs a terminal on standard input and standard output",
+					NextStep:      "Run 'qsysmin tui' in a terminal.",
+					AgentNextStep: "Do not run the terminal interface; read with the commands in 'qsysmin agents'.",
+					Usage:         true,
+				}
 			}
 			prefs, prefsPath, warnings := loadPrefs()
 			backend := tui.NewBackend(socket)
@@ -139,7 +140,7 @@ func updateAndRestart(version string, args []string) error {
 	if err != nil {
 		return fmt.Errorf("cannot find this program: %w", err)
 	}
-	update := exec.Command(sudo, exe, "update", "--to", version, "--yes")
+	update := exec.Command(sudo, exe, "update", "--to", version, "--yes", "--confirm")
 	update.Stdin, update.Stdout, update.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := runCommand(update); err != nil {
 		fmt.Fprintf(os.Stderr, "\nqsysmin update did not finish (%v). Press enter to return to the interface.", err)

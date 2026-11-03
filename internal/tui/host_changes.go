@@ -183,7 +183,7 @@ func (m *Model) askUndo() tea.Cmd {
 	q := planQuestion(m.ui, e.UndoSentence, e.UndoCommands, "", "undo")
 	q.title = m.diffText(e.UndoSentence)
 	q.consequence = m.tr(tHostUndoNote, m.diffText(e.Sentence))
-	argv := []string{"undo", "--yes", "--output", "json", "--", id}
+	argv := []string{"undo", "--confirm", "--output", "json", "--", id}
 	m.askConfirm(q, func() tea.Cmd {
 		return m.runUndo(argv, id, e.UndoSentence)
 	})

@@ -85,7 +85,7 @@ func TestGroupCreateChecksTheNameBeforeItAsksAndSendsTheAction(t *testing.T) {
 		return reportApplied, nil
 	}
 	send(m, "y")
-	want := []string{"apply", "--yes", "--output", "json", "--", "group.create", "demo-new"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "group.create", "demo-new"}
 	if len(f.reqs) == 0 || !slices.Equal(f.reqs[len(f.reqs)-1].Args, want) {
 		t.Fatalf("calls %+v, want %q", f.reqs, want)
 	}
@@ -118,7 +118,7 @@ func TestGroupDeleteAsksPlainForARegularGroupAndRedForSystemGroupsRootAndDocker(
 			}
 			f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 			send(m, "y")
-			want := []string{"apply", "--yes", "--output", "json", "--", "group.delete", tc.group}
+			want := []string{"apply", "--confirm", "--output", "json", "--", "group.delete", tc.group}
 			if len(f.reqs) == 0 || !slices.Equal(f.reqs[len(f.reqs)-1].Args, want) {
 				t.Errorf("calls %+v, want %q", f.reqs, want)
 			}
@@ -177,7 +177,7 @@ func TestGroupRenameIsAlwaysRedAndSendsBothNames(t *testing.T) {
 			}
 			f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 			send(m, "y")
-			want := []string{"apply", "--yes", "--output", "json", "--", "group.rename", tc.group, "demo-crew"}
+			want := []string{"apply", "--confirm", "--output", "json", "--", "group.rename", tc.group, "demo-crew"}
 			if len(f.reqs) == 0 || !slices.Equal(f.reqs[len(f.reqs)-1].Args, want) {
 				t.Errorf("calls %+v, want %q", f.reqs, want)
 			}

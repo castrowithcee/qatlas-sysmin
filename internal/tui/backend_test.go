@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"net"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -14,12 +15,21 @@ import (
 // broken connection.
 func serve(t *testing.T, drop int) (socket string, connections func() int) {
 	t.Helper()
-	socket = filepath.Join(t.TempDir(), "s")
+	dir, err := os.MkdirTemp("", "qsysmin-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	socket = filepath.Join(dir, "s.sock")
 	ln, err := net.Listen("unix", socket)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { ln.Close() })
+	// The client's channel refuses a directory or socket open to others.
+	if err := os.Chmod(socket, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	count := make(chan struct{}, 100)
 	go func() {
 		for {

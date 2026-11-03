@@ -2,69 +2,50 @@ package cli
 
 import (
 	"errors"
-	"fmt"
 
-	"github.com/spf13/cobra"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/output"
+	kitcli "github.com/castrowithcee/qatlas-kit/cli"
+	"github.com/castrowithcee/qatlas-kit/cobracli"
+	"github.com/castrowithcee/qatlas-kit/output"
+	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 )
 
-// Exit codes are part of the public contract.
+// Codes qsysmin adds to the shared ones; agentsGuide names each of them.
 const (
-	exitOK      = 0
-	exitRuntime = 1
-	exitUsage   = 2
+	codeRootRequired  output.Code = "root-required"
+	codeSessionGroup  output.Code = "session-group"
+	codePeerMismatch  output.Code = "peer-mismatch"
+	codeChangeRefused output.Code = "change-refused"
+	codeChangeFailed  output.Code = "change-failed"
+	codeUpdateFailed  output.Code = "update-failed"
+	codeUninstallFail output.Code = "uninstall-failed"
+	codeHostRead      output.Code = "host-read-failed"
+	codeChainBroken   output.Code = "chain-broken"
 )
 
-// UsageError marks a usage or validation problem, which maps to exit code 2. Every other error is a
-// runtime error and maps to exit code 1.
-type UsageError struct{ Err error }
-
-func (e *UsageError) Error() string { return e.Err.Error() }
-
-func (e *UsageError) Unwrap() error { return e.Err }
-
-// syntaxError is a usage error in the shape of the command line itself: an unknown command or flag, a flag
-// value that is not accepted, or the wrong number of positional arguments. Only such an error is followed by
-// the usage block.
-type syntaxError struct{ usage *UsageError }
-
-func (e *syntaxError) Error() string { return e.usage.Error() }
-
-func (e *syntaxError) Unwrap() error { return e.usage }
-
-// newSyntaxError marks err as a syntax error, which keeps exit code 2 and adds the usage block.
-func newSyntaxError(err error) error { return &syntaxError{&UsageError{err}} }
-
-// codeFor maps an error to its code. Callers branch on the code instead of parsing the message.
-func codeFor(err error) output.Code {
-	var usage *UsageError
-	if errors.As(err, &usage) {
-		return output.CodeUsage
-	}
-	return output.CodeRuntime
+// ownCodes are the codes qsysmin adds to the shared ones of the kit.
+var ownCodes = []output.Code{
+	client.CodeNotEnabled, codeRootRequired, codeSessionGroup, codePeerMismatch, codeChangeRefused,
+	codeChangeFailed, codeUpdateFailed, codeUninstallFail, codeHostRead, codeChainBroken,
 }
 
-// exitCode maps an error from the command layer to the documented process exit code.
-func exitCode(err error) int {
-	if err == nil {
-		return exitOK
-	}
-	var usage *UsageError
-	if errors.As(err, &usage) {
-		return exitUsage
-	}
-	return exitRuntime
+// askUserReport is the next step for an agent where only a person may act.
+const askUserReport = "Tell the user what failed; do not retry on your own."
+
+// failure is a runtime failure with the exit code 1 that keeps err as its cause.
+func failure(code output.Code, err error, next, agentNext string) error {
+	return &kitcli.Failure{Code: code, Message: err.Error(), NextStep: next, AgentNextStep: agentNext, Cause: err}
 }
 
-// plainError is a runtime error that is printed exactly as written, without the usual prefix.
-type plainError struct{ msg string }
+// usageFailure is a well-formed request that is refused with the exit code 2. No usage block follows.
+func usageFailure(err error, next string) error {
+	return &kitcli.Failure{Code: output.CodeUsage, Message: err.Error(), NextStep: next, Usage: true, Cause: err}
+}
 
-func (e *plainError) Error() string { return e.msg }
+// syntaxFailure marks err as a mistake in the command line itself, which adds the usage of the command.
+func syntaxFailure(err error) error { return cobracli.Syntax(err) }
 
-func noArgs(_ *cobra.Command, args []string) error {
-	if len(args) > 0 {
-		return newSyntaxError(fmt.Errorf("unexpected argument %q", args[0]))
-	}
-	return nil
+func rootRequired(action string) error {
+	return failure(codeRootRequired, errors.New(action+" must run as root"),
+		"Repeat the command with sudo.",
+		"Do not run this yourself; ask the user, who can do it in 'qsysmin tui'.")
 }

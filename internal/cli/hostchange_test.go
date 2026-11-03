@@ -113,10 +113,8 @@ func runChange(t *testing.T, f *changeFixture, euid int, stdin string, args ...s
 	hostEnv, _ := hostFixture(t, euid)
 	opts := &Options{Redactor: &redact.Redactor{}, host: hostEnv, change: f.env,
 		sys: &system{euid: func() int { return euid }}}
-	root := newRootCommand(opts)
-	root.SetIn(strings.NewReader(stdin))
 	var out, errOut bytes.Buffer
-	code := run(root, opts, args, &out, &errOut)
+	code := run(opts, strings.NewReader(stdin), args, &out, &errOut)
 	return code, out.String(), errOut.String()
 }
 
@@ -131,7 +129,7 @@ func decode(t *testing.T, s string) map[string]any {
 
 func TestHostApplyRunsTheActionAndReportsIt(t *testing.T) {
 	f := newChangeFixture(t)
-	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--yes", "--output", "json")
+	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--confirm", "--output", "json")
 	if code != 0 {
 		t.Fatalf("code %d stderr %q", code, errOut)
 	}
@@ -148,10 +146,10 @@ func TestHostApplyRunsTheActionAndReportsIt(t *testing.T) {
 	}
 }
 
-func TestHostChangeRefusesNonRootAndMissingYes(t *testing.T) {
+func TestHostChangeRefusesNonRootAndMissingConfirm(t *testing.T) {
 	f := newChangeFixture(t)
 	for _, args := range [][]string{
-		{"host", "apply", "demo.set", "alpha", "new", "--yes"}, {"host", "undo", "x", "--yes"}, {"host", "journal"},
+		{"host", "apply", "demo.set", "alpha", "new", "--confirm"}, {"host", "undo", "x", "--confirm"}, {"host", "journal"},
 	} {
 		code, out, errOut := runChange(t, f, 1000, "", args...)
 		if code == 0 || out != "" || !strings.Contains(errOut, "must run as root") {
@@ -159,26 +157,26 @@ func TestHostChangeRefusesNonRootAndMissingYes(t *testing.T) {
 		}
 	}
 	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new")
-	if code != 2 || out != "" || !strings.Contains(errOut, "--yes") {
+	if code != 2 || out != "" || !strings.Contains(errOut, "--confirm") {
 		t.Errorf("missing --yes: code %d out %q err %q", code, out, errOut)
 	}
 	code, _, _ = runChange(t, f, 0, "", "host", "undo", "20300102T030405.000000Z-aaaaaa")
 	if code != 2 {
-		t.Errorf("undo without --yes: code %d", code)
+		t.Errorf("undo without --confirm: code %d", code)
 	}
 	if len(f.w.calls) != 0 || f.w.values["alpha"] != "old" {
 		t.Errorf("nothing may run: %v", f.w.calls)
 	}
 	// A caller who is not an administrator learns nothing else.
-	code, _, errOut = runChange(t, f, 1001, "", "host", "apply", "demo.set", "--yes")
-	if code != 1 || !strings.HasPrefix(errOut, "qsysmin is reserved") {
+	code, _, errOut = runChange(t, f, 1001, "", "host", "apply", "demo.set", "--confirm")
+	if code != 1 || !strings.HasPrefix(errOut, "qsysmin: admin-required: qsysmin is reserved") {
 		t.Errorf("non-admin: code %d err %q", code, errOut)
 	}
 }
 
 func TestHostApplyReportsARefusalWithItsReasonAndChangesNothing(t *testing.T) {
 	f := newChangeFixture(t)
-	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "demo.guard", "--yes", "--output", "json")
+	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "demo.guard", "--confirm", "--output", "json")
 	if code != 1 {
 		t.Fatalf("code %d err %q", code, errOut)
 	}
@@ -205,7 +203,7 @@ func TestHostApplyReportsARefusalWithItsReasonAndChangesNothing(t *testing.T) {
 func TestHostApplyRefusesBadActionAndArguments(t *testing.T) {
 	f := newChangeFixture(t)
 	for _, args := range [][]string{
-		{"host", "apply", "--yes"}, {"host", "apply", "demo.unknown", "--yes"}, {"host", "apply", "demo.set", "alpha", "--yes"},
+		{"host", "apply", "--confirm"}, {"host", "apply", "demo.unknown", "--confirm"}, {"host", "apply", "demo.set", "alpha", "--confirm"},
 	} {
 		if code, _, _ := runChange(t, f, 0, "", args...); code != 2 {
 			t.Errorf("%v: code %d", args, code)
@@ -219,7 +217,7 @@ func TestHostApplyRefusesBadActionAndArguments(t *testing.T) {
 func TestHostApplySecretComesFromStdinOnly(t *testing.T) {
 	f := newChangeFixture(t)
 	const marker = "hunter-demo-42"
-	code, out, errOut := runChange(t, f, 0, marker+"\n", "host", "apply", "demo.login", "--yes", "--output", "json")
+	code, out, errOut := runChange(t, f, 0, marker+"\n", "host", "apply", "demo.login", "--confirm", "--output", "json")
 	if code != 0 {
 		t.Fatalf("code %d %q", code, errOut)
 	}
@@ -239,7 +237,7 @@ func TestHostApplySecretComesFromStdinOnly(t *testing.T) {
 	if strings.Contains(all, marker) {
 		t.Error("marker leaked into output, argv or journal")
 	}
-	if code, _, _ := runChange(t, f, 0, "", "host", "apply", "demo.login", "--yes"); code != 2 {
+	if code, _, _ := runChange(t, f, 0, "", "host", "apply", "demo.login", "--confirm"); code != 2 {
 		t.Errorf("empty stdin: code %d", code)
 	}
 }
@@ -247,7 +245,7 @@ func TestHostApplySecretComesFromStdinOnly(t *testing.T) {
 func TestHostFailedChangeReportsAndExitsNonZero(t *testing.T) {
 	f := newChangeFixture(t)
 	f.w.failSet = "new"
-	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--yes", "--output", "json")
+	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--confirm", "--output", "json")
 	m := decode(t, out)
 	// The only command failed, so nothing of this run stood and nothing is restored.
 	if code != 1 || m["result"] != "failed" || m["restored"] != false || !strings.Contains(m["error"].(string), "command 1") ||
@@ -259,7 +257,7 @@ func TestHostFailedChangeReportsAndExitsNonZero(t *testing.T) {
 func TestHostAuditFailureWarnsButTheChangeStands(t *testing.T) {
 	f := newChangeFixture(t)
 	f.auditEr = errors.New("service unreachable")
-	code, out, _ := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--yes", "--output", "json")
+	code, out, _ := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--confirm", "--output", "json")
 	m := decode(t, out)
 	if code != 0 || m["result"] != "applied" || !strings.Contains(m["warning"].(string), "audit entry is missing") {
 		t.Fatalf("code %d %v", code, m)
@@ -268,7 +266,7 @@ func TestHostAuditFailureWarnsButTheChangeStands(t *testing.T) {
 
 func TestHostJournalAndUndo(t *testing.T) {
 	f := newChangeFixture(t)
-	_, out, _ := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--yes", "--output", "json")
+	_, out, _ := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--confirm", "--output", "json")
 	id := decode(t, out)["journal_id"].(string)
 
 	code, out, errOut := runChange(t, f, 0, "", "host", "journal", "--output", "json")
@@ -288,7 +286,7 @@ func TestHostJournalAndUndo(t *testing.T) {
 		t.Errorf("undo commands %v", rows[0]["undo_commands"])
 	}
 
-	code, out, errOut = runChange(t, f, 0, "", "host", "undo", id, "--yes", "--output", "json")
+	code, out, errOut = runChange(t, f, 0, "", "host", "undo", id, "--confirm", "--output", "json")
 	if code != 0 {
 		t.Fatalf("%d %q", code, errOut)
 	}
@@ -301,17 +299,17 @@ func TestHostJournalAndUndo(t *testing.T) {
 	if len(rows) != 2 || rows[1]["result"] != "undone" || rows[1]["reversible"] != false || rows[1]["undo_sentence"] != "" {
 		t.Fatalf("%v", rows)
 	}
-	if code, _, _ := runChange(t, f, 0, "", "host", "undo", id, "--yes"); code == 0 {
+	if code, _, _ := runChange(t, f, 0, "", "host", "undo", id, "--confirm"); code == 0 {
 		t.Error("second undo must fail")
 	}
-	if code, _, _ := runChange(t, f, 0, "", "host", "undo", "../../etc/passwd", "--yes"); code == 0 {
+	if code, _, _ := runChange(t, f, 0, "", "host", "undo", "../../etc/passwd", "--confirm"); code == 0 {
 		t.Error("an invalid id must fail")
 	}
 }
 
 func TestHostApplyRecordsTheHumanAndTheActionWithoutSecrets(t *testing.T) {
 	f := newChangeFixture(t)
-	code, _, _ := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--yes", "--output", "json")
+	code, _, _ := runChange(t, f, 0, "", "host", "apply", "demo.set", "alpha", "new", "--confirm", "--output", "json")
 	if code != 0 || len(f.audited) != 1 {
 		t.Fatalf("code %d, audited %d", code, len(f.audited))
 	}
@@ -321,7 +319,7 @@ func TestHostApplyRecordsTheHumanAndTheActionWithoutSecrets(t *testing.T) {
 	}
 
 	f = newChangeFixture(t)
-	code, _, _ = runChange(t, f, 0, "pass-for-test\n", "host", "apply", "demo.login", "user1", "--yes", "--output", "json")
+	code, _, _ = runChange(t, f, 0, "pass-for-test\n", "host", "apply", "demo.login", "user1", "--confirm", "--output", "json")
 	if code != 0 || len(f.audited) != 1 {
 		t.Fatalf("code %d, audited %d", code, len(f.audited))
 	}
@@ -345,12 +343,12 @@ func TestSudoUIDIsReadStrictly(t *testing.T) {
 
 func TestHostApplyAndUndoTakeTheirArgumentsAfterADoubleDash(t *testing.T) {
 	f := newChangeFixture(t)
-	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "--yes", "--output", "json", "--", "demo.set", "alpha", "-new")
+	code, out, errOut := runChange(t, f, 0, "", "host", "apply", "--confirm", "--output", "json", "--", "demo.set", "alpha", "-new")
 	if code != 0 {
 		t.Fatalf("code %d %q", code, errOut)
 	}
 	id := decode(t, out)["journal_id"].(string)
-	if code, _, errOut = runChange(t, f, 0, "", "host", "undo", "--yes", "--output", "json", "--", id); code != 0 || f.w.values["alpha"] != "old" {
+	if code, _, errOut = runChange(t, f, 0, "", "host", "undo", "--confirm", "--output", "json", "--", id); code != 0 || f.w.values["alpha"] != "old" {
 		t.Fatalf("undo code %d %q %v", code, errOut, f.w.values)
 	}
 }

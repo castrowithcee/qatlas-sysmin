@@ -444,7 +444,7 @@ func (m *Model) confirmHost(p hostPlanned) {
 		q.warn, q.danger = true, true
 		q.consequence = a.risk + " " + q.consequence
 	}
-	argv := append([]string{"apply", "--yes", "--output", "json", "--", a.id}, a.args...)
+	argv := append([]string{"apply", "--confirm", "--output", "json", "--", a.id}, a.args...)
 	m.askConfirm(q, func() tea.Cmd {
 		return m.runHostChange(argv, p.plan.Sentence, a.secret, a.mask)
 	})

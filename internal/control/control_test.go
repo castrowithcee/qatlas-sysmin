@@ -31,3 +31,22 @@ func TestReadLine(t *testing.T) {
 		t.Errorf("empty: %v", err)
 	}
 }
+
+func TestEndpointKeepsTheSocketPath(t *testing.T) {
+	ep, err := Endpoint(DefaultSocketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ep.Dir != "/run/qsysmin" || ep.SocketBase != "qsysmin" || ep.ServiceUser != ServiceUser || ep.Group != ServiceGroup {
+		t.Fatalf("endpoint = %+v", ep)
+	}
+	if got, err := ep.Path(); err != nil || got != DefaultSocketPath {
+		t.Fatalf("path = %q, %v", got, err)
+	}
+	for _, bad := range []string{"", "qsysmin.sock", "run/qsysmin/qsysmin.sock", "/run/qsysmin/qsysmin", "/run//qsysmin/qsysmin.sock",
+		"/run/qsysmin/.sock", "/" + strings.Repeat("a", 120) + "/q.sock"} {
+		if _, err := Endpoint(bad); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}

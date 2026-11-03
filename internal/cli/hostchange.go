@@ -11,10 +11,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-kit/cobracli"
+	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
-	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 )
 
 // maxSecretInput bounds what apply reads from standard input.
@@ -81,98 +82,102 @@ func (e *changeEnv) openJournal() (*hostchange.Journal, error) {
 	return hostchange.OpenJournal(e.JournalDir, e.OwnerUID)
 }
 
-// requireChange checks, in this order, root and the confirmation flag.
-func requireChange(opts *Options, what string, yes bool) error {
-	if err := requireRoot(opts.system(), what); err != nil {
-		return err
-	}
-	if !yes {
-		return &UsageError{fmt.Errorf("%s changes the host and needs --yes; the TUI asks before it calls sudo", what)}
-	}
-	return nil
+// changeFailed is a change that did not stand, or an error around it.
+func changeFailed(err error) error {
+	return failure(codeChangeFailed, err,
+		"Read the report and the journal entry for what ran, then fix the cause before repeating the change.",
+		"The change did not stand. Do not repeat it; tell the user what failed.")
 }
 
 func newHostApplyCommand(opts *Options) *cobra.Command {
-	var yes bool
+	var gate *cobracli.Gate
 	cmd := &cobra.Command{
-		Use:   "apply <action-id> [args...] --yes",
+		Use:   "apply <action-id> [args...]",
 		Short: "Change the host with a registered action (run by the TUI via sudo)",
 		Long: "Runs one registered action as root: records the previous state in the journal, runs the commands,\n" +
 			"checks the result and restores the previous state when the change or its check fails. A secret input\n" +
-			"is read from standard input only. There is no question here; the TUI confirms before it calls sudo.",
-		Args: gated(opts, func(_ *cobra.Command, args []string) error {
+			"is read from standard input only. It needs --confirm. There is no question here; the TUI confirms\n" +
+			"before it calls sudo.",
+		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				return newSyntaxError(errors.New("an action id is needed"))
+				return errors.New("an action id is needed")
 			}
 			return nil
-		}),
+		},
 		RunE: func(c *cobra.Command, args []string) error {
-			if err := requireChange(opts, "host apply", yes); err != nil {
+			if err := requireRoot(opts.system(), "host apply"); err != nil {
 				return err
 			}
-			env := opts.changeEnv()
-			def, ok := env.Registry.Lookup(args[0])
-			if !ok {
-				return &UsageError{fmt.Errorf("unknown action %q", args[0])}
-			}
-			var secret []byte
-			if def.WantsSecret {
-				var err error
-				if secret, err = readChangeSecret(c.InOrStdin()); err != nil {
-					return err
-				}
-				opts.Redactor.Add(string(secret))
-			}
-			journal, err := env.openJournal()
-			if err != nil {
-				return hostError("host apply", err)
-			}
-			res, err := env.runner(journal).Apply(c.Context(), args[0], args[1:], secret)
-			if err != nil {
-				if refused, ok := refusedChange(c, opts, args[0], err); ok {
-					return refused
-				}
-				var arg *hostchange.ArgumentError
-				if errors.As(err, &arg) {
-					return &UsageError{err}
-				}
-				return hostError("host apply", err)
-			}
-			return finishChange(c, opts, res)
+			return gate.Run(cobracli.Request{Changes: true}, func() error { return applyChange(c, opts, args) })
 		},
 	}
-	cmd.Flags().BoolVar(&yes, "yes", false, "run without asking")
+	gate = opts.prog.AddGate(cmd, cobracli.Gates{Change: true})
 	return cmd
 }
 
+func applyChange(c *cobra.Command, opts *Options, args []string) error {
+	env := opts.changeEnv()
+	def, ok := env.Registry.Lookup(args[0])
+	if !ok {
+		return usageFailure(fmt.Errorf("unknown action %q", args[0]), "Use an action id that 'qsysmin help host-admin' or the TUI offers.")
+	}
+	var secret []byte
+	if def.WantsSecret {
+		var err error
+		if secret, err = readChangeSecret(c.InOrStdin()); err != nil {
+			return err
+		}
+		opts.Redactor.Add(string(secret))
+	}
+	journal, err := env.openJournal()
+	if err != nil {
+		return changeFailed(fmt.Errorf("host apply: %w", err))
+	}
+	res, err := env.runner(journal).Apply(c.Context(), args[0], args[1:], secret)
+	if err != nil {
+		if refused, ok := refusedChange(c, opts, args[0], err); ok {
+			return refused
+		}
+		var arg *hostchange.ArgumentError
+		if errors.As(err, &arg) {
+			return usageFailure(err, "Correct the arguments of the action.")
+		}
+		return changeFailed(fmt.Errorf("host apply: %w", err))
+	}
+	return finishChange(c, opts, res)
+}
+
 func newHostUndoCommand(opts *Options) *cobra.Command {
-	var yes bool
+	var gate *cobracli.Gate
 	cmd := &cobra.Command{
-		Use:   "undo <journal-id> --yes",
+		Use:   "undo <journal-id>",
 		Short: "Undo a journaled change of the host (run by the TUI via sudo)",
 		Long: "Runs the inverse of a reversible change as root, with the same check and restore as 'host apply', and\n" +
-			"records the undo as a new journal entry. There is no question here; the TUI confirms first.",
-		Args: exactlyOne(opts, "journal id"),
+			"records the undo as a new journal entry. It needs --confirm. There is no question here; the TUI\n" +
+			"confirms first.",
+		Args: exactlyOne("journal id"),
 		RunE: func(c *cobra.Command, args []string) error {
-			if err := requireChange(opts, "host undo", yes); err != nil {
+			if err := requireRoot(opts.system(), "host undo"); err != nil {
 				return err
 			}
-			env := opts.changeEnv()
-			journal, err := env.openJournal()
-			if err != nil {
-				return hostError("host undo", err)
-			}
-			res, err := env.runner(journal).Undo(c.Context(), args[0])
-			if err != nil {
-				if refused, ok := refusedChange(c, opts, "", err); ok {
-					return refused
+			return gate.Run(cobracli.Request{Changes: true}, func() error {
+				env := opts.changeEnv()
+				journal, err := env.openJournal()
+				if err != nil {
+					return changeFailed(fmt.Errorf("host undo: %w", err))
 				}
-				return hostError("host undo", err)
-			}
-			return finishChange(c, opts, res)
+				res, err := env.runner(journal).Undo(c.Context(), args[0])
+				if err != nil {
+					if refused, ok := refusedChange(c, opts, "", err); ok {
+						return refused
+					}
+					return changeFailed(fmt.Errorf("host undo: %w", err))
+				}
+				return finishChange(c, opts, res)
+			})
 		},
 	}
-	cmd.Flags().BoolVar(&yes, "yes", false, "run without asking")
+	gate = opts.prog.AddGate(cmd, cobracli.Gates{Change: true})
 	return cmd
 }
 
@@ -181,7 +186,6 @@ func newHostJournalCommand(opts *Options) *cobra.Command {
 		Use:   "journal",
 		Short: "List the latest changes of the host (run by the TUI via sudo)",
 		Long:  "Lists the latest changes, newest first. The journal is readable by root only.",
-		Args:  gated(opts, noArgs),
 		RunE: func(c *cobra.Command, _ []string) error {
 			if err := requireRoot(opts.system(), "host journal"); err != nil {
 				return err
@@ -251,7 +255,9 @@ func refusedChange(c *cobra.Command, opts *Options, action string, err error) (e
 	}}); emitErr != nil {
 		return emitErr, true
 	}
-	return fmt.Errorf("refused: %s", refusal.Msg), true
+	return failure(codeChangeRefused, fmt.Errorf("refused: %s", refusal.Msg),
+		"Nothing was changed. Choose another target or action, or fix what the reason names.",
+		"Nothing ran. Do not try to work around the rule; tell the user the reason."), true
 }
 
 // finishChange prints the report. A change that did not stand is an error after the report, so that the
@@ -277,9 +283,9 @@ func finishChange(c *cobra.Command, opts *Options, res hostchange.Result) error 
 	case hostchange.ResultApplied:
 		return nil
 	case hostchange.ResultRestored:
-		return fmt.Errorf("the change did not succeed and the previous state is back: %s", e.Error)
+		return changeFailed(fmt.Errorf("the change did not succeed and the previous state is back: %s", e.Error))
 	}
-	return fmt.Errorf("the change did not succeed: %s", e.Error)
+	return changeFailed(fmt.Errorf("the change did not succeed: %s", e.Error))
 }
 
 func readChangeSecret(in io.Reader) ([]byte, error) {
@@ -288,11 +294,11 @@ func readChangeSecret(in io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	if len(data) > maxSecretInput {
-		return nil, &UsageError{errors.New("the secret input on standard input is too long")}
+		return nil, usageFailure(errors.New("the secret input on standard input is too long"), "Provide a shorter secret on standard input.")
 	}
 	data = bytes.TrimSuffix(data, []byte("\n"))
 	if len(data) == 0 {
-		return nil, &UsageError{errors.New("this action reads its secret from standard input, which is empty")}
+		return nil, usageFailure(errors.New("this action reads its secret from standard input, which is empty"), "Provide the secret on standard input.")
 	}
 	return data, nil
 }

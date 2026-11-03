@@ -192,7 +192,7 @@ func TestConfirmShowsTheSentenceAndTheExactCommandsBeforeAnythingRuns(t *testing
 
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
-	want := []string{"apply", "--yes", "--output", "json", "--", "demo.set", "alpha", "new"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "demo.set", "alpha", "new"}
 	if got := requestArgs(f); len(got) != 1 || !slices.Equal(got[0], want) {
 		t.Errorf("hook calls %v, want %v", got, want)
 	}
@@ -403,7 +403,7 @@ func TestEnterOnAReversibleChangeUndoesItAfterTheSameConfirm(t *testing.T) {
 		return `{"journal_id":"20301003T100000.000000Z-eeeeee","sentence":"Put alpha back.","result":"applied","check":"none","reversible":false}`, nil
 	}
 	send(m, "enter", "y")
-	want := []string{"undo", "--yes", "--output", "json", "--", "20301002T101500.000000Z-aaaaaa"}
+	want := []string{"undo", "--confirm", "--output", "json", "--", "20301002T101500.000000Z-aaaaaa"}
 	if got := requestArgs(f); len(got) != 1 || !slices.Equal(got[0], want) {
 		t.Fatalf("undo call %v, want %v", got, want)
 	}

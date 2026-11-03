@@ -4,27 +4,20 @@ import (
 	"bytes"
 	"context"
 	"net"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/castrowithcee/qatlas-kit/redact"
-	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 	"github.com/castrowithcee/qatlas-sysmin/internal/service"
+	"github.com/castrowithcee/qatlas-sysmin/internal/sockettest"
 )
-
-type testGroups struct{}
-
-func (testGroups) GroupID(string) (uint32, error)           { return uint32(os.Getgid()), nil }
-func (testGroups) PeerGroups(daemon.Peer) ([]uint32, error) { return nil, nil }
-func (testGroups) IsAdmin(uint32) (bool, error)             { return true, nil }
 
 func runCLIArgs(args ...string) (int, string, string) {
 	opts := &Options{Redactor: &redact.Redactor{}}
 	var out, errOut bytes.Buffer
-	code := run(newRootCommand(opts), opts, args, &out, &errOut)
+	code := run(opts, nil, args, &out, &errOut)
 	return code, out.String(), errOut.String()
 }
 
@@ -37,14 +30,10 @@ func startService(t *testing.T) string {
 // startServiceCfg also lets mod change the service's configuration before it starts.
 func startServiceCfg(t *testing.T, mod func(*service.Config)) string {
 	t.Helper()
-	sockDir, err := os.MkdirTemp("", "qsysmin-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.RemoveAll(sockDir) })
+	sock, group := sockettest.Path(t)
 	cfg := service.Config{
-		StateDir: t.TempDir(), SocketPath: filepath.Join(sockDir, "s.sock"),
-		Version: "9.9.9", Resolver: testGroups{},
+		StateDir: t.TempDir(), SocketPath: sock, Group: group,
+		Version: "9.9.9", IsAdmin: func(uint32) (bool, error) { return true, nil },
 	}
 	if mod != nil {
 		mod(&cfg)
