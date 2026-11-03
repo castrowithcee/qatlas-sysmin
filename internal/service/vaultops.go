@@ -80,17 +80,16 @@ func (s *Service) handleVaultPassphrase(_ context.Context, _ *daemon.Conn, param
 }
 
 func (s *Service) handleSettingsShow(context.Context, *daemon.Conn, json.RawMessage) (any, error) {
-	m, _, err := s.loadModel()
+	st, err := config.ReadSettings(s.cfg.ConfigDir)
 	if err != nil {
-		return nil, err
+		return nil, internalError("cannot load the configuration", err)
 	}
 	return control.SettingsResult{
-		AdminTimeout: s.adminTimeout().String(), Explicit: m.Settings.Vault.AdminTimeout != nil,
+		AdminTimeout: s.adminTimeout().String(), Explicit: st.Vault.AdminTimeout != nil,
 	}, nil
 }
 
-// handleAdminTimeout writes vault.admin_timeout and leaves every other setting as it is. Only problems of
-// that field refuse the change; findings elsewhere in the settings are not its business.
+// handleAdminTimeout writes vault.admin_timeout and leaves every other setting as it is.
 func (s *Service) handleAdminTimeout(_ context.Context, _ *daemon.Conn, params json.RawMessage) (any, error) {
 	var p control.AdminTimeoutParams
 	if err := json.Unmarshal(params, &p); err != nil {
@@ -100,25 +99,10 @@ func (s *Service) handleAdminTimeout(_ context.Context, _ *daemon.Conn, params j
 	if err != nil {
 		return nil, &control.Error{Code: control.CodeBadRequest}
 	}
-	m, revs, err := s.loadModel()
-	if err != nil {
-		return nil, err
-	}
-	st := m.Settings
-	v := config.Duration(d)
-	st.Vault.AdminTimeout = &v
-	after := *m
-	after.Settings = st
-	var found []config.Problem
-	for _, pr := range config.Validate(&after, nil) {
-		if pr.File == config.SettingsPath() && pr.Field == "vault.admin_timeout" {
-			found = append(found, pr)
-		}
-	}
-	if len(found) > 0 {
+	if found := config.ValidateAdminTimeout(d); len(found) > 0 {
 		return nil, &control.Error{Code: control.CodeInvalid, Problems: problemsOf(found)}
 	}
-	if _, err := s.store.SaveSettings(st, revs[config.SettingsPath()]); err != nil {
+	if err := s.store.SetAdminTimeout(config.Duration(d)); err != nil {
 		return nil, settingsError(err)
 	}
 	return control.SettingsResult{AdminTimeout: d.String(), Explicit: true}, nil
@@ -128,8 +112,6 @@ func (s *Service) handleAdminTimeout(_ context.Context, _ *daemon.Conn, params j
 // the service's own log.
 func settingsError(err error) error {
 	switch {
-	case errors.Is(err, config.ErrConflict):
-		return &control.Error{Code: control.CodeChanged}
 	case errors.Is(err, vault.ErrLocked), errors.Is(err, vault.ErrAbsent):
 		return &control.Error{Code: control.CodeLocked}
 	}
@@ -147,12 +129,4 @@ func problemsOf(in []config.Problem) []control.Problem {
 func internalError(what string, err error) error {
 	slog.Warn(what, "error", err.Error())
 	return &control.Error{Code: control.CodeInternal}
-}
-
-func (s *Service) loadModel() (*config.Model, config.Revisions, error) {
-	m, revs, err := s.store.Load()
-	if err != nil {
-		return nil, nil, internalError("cannot load the configuration", err)
-	}
-	return m, revs, nil
 }
