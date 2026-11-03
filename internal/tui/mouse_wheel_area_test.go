@@ -72,9 +72,7 @@ func TestTheWheelStepsTheTableOfEveryDataPageWhateverHasTheFocus(t *testing.T) {
 		page func(m *Model) *dataPage
 		rows int
 	}{
-		{"Access", []string{"3"}, accessFake, func(m *Model) *dataPage { return &m.acc.page }, 2},
-		{"Activity", []string{"2"}, libFake, func(m *Model) *dataPage { return &m.act.page }, 12},
-		{"Library", []string{"4"}, libFake, func(m *Model) *dataPage { return &m.lib.cred.page }, 4},
+		{"Activity", []string{"3"}, activityFake, func(m *Model) *dataPage { return &m.act.page }, 12},
 	}
 	for _, c := range cases {
 		for _, size := range [][2]int{{80, 24}, {120, 40}} {
@@ -99,28 +97,29 @@ func TestTheWheelStepsTheTableOfEveryDataPageWhateverHasTheFocus(t *testing.T) {
 }
 
 func TestTheWheelNeverLeavesTheTableForTheBar(t *testing.T) {
-	m := appModel(t, accessFake(), 120, 40)
+	m := appModel(t, activityFake(), 120, 40)
 	send(m, "3")
 	now := wheelClock(m)
 	x, y := wheelCell(t, m, leftArea)
 	for range 3 {
 		notch(m, now, x, y, true)
 	}
-	if m.zoneNow() != zoneContent || m.acc.page.list.cursor != 0 {
-		t.Errorf("the wheel up on the first row left it: zone %v, row %d", m.zoneNow(), m.acc.page.list.cursor)
+	if m.zoneNow() != zoneContent || m.act.page.list.cursor != 0 {
+		t.Errorf("the wheel up on the first row left it: zone %v, row %d", m.zoneNow(), m.act.page.list.cursor)
 	}
 }
 
 func TestTheWheelScrollsTheOpenDetailInSteps(t *testing.T) {
-	m := appModel(t, longAccessFake(), 80, 24)
-	send(m, "3", "down", "enter")
-	if !m.acc.page.open {
+	m := appModel(t, overviewFake(), 80, 24)
+	m.hostSrc = longGroupsHost()
+	send(m, "2", "esc", "right", "enter", "enter")
+	if !m.hst.groups.page.open {
 		t.Fatal("enter did not open the detail")
 	}
-	m.acc.page.tab = tabDetails
+	m.hst.groups.page.tab = tabDetails
 	now := wheelClock(m)
 	x, y := wheelCell(t, m, leftArea)
-	p := &m.acc.page
+	p := &m.hst.groups.page
 	notch(m, now, x, y, true)
 	if p.scroll != 0 {
 		t.Errorf("the wheel up at the start moved to %d", p.scroll)
@@ -207,19 +206,19 @@ func TestTheWheelStepsEachZoneOfTheOverviewForItself(t *testing.T) {
 }
 
 func TestTheWheelRestsWhileAFilterIsTypedAndBehindAQuestion(t *testing.T) {
-	m := appModel(t, accessFake(), 120, 40)
+	m := appModel(t, activityFake(), 120, 40)
 	send(m, "3", "/")
 	now := wheelClock(m)
 	x, y := wheelCell(t, m, leftArea)
 	notch(m, now, x, y, false)
-	if m.acc.page.list.cursor != 0 {
-		t.Errorf("the wheel moved the table while filtering: %d", m.acc.page.list.cursor)
+	if m.act.page.list.cursor != 0 {
+		t.Errorf("the wheel moved the table while filtering: %d", m.act.page.list.cursor)
 	}
 	send(m, "esc")
 	m.screen = screenConfirm
 	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: "y yes · n/{back} no"}
 	notch(m, now, x, y, false)
-	if m.acc.page.list.cursor != 0 {
-		t.Errorf("the wheel moved the table behind a question: %d", m.acc.page.list.cursor)
+	if m.act.page.list.cursor != 0 {
+		t.Errorf("the wheel moved the table behind a question: %d", m.act.page.list.cursor)
 	}
 }

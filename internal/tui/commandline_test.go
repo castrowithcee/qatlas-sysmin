@@ -47,7 +47,7 @@ func paletteRows(m *Model) []string {
 
 func TestColonStaysTextWhereTextIsTyped(t *testing.T) {
 	m := appModel(t, overviewFake(), 100, 30)
-	send(m, "2", "/")
+	send(m, "3", "/")
 	typed(m, ":a")
 	if m.pop != nil || m.currentPage().list.query() != ":a" {
 		t.Errorf(": in the filter: palette %v, query %q, want text", m.pop != nil, m.currentPage().list.query())
@@ -61,7 +61,6 @@ func TestCommandSuggestionsMatchPrefixWordAliasAndCase(t *testing.T) {
 		{"", "go overview"},
 		{"QU", "quit"},
 		{"exit", "quit"},
-		{"access discard-all", "discard all"},
 		{"lock", "admin session"},
 		{"unlock", "admin session"},
 		{"refresh", "reload"},
@@ -69,7 +68,7 @@ func TestCommandSuggestionsMatchPrefixWordAliasAndCase(t *testing.T) {
 		{"settings", "go settings"},
 		{"Settings   Update", "go settings update"},
 		{"  activity   LOG ", "go activity log"},
-		{"library templates", "go library templates"},
+		{"host groups", "go host groups"},
 	}
 	for _, c := range cases {
 		got := commandNames(matchCommands(list, c.query))
@@ -99,8 +98,9 @@ func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
 	send(m, ":")
 	view := plain(m)
 	rows := paletteRows(m)
-	if len(rows) != paletteMaxRows {
-		t.Fatalf("the palette shows %d commands, want %d:\n%s", len(rows), paletteMaxRows, view)
+	all := matchCommands(m.commands(), "")
+	if want := min(len(all), paletteMaxRows); len(rows) != want {
+		t.Fatalf("the palette shows %d commands, want %d:\n%s", len(rows), want, view)
 	}
 	for _, line := range strings.Split(view, "\n") {
 		switch {
@@ -112,15 +112,12 @@ func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
 			t.Errorf("a hidden page is listed: %q", line)
 		}
 	}
-	if !strings.Contains(view, "1-12 of ") {
-		t.Errorf("no position of the list:\n%s", view)
-	}
 	assertViewFits(t, view, 120, 40)
 }
 
 func TestEmptyLineKeysFollowTheBindingAndDescriptionsNameNoKey(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
-	keys := map[string]string{"go overview": "1", "go settings": "6",
+	keys := map[string]string{"go overview": "1", "go settings": "4",
 		"admin session": keyLabel(actLock), "reload": keyLabel(actReload),
 		"update": keyLabel(actSelfUpdate), "help": keyLabel(actHelp), "info": keyLabel(actInfo), "quit": keyLabel(actQuit)}
 	for _, c := range matchCommands(m.commands(), "") {
@@ -144,11 +141,11 @@ func TestEmptyLineKeysFollowTheBindingAndDescriptionsNameNoKey(t *testing.T) {
 }
 
 func TestPaletteScrollKeepsTheChoiceVisible(t *testing.T) {
-	m := appModel(t, overviewFake(), 120, 40)
+	m := appModel(t, overviewFake(), 80, 20)
 	send(m, ":")
 	all := matchCommands(m.commands(), "")
-	if len(all) <= paletteMaxRows {
-		t.Fatalf("only %d commands: nothing to scroll", len(all))
+	if len(paletteRows(m)) >= len(all) {
+		t.Fatalf("all %d commands are shown: nothing to scroll", len(all))
 	}
 	for range len(all) - 1 {
 		send(m, "down")
@@ -180,13 +177,13 @@ func TestEnterRunsTheChosenMatchAndEscClosesWithoutEffect(t *testing.T) {
 	send(m, ":")
 	typed(m, "go")
 	send(m, "down", "enter")
-	if m.pop != nil || m.area != areaActivity {
+	if m.pop != nil || m.area != areaHost {
 		t.Errorf("the second match did not run: area %v", m.area)
 	}
 	send(m, ":")
 	typed(m, "go access")
 	send(m, "esc")
-	if m.pop != nil || m.area != areaActivity {
+	if m.pop != nil || m.area != areaHost {
 		t.Errorf("esc had an effect: area %v", m.area)
 	}
 }
@@ -206,12 +203,12 @@ func TestAreaCommandsActLikeTheDigits(t *testing.T) {
 
 func TestPageAliasesKeepTheOldNamesValid(t *testing.T) {
 	cases := map[string]func(m *Model) bool{
-		"settings vault":         func(m *Model) bool { return m.area == areaSettings && m.set.sub == subVault },
-		"Settings   Update":      func(m *Model) bool { return m.area == areaSettings && m.set.sub == subUpdate },
-		"settings general":       func(m *Model) bool { return m.area == areaSettings && m.set.sub == subGeneral },
-		"activity log":           func(m *Model) bool { return m.area == areaActivity && m.act.sub == actLog },
-		"library channels":       func(m *Model) bool { return m.area == areaLibrary && m.lib.sub == libChannels },
-		"go library credentials": func(m *Model) bool { return m.area == areaLibrary && m.lib.sub == libCredentials },
+		"settings vault":    func(m *Model) bool { return m.area == areaSettings && m.set.sub == subVault },
+		"Settings   Update": func(m *Model) bool { return m.area == areaSettings && m.set.sub == subUpdate },
+		"settings general":  func(m *Model) bool { return m.area == areaSettings && m.set.sub == subGeneral },
+		"activity log":      func(m *Model) bool { return m.area == areaActivity && m.act.sub == actLog },
+		"host groups":       func(m *Model) bool { return m.area == areaHost && m.hst.sub == hostGroups },
+		"go host users":     func(m *Model) bool { return m.area == areaHost && m.hst.sub == hostUsers },
 	}
 	for text, check := range cases {
 		m := appModel(t, overviewFake(), 100, 30)
@@ -244,12 +241,10 @@ func TestUnknownCommandNamesTheInputAndTheNextStep(t *testing.T) {
 }
 
 func TestCommandsActOnlyWhereTheirKeyActs(t *testing.T) {
-	access := appModel(t, accessFake(), 100, 30)
-	send(access, "3")
 	overview := appModel(t, overviewFake(), 100, 30)
 	noVault := appModel(t, newFake(control.VaultAbsent), 100, 30)
 	vault := appModel(t, overviewFake(), 100, 30)
-	send(vault, "2")
+	send(vault, "3")
 
 	cases := []struct {
 		name   string
@@ -257,7 +252,6 @@ func TestCommandsActOnlyWhereTheirKeyActs(t *testing.T) {
 		reason string
 	}{
 		{"info", vault, ""}, {"help", vault, ""}, {"admin session", vault, ""},
-		{"discard all", overview, "Access only"}, {"discard all", vault, "Access only"}, {"discard all", access, ""},
 		{"setup", vault, "A vault exists already."}, {"setup", noVault, ""},
 		{"go overview", overview, ""}, {"reload", overview, ""}, {"regroup", overview, ""}, {"quit", overview, ""},
 	}
@@ -296,16 +290,16 @@ func TestPaletteClickRunsTheRow(t *testing.T) {
 	for _, size := range [][2]int{{120, 40}, {50, 24}} {
 		m := appModel(t, overviewFake(), size[0], size[1])
 		send(m, ":")
-		clickOn(t, m, "go access")
-		if m.pop != nil || m.area != areaAccess {
+		clickOn(t, m, "go host")
+		if m.pop != nil || m.area != areaHost {
 			t.Errorf("%dx%d: a click on the row left area %v, panel open %v\n%s", size[0], size[1], m.area, m.pop != nil, plain(m))
 		}
 	}
 	// A click on a command that cannot run keeps the line and names the reason.
 	m := appModel(t, overviewFake(), 120, 40)
 	send(m, ":")
-	clickOn(t, m, "discard all")
-	if m.pop == nil || !strings.Contains(plain(m), "discard all: Works in Access only.") {
+	clickOn(t, m, "setup")
+	if m.pop == nil || !strings.Contains(plain(m), "setup: A vault exists already.") {
 		t.Errorf("click on an unavailable row:\n%s", plain(m))
 	}
 }

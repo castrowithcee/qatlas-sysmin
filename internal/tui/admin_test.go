@@ -370,7 +370,7 @@ func TestAdminCountdownRunsLocally(t *testing.T) {
 
 func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 	m := appModel(t, newFake(control.VaultUnlocked), 80, 24)
-	for key, want := range map[string]area{"2": areaActivity, "3": areaAccess, "4": areaLibrary, "5": areaHost, "6": areaSettings, "1": areaOverview} {
+	for key, want := range map[string]area{"2": areaHost, "3": areaActivity, "4": areaSettings, "1": areaOverview} {
 		send(m, key)
 		if m.area != want {
 			t.Errorf("%s selects %v, want %v", key, m.area, want)
@@ -390,7 +390,7 @@ func TestAreasAreChosenByDigitsAndMovement(t *testing.T) {
 		t.Errorf("left on the tab line wraps to %v on %v", m.area, m.zone)
 	}
 	send(m, "right", "right")
-	if m.area != areaActivity {
+	if m.area != areaHost {
 		t.Errorf("right on the tab line wraps to %v", m.area)
 	}
 	send(m, "end")

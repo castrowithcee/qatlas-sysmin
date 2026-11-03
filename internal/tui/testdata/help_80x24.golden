@@ -1,9 +1,9 @@
 sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
-> [1 Overview]  2 Activity   3 Access   4 Library   5 Host   6 Settings         
+> [1 Overview]  2 Host   3 Activity   4 Settings                                
 ────────╔══════════════════════════════════════════════════════════════╗────────
 Overview║ Help                                                         ║Oct 2026
         ║                                                              ║        
-╭─ Admin║ [keys]  vault   admin-session   approvals   unlock   secret… ║───────╮
+╭─ Admin║ [keys]  vault   admin-session   unlock   audit-log   host    ║───────╮
 │ 2     ║                                                              ║       │
 ╰───────║ This screen                                                  ║───────╯
 sysmin 0║   ←/→ area                                                   ║        

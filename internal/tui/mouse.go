@@ -335,7 +335,7 @@ type footerLine struct {
 }
 
 // footerKey is the key a footer group opens with ("y delete" names y). Of alternatives ("n/esc") the first
-// stands for the group. A group that opens with anything else, such as "1-6" or "type to filter", has none.
+// stands for the group. A group that opens with anything else, such as "1-4" or "type to filter", has none.
 func footerKey(group string) string {
 	word, _, _ := strings.Cut(group, " ")
 	word, _, _ = strings.Cut(word, "/")

@@ -24,7 +24,7 @@ func hostChangeEntry(seq uint64, minutes int, action, undoOf string) control.Log
 // overviewFake is a service whose log holds two host changes, the newer one the undo of an older action.
 func overviewFake() *fakeBackend {
 	fb := newFake(control.VaultUnlocked)
-	fb.lib.entries = []control.LogEntry{hostChangeEntry(2, 30, "user.lock", "user.unlock"), hostChangeEntry(1, 26*60, "user.add-key", "")}
+	fb.audit.entries = []control.LogEntry{hostChangeEntry(2, 30, "user.lock", "user.unlock"), hostChangeEntry(1, 26*60, "user.add-key", "")}
 	return fb
 }
 
@@ -132,7 +132,7 @@ func TestOverviewCardsWithoutDataShowNone(t *testing.T) {
 	if view := plain(m); !strings.Contains(view, "Last changes") || strings.Contains(view, "user.lock") {
 		t.Errorf("the panel shows data without a service:\n%s", view)
 	}
-	if n := len(fb.lib.logCalls); n != 0 {
+	if n := len(fb.audit.calls); n != 0 {
 		t.Errorf("the log was read %d times without a service", n)
 	}
 }
@@ -140,10 +140,10 @@ func TestOverviewCardsWithoutDataShowNone(t *testing.T) {
 func TestOverviewReadsTheHostChangesOfTheLastWeekOnShowAndReload(t *testing.T) {
 	fb := overviewFake()
 	m := overviewModel(t, fb, 120, 40)
-	if n := len(fb.lib.logCalls); n != 1 {
+	if n := len(fb.audit.calls); n != 1 {
 		t.Fatalf("the log was read %d times at the start, want once", n)
 	}
-	if p := fb.lib.logCalls[0]; p.Action != "host.change" || p.Result != control.LogResultSuccess || p.Limit != control.LogMaxLimit {
+	if p := fb.audit.calls[0]; p.Action != "host.change" || p.Result != control.LogResultSuccess || p.Limit != control.LogMaxLimit {
 		t.Errorf("log request %+v", p)
 	}
 	for range 3 {
@@ -151,18 +151,18 @@ func TestOverviewReadsTheHostChangesOfTheLastWeekOnShowAndReload(t *testing.T) {
 		_, cmd := m.Update(tickMsg{})
 		drain(m, cmd)
 	}
-	if n := len(fb.lib.logCalls); n != 1 {
+	if n := len(fb.audit.calls); n != 1 {
 		t.Errorf("the log was read %d times after polls, want once", n)
 	}
 	send(m, "ctrl+r")
-	if n := len(fb.lib.logCalls); n != 2 {
+	if n := len(fb.audit.calls); n != 2 {
 		t.Fatalf("the log was read %d times after a reload, want twice", n)
 	}
-	if from := fb.lib.logCalls[1].From; from != ovNow.AddDate(0, 0, -7).Format(time.RFC3339) {
+	if from := fb.audit.calls[1].From; from != ovNow.AddDate(0, 0, -7).Format(time.RFC3339) {
 		t.Errorf("the log is read from %s, want seven days before now", from)
 	}
-	send(m, "2", "1")
-	if n := len(fb.lib.logCalls); n < 4 {
+	send(m, "3", "1")
+	if n := len(fb.audit.calls); n < 4 {
 		t.Errorf("showing the Overview again did not read the log: %d calls", n)
 	}
 }

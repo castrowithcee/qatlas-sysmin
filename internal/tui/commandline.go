@@ -39,27 +39,6 @@ func (c command) reason(m *Model) string {
 
 // availability checks
 
-// every is the availability of a command that needs all the checks to pass; the first reason wins.
-func every(checks ...func(m *Model) string) func(m *Model) string {
-	return func(m *Model) string {
-		for _, check := range checks {
-			if r := check(m); r != "" {
-				return r
-			}
-		}
-		return ""
-	}
-}
-
-func inArea(a area) func(m *Model) string {
-	return func(m *Model) string {
-		if m.area != a {
-			return tr(tCmdOnlyIn, a.title())
-		}
-		return ""
-	}
-}
-
 // inContent is the check for a command whose key acts in the content only, not on the tab line or the page
 // strip.
 func inContent(m *Model) string {
@@ -89,14 +68,6 @@ func (m *Model) commands() []command {
 		}
 	}
 	list = append(list,
-		command{name: "discard all", desc: tr(tCmdDiscardAll), aliases: []string{"access discard-all"},
-			unavailable: every(inArea(areaAccess), func(m *Model) string {
-				if !m.acc.have {
-					return tr(tCmdNotLoaded)
-				}
-				return ""
-			}),
-			run: func(m *Model) tea.Cmd { return m.discardAll() }},
 		command{name: "admin session", desc: tr(tCmdAdmin), aliases: []string{"lock", "unlock"},
 			shortcut: func() string { return keyLabel(actLock) },
 			run:      func(m *Model) tea.Cmd { return m.lockKey() }},
@@ -161,10 +132,6 @@ func areaPages(a area) []areaPage {
 	case areaActivity:
 		for sub := 0; sub < actPages; sub++ {
 			out = append(out, areaPage{sub, actKey(sub), actTitle(sub)})
-		}
-	case areaLibrary:
-		for sub := 0; sub < libCount; sub++ {
-			out = append(out, areaPage{sub, libKey(sub), libTitle(sub)})
 		}
 	case areaHost:
 		for sub := 0; sub < hostCount; sub++ {

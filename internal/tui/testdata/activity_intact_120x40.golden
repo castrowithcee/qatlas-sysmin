@@ -1,22 +1,22 @@
 sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
-   1 Overview  [2 Activity]  3 Access   4 Library   5 Host   6 Settings 
+   1 Overview   2 Host  [3 Activity]  4 Settings 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ● Chain intact, 52 entries · signatures checked
 Log (12)                                                         1/12 ╭─ 12 ───────────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
-║   Time                 Action             Project   Result        ║ │                                                │
-║ > 2026-10-28 12:00:00  config.read        demo-app  success       ║ │ Time     2026-10-28 12:00:00                   │
-║   2026-10-28 11:59:00  approval.grant     -         success       ║ │ Action   config.read                           │
-║   2026-10-28 11:58:00  credential.create  demo-app  success       ║ │ Project  demo-app                              │
-║   2026-10-28 11:57:00  deploy.run         -         success       ║ │ Result   success                               │
-║   2026-10-28 11:56:00  session.open       demo-app  failure       ║ │                                                │
-║   2026-10-28 11:55:00  config.read        -         success       ║ │                                                │
-║   2026-10-28 11:54:00  approval.grant     demo-app  success       ║ │                                                │
-║   2026-10-28 11:53:00  credential.create  -         success       ║ │                                                │
-║   2026-10-28 11:52:00  deploy.run         demo-app  success       ║ │                                                │
-║   2026-10-28 11:51:00  session.open       -         failure       ║ │                                                │
-║   2026-10-28 11:50:00  config.read        demo-app  success       ║ │                                                │
-║   2026-10-28 11:49:00  approval.grant     -         success       ║ │                                                │
+║   Time                 Action          Result   Duration   UID    ║ │                                                │
+║ > 2026-10-28 12:00:00  Config read     success      3 ms     0    ║ │ Time    2026-10-28 12:00:00                    │
+║   2026-10-28 11:59:00  Host change     success     10 ms  1000    ║ │ Action  Config read                            │
+║   2026-10-28 11:58:00  Vault unlocked  success     17 ms  1000    ║ │ Result  success                                │
+║   2026-10-28 11:57:00  Peer refused    success     24 ms     0    ║ │                                                │
+║   2026-10-28 11:56:00  Session opened  failure     31 ms  1000    ║ │                                                │
+║   2026-10-28 11:55:00  Config read     success     38 ms  1000    ║ │                                                │
+║   2026-10-28 11:54:00  Host change     success     45 ms     0    ║ │                                                │
+║   2026-10-28 11:53:00  Vault unlocked  success     52 ms  1000    ║ │                                                │
+║   2026-10-28 11:52:00  Peer refused    success     59 ms  1000    ║ │                                                │
+║   2026-10-28 11:51:00  Session opened  failure     66 ms     0    ║ │                                                │
+║   2026-10-28 11:50:00  Config read     success     73 ms  1000    ║ │                                                │
+║   2026-10-28 11:49:00  Host change     success     80 ms  1000    ║ │                                                │
 ╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
 
 

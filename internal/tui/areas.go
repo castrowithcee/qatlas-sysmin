@@ -16,22 +16,20 @@ type area int
 
 const (
 	areaOverview area = iota
-	areaActivity
-	areaAccess
-	areaLibrary
 	areaHost
+	areaActivity
 	areaSettings
 	areaCount
 )
 
 // key is the English name of the area, whatever language is drawn: the name commands are given by.
 func (a area) key() string {
-	return [...]string{"Overview", "Activity", "Access", "Library", "Host", "Settings"}[a]
+	return [...]string{"Overview", "Host", "Activity", "Settings"}[a]
 }
 
 // title is the name of the area as drawn.
 func (a area) title() string {
-	return tr([...]textID{tAreaOverview, tAreaActivity, tAreaAccess, tAreaLibrary, tAreaHost, tAreaSettings}[a])
+	return tr([...]textID{tAreaOverview, tAreaHost, tAreaActivity, tAreaSettings}[a])
 }
 
 // areaByName finds the area whose English name is name, ignoring case.
@@ -65,7 +63,7 @@ func (m *Model) enableAreas(backend Backend) {
 // about first.
 func (m *Model) setArea(a area) tea.Cmd { return m.show(a, 0) }
 
-// show makes page sub of area a the screen, with the focus in its content; only Settings, Activity, Library
+// show makes page sub of area a the screen, with the focus in its content; only Settings, Activity
 // and Host have pages.
 func (m *Model) show(a area, sub int) tea.Cmd { return m.showIn(a, sub, zoneContent) }
 
@@ -78,9 +76,6 @@ func (m *Model) showIn(a area, sub int, z zone) tea.Cmd {
 		m.ovr.reset()
 		if a == areaSettings {
 			m.set.sub = sub
-		}
-		if a == areaLibrary {
-			m.lib.sub = sub
 		}
 		if a == areaActivity {
 			m.act.sub = sub
@@ -101,19 +96,8 @@ func (m *Model) enterPage() tea.Cmd {
 	switch {
 	case m.area == areaOverview:
 		return m.overviewCmd()
-	case m.area == areaAccess:
-		return m.accessCmd()
 	case m.area == areaActivity:
 		return m.activityCmd()
-	case m.area == areaLibrary:
-		switch m.lib.sub {
-		case libCredentials:
-			return m.credentialsCmd()
-		case libChannels:
-			return m.channelsCmd()
-		case libTemplates:
-			return m.templatesCmd()
-		}
 	case m.area == areaHost:
 		return m.hostCmd()
 	case m.area == areaSettings:
@@ -209,7 +193,7 @@ func (m *Model) digitKey(key tea.KeyPressMsg) tea.Cmd {
 // hasSubs reports whether the area shows a strip of its pages under the tab line.
 func (m *Model) hasSubs() bool {
 	switch m.area {
-	case areaSettings, areaLibrary, areaHost:
+	case areaSettings, areaHost:
 		return true
 	case areaActivity:
 		return actPages > 1
@@ -303,8 +287,6 @@ func (m *Model) barKey(key tea.KeyPressMsg) tea.Cmd {
 	switch m.area {
 	case areaSettings:
 		return m.setSub(m.set.sub + step)
-	case areaLibrary:
-		return m.setLibSub(m.lib.sub + step)
 	case areaActivity:
 		return m.setActSub(m.act.sub + step)
 	case areaHost:
@@ -315,8 +297,7 @@ func (m *Model) barKey(key tea.KeyPressMsg) tea.Cmd {
 
 // closeDetails closes the detail of every table page and drops the notes of a refused removal.
 func (m *Model) closeDetails() {
-	m.acc.page.open, m.lib.cred.page.open, m.lib.chans.page.open = false, false, false
-	m.lib.tmpls.page.open, m.act.page.open, m.lib.cred.problems = false, false, nil
+	m.act.page.open = false
 	m.hst.users.page.open, m.hst.groups.page.open = false, false
 }
 
@@ -338,16 +319,13 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	if m.area == areaActivity && !p.open && keyIs(key, actFilter) {
 		// f is the filter of the log here; the table is searched with /.
-		return m.openLogFilter(), true
+		m.openLogFilter()
+		return nil, true
 	}
 	if cmd, ok := m.pageKey(p, key); ok {
 		return cmd, true
 	}
 	switch m.area {
-	case areaAccess:
-		return m.accessKey(key)
-	case areaLibrary:
-		return m.libraryKey(key)
 	case areaActivity:
 		return m.activityKey(key)
 	case areaHost:
@@ -424,11 +402,6 @@ func (m *Model) subLine() (string, []navSpan) {
 		for i := 0; i < subCount; i++ {
 			words = append(words, subTitle(i))
 		}
-	case areaLibrary:
-		active = m.lib.sub
-		for i := 0; i < libCount; i++ {
-			words = append(words, libTitle(i))
-		}
 	case areaActivity:
 		active = m.act.sub
 		for i := 0; i < actPages; i++ {
@@ -494,8 +467,6 @@ func (m *Model) setSubPage(i int) tea.Cmd {
 	switch m.area {
 	case areaSettings:
 		return m.setSub(i)
-	case areaLibrary:
-		return m.setLibSub(i)
 	case areaActivity:
 		return m.setActSub(i)
 	case areaHost:
@@ -528,10 +499,6 @@ func (m *Model) areaKeys() string {
 		}
 	case m.area == areaSettings:
 		keys = append(keys, m.settingsKeys()...)
-	case m.area == areaAccess:
-		keys = append(keys, m.accessKeys()...)
-	case m.area == areaLibrary:
-		keys = append(keys, m.libraryKeys()...)
 	case m.area == areaActivity:
 		keys = append(keys, m.activityKeys()...)
 	case m.area == areaHost:
@@ -567,10 +534,6 @@ func (m *Model) areaBody() string {
 		return m.overviewBody()
 	case areaSettings:
 		return m.settingsBody()
-	case areaAccess:
-		return m.accessBody()
-	case areaLibrary:
-		return m.libraryBody()
 	case areaActivity:
 		return m.activityBody()
 	case areaHost:

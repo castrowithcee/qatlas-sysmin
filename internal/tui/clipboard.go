@@ -17,8 +17,7 @@ import (
 func (m *Model) copySource() func() string {
 	if m.screen == screenArea && m.dd == nil && !m.typing() {
 		if p := m.currentPage(); p != nil {
-			// Only the name of the marked row: a credential's value is not in the interface to copy. A log entry
-			// has no name, so its row is copied as drawn.
+			// Only the name of the marked row. A log entry has no name, so its row is copied as drawn.
 			if name, ok := p.current(); ok {
 				if m.area == areaActivity && m.act.sub == actLog {
 					return func() string { return strings.Join(p.rows[name], " ") }

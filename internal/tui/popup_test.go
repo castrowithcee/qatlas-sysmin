@@ -26,7 +26,7 @@ func TestHelpTogglesWithItsOwnKeyAndNamesTheKeysOfTheScreen(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
 	send(m, "?")
 	view := plain(m)
-	for _, want := range []string{"[keys]", "vault", "admin-session", "approvals", "unlock", "←/→ area", "Everywhere", "F2 save"} {
+	for _, want := range []string{"[keys]", "vault", "admin-session", "unlock", "audit-log", "←/→ area", "Everywhere", "F2 save"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the help lacks %q:\n%s", want, view)
 		}
@@ -62,7 +62,7 @@ func TestInfoDescribesTheFocusedEntry(t *testing.T) {
 	if view := plain(m); !strings.Contains(view, "Not enabled") || !strings.Contains(view, "not in the sysmin group") {
 		t.Errorf("no info for the focused row:\n%s", view)
 	}
-	send(m, "esc", "6", "down")
+	send(m, "esc", "4", "down")
 	send(m, "i")
 	if view := plain(m); !strings.Contains(view, "Theme") || !strings.Contains(view, "Colors of this interface") {
 		t.Errorf("no info for the focused field:\n%s", view)
@@ -72,7 +72,7 @@ func TestInfoDescribesTheFocusedEntry(t *testing.T) {
 func TestCommandLineChangesAreasAndPages(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
 	for text, check := range map[string]func() bool{
-		"access":            func() bool { return m.area == areaAccess },
+		"host":              func() bool { return m.area == areaHost },
 		"settings vault":    func() bool { return m.area == areaSettings && m.set.sub == subVault },
 		"Settings   Update": func() bool { return m.area == areaSettings && m.set.sub == subUpdate },
 		"settings":          func() bool { return m.area == areaSettings && m.set.sub == subGeneral },
@@ -146,7 +146,7 @@ func TestPanelKeysDoNotActWhereTextIsTyped(t *testing.T) {
 
 func TestFooterNamesTheKeysOfTheScreenAndKeepsHelpVisible(t *testing.T) {
 	for _, size := range [][2]int{{40, 14}, {60, 20}, {80, 24}, {120, 40}} {
-		for _, page := range []string{"1", "2", "6"} {
+		for _, page := range []string{"1", "2", "4"} {
 			m := appModel(t, overviewFake(), size[0], size[1])
 			send(m, page)
 			rows := strings.Split(plain(m), "\n")

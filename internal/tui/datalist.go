@@ -11,7 +11,7 @@ import (
 
 // A data page is a table of an area with the detail of the marked row: beside the table from wideDetailMin
 // columns on, and as a screen of its own after enter below that. The detail has three tabs. The pages of
-// Access and Library share this block; a page brings its columns, its rows and the lines of each tab.
+// Activity and Host share this block; a page brings its columns, its rows and the lines of each tab.
 
 // wideDetailMin is the width from which the detail stands beside the table.
 const wideDetailMin = 120
@@ -388,16 +388,8 @@ func (m *Model) filterKey(p *dataPage, key tea.KeyPressMsg) tea.Cmd {
 // currentPage is the data page the area shows, nil where there is none.
 func (m *Model) currentPage() *dataPage {
 	switch {
-	case m.area == areaAccess:
-		return &m.acc.page
 	case m.area == areaActivity:
 		return &m.act.page
-	case m.area == areaLibrary && m.lib.sub == libCredentials:
-		return &m.lib.cred.page
-	case m.area == areaLibrary && m.lib.sub == libChannels:
-		return &m.lib.chans.page
-	case m.area == areaLibrary && m.lib.sub == libTemplates:
-		return &m.lib.tmpls.page
 	case m.area == areaHost && m.hst.sub == hostUsers:
 		return &m.hst.users.page
 	case m.area == areaHost && m.hst.sub == hostGroups:
@@ -417,12 +409,8 @@ func (m *Model) detailSeen() bool {
 // dataWant asks for what the marked row's detail needs and has not yet.
 func (m *Model) dataWant() tea.Cmd {
 	switch {
-	case m.area == areaAccess:
-		return m.accessWant()
 	case m.area == areaActivity:
 		return m.activityWant()
-	case m.area == areaLibrary && m.lib.sub == libTemplates:
-		return m.tmplWant()
 	}
 	return nil
 }

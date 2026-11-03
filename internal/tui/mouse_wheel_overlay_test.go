@@ -97,16 +97,16 @@ func TestTheWheelBesideThePanelMovesNothing(t *testing.T) {
 			t.Errorf("%s: the wheel over the dimmed background changed the screen:\n%s", name, after)
 		}
 	}
-	m := appModel(t, accessFake(), 120, 40)
+	m := appModel(t, activityFake(), 120, 40)
 	send(m, "3")
 	send(m, "?")
 	now := wheelClock(m)
 	_, _, ox, oy := overlayCell(t, m)
-	row := m.acc.page.list.cursor
+	row := m.act.page.list.cursor
 	notch(m, now, ox, oy, false)
 	notch(m, now, 1, m.workspaceTop()+3, false)
-	if m.acc.page.list.cursor != row {
-		t.Errorf("the wheel behind the help moved the table to %d", m.acc.page.list.cursor)
+	if m.act.page.list.cursor != row {
+		t.Errorf("the wheel behind the help moved the table to %d", m.act.page.list.cursor)
 	}
 }
 

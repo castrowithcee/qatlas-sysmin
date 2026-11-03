@@ -10,15 +10,15 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
-// longAccessFake is the Access fake with enough changes on sample-app for the detail to scroll.
-func longAccessFake() *fakeBackend {
-	fb := accessFake()
-	var changes []control.ApprovalChange
-	for i := range 40 {
-		changes = append(changes, control.ApprovalChange{Path: fmt.Sprintf("images[%d].ref", i), Old: "registry.example.test/web:1", New: "registry.example.test/web:2"})
+// longGroupsHost is the fixture host with enough members in every group for the detail to scroll.
+func longGroupsHost() *fixtureHost {
+	h := newFixtureHost()
+	for i := range h.groups {
+		for n := range 60 {
+			h.groups[i].Members = append(h.groups[i].Members, fmt.Sprintf("demo-member-%02d", n))
+		}
 	}
-	fb.details["sample-app"] = changes
-	return fb
+	return h
 }
 
 // detailCell is a place inside the detail beside the rows that carries no element of its own.
@@ -34,17 +34,19 @@ func rowCell(t *testing.T, m *Model, text string) (x, y int) {
 type zoneCase struct {
 	name  string
 	model func() *Model
-	row   string // text of the second row
-	scrl  func(m *Model) int
+	row   string // text that stands on the row to click and nowhere above it
+	mark  string // name of that row
+	page  func(m *Model) *dataPage
 }
 
 func zoneCases(t *testing.T) []zoneCase {
 	return []zoneCase{
-		{"Access", func() *Model {
-			m := appModel(t, longAccessFake(), 120, 40)
-			send(m, "3")
+		{"Groups", func() *Model {
+			m := appModel(t, overviewFake(), 120, 40)
+			m.hostSrc = longGroupsHost()
+			send(m, "2", "esc", "right", "enter")
 			return m
-		}, "sample-app", func(m *Model) int { return m.acc.page.scroll }},
+		}, "61", "demo-team", func(m *Model) *dataPage { return &m.hst.groups.page }},
 	}
 }
 
@@ -65,13 +67,13 @@ func TestAClickIntoTheDetailFocusesItAndAClickOnARowBringsTheFocusBack(t *testin
 		if m.zoneNow() != zoneContent {
 			t.Errorf("%s: a click on a row leaves the focus on %v", c.name, m.zoneNow())
 		}
-		if c.name == "Access" && (m.acc.page.list.cursor != 1 || m.acc.page.open) {
-			t.Errorf("%s: cursor %d, open %v after the click", c.name, m.acc.page.list.cursor, m.acc.page.open)
+		if name, _ := c.page(m).current(); name != c.mark || c.page(m).open {
+			t.Errorf("%s: row %q, open %v after the click", c.name, name, c.page(m).open)
 		}
 		// A click on the marked row while the detail has the focus only moves the focus.
 		m.zone = zoneDetail
 		clickAt(m, x, y)
-		if m.zoneNow() != zoneContent || m.acc.page.open {
+		if m.zoneNow() != zoneContent || c.page(m).open {
 			t.Errorf("%s: a click on the marked row from the detail reaches %v (opened something)", c.name, m.zoneNow())
 		}
 	}
@@ -85,7 +87,7 @@ func TestAClickOnADetailTabTurnsItAndFocusesTheDetail(t *testing.T) {
 			x, y = lastCell(t, m, "Raw")
 		}
 		clickAt(m, x, y)
-		tab := m.acc.page.tab
+		tab := c.page(m).tab
 		if tab != 2 || m.zoneNow() != zoneDetail {
 			t.Errorf("%s: a click on the Raw tab gives tab %d on %v", c.name, tab, m.zoneNow())
 		}
@@ -118,20 +120,20 @@ func TestTheWheelOverTheDetailScrollsItWithoutTakingTheFocus(t *testing.T) {
 		if m.zoneNow() != zoneContent {
 			t.Errorf("%s: the wheel moved the focus to %v", c.name, m.zoneNow())
 		}
-		if c.scrl(m) == 0 {
+		if c.page(m).scroll == 0 {
 			t.Errorf("%s: the wheel over the detail scrolled nothing", c.name)
 		}
-		moved := c.scrl(m)
+		moved := c.page(m).scroll
 		wheel(m, x, y, tea.MouseWheelUp)
-		if c.scrl(m) >= moved {
-			t.Errorf("%s: the wheel up scrolled %d -> %d", c.name, moved, c.scrl(m))
+		if c.page(m).scroll >= moved {
+			t.Errorf("%s: the wheel up scrolled %d -> %d", c.name, moved, c.page(m).scroll)
 		}
 	}
 }
 
 func TestAClickOnAFreeAreaOfABarFocusesIt(t *testing.T) {
-	m := appModel(t, libFake(), 120, 40)
-	send(m, "4")
+	m := appModel(t, overviewFake(), 120, 40)
+	send(m, "2")
 	if m.zoneNow() != zoneContent {
 		t.Fatalf("starts on %v", m.zoneNow())
 	}
@@ -139,9 +141,9 @@ func TestAClickOnAFreeAreaOfABarFocusesIt(t *testing.T) {
 	if got, want := m.zoneNow(), zoneTabs; got != want {
 		t.Fatalf("a click on the free area of the tab line reaches %v", got)
 	}
-	_, row := cellOf(t, m, "Credentials")
+	_, row := cellOf(t, m, "Users")
 	clickAt(m, 118, row)
-	if m.zoneNow() != zoneSubs || m.area != areaLibrary {
+	if m.zoneNow() != zoneSubs || m.area != areaHost {
 		t.Errorf("a click on the free area of the page strip reaches %v in %v", m.zoneNow(), m.area)
 	}
 	// A free place of the rows gives them the focus.
@@ -155,33 +157,33 @@ func TestAClickOnAFreeAreaOfABarFocusesIt(t *testing.T) {
 }
 
 func TestTheFooterIsNotClickable(t *testing.T) {
-	m := appModel(t, accessFake(), 120, 40)
+	m := appModel(t, overviewFake(), 120, 40)
 	send(m, "3")
 	m.zone = zoneDetail
 	rows := strings.Split(plain(m), "\n")
 	for x := 0; x < 120; x += 7 {
 		clickAt(m, x, len(rows)-1)
 	}
-	if m.zoneNow() != zoneDetail || m.area != areaAccess || m.screen != screenArea {
+	if m.zoneNow() != zoneDetail || m.area != areaActivity || m.screen != screenArea {
 		t.Errorf("a click on the footer changed zone %v, area %v, screen %v", m.zoneNow(), m.area, m.screen)
 	}
 }
 
 func TestTheBackgroundOfADialogIsNotClickable(t *testing.T) {
-	m := appModel(t, accessFake(), 120, 40)
-	send(m, "3", "down", "d")
+	m, _, _ := hostChangeModel(t, 120, 40)
+	drain(m, m.askHostChange("demo.set", []string{"alpha", "new"}))
 	if m.screen != screenConfirm {
-		t.Fatalf("d opens screen %v", m.screen)
+		t.Fatalf("the change opens screen %v", m.screen)
 	}
 	x, y := detailCell(m)
 	for _, at := range [][2]int{{x, y}, {3, 0}, {118, 1}, {3, m.workspaceTop() + 3}} {
 		clickAt(m, at[0], at[1])
 	}
-	if m.screen != screenConfirm || m.zoneNow() != zoneContent || m.area != areaAccess {
+	if m.screen != screenConfirm || m.zoneNow() != zoneContent || m.area != areaHost {
 		t.Errorf("a click behind the dialog reached screen %v, zone %v, area %v", m.screen, m.zoneNow(), m.area)
 	}
 	clickOn(t, m, "Activity")
-	if m.area != areaAccess || m.screen != screenConfirm {
+	if m.area != areaHost || m.screen != screenConfirm {
 		t.Errorf("a tab click behind the dialog reached area %v, screen %v", m.area, m.screen)
 	}
 }
@@ -194,7 +196,7 @@ func TestATabClickFromSettingsWithInputAsksFirst(t *testing.T) {
 	if !m.settingsDirty() {
 		t.Fatal("Settings holds no unsaved input")
 	}
-	clickOn(t, m, "3 Access")
+	clickOn(t, m, "2 Host")
 	if m.area != areaSettings || m.screen != screenConfirm || m.leave == nil {
 		t.Fatalf("a tab click with unsaved input reaches area %v, screen %v", m.area, m.screen)
 	}
@@ -202,23 +204,23 @@ func TestATabClickFromSettingsWithInputAsksFirst(t *testing.T) {
 		t.Errorf("not the usual question:\n%s", plain(m))
 	}
 	// The question is answered by the person first: a click on a tab behind it does nothing.
-	clickOn(t, m, "2 Activity")
+	clickOn(t, m, "3 Activity")
 	if m.area != areaSettings || m.screen != screenConfirm {
 		t.Errorf("a tab click behind the question reached area %v, screen %v", m.area, m.screen)
 	}
 	send(m, "d")
-	if m.area != areaAccess {
-		t.Errorf("discard reaches area %v, want Access", m.area)
+	if m.area != areaHost {
+		t.Errorf("discard reaches area %v, want Host", m.area)
 	}
 }
 func TestATabClickEndsAFilterBeingTyped(t *testing.T) {
-	m := appModel(t, accessFake(), 120, 40)
+	m := appModel(t, overviewFake(), 120, 40)
 	send(m, "3", "/")
 	if !m.typing() {
 		t.Fatal("/ starts no filter")
 	}
 	clickOn(t, m, "1 Overview")
-	if m.area != areaOverview || m.typing() || m.acc.page.filtering() {
+	if m.area != areaOverview || m.typing() || m.act.page.filtering() {
 		t.Errorf("a tab click left area %v with the filter typing", m.area)
 	}
 	send(m, "3")

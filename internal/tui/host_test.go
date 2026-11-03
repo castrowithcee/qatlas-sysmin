@@ -12,30 +12,30 @@ import (
 func hostModel(t *testing.T, w, h int) *Model {
 	t.Helper()
 	m := appModel(t, overviewFake(), w, h)
-	send(m, "5")
+	send(m, "2")
 	return m
 }
 
-func TestHostSitsBeforeSettingsAndOpensOnUsers(t *testing.T) {
-	if areaHost != areaSettings-1 || areaSettings != areaCount-1 {
+func TestHostSitsAfterOverviewAndOpensOnUsers(t *testing.T) {
+	if areaHost != areaOverview+1 || areaSettings != areaCount-1 {
 		t.Fatalf("areas: host %d, settings %d, count %d", areaHost, areaSettings, areaCount)
 	}
 	m := hostModel(t, 80, 24)
 	if m.area != areaHost || m.hst.sub != hostUsers || m.zoneNow() != zoneContent {
-		t.Errorf("digit 5 opens area %v page %d zone %v", m.area, m.hst.sub, m.zoneNow())
+		t.Errorf("digit 2 opens area %v page %d zone %v", m.area, m.hst.sub, m.zoneNow())
 	}
 	rows := rowsOf(m)
-	if !strings.Contains(rows[1], "5 Host") || !strings.Contains(rows[1], "6 Settings") || !strings.Contains(rows[2], "Users") {
+	if !strings.Contains(rows[1], "2 Host") || !strings.Contains(rows[1], "4 Settings") || !strings.Contains(rows[2], "Users") {
 		t.Errorf("tab line and page strip:\n%s\n%s", rows[1], rows[2])
 	}
 }
 
 func TestTabLineStaysOneLineAt80Columns(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	for _, digit := range []string{"1", "5", "6"} {
+	for _, digit := range []string{"1", "3", "4"} {
 		send(m, digit)
 		rows := rowsOf(m)
-		if ansi.StringWidth(rows[1]) > 80 || !strings.Contains(rows[1], "Host") && !strings.Contains(rows[1], "5") {
+		if ansi.StringWidth(rows[1]) > 80 || !strings.Contains(rows[1], "Host") && !strings.Contains(rows[1], "2") {
 			t.Errorf("area %s: tab line %q", digit, rows[1])
 		}
 		if m.barRows() > 2 {
@@ -268,7 +268,7 @@ func TestGroupsShowMemberCountsAndMembers(t *testing.T) {
 func TestHostReadFailureIsShownInTheTable(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
 	m.hostSrc = &fixtureHost{err: errors.New("passwd unreadable")}
-	send(m, "5")
+	send(m, "2")
 	if view := plain(m); !strings.Contains(view, "passwd unreadable") {
 		t.Errorf("the failure is not shown:\n%s", view)
 	}
