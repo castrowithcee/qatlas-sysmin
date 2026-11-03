@@ -49,7 +49,7 @@ func dialError(err error) error {
 	if errors.Is(err, client.ErrSessionGroup) {
 		return fmt.Errorf("%w; log in again, or put \"sudo -g %s\" in front of the command", err, control.ServiceGroup)
 	}
-	return fmt.Errorf("%w (is the service running, and are you root or in the group sysmin?)", err)
+	return fmt.Errorf("%w (is the service running, and are you root or in the group qsysmin?)", err)
 }
 
 func newStatusCommand(opts *Options) *cobra.Command {

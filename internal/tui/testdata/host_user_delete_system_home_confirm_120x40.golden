@@ -1,18 +1,18 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         3/3 ╭─ svc-demo ─────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name              svc-demo                     │
-║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              system                       │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             no                           │
-║   ▾ System accounts (1)                                           ║ │ Docker            no                           │
-║ > svc-demo    no                 no      svc-demo          system ║ │ Enabled (sysmin)  no                           │
-╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗c-demo                     │
-                            ║ ⚠ Delete the user svc-demo together with its home and mail   ║sr/lib/svc-demo            │
-                            ║   spool.                                                     ║known                      │
+║   ▾ Users (2)                                                     ║ │ Name               svc-demo                    │
+║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               system                      │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              no                          │
+║   ▾ System accounts (1)                                           ║ │ Docker             no                          │
+║ > svc-demo    no                 no      svc-demo          system ║ │ Enabled (qsysmin)  no                          │
+╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗vc-demo                    │
+                            ║ ⚠ Delete the user svc-demo together with its home and mail   ║usr/lib/svc-demo           │
+                            ║   spool.                                                     ║nknown                     │
                             ║                                                              ║                           │
                             ║     Packages or services may depend on this system account.  ║ the fields only root can  │
                             ║     /usr/lib/svc-demo is a system path. /usr/lib/svc-demo    ║                           │

@@ -17,13 +17,13 @@ func newUpdateCommand(opts *Options) *cobra.Command {
 	var list, yes bool
 	cmd := &cobra.Command{
 		Use:   "update",
-		Short: "Update sysmin to the latest stable release or to a chosen one",
+		Short: "Update qsysmin to the latest stable release or to a chosen one",
 		Long: "update replaces the installed program and its systemd unit with those of a signed release and\n" +
 			"restarts the service; drop-ins of the unit stay as they are. Without arguments it installs the\n" +
 			"newest stable release; --to installs exactly the given version, an older one included; --list\n" +
 			"shows the signed releases that can be chosen, prereleases included.\n" +
 			"The signature over the release's checksums.txt is verified against the release keys built into\n" +
-			"sysmin, then the archive's SHA-256 checksum; any failure leaves the installation unchanged.\n" +
+			"qsysmin, then the archive's SHA-256 checksum; any failure leaves the installation unchanged.\n" +
 			"Installing needs root. The service restarts afterwards, so update asks for confirmation on a\n" +
 			"terminal; --yes confirms.",
 		Args: noArgs,
@@ -94,7 +94,7 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 	if target.Older {
 		action = "Roll back"
 	}
-	ok, err := confirm(c, req.yes, fmt.Sprintf("%s sysmin from %s to %s. The service restarts.", action, version, target.Version))
+	ok, err := confirm(c, req.yes, fmt.Sprintf("%s qsysmin from %s to %s. The service restarts.", action, version, target.Version))
 	if err != nil {
 		return err
 	}
@@ -117,11 +117,11 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 	// The service manager reads a replaced unit before the restart, which happens once the program is in place.
 	if result.UnitUpdated {
 		if err := s.command(ctx, "systemctl", "daemon-reload"); err != nil {
-			return fmt.Errorf("update: sysmin %s is installed, but reloading the service manager failed: %w", result.Version, err)
+			return fmt.Errorf("update: qsysmin %s is installed, but reloading the service manager failed: %w", result.Version, err)
 		}
 	}
 	if err := s.command(ctx, "systemctl", "restart", serviceName); err != nil {
-		return fmt.Errorf("update: sysmin %s is installed, but restarting the service failed: %w", result.Version, err)
+		return fmt.Errorf("update: qsysmin %s is installed, but restarting the service failed: %w", result.Version, err)
 	}
 	return emitUpdate(c, opts, result.Previous, result.Version, true, true, result.UnitUpdated)
 }

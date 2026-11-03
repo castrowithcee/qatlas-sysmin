@@ -1,4 +1,4 @@
-// Package cli defines the command surface of the sysmin binary. Commands stay thin adapters: they parse
+// Package cli defines the command surface of the qsysmin binary. Commands stay thin adapters: they parse
 // global options, hand typed results to the encoders, and translate errors into exit codes.
 package cli
 
@@ -63,7 +63,7 @@ func run(cmd *cobra.Command, opts *Options, args []string, stdout, stderr io.Wri
 		return exitCode(err)
 	}
 	// Redaction happens before anything is shown.
-	fmt.Fprintf(stderr, "sysmin: %s: %s\n", codeFor(err), opts.Redactor.Error(err))
+	fmt.Fprintf(stderr, "qsysmin: %s: %s\n", codeFor(err), opts.Redactor.Error(err))
 	var syntax *syntaxError
 	if errors.As(err, &syntax) {
 		fmt.Fprint(stderr, executed.UsageString())
@@ -73,9 +73,9 @@ func run(cmd *cobra.Command, opts *Options, args []string, stdout, stderr io.Wri
 
 func newRootCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "sysmin",
+		Use:   "qsysmin",
 		Short: "Look after a Linux host: read it, change it with a journal, and undo changes",
-		Long: "sysmin runs as a service on a Linux host. Its area Host reads users, groups and folder permissions\n" +
+		Long: "qsysmin runs as a service on a Linux host. Its area Host reads users, groups and folder permissions\n" +
 			"and changes them with a journal that allows undoing. It is at an early stage of development.",
 		SilenceErrors: true,
 		SilenceUsage:  true,
@@ -91,7 +91,7 @@ func newRootCommand(opts *Options) *cobra.Command {
 				if c.Flags().Changed("output") {
 					return newSyntaxError(errors.New("--output and --format cannot be used together"))
 				}
-				fmt.Fprintln(c.ErrOrStderr(), "sysmin: notice: --format is deprecated, use --output")
+				fmt.Fprintln(c.ErrOrStderr(), "qsysmin: notice: --format is deprecated, use --output")
 				name = opts.FormatName
 			}
 			if name == "" {
@@ -111,7 +111,7 @@ func newRootCommand(opts *Options) *cobra.Command {
 	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return newSyntaxError(err) })
 
 	cmd.Version = version
-	cmd.SetVersionTemplate("sysmin {{.Version}}\n")
+	cmd.SetVersionTemplate("qsysmin {{.Version}}\n")
 	cmd.PersistentFlags().StringVar(&opts.OutputName, "output", "", "output format: table, json, or compact (default table)")
 	cmd.PersistentFlags().StringVar(&opts.FormatName, "format", "", "")
 	_ = cmd.PersistentFlags().MarkHidden("format")
@@ -121,7 +121,7 @@ func newRootCommand(opts *Options) *cobra.Command {
 	cmd.AddCommand(newRunCommand(opts), newStatusCommand(opts), newHostCommand(opts))
 	cmd.AddCommand(newTUICommand(opts))
 	cmd.AddCommand(newUpdateCommand(opts), newUninstallCommand(opts))
-	// A command without a run function is a help topic: 'sysmin help <topic>' prints its text, and the
+	// A command without a run function is a help topic: 'qsysmin help <topic>' prints its text, and the
 	// root help lists it under the additional help topics.
 	for _, topic := range helptopics.All() {
 		cmd.AddCommand(&cobra.Command{
@@ -134,7 +134,7 @@ func newRootCommand(opts *Options) *cobra.Command {
 func newVersionCommand(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
-		Short: "Print the version of sysmin",
+		Short: "Print the version of qsysmin",
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				return newSyntaxError(fmt.Errorf("unexpected argument %q", args[0]))

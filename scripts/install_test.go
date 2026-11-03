@@ -30,15 +30,15 @@ var signerLine = regexp.MustCompile(`(?m)^signer_line='([^']*)'$`)
 var stubs = map[string]string{
 	"id": `if [ "$#" = 1 ] && [ "$1" = -u ]; then echo "$STUB_UID"; exit 0; fi
 case "$*" in
-"-nG sysmin") if [ -f "$STUB_STATE/in-docker" ]; then echo "sysmin docker"; else echo sysmin; fi; exit 0 ;;
-"sysmin") [ -f "$STUB_STATE/user" ]; exit $? ;;
+"-nG qsysmin") if [ -f "$STUB_STATE/in-docker" ]; then echo "qsysmin docker"; else echo qsysmin; fi; exit 0 ;;
+"qsysmin") [ -f "$STUB_STATE/user" ]; exit $? ;;
 alice) exit 0 ;;
 esac
 exit 1`,
 	"getent": `[ "$1" = group ] || exit 2
 case "$2" in
 docker) [ -z "$STUB_NO_DOCKER" ]; exit $? ;;
-sysmin) [ -f "$STUB_STATE/group" ]; exit $? ;;
+qsysmin) [ -f "$STUB_STATE/group" ]; exit $? ;;
 esac
 exit 2`,
 	"groupadd":  `echo "groupadd $*" >>"$STUB_LOG"; touch "$STUB_STATE/group"`,
@@ -92,7 +92,7 @@ func newEnv(t *testing.T) *env {
 	if err := os.WriteFile(e.log, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	line := "sysmin-release " + strings.TrimSpace(string(ssh.MarshalAuthorizedKey(e.signer.PublicKey())))
+	line := "qsysmin-release " + strings.TrimSpace(string(ssh.MarshalAuthorizedKey(e.signer.PublicKey())))
 	e.script = filepath.Join(dir, "install.sh")
 	original := readFile(t, "install.sh")
 	if !signerLine.MatchString(original) {
@@ -115,7 +115,7 @@ func readFile(t *testing.T, path string) string {
 }
 
 func archiveName(tag string) string {
-	return fmt.Sprintf("sysmin_%s_linux_%s.tar.gz", tag, runtime.GOARCH)
+	return fmt.Sprintf("qsysmin_%s_linux_%s.tar.gz", tag, runtime.GOARCH)
 }
 
 func tarball(t *testing.T, files map[string]string) []byte {
@@ -153,9 +153,9 @@ type releaseOptions struct {
 func (e *env) publish(tag, program string, opts releaseOptions) {
 	e.t.Helper()
 	archive := tarball(e.t, map[string]string{
-		"bin/sysmin":                        program,
-		"lib/systemd/system/sysmin.service": "[Unit]\nDescription=" + tag + "\n",
-		"share/doc/sysmin/LICENSE":          "license " + tag + "\n",
+		"bin/qsysmin":                        program,
+		"lib/systemd/system/qsysmin.service": "[Unit]\nDescription=" + tag + "\n",
+		"share/doc/qsysmin/LICENSE":          "license " + tag + "\n",
 	})
 	sum := sha256.Sum256(archive)
 	hash := hex.EncodeToString(sum[:])
@@ -196,7 +196,7 @@ func (e *env) run(script string, stdin bool, args ...string) (string, error) {
 	cmd.Env = []string{
 		"PATH=" + e.stubDir + string(os.PathListSeparator) + os.Getenv("PATH"),
 		"TMPDIR=" + e.t.TempDir(),
-		"SYSMIN_INSTALL_ROOT=" + e.root,
+		"QSYSMIN_INSTALL_ROOT=" + e.root,
 		"STUB_LOG=" + e.log, "STUB_STATE=" + e.state, "STUB_UID=" + e.uid,
 	}
 	if e.noDock {
@@ -292,8 +292,8 @@ func TestInstallAndReinstall(t *testing.T) {
 		t.Errorf("output:\n%s", out)
 	}
 
-	binary := filepath.Join(e.root, "usr/local/bin/sysmin")
-	unit := filepath.Join(e.root, "etc/systemd/system/sysmin.service")
+	binary := filepath.Join(e.root, "usr/local/bin/qsysmin")
+	unit := filepath.Join(e.root, "etc/systemd/system/qsysmin.service")
 	if got := readFile(t, binary); got != "program one" {
 		t.Errorf("binary = %q", got)
 	}
@@ -302,20 +302,20 @@ func TestInstallAndReinstall(t *testing.T) {
 	}
 	for path, want := range map[string]os.FileMode{
 		binary: 0o755, unit: 0o644,
-		filepath.Join(e.root, "var/lib/sysmin"): 0o700,
+		filepath.Join(e.root, "var/lib/qsysmin"): 0o700,
 	} {
 		info, err := os.Stat(path)
 		if err != nil || info.Mode().Perm() != want {
 			t.Errorf("%s: %v, %v (want %v)", path, info, err, want)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(e.root, "etc/sysmin")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(e.root, "etc/qsysmin")); !os.IsNotExist(err) {
 		t.Errorf("install created a configuration directory: %v", err)
 	}
 	calls := e.calls()
 	for _, want := range []string{
-		"groupadd --system sysmin", "useradd --system --gid sysmin --groups docker --no-create-home",
-		"chown sysmin:sysmin " + filepath.Join(e.root, "var/lib/sysmin"), "systemctl daemon-reload", "systemctl enable --now sysmin",
+		"groupadd --system qsysmin", "useradd --system --gid qsysmin --groups docker --no-create-home",
+		"chown qsysmin:qsysmin " + filepath.Join(e.root, "var/lib/qsysmin"), "systemctl daemon-reload", "systemctl enable --now qsysmin",
 	} {
 		if !strings.Contains(calls, want) {
 			t.Errorf("calls lack %q:\n%s", want, calls)
@@ -337,7 +337,7 @@ func TestInstallAndReinstall(t *testing.T) {
 	if strings.Contains(calls, "useradd") || strings.Contains(calls, "groupadd") || strings.Contains(calls, "usermod") {
 		t.Errorf("reinstall recreated the account:\n%s", calls)
 	}
-	if !strings.Contains(calls, "systemctl restart sysmin") || strings.Contains(calls, "enable --now") {
+	if !strings.Contains(calls, "systemctl restart qsysmin") || strings.Contains(calls, "enable --now") {
 		t.Errorf("reinstall calls:\n%s", calls)
 	}
 	for _, dir := range []string{"usr/local/bin", "etc/systemd/system"} {
@@ -367,13 +367,13 @@ func TestInstallAddsSudoUserOnFreshInstall(t *testing.T) {
 			e.publish("v1.0.0", "program", releaseOptions{})
 			out := e.mustRun()
 			calls := e.calls()
-			if got := strings.Contains(calls, "usermod -aG sysmin "); got != tc.added {
+			if got := strings.Contains(calls, "usermod -aG qsysmin "); got != tc.added {
 				t.Errorf("added = %v, want %v:\n%s", got, tc.added, calls)
 			}
-			if got := strings.Contains(out, "sudo -g sysmin"); got != tc.added {
+			if got := strings.Contains(out, "sudo -g qsysmin"); got != tc.added {
 				t.Errorf("hint = %v, want %v:\n%s", got, tc.added, out)
 			}
-			if tc.added && !strings.Contains(calls, "usermod -aG sysmin alice") {
+			if tc.added && !strings.Contains(calls, "usermod -aG qsysmin alice") {
 				t.Errorf("calls:\n%s", calls)
 			}
 		})
@@ -385,7 +385,7 @@ func TestInstallAddsSudoUserOnFreshInstall(t *testing.T) {
 		e.mustRun()
 		e.sudo = "alice"
 		e.publish("v1.0.1", "program two", releaseOptions{})
-		if out := e.mustRun(); strings.Contains(e.calls(), "usermod -aG sysmin") || strings.Contains(out, "sudo -g") {
+		if out := e.mustRun(); strings.Contains(e.calls(), "usermod -aG qsysmin") || strings.Contains(out, "sudo -g") {
 			t.Errorf("update added the sudo user:\n%s\n%s", e.calls(), out)
 		}
 	})
@@ -399,7 +399,7 @@ func TestInstallFromStdinWithOptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	if got := readFile(t, filepath.Join(e.root, "usr/local/bin/sysmin")); got != "candidate" {
+	if got := readFile(t, filepath.Join(e.root, "usr/local/bin/qsysmin")); got != "candidate" {
 		t.Errorf("binary = %q", got)
 	}
 	if out, err := e.run("", false, "--auto-unlock", "host"); err == nil || !strings.Contains(out, "unknown argument") {
@@ -410,7 +410,7 @@ func TestInstallFromStdinWithOptions(t *testing.T) {
 	}
 	// Without a version the newest published release (the stable one here) is installed.
 	e.mustRun()
-	if got := readFile(t, filepath.Join(e.root, "usr/local/bin/sysmin")); got != "stable" {
+	if got := readFile(t, filepath.Join(e.root, "usr/local/bin/qsysmin")); got != "stable" {
 		t.Errorf("latest binary = %q", got)
 	}
 }
@@ -426,6 +426,42 @@ func TestInstallPreflightFailuresChangeNothing(t *testing.T) {
 		}
 		e.assertUntouched()
 	})
+}
+
+func TestInstallRefusesOldNameInstallation(t *testing.T) {
+	for _, old := range []string{"etc/systemd/system/sysmin.service", "usr/local/bin/sysmin"} {
+		t.Run(old, func(t *testing.T) {
+			e := newEnv(t)
+			e.publish("v1.0.0", "program", releaseOptions{})
+			path := filepath.Join(e.root, old)
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			out, err := e.run("", false)
+			if err == nil || !strings.Contains(out, "sudo sysmin uninstall --purge") {
+				t.Fatalf("err = %v\n%s", err, out)
+			}
+			if got := readFile(t, path); got != "old" {
+				t.Errorf("old file = %q", got)
+			}
+			var found []string
+			_ = filepath.WalkDir(e.root, func(p string, d os.DirEntry, _ error) error {
+				if !d.IsDir() {
+					found = append(found, p)
+				}
+				return nil
+			})
+			if len(found) != 1 || found[0] != path {
+				t.Errorf("root changed: %v", found)
+			}
+			if calls := e.calls(); calls != "" {
+				t.Errorf("system commands ran:\n%s", calls)
+			}
+		})
+	}
 }
 
 func TestReleaseIsReproducible(t *testing.T) {
@@ -448,13 +484,13 @@ func TestReleaseIsReproducible(t *testing.T) {
 	if sums != readFile(t, filepath.Join(second, "checksums.txt")) {
 		t.Errorf("checksums differ between runs:\n%s\n%s", sums, readFile(t, filepath.Join(second, "checksums.txt")))
 	}
-	for _, name := range []string{"sysmin_v0.0.1-test_linux_amd64.tar.gz", "sysmin_v0.0.1-test_linux_arm64.tar.gz", "install.sh"} {
+	for _, name := range []string{"qsysmin_v0.0.1-test_linux_amd64.tar.gz", "qsysmin_v0.0.1-test_linux_arm64.tar.gz", "install.sh"} {
 		if !strings.Contains(sums, "  "+name+"\n") {
 			t.Errorf("checksums.txt lacks %s:\n%s", name, sums)
 		}
 	}
 
-	f, err := os.Open(filepath.Join(first, "sysmin_v0.0.1-test_linux_amd64.tar.gz"))
+	f, err := os.Open(filepath.Join(first, "qsysmin_v0.0.1-test_linux_amd64.tar.gz"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -478,7 +514,7 @@ func TestReleaseIsReproducible(t *testing.T) {
 			t.Errorf("%s: owner %d:%d mtime %v", h.Name, h.Uid, h.Gid, h.ModTime)
 		}
 	}
-	for _, want := range []string{"bin/sysmin", "share/doc/sysmin/LICENSE", "lib/systemd/system/sysmin.service"} {
+	for _, want := range []string{"bin/qsysmin", "share/doc/qsysmin/LICENSE", "lib/systemd/system/qsysmin.service"} {
 		if !seen[want] {
 			t.Errorf("archive lacks %s: %v", want, seen)
 		}

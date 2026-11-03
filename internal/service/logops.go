@@ -16,7 +16,7 @@ import (
 )
 
 // maxLogActionFilter is the longest action filter. The filter is only checked for its shape, not against the
-// known actions, so an action that older entries record and sysmin no longer writes finds them.
+// known actions, so an action that older entries record and qsysmin no longer writes finds them.
 const maxLogActionFilter = 64
 
 func (s *Service) registerLog() error {

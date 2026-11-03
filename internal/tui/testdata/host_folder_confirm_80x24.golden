@@ -1,17 +1,17 @@
-sysmin                                                         [?] help  [:] cmd
+qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users   Groups  [Folders]  Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Folders ╔══════════════════════════════════════════════════════════════╗        
         ║ ⚠ Change /srv/demo-app and everything below it: owner root,  ║        
-Path: /s║   group sysmin; the owner gets read and write, the group     ║        
+Path: /s║   group qsysmin; the owner gets read and write, the group    ║        
         ║   read, everyone else no access.                             ║        
 Type    ║                                                              ║        
 Owner ro║     42 entries are changed: the folder and everything below  ║        
-Group sy║     it. You can undo this under Host > Changes.              ║        
+Group qs║     it. You can undo this under Host > Changes.              ║        
 Others  ║                                                              ║        
-Mode    ║   $ chown -R -h -- root:sysmin /srv/demo-app                 ║        
-ACL     ║   $ chmod -R -- u=rwX,g=rX,o= /srv/demo-app                  ║w       
+Mode    ║   $ chown -R -h -- root:qsysmin /srv/demo-app                ║        
+ACL     ║   $ chmod -R -- u=rwX,g=rX,o= /srv/demo-app                  ║ow      
 Special ║                                                              ║        
         ║ [ Apply ]  [ Cancel ]                                        ║        
         ║                                                              ║        

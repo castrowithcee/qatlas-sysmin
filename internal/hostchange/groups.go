@@ -13,8 +13,8 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
-// The group actions create, delete and rename a group. sudo and sysmin are never deleted or renamed: the
-// rights of the administrators and the access to sysmin rest on these two names, and without them nobody could
+// The group actions create, delete and rename a group. sudo and qsysmin are never deleted or renamed: the
+// rights of the administrators and the access to qsysmin rest on these two names, and without them nobody could
 // undo anything. Every other group, system groups and docker included, may be deleted and renamed; the
 // confirmation of the TUI then asks red.
 const (
@@ -25,7 +25,7 @@ const (
 
 // protectedGroup is a group that is neither deleted nor renamed.
 func protectedGroup(name string) bool {
-	return name == hostadmin.GroupAdmin || name == hostadmin.GroupSysmin
+	return name == hostadmin.GroupAdmin || name == hostadmin.GroupQsysmin
 }
 
 // primaryUsers names the users whose primary group has the GID, in file order.
@@ -142,7 +142,7 @@ func (u userActions) inverseGroupCreate(prev json.RawMessage) (Plan, error) {
 		return Plan{}, errors.New("the recorded group cannot be undone")
 	}
 	return Plan{
-		Sentence: fmt.Sprintf("Delete the group %s (GID %d) that sysmin created.", st.Name, st.GID),
+		Sentence: fmt.Sprintf("Delete the group %s (GID %d) that qsysmin created.", st.Name, st.GID),
 		Commands: []Command{{Argv: []string{"groupdel", st.Name}}},
 		Capture: func(context.Context) (json.RawMessage, error) {
 			groups, err := u.groupRows()
@@ -215,7 +215,7 @@ func (u userActions) deleteGroupSnapshot(name string) (groupState, error) {
 		return groupState{}, Refusef("there is no group %s", name)
 	}
 	if protectedGroup(name) {
-		return groupState{}, Refusef("the group %s gives administrators their rights and access to sysmin and is never deleted", name)
+		return groupState{}, Refusef("the group %s gives administrators their rights and access to qsysmin and is never deleted", name)
 	}
 	if primary, err := u.primaryUsers(g.gid); err != nil {
 		return groupState{}, err
@@ -390,7 +390,7 @@ func (u userActions) renamePlan(st renameState, sentence string) Plan {
 			case st.GID != anyUID && g.gid != st.GID:
 				return nil, Refusef("the group %s now has GID %d instead of %d; it is not the group of the change", st.Old, g.gid, st.GID)
 			case protectedGroup(st.Old):
-				return nil, Refusef("the group %s is addressed by its name for administrator rights and access to sysmin and is never renamed", st.Old)
+				return nil, Refusef("the group %s is addressed by its name for administrator rights and access to qsysmin and is never renamed", st.Old)
 			}
 			if _, taken := findGroup(groups, st.New); taken {
 				return nil, Refusef("the group %s exists already", st.New)

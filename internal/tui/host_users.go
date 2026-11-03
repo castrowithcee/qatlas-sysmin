@@ -38,7 +38,7 @@ func userKindText(system bool) string {
 
 // fixedGroup is a group with a switch of its own, never one of the further groups.
 func fixedGroup(name string) bool {
-	return name == hostadmin.GroupAdmin || name == hostadmin.GroupDocker || name == hostadmin.GroupSysmin
+	return name == hostadmin.GroupAdmin || name == hostadmin.GroupDocker || name == hostadmin.GroupQsysmin
 }
 
 // furtherGroups are the groups a person may be put into besides the switches: existing and not fixed. A new
@@ -545,7 +545,7 @@ func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 		}
 		ask.id, ask.args = hostchange.ActionUserSetAdmin, append(ask.args, "off")
 		if !st.u.Enabled {
-			ask.args = append(ask.args, "without-sysmin")
+			ask.args = append(ask.args, "without-qsysmin")
 		}
 	case chgDockerOff:
 		ask.id, ask.args = hostchange.ActionUserSetDocker, append(ask.args, "off")

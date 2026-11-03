@@ -30,7 +30,7 @@ func TestFolderFormIsPrefilledWithTheCurrentValues(t *testing.T) {
 	m, _, _, _ := userModel(t, 120, 40)
 	openFolderForm(t, m, "/srv/demo-app", fixedCount(1))
 	view := flat(m)
-	for _, want := range []string{"Change /srv/demo-app", "Owner", "root", "Group", "sysmin", "Owner may", "read and write",
+	for _, want := range []string{"Change /srv/demo-app", "Owner", "root", "Group", "qsysmin", "Owner may", "read and write",
 		"Group may", "read", "Others may", "nothing", "Everything below it", "no"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("form lacks %q:\n%s", want, plain(m))

@@ -20,7 +20,7 @@ func updateModel(t *testing.T, info ReleaseInfo) (*Model, *int) {
 func TestStartFindsANewerReleaseAndShowsIt(t *testing.T) {
 	m, calls := updateModel(t, ReleaseInfo{Latest: "v0.1.1"})
 	view := plain(m)
-	if *calls != 1 || !strings.Contains(view, "sysmin v0.1.0 → v0.1.1") || !strings.Contains(view, "v0.1.1 available") || !strings.Contains(view, "Install sysmin v0.1.1") {
+	if *calls != 1 || !strings.Contains(view, "qsysmin v0.1.0 → v0.1.1") || !strings.Contains(view, "v0.1.1 available") || !strings.Contains(view, "Install qsysmin v0.1.1") {
 		t.Fatalf("lookups %d:\n%s", *calls, view)
 	}
 
@@ -40,7 +40,7 @@ func TestSelfUpdateAsksThenQuitsToInstall(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			m, _ := updateModel(t, ReleaseInfo{Latest: "v0.1.1"})
 			start(m)
-			if m.screen != screenConfirm || !strings.Contains(plain(m), "Update sysmin from v0.1.0 to v0.1.1?") {
+			if m.screen != screenConfirm || !strings.Contains(plain(m), "Update qsysmin from v0.1.0 to v0.1.1?") {
 				t.Fatalf("no question:\n%s", plain(m))
 			}
 			send(m, "n")

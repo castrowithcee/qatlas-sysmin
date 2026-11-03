@@ -19,7 +19,7 @@ import (
 
 const (
 	// DefaultDir is where the service keeps its log files.
-	DefaultDir = "/var/lib/sysmin/logs"
+	DefaultDir = "/var/lib/qsysmin/logs"
 	// DefaultRetentionDays is how long a day file is kept unless the caller chooses otherwise.
 	DefaultRetentionDays = 90
 

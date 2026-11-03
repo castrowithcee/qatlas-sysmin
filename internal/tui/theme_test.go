@@ -68,7 +68,7 @@ func TestResetsColour(t *testing.T) {
 	}
 }
 
-// darkTheme is the sysmin dark palette without painting the screen, the look most tests read their colours
+// darkTheme is the qsysmin dark palette without painting the screen, the look most tests read their colours
 // from.
 func darkTheme() theme { return buildTheme(paletteOf(true, currentProfile()), false) }
 
@@ -99,12 +99,12 @@ func answerColours(t *testing.T, m *Model, fg, bg string) {
 	m.Update(tea.BackgroundColorMsg{Color: color.RGBA{R: b.r, G: b.g, B: b.b, A: 0xff}})
 }
 
-// Each sysmin theme paints the screen in its palette, the terminal theme never does.
+// Each qsysmin theme paints the screen in its palette, the terminal theme never does.
 func TestThemesPaintOnlyWhereTheyOwnTheBackground(t *testing.T) {
 	restoreRenderer(t)
 	setProfile(profileTrueColor)
 	t.Setenv("NO_COLOR", "")
-	for name, want := range map[string]palette{uiprefs.ThemeSysminDark: darkPalette, uiprefs.ThemeSysminLight: lightPalette} {
+	for name, want := range map[string]palette{uiprefs.ThemeQsysminDark: darkPalette, uiprefs.ThemeQsysminLight: lightPalette} {
 		applyTheme(name)
 		if !styles.filled || styles.palette != want {
 			t.Errorf("%s: filled %v, palette base %q; want filled with base %q", name, styles.filled, styles.palette.base, want.base)
@@ -159,8 +159,8 @@ func TestNoColorAsksTheTerminalNothing(t *testing.T) {
 	if terminalColourQuery(uiprefs.ThemeTerminal) == nil {
 		t.Fatal("the terminal theme does not ask the terminal for its colours")
 	}
-	if terminalColourQuery(uiprefs.ThemeSysminDark) != nil {
-		t.Error("a sysmin theme asks the terminal for its colours")
+	if terminalColourQuery(uiprefs.ThemeQsysminDark) != nil {
+		t.Error("a qsysmin theme asks the terminal for its colours")
 	}
 	setProfile(profile16)
 	if terminalColourQuery(uiprefs.ThemeTerminal) != nil {
@@ -252,7 +252,7 @@ func TestMixedPaletteTakesKnownANSIColours(t *testing.T) {
 // The registry offers the terminal theme first, and every name it holds is a theme of its own.
 func TestThemeRegistry(t *testing.T) {
 	names := themeNames()
-	if len(names) < 3 || strings.Join(names[:3], ",") != "terminal,sysmin dark,sysmin light" {
+	if len(names) < 3 || strings.Join(names[:3], ",") != "terminal,qsysmin dark,qsysmin light" {
 		t.Errorf("themes = %v", names)
 	}
 	for _, name := range names {

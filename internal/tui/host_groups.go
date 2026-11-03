@@ -17,10 +17,10 @@ import (
 // groupNameForm is the format the root action accepts for a group name.
 var groupNameForm = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 
-// protectedGroup is a group that is neither renamed nor deleted: administrator rights and access to sysmin
+// protectedGroup is a group that is neither renamed nor deleted: administrator rights and access to qsysmin
 // rest on its name.
 func protectedGroup(name string) bool {
-	return name == hostadmin.GroupAdmin || name == hostadmin.GroupSysmin
+	return name == hostadmin.GroupAdmin || name == hostadmin.GroupQsysmin
 }
 
 // currentGroup is the group marked on the Groups page.

@@ -21,7 +21,7 @@ const oldProgram = "old program"
 
 func installed(t *testing.T) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "sysmin")
+	path := filepath.Join(t.TempDir(), "qsysmin")
 	if err := os.WriteFile(path, []byte(oldProgram), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func installed(t *testing.T) string {
 const oldUnit = "[Unit]\nDescription=old\n"
 
 func clientFor(s *selfupdatetest.Server, version, target string) *Client {
-	unit := filepath.Join(filepath.Dir(target), "units", "sysmin.service")
+	unit := filepath.Join(filepath.Dir(target), "units", "qsysmin.service")
 	if _, err := os.Stat(unit); err != nil && target != "" {
 		_ = os.MkdirAll(filepath.Dir(unit), 0o755)
 		_ = os.WriteFile(unit, []byte(oldUnit), 0o600)
@@ -56,7 +56,7 @@ func assertOnlyTarget(t *testing.T, target string) {
 		t.Errorf("target directory = %v (%v), want only the program", entries, err)
 	}
 	units, err := os.ReadDir(filepath.Join(filepath.Dir(target), "units"))
-	if err != nil || len(units) != 1 || units[0].Name() != "sysmin.service" {
+	if err != nil || len(units) != 1 || units[0].Name() != "qsysmin.service" {
 		t.Errorf("unit directory = %v (%v), want only the unit", units, err)
 	}
 }
@@ -362,7 +362,7 @@ func TestInstallWithoutUnitInArchiveChangesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.Install(context.Background(), tg); err == nil || !strings.Contains(err.Error(), "lib/systemd/system/sysmin.service") {
+	if _, err := c.Install(context.Background(), tg); err == nil || !strings.Contains(err.Error(), "lib/systemd/system/qsysmin.service") {
 		t.Fatalf("err = %v", err)
 	}
 	if readFile(t, target) != oldProgram || readFile(t, unitOf(c)) != oldUnit {

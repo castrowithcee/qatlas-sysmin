@@ -58,14 +58,14 @@ func TestLoadToleratesUnknownKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, warnings := Load(path)
-	if got.Theme != ThemeSysminDark || len(warnings) != 0 {
-		t.Fatalf("Load() = %+v, %v; want theme sysmin dark and no warning", got, warnings)
+	if got.Theme != ThemeQsysminDark || len(warnings) != 0 {
+		t.Fatalf("Load() = %+v, %v; want theme qsysmin dark and no warning", got, warnings)
 	}
 }
 
 func TestSaveRoundTripLeavesNoTempFile(t *testing.T) {
 	dir := t.TempDir()
-	want := Prefs{Theme: ThemeSysminLight, Start: "access", Icons: IconsNerdFont, Language: LanguageGerman, Keys: DefaultKeys()}
+	want := Prefs{Theme: ThemeQsysminLight, Start: "access", Icons: IconsNerdFont, Language: LanguageGerman, Keys: DefaultKeys()}
 	if err := Save(Path(dir), want); err != nil {
 		t.Fatal(err)
 	}
@@ -87,14 +87,14 @@ func TestSaveReplacesWholeFileAndLastWriterWins(t *testing.T) {
 	if err := os.WriteFile(path, []byte("theme: dark\nstart: library\nicons: nerdfont\nextra: x\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := Save(path, Prefs{Theme: ThemeSysminLight, Start: "overview", Icons: IconsNone}); err != nil {
+	if err := Save(path, Prefs{Theme: ThemeQsysminLight, Start: "overview", Icons: IconsNone}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := string(data); got != "theme: sysmin light\nstart: overview\nicons: none\nlanguage: english\nmouse: true\n" {
+	if got := string(data); got != "theme: qsysmin light\nstart: overview\nicons: none\nlanguage: english\nmouse: true\n" {
 		t.Fatalf("file = %q", got)
 	}
 }
@@ -205,14 +205,14 @@ func TestFormerColourSchemeBecomesTheme(t *testing.T) {
 		file, want string
 	}{
 		{"theme: auto\n", ThemeTerminal},
-		{"theme: light\n", ThemeSysminLight},
-		{"theme: dark\n", ThemeSysminDark},
+		{"theme: light\n", ThemeQsysminLight},
+		{"theme: dark\n", ThemeQsysminDark},
 		{"start: overview\n", ThemeTerminal},
-		{"theme: auto\nbackground: sysmin\n", ThemeTerminal},
-		{"theme: light\nbackground: terminal\n", ThemeSysminLight},
-		{"theme: dark\nbackground: sysmin\n", ThemeSysminDark},
+		{"theme: auto\nbackground: qsysmin\n", ThemeTerminal},
+		{"theme: light\nbackground: terminal\n", ThemeQsysminLight},
+		{"theme: dark\nbackground: qsysmin\n", ThemeQsysminDark},
 		{"background: neon\n", ThemeTerminal},
-		{"theme: sysmin light\n", ThemeSysminLight},
+		{"theme: qsysmin light\n", ThemeQsysminLight},
 		{"theme: some later theme\n", "some later theme"},
 	} {
 		path := Path(t.TempDir())
@@ -237,75 +237,5 @@ func TestFormerColourSchemeBecomesTheme(t *testing.T) {
 	}
 	if got, _ := Load(Path(t.TempDir())); got.Theme != ThemeTerminal {
 		t.Errorf("without a file the theme is %q, want %s", got.Theme, ThemeTerminal)
-	}
-}
-
-func TestMigrateMovesOldFile(t *testing.T) {
-	root := t.TempDir()
-	oldPath := filepath.Join(root, "old", FileName)
-	newPath := filepath.Join(root, "home", ".qatlas", "sysmin", FileName)
-	if err := os.MkdirAll(filepath.Dir(oldPath), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(oldPath, []byte("theme: terminal\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if msg := Migrate(newPath, oldPath); msg == "" {
-		t.Error("want a message for the move")
-	}
-	if got, err := os.ReadFile(newPath); err != nil || string(got) != "theme: terminal\n" {
-		t.Errorf("new file = %q, %v", got, err)
-	}
-	if _, err := os.Lstat(oldPath); !os.IsNotExist(err) {
-		t.Errorf("old file still there: %v", err)
-	}
-	if info, _ := os.Stat(filepath.Dir(newPath)); info.Mode().Perm() != 0o700 {
-		t.Errorf("dir mode = %v", info.Mode().Perm())
-	}
-}
-
-func TestMigrateKeepsExistingNewFile(t *testing.T) {
-	root := t.TempDir()
-	oldPath := filepath.Join(root, "old.yaml")
-	newPath := filepath.Join(root, "new.yaml")
-	for p, c := range map[string]string{oldPath: "old\n", newPath: "new\n"} {
-		if err := os.WriteFile(p, []byte(c), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if msg := Migrate(newPath, oldPath); msg != "" {
-		t.Errorf("message = %q, want none", msg)
-	}
-	if got, _ := os.ReadFile(oldPath); string(got) != "old\n" {
-		t.Errorf("old file = %q", got)
-	}
-	if got, _ := os.ReadFile(newPath); string(got) != "new\n" {
-		t.Errorf("new file = %q", got)
-	}
-}
-
-func TestMigrateSymlinkKeepsTarget(t *testing.T) {
-	root := t.TempDir()
-	target := filepath.Join(root, "dotfiles.yaml")
-	oldPath := filepath.Join(root, "old.yaml")
-	newPath := filepath.Join(root, "new", FileName)
-	if err := os.WriteFile(target, []byte("theme: terminal\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink("dotfiles.yaml", oldPath); err != nil {
-		t.Fatal(err)
-	}
-	Migrate(newPath, oldPath)
-	if got, err := os.Readlink(newPath); err != nil || got != target {
-		t.Errorf("new link = %q, %v, want %q", got, err, target)
-	}
-	if _, err := os.Lstat(oldPath); !os.IsNotExist(err) {
-		t.Errorf("old link still there: %v", err)
-	}
-	if prefs, w := Load(newPath); len(w) != 0 || prefs.Theme != ThemeTerminal {
-		t.Errorf("prefs = %+v, warnings = %q", prefs, w)
-	}
-	if _, err := os.Stat(target); err != nil {
-		t.Errorf("link target lost: %v", err)
 	}
 }

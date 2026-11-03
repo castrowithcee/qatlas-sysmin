@@ -19,7 +19,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/release/releasetest"
 )
 
-const checksumsText = "0000000000000000000000000000000000000000000000000000000000000001  sysmin_v1.0.0_linux_amd64.tar.gz\n"
+const checksumsText = "0000000000000000000000000000000000000000000000000000000000000001  qsysmin_v1.0.0_linux_amd64.tar.gz\n"
 
 func TestVerifyChecksums(t *testing.T) {
 	signer := releasetest.NewSigner(t)
@@ -127,7 +127,7 @@ func TestProgramSHA256(t *testing.T) {
 	var tarball bytes.Buffer
 	gz := gzip.NewWriter(&tarball)
 	tw := tar.NewWriter(gz)
-	for name, body := range map[string][]byte{"share/man/man1/sysmin.1": []byte("man"), "bin/sysmin": program} {
+	for name, body := range map[string][]byte{"share/man/man1/qsysmin.1": []byte("man"), "bin/qsysmin": program} {
 		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o755, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
 			t.Fatal(err)
 		}
@@ -152,7 +152,7 @@ func TestTrustedKeysMatchAllowedSigners(t *testing.T) {
 	var want []string
 	for _, line := range strings.Split(strings.TrimSpace(string(body)), "\n") {
 		fields := strings.Fields(line)
-		if len(fields) != 3 || fields[0] != "sysmin-release" {
+		if len(fields) != 3 || fields[0] != "qsysmin-release" {
 			t.Fatalf("unexpected allowed signers line %q", line)
 		}
 		want = append(want, fields[1]+" "+fields[2])

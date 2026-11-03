@@ -1,24 +1,24 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         1/2 ╭─ demo-admin ───────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name              demo-admin                   │
-║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              regular                      │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             yes                          │
-║   ▸ System accounts (1)                                           ║ │ Docker            yes                          │
-╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (sysmin)  yes                          │
-                            ╔══════════════════════════════════════════════════════════════╗mo-admin, sudo, docker,    │
-                            ║ Info                                                         ║smin                       │
-                            ║                                                              ║ome/demo-admin             │
-                            ║ Users                                                        ║known                      │
+║   ▾ Users (2)                                                     ║ │ Name               demo-admin                  │
+║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               regular                     │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              yes                         │
+║   ▸ System accounts (1)                                           ║ │ Docker             yes                         │
+╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
+                            ╔══════════════════════════════════════════════════════════════╗emo-admin, sudo, docker,   │
+                            ║ Info                                                         ║sysmin                     │
+                            ║                                                              ║home/demo-admin            │
+                            ║ Users                                                        ║nknown                     │
                             ║                                                              ║                           │
                             ║ Admin: the user may become root with sudo. Docker: the user  ║ the fields only root can  │
                             ║ may use Docker, which is practically root on this host.      ║                           │
-                            ║ Enabled: the user is a member of the group sysmin; an admin  ║───────────────────────────╯
-                            ║ who is also enabled may use sysmin. n creates a user, e      ║                            
+                            ║ Enabled: the user is a member of the group qsysmin; an admin ║───────────────────────────╯
+                            ║ who is also enabled may use qsysmin. n creates a user, e     ║                            
                             ║ changes the marked one, d deletes it; every change asks      ║                            
                             ║ first, runs through sudo and can be undone under Changes,    ║                            
                             ║ except deleting a home.                                      ║                            

@@ -1,4 +1,4 @@
-sysmin                                                         [?] help  [:] cmd
+qsysmin                                                        [?] help  [:] cmd
    1 Ove╔══════════════════════════════════════════════════════════════╗        
   [Users║ Help                                                         ║        
 ────────║                                                              ║────────
@@ -6,12 +6,12 @@ Users (3║  keys   audit-log  [host]                                    ║    
 ╔═══════║                                                              ║═══════╗
 ║   Name║ Host shows the users, groups and folder permissions of this  ║System ║
 ║   ▾ Us║ machine. Admin means sudo rights, Docker is practically      ║       ║
-║ > demo║ root, and enabled means membership of the group sysmin. Grey ║       ║
-║   demo║ rows are system accounts and groups, whose ID lies outside   ║       ║
-║   ▸ Sy║ 1000 to 60000; they sit in their own section, which starts   ║       ║
-╚═══════║ collapsed. enter or space on a heading collapses or expands  ║═══════╝
-        ║ it. e and d work on root and system accounts like on any     ║        
-        ║ other account, and the confirmation is then red, because     ║        
+║ > demo║ root, and enabled means membership of the group qsysmin.     ║       ║
+║   demo║ Grey rows are system accounts and groups, whose ID lies      ║       ║
+║   ▸ Sy║ outside 1000 to 60000; they sit in their own section, which  ║       ║
+╚═══════║ starts collapsed. enter or space on a heading collapses or   ║═══════╝
+        ║ expands it. e and d work on root and system accounts like on ║        
+        ║ any other account, and the confirmation is then red, because ║        
         ║ packages or services may depend on them; only taking admin   ║        
         ║ from, locking or deleting yourself or the last admin is      ║        
         ║ refused. Folders reads one path at a time: type it, tab      ║        

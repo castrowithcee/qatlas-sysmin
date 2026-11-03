@@ -254,7 +254,7 @@ func TestGroupsShowMemberCountsAndMembers(t *testing.T) {
 	openSystem(m, &m.hst.groups.page, "enter")
 	m.hst.groups.page.list.selectName("sudo")
 	view := plain(m)
-	for _, want := range []string{"sudo", "docker", "sysmin", "demo-team", "Members", "system"} {
+	for _, want := range []string{"sudo", "docker", "qsysmin", "demo-team", "Members", "system"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("Groups lacks %q:\n%s", want, view)
 		}
@@ -278,7 +278,7 @@ func TestHostTextsExistInGerman(t *testing.T) {
 	m := hostModel(t, 120, 40)
 	useLanguage(t, "de")
 	view := plain(m)
-	for _, want := range []string{"Benutzer", "Gruppen", "Ordner", "ohne sysmin", "System"} {
+	for _, want := range []string{"Benutzer", "Gruppen", "Ordner", "ohne qsysmin", "System"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("German Host lacks %q:\n%s", want, view)
 		}
@@ -299,7 +299,7 @@ func foldersModel(t *testing.T, w, h int, path string) *Model {
 func TestFoldersShowsThreeLevelsInPlainWords(t *testing.T) {
 	m := foldersModel(t, 120, 40, "/srv/demo-app")
 	view := plain(m)
-	for _, want := range []string{"Owner root", "read and write", "Group sysmin", "Others", "nothing", "folder", "ACL", "setgid", "2750"} {
+	for _, want := range []string{"Owner root", "read and write", "Group qsysmin", "Others", "nothing", "folder", "ACL", "setgid", "2750"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("Folders lacks %q:\n%s", want, view)
 		}
@@ -365,7 +365,7 @@ func TestHostInfoExplainsAdminDockerAndEnabled(t *testing.T) {
 	m := hostModel(t, 120, 40)
 	send(m, "i")
 	view := plain(m)
-	for _, want := range []string{"Admin:", "practically root", "Enabled:", "group sysmin"} {
+	for _, want := range []string{"Admin:", "practically root", "Enabled:", "group qsysmin"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("Host info lacks %q:\n%s", want, view)
 		}

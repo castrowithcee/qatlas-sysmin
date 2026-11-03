@@ -134,7 +134,7 @@ type Model struct {
 	// drawn only as the dimmed background of a modal; tooSmall, that the size notice replaces the workspace.
 	inModal, inPanel, backdrop, tooSmall bool
 	quitting                             bool
-	// regroupAsked says the person quit to restart the interface under sudo -g sysmin; Run reports it.
+	// regroupAsked says the person quit to restart the interface under sudo -g qsysmin; Run reports it.
 	regroupAsked bool
 	// denied is the error that took the access away while the interface ran; Run returns it after the quit.
 	denied error
@@ -305,7 +305,7 @@ func (m *Model) quit() tea.Cmd {
 }
 
 // regroup quits, after the same question as quit about unsaved changes, so that the interface starts again
-// under sudo -g sysmin and carries the group without a new login.
+// under sudo -g qsysmin and carries the group without a new login.
 func (m *Model) regroup() tea.Cmd {
 	return m.guarded(func() tea.Cmd {
 		m.regroupAsked = true

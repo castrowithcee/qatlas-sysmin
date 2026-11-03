@@ -13,26 +13,26 @@ import (
 
 // ActionGroupSetMembers adds and removes members of one group in one step:
 //
-//	group.set-members <group> (+<user> | -<user> | -<user>:without-sysmin)...
+//	group.set-members <group> (+<user> | -<user> | -<user>:without-qsysmin)...
 //
 // "+user" adds, "-user" removes, each user at most once. In the group sudo the change follows the user-side
-// administrator switch: adding a user also adds the user to sysmin, and "-user" also removes the user from
-// sysmin; "-user:without-sysmin" removes only from sudo, for an administrator who is not in sysmin. The
+// administrator switch: adding a user also adds the user to qsysmin, and "-user" also removes the user from
+// qsysmin; "-user:without-qsysmin" removes only from sudo, for an administrator who is not in qsysmin. The
 // option is refused for every other group.
 const ActionGroupSetMembers = "group.set-members"
 
 const (
 	maxMemberChanges = 64
-	optionNoSysmin   = ":" + optionWithoutSysmin
+	optionNoQsysmin  = ":" + optionWithoutQsysmin
 )
 
-// memberChange is one user of a member change. Sysmin says that the user is also added to or removed from
-// sysmin; in a recorded state it says that sysmin really changed.
+// memberChange is one user of a member change. Qsysmin says that the user is also added to or removed from
+// qsysmin; in a recorded state it says that qsysmin really changed.
 type memberChange struct {
-	Name   string `json:"name"`
-	UID    int    `json:"uid"`
-	Add    bool   `json:"add"`
-	Sysmin bool   `json:"sysmin"`
+	Name    string `json:"name"`
+	UID     int    `json:"uid"`
+	Add     bool   `json:"add"`
+	Qsysmin bool   `json:"qsysmin"`
 }
 
 // membersState is the journal state: the group the change is bound to and what happened to each user.
@@ -53,7 +53,7 @@ func (st membersState) check() error {
 	seen := map[string]bool{}
 	for _, c := range st.Changes {
 		if checkName("user", c.Name) != nil || !validUID(c.UID) || seen[c.Name] ||
-			(c.Sysmin && st.Group != hostadmin.GroupAdmin) {
+			(c.Qsysmin && st.Group != hostadmin.GroupAdmin) {
 			return errors.New("the list of changes")
 		}
 		seen[c.Name] = true
@@ -75,13 +75,13 @@ func (u userActions) planGroupSetMembers(args []string, _ []byte) (Plan, error) 
 		if len(a) < 2 || (a[0] != '+' && a[0] != '-') {
 			return Plan{}, Argf("%q is not a change: write +user to add or -user to remove", a)
 		}
-		c := memberChange{UID: anyUID, Add: a[0] == '+', Sysmin: group == hostadmin.GroupAdmin}
+		c := memberChange{UID: anyUID, Add: a[0] == '+', Qsysmin: group == hostadmin.GroupAdmin}
 		name := a[1:]
-		if rest, ok := strings.CutSuffix(name, optionNoSysmin); ok {
-			if c.Add || !c.Sysmin {
-				return Plan{}, Argf("%q: without-sysmin applies only to removing a user from %s", a, hostadmin.GroupAdmin)
+		if rest, ok := strings.CutSuffix(name, optionNoQsysmin); ok {
+			if c.Add || !c.Qsysmin {
+				return Plan{}, Argf("%q: without-qsysmin applies only to removing a user from %s", a, hostadmin.GroupAdmin)
 			}
-			name, c.Sysmin = rest, false
+			name, c.Qsysmin = rest, false
 		}
 		if err := checkName("user", name); err != nil {
 			return Plan{}, err
@@ -105,14 +105,14 @@ func (u userActions) membersPlan(group string, gid int, changes []memberChange, 
 		switch {
 		case c.Add:
 			cmds = append(cmds, Command{Argv: []string{"gpasswd", "-a", c.Name, group}})
-			if c.Sysmin {
-				// usermod -aG leaves a user who is in sysmin already as is, where gpasswd -a is not safe to repeat.
-				cmds = append(cmds, Command{Argv: []string{"usermod", "-aG", hostadmin.GroupSysmin, c.Name}})
+			if c.Qsysmin {
+				// usermod -aG leaves a user who is in qsysmin already as is, where gpasswd -a is not safe to repeat.
+				cmds = append(cmds, Command{Argv: []string{"usermod", "-aG", hostadmin.GroupQsysmin, c.Name}})
 			}
 		default:
 			cmds = append(cmds, Command{Argv: []string{"gpasswd", "-d", c.Name, group}})
-			if c.Sysmin {
-				cmds = append(cmds, Command{Argv: []string{"gpasswd", "-d", c.Name, hostadmin.GroupSysmin}})
+			if c.Qsysmin {
+				cmds = append(cmds, Command{Argv: []string{"gpasswd", "-d", c.Name, hostadmin.GroupQsysmin}})
 			}
 		}
 	}
@@ -134,7 +134,7 @@ func (u userActions) membersPlan(group string, gid int, changes []memberChange, 
 			case gid != anyUID && g.gid != gid:
 				return nil, Refusef("the group %s now has GID %d instead of %d; it is not the group of the change", group, g.gid, gid)
 			}
-			sysmin, hasSysmin := findGroup(groups, hostadmin.GroupSysmin)
+			qsysmin, hasQsysmin := findGroup(groups, hostadmin.GroupQsysmin)
 			recorded := make([]memberChange, 0, len(changes))
 			for _, c := range changes {
 				want := c.UID
@@ -152,20 +152,20 @@ func (u userActions) membersPlan(group string, gid int, changes []memberChange, 
 					return nil, Refusef("%s is not a member of the group %s", c.Name, group)
 				}
 				rc := memberChange{Name: c.Name, UID: usr.UID, Add: c.Add}
-				if c.Sysmin {
-					if !hasSysmin {
-						return nil, Refusef("there is no group %s", hostadmin.GroupSysmin)
+				if c.Qsysmin {
+					if !hasQsysmin {
+						return nil, Refusef("there is no group %s", hostadmin.GroupQsysmin)
 					}
-					inSysmin := slices.Contains(sysmin.members, c.Name)
+					inQsysmin := slices.Contains(qsysmin.members, c.Name)
 					switch {
 					case c.Add:
-						rc.Sysmin = !inSysmin && usr.PrimaryGroup != hostadmin.GroupSysmin
-					case usr.PrimaryGroup == hostadmin.GroupSysmin:
-						return nil, Refusef("%s is the primary group of %s and cannot be removed", hostadmin.GroupSysmin, c.Name)
-					case !inSysmin:
-						return nil, Refusef("%s is not in the group %s; remove with %s%s to leave sysmin as it is", c.Name, hostadmin.GroupSysmin, c.Name, optionNoSysmin)
+						rc.Qsysmin = !inQsysmin && usr.PrimaryGroup != hostadmin.GroupQsysmin
+					case usr.PrimaryGroup == hostadmin.GroupQsysmin:
+						return nil, Refusef("%s is the primary group of %s and cannot be removed", hostadmin.GroupQsysmin, c.Name)
+					case !inQsysmin:
+						return nil, Refusef("%s is not in the group %s; remove with %s%s to leave qsysmin as it is", c.Name, hostadmin.GroupQsysmin, c.Name, optionNoQsysmin)
 					default:
-						rc.Sysmin = true
+						rc.Qsysmin = true
 					}
 				}
 				recorded = append(recorded, rc)
@@ -184,13 +184,13 @@ func (u userActions) membersPlan(group string, gid int, changes []memberChange, 
 			if !ok || (gid != anyUID && g.gid != gid) {
 				return fmt.Errorf("the group %s is not as it was", group)
 			}
-			sysmin, _ := findGroup(groups, hostadmin.GroupSysmin)
+			qsysmin, _ := findGroup(groups, hostadmin.GroupQsysmin)
 			for _, c := range changes {
 				if slices.Contains(g.members, c.Name) != c.Add {
 					return fmt.Errorf("the membership of %s in %s did not change", c.Name, group)
 				}
-				if c.Sysmin && slices.Contains(sysmin.members, c.Name) != c.Add {
-					return fmt.Errorf("the membership of %s in %s did not change", c.Name, hostadmin.GroupSysmin)
+				if c.Qsysmin && slices.Contains(qsysmin.members, c.Name) != c.Add {
+					return fmt.Errorf("the membership of %s in %s did not change", c.Name, hostadmin.GroupQsysmin)
 				}
 			}
 			return nil
@@ -219,16 +219,16 @@ func membersSentence(group string, changes []memberChange) string {
 		s += " and " + parts[1]
 	}
 	if group == hostadmin.GroupAdmin {
-		s += "; administrators keep or lose access to sysmin (group sysmin) with it"
+		s += "; administrators keep or lose access to qsysmin (group qsysmin) with it"
 	}
 	return s + "."
 }
 
-// guardMembers keeps the administrators, as guardRevoke does for one user: nobody leaves sudo or sysmin
+// guardMembers keeps the administrators, as guardRevoke does for one user: nobody leaves sudo or qsysmin
 // themselves, and after the change someone else remains who is in both and can log in. Every added user counts
-// for that, because adding to sudo adds to sysmin.
+// for that, because adding to sudo adds to qsysmin.
 func (u userActions) guardMembers(ctx context.Context, group string, changes []memberChange) error {
-	if group != hostadmin.GroupAdmin && group != hostadmin.GroupSysmin {
+	if group != hostadmin.GroupAdmin && group != hostadmin.GroupQsysmin {
 		return nil
 	}
 	removing := false
@@ -238,7 +238,7 @@ func (u userActions) guardMembers(ctx context.Context, group string, changes []m
 			removing = true
 			gone[c.Name] = c
 			if actor := ActingUID(ctx); actor != 0 && actor == c.UID {
-				return Refusef("you cannot take administrator rights or access to sysmin from yourself")
+				return Refusef("you cannot take administrator rights or access to qsysmin from yourself")
 			}
 		}
 	}
@@ -254,23 +254,23 @@ func (u userActions) guardMembers(ctx context.Context, group string, changes []m
 		return err
 	}
 	for _, o := range users {
-		sudo, sysmin := o.Admin, memberOf(o, hostadmin.GroupSysmin)
+		sudo, qsysmin := o.Admin, memberOf(o, hostadmin.GroupQsysmin)
 		if c, ok := gone[o.Name]; ok {
 			switch group {
 			case hostadmin.GroupAdmin:
-				sudo, sysmin = false, sysmin && !c.Sysmin
+				sudo, qsysmin = false, qsysmin && !c.Qsysmin
 			default:
-				sysmin = false
+				qsysmin = false
 			}
 		}
 		if added[o.Name] {
-			sudo, sysmin = sudo || group == hostadmin.GroupAdmin, true
+			sudo, qsysmin = sudo || group == hostadmin.GroupAdmin, true
 		}
-		if sudo && sysmin && !lockedOut(o) {
+		if sudo && qsysmin && !lockedOut(o) {
 			return nil
 		}
 	}
-	return Refusef("the change would leave no administrator with access to sysmin; one stays")
+	return Refusef("the change would leave no administrator with access to qsysmin; one stays")
 }
 
 // inverseGroupSetMembers takes back exactly what the change did, guarded like a forward change: users it added

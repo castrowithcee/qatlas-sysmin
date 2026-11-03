@@ -15,10 +15,9 @@ import (
 
 // Installation layout. The release archive and the installer put the files here.
 const (
-	serviceName   = "sysmin"
-	unitPath      = "/etc/systemd/system/sysmin.service"
-	configDataDir = "/etc/sysmin"
-	stateDataDir  = "/var/lib/sysmin"
+	serviceName  = "qsysmin"
+	unitPath     = "/etc/systemd/system/qsysmin.service"
+	stateDataDir = "/var/lib/qsysmin"
 )
 
 // system holds everything update and uninstall take from the host, so that tests run without root, systemd,
@@ -54,7 +53,7 @@ func defaultSystem() system {
 		updater:    func(version, apiURL string) *selfupdate.Client { return selfupdate.New(version, apiURL) },
 		binaryPath: selfupdate.DefaultTarget,
 		unitPath:   unitPath,
-		dataDirs:   []string{configDataDir, stateDataDir},
+		dataDirs:   []string{stateDataDir},
 	}
 }
 

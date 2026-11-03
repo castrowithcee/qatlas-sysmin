@@ -12,11 +12,11 @@ import (
 )
 
 // TestContainerCheckAgainstRealDocker checks the docker ps and inspect parsing for containers with and
-// without a healthcheck and labels. It only runs when SYSMIN_DOCKER_TEST=1 and uses an image that must exist
+// without a healthcheck and labels. It only runs when QSYSMIN_DOCKER_TEST=1 and uses an image that must exist
 // locally.
 func TestContainerCheckAgainstRealDocker(t *testing.T) {
-	if os.Getenv("SYSMIN_DOCKER_TEST") != "1" {
-		t.Skip("set SYSMIN_DOCKER_TEST=1 to run the test against a real Docker daemon")
+	if os.Getenv("QSYSMIN_DOCKER_TEST") != "1" {
+		t.Skip("set QSYSMIN_DOCKER_TEST=1 to run the test against a real Docker daemon")
 	}
 	if err := exec.Command("docker", "info").Run(); err != nil {
 		t.Skipf("docker is not reachable: %v", err)
@@ -29,7 +29,7 @@ func TestContainerCheckAgainstRealDocker(t *testing.T) {
 	if _, err := rand.Read(rnd); err != nil {
 		t.Fatal(err)
 	}
-	prefix := "sysmin-test-inspect-" + hex.EncodeToString(rnd) + "-"
+	prefix := "qsysmin-test-inspect-" + hex.EncodeToString(rnd) + "-"
 	specs := map[string][]string{
 		"plain":       {},
 		"healthcheck": {"--health-cmd", "true", "--health-interval", "1s"},

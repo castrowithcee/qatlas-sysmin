@@ -1,18 +1,18 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         2/2 ╭─ demo-user ────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name              demo-user                    │
-║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              regular                      │
-║ > demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             yes · not enabled            │
-║   ▸ System accounts (1)                                           ║ │ Docker            no                           │
-╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (sysmin)  no                           │
-                                                                      │ Groups            demo-user, sudo, demo-team   │
-                            ╔══════════════════════════════════════════════════════════════╗ome/demo-user              │
-                            ║ ⚠ Delete the user demo-user together with its home and mail  ║                           │
+║   ▾ Users (2)                                                     ║ │ Name               demo-user                   │
+║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               regular                     │
+║ > demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              yes · not enabled           │
+║   ▸ System accounts (1)                                           ║ │ Docker             no                          │
+╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  no                          │
+                                                                      │ Groups             demo-user, sudo, demo-team  │
+                            ╔══════════════════════════════════════════════════════════════╗home/demo-user             │
+                            ║ ⚠ Delete the user demo-user together with its home and mail  ║o                          │
                             ║   spool.                                                     ║───────────────────────────╯
                             ║                                                              ║                            
                             ║     This cannot be undone: the home /home/demo-user and the  ║                            

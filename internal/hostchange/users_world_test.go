@@ -80,7 +80,7 @@ func newUserWorld(t *testing.T) *userWorld {
 		{"root", 0, nil},
 		{"adm", 4, []string{"demo-user"}},
 		{"sudo", 27, []string{"demo-admin", "demo-other", "demo-boss"}},
-		{"sysmin", 990, []string{"demo-admin", "demo-other"}},
+		{"qsysmin", 990, []string{"demo-admin", "demo-other"}},
 		{"docker", 999, []string{"demo-user"}},
 		{"svc-demo", 998, nil},
 		{"demo-admin", 1000, nil}, {"demo-user", 1001, nil}, {"demo-other", 1002, nil}, {"demo-boss", 1003, nil},

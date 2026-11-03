@@ -1,4 +1,4 @@
-sysmin                                                         [?] help  [:] cmd
+qsysmin                                                        [?] help  [:] cmd
 > [1 Overview]  2 Host   3 Activity   4 Settings                                
 ────────╔══════════════════════════════════════════════════════════════╗────────
 Overview║ Help                                                         ║Oct 2026
@@ -6,7 +6,7 @@ Overview║ Help                                                         ║Oct 
 ╭─ Admin║ [keys]  audit-log   host                                     ║───────╮
 │ 2     ║                                                              ║       │
 ╰───────║ This screen                                                  ║───────╯
-sysmin 0║   ←/→ area                                                   ║        
+qsysmin ║   ←/→ area                                                   ║        
 ╭─ Next ║   ↓ open                                                     ║───────╮
 │   ⚠ Ad║                                                              ║       │
 ╰───────║ Everywhere                                                   ║───────╯

@@ -12,7 +12,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
-// Host shows the users, groups and folder permissions of the machine sysmin runs on. The data comes from the
+// Host shows the users, groups and folder permissions of the machine qsysmin runs on. The data comes from the
 // local databases through a HostSource, not from the service: reading them needs no privilege, and the fields
 // only root can read stay unknown. Changes go through root actions, never through the source.
 const (
@@ -135,7 +135,7 @@ func (m *Model) takeHostGroups(msg hostGroupsMsg) {
 	m.fillHostGroups()
 }
 
-// adminText is the Admin cell of a user: an administrator who cannot use sysmin yet is marked.
+// adminText is the Admin cell of a user: an administrator who cannot use qsysmin yet is marked.
 func adminText(u hostadmin.User) string {
 	switch {
 	case u.Admin && !u.Enabled:

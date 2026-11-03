@@ -26,7 +26,7 @@ const (
 )
 
 // ServiceUser is the system user the service runs as.
-const ServiceUser = "sysmin"
+const ServiceUser = "qsysmin"
 
 // firstAnswerTimeout bounds the wait for the answer to the first request of a connection, so a peer that
 // accepts but never answers is named in a few seconds instead of after CallTimeout. It is a variable only so
@@ -136,21 +136,21 @@ var peerOf = func(conn net.Conn) (peerCred, error) {
 	return peerCred{PID: cred.Pid, UID: cred.Uid}, nil
 }
 
-// ReservedMessage is what every surface says to someone who may not use sysmin. It is the only text for it.
-const ReservedMessage = "sysmin is reserved for administrators (sudo)"
+// ReservedMessage is what every surface says to someone who may not use qsysmin. It is the only text for it.
+const ReservedMessage = "qsysmin is reserved for administrators (sudo)"
 
-// NotEnabledMessage is what an administrator hears whose account is not a member of the group sysmin.
-const NotEnabledMessage = "your account is not enabled for sysmin; an enabled administrator enables it in sysmin tui under Host › Users"
+// NotEnabledMessage is what an administrator hears whose account is not a member of the group qsysmin.
+const NotEnabledMessage = "your account is not enabled for qsysmin; an enabled administrator enables it in qsysmin tui under Host › Users"
 
 // ErrReserved is a caller who is no administrator, or no longer is. ErrNotEnabled is an administrator who
-// is not a member of the group sysmin in the group database.
+// is not a member of the group qsysmin in the group database.
 var (
 	ErrReserved   = errors.New(ReservedMessage)
 	ErrNotEnabled = errors.New(NotEnabledMessage)
 )
 
 // standing reads the group database for the caller: whether the account is an administrator and whether it
-// is a member of the group sysmin. Whatever cannot be read counts as no. It is a variable so a test can
+// is a member of the group qsysmin. Whatever cannot be read counts as no. It is a variable so a test can
 // stand in for the system.
 var standing = func() (admin, enabled bool) {
 	h := hostadmin.NewHost(false)
@@ -163,7 +163,7 @@ var standing = func() (admin, enabled bool) {
 }
 
 // accessDenial names why a refused or unreachable socket is no concern of the service: ErrReserved for a
-// caller who is no administrator, ErrNotEnabled for an administrator outside the group sysmin, and
+// caller who is no administrator, ErrNotEnabled for an administrator outside the group qsysmin, and
 // ErrSessionGroup for an enabled administrator whose login session predates the membership. It is nil when
 // none of these explains the refusal.
 func accessDenial() error {
@@ -179,7 +179,7 @@ func accessDenial() error {
 	return nil
 }
 
-// ErrSessionGroup is a refused connection of a user who is in the group sysmin, from a login session that
+// ErrSessionGroup is a refused connection of a user who is in the group qsysmin, from a login session that
 // started before the user joined it: the session does not carry the group yet.
 var ErrSessionGroup = errors.New("this login session started before the user joined the group " + control.ServiceGroup)
 

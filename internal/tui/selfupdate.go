@@ -11,8 +11,8 @@ func (m *Model) updateAvailable() string {
 	return u.info.Latest
 }
 
-// selfUpdate asks before sysmin installs the newer release. On y the interface quits and Run reports the
-// version; the caller runs sudo sysmin update on the terminal and starts the interface again. Without a known
+// selfUpdate asks before qsysmin installs the newer release. On y the interface quits and Run reports the
+// version; the caller runs sudo qsysmin update on the terminal and starts the interface again. Without a known
 // release it asks for one.
 func (m *Model) selfUpdate() tea.Cmd {
 	latest := m.updateAvailable()

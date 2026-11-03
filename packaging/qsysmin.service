@@ -1,17 +1,17 @@
 [Unit]
-Description=sysmin server administration service
+Description=qsysmin server administration service
 After=network-online.target docker.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/sysmin run
-User=sysmin
-Group=sysmin
+ExecStart=/usr/local/bin/qsysmin run
+User=qsysmin
+Group=qsysmin
 SupplementaryGroups=docker
-RuntimeDirectory=sysmin
+RuntimeDirectory=qsysmin
 RuntimeDirectoryMode=0750
-StateDirectory=sysmin
+StateDirectory=qsysmin
 StateDirectoryMode=0700
 NoNewPrivileges=yes
 ProtectSystem=full

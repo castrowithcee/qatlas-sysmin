@@ -60,7 +60,7 @@ func setInputWidth(in *textinput.Model, width int) {
 // belongs. Every layer that places a field (prefixes, panels, dialogs, the dimmed backdrop) keeps or drops it
 // like any escape sequence, so the position found in the finished frame is the drawn one with no offset of
 // its own to keep in step.
-const cursorMark = "\x1b_sysmin-cursor\x1b\\"
+const cursorMark = "\x1b_qsysmin-cursor\x1b\\"
 
 // takeCursor removes the cursor marks from frame and returns the cell of the first one, or nil without a mark.
 func takeCursor(frame string) (string, *tea.Cursor) {

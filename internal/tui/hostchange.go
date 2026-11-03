@@ -17,10 +17,10 @@ import (
 )
 
 // Changes to the host run as root through sudo: the interface builds the confirmation from the action's plan,
-// hands the terminal to `sudo sysmin host apply …` and reads the report that command prints. sudo asks for the
+// hands the terminal to `sudo qsysmin host apply …` and reads the report that command prints. sudo asks for the
 // password on the terminal; the interface never sees it.
 
-// HostRequest is one call of the sudo hook: the arguments after "sysmin host".
+// HostRequest is one call of the sudo hook: the arguments after "qsysmin host".
 type HostRequest struct {
 	Args []string
 	// Validate asks for the command that makes sudo ask for the password on the terminal and remember it
@@ -127,7 +127,7 @@ func scrub(text string, secrets ...[]byte) string {
 }
 
 // runHostSecret runs a request that carries a secret in two steps. sudo asks for the password on the real
-// terminal in the first (sudo -v), which sysmin never sees; the second runs without a prompt, the secret on
+// terminal in the first (sudo -v), which qsysmin never sees; the second runs without a prompt, the secret on
 // the standard input of the command, and stops where sudo would have asked again. The secret is overwritten
 // when the run is over. mask are further texts, such as a password inside the secret, that must not reach the
 // screen.
@@ -270,7 +270,7 @@ func (m *Model) hostFailNoticeAs(title string, kind hostFailure, exit int, err e
 		text = tr(tHostErrNoCredential)
 	case change && reason != "" && !strings.HasPrefix(reason, "sudo:") && (kind == failDenied || kind == failExit):
 		// A line of sudo itself ("sudo: 3 incorrect password attempts") keeps the message about sudo; anything
-		// else is the reason sysmin gave.
+		// else is the reason qsysmin gave.
 		text = tr(tHostErrReported, m.diffText(reason))
 	default:
 		text = m.hostFailText(kind, exit, err, change)

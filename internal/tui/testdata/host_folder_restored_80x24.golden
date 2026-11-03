@@ -1,4 +1,4 @@
-sysmin                                                         [?] help  [:] cmd
+qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users   Groups  [Folders]  Changes                                           
 ────────╔══════════════════════════════════════════════════════════════╗────────
@@ -8,10 +8,10 @@ Path: /s║   owner gets read and write, the group read, everyone else   ║
         ║   no access.                                                 ║        
 Type    ║                                                              ║        
 Owner ro║     The change or its check failed and the previous state is ║        
-Group sy║     back.                                                    ║        
+Group qs║     back.                                                    ║        
 Others  ║                                                              ║        
 Mode    ║   check failed                                               ║        
-ACL     ║   Check failed: container demo-web-1: the container          ║w       
+ACL     ║   Check failed: container demo-web-1: the container          ║ow      
 Special ║   became unhealthy                                           ║        
         ║                                                              ║        
         ║ [ Close ]                                                    ║        

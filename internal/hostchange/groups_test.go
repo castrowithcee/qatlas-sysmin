@@ -154,7 +154,7 @@ func TestGroupInversesRefuseInvalidRecordedStates(t *testing.T) {
 		}},
 		"delete": {u.inverseGroupDelete, `{"name":"media","gid":2001,"members":["demo-user","demo-other"]}`, map[string]string{
 			"name":          `{"name":"Bad Name","gid":2001,"members":[]}`,
-			"sysmin":        `{"name":"sysmin","gid":990,"members":[]}`,
+			"qsysmin":       `{"name":"qsysmin","gid":990,"members":[]}`,
 			"sudo":          `{"name":"sudo","gid":27,"members":[]}`,
 			"gid":           `{"name":"media","gid":-1,"members":[]}`,
 			"member":        `{"name":"media","gid":2001,"members":["a,b"]}`,
@@ -163,14 +163,14 @@ func TestGroupInversesRefuseInvalidRecordedStates(t *testing.T) {
 			"not an object": `"x"`,
 		}},
 		"rename": {u.inverseGroupRename, `{"old":"projects","new":"demo-projects","gid":2000}`, map[string]string{
-			"old name":      `{"old":"../x","new":"demo-projects","gid":2000}`,
-			"new name":      `{"old":"projects","new":"Bad","gid":2000}`,
-			"same":          `{"old":"projects","new":"projects","gid":2000}`,
-			"old is sudo":   `{"old":"sudo","new":"demo-projects","gid":27}`,
-			"new is sysmin": `{"old":"projects","new":"sysmin","gid":2000}`,
-			"gid":           `{"old":"projects","new":"demo-projects","gid":-5}`,
-			"unknown field": `{"old":"projects","new":"demo-projects","gid":2000,"more":1}`,
-			"not an object": `null`,
+			"old name":       `{"old":"../x","new":"demo-projects","gid":2000}`,
+			"new name":       `{"old":"projects","new":"Bad","gid":2000}`,
+			"same":           `{"old":"projects","new":"projects","gid":2000}`,
+			"old is sudo":    `{"old":"sudo","new":"demo-projects","gid":27}`,
+			"new is qsysmin": `{"old":"projects","new":"qsysmin","gid":2000}`,
+			"gid":            `{"old":"projects","new":"demo-projects","gid":-5}`,
+			"unknown field":  `{"old":"projects","new":"demo-projects","gid":2000,"more":1}`,
+			"not an object":  `null`,
 		}},
 	} {
 		if _, err := tc.inverse(json.RawMessage(tc.valid)); err != nil {
@@ -251,7 +251,7 @@ func TestGroupDeleteRefusals(t *testing.T) {
 		}, "primary group of demo-user and demo-other"},
 		{"root group", []string{"root"}, nil, "primary group of root"},
 		{"sudo", []string{"sudo"}, nil, "never deleted"},
-		{"sysmin", []string{"sysmin"}, nil, "never deleted"},
+		{"qsysmin", []string{"qsysmin"}, nil, "never deleted"},
 		{"unknown", []string{"demo-nobody"}, nil, "there is no group demo-nobody"},
 		{"shared GID", []string{"projects"}, func(f *userFixture) {
 			f.groups = append(f.groups, worldGroup{"demo-twin", 2000, nil})
@@ -357,7 +357,7 @@ func TestGroupRenameRefusals(t *testing.T) {
 		reason string
 	}{
 		{"sudo", []string{"sudo", "demo-admins"}, "never renamed"},
-		{"sysmin", []string{"sysmin", "demo-sysmin"}, "never renamed"},
+		{"qsysmin", []string{"qsysmin", "demo-qsysmin"}, "never renamed"},
 		{"new name taken", []string{"media", "projects"}, "the group projects exists already"},
 		{"to sudo", []string{"media", "sudo"}, "the group sudo exists already"},
 		{"unknown", []string{"demo-nobody", "demo-x"}, "there is no group demo-nobody"},

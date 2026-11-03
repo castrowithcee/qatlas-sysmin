@@ -82,7 +82,7 @@ type harness struct {
 
 func start(t *testing.T, cfg Config) *harness {
 	t.Helper()
-	dir, err := os.MkdirTemp("", "sysmin-")
+	dir, err := os.MkdirTemp("", "qsysmin-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestAdminInDatabase(t *testing.T) {
 	const accounts = "root:x:0:0::/root:/bin/sh\ndemo-user:x:1001:1001::/home/demo-user:/bin/sh\n" +
 		"demo-admin:x:1002:1002::/home/demo-admin:/bin/sh\ndemo-primary:x:1003:27::/home/p:/bin/sh\n" +
 		"broken\ndemo-other:x:1004:1004::/home/o:/bin/sh\n"
-	const groups = "sysmin:x:990:demo-user,demo-admin\nsudo:x:27:demo-admin,demo-other-name\n"
+	const groups = "qsysmin:x:990:demo-user,demo-admin\nsudo:x:27:demo-admin,demo-other-name\n"
 	for _, tc := range []struct {
 		name             string
 		groups, accounts string
@@ -218,7 +218,7 @@ func TestAdminInDatabase(t *testing.T) {
 		{"not a member", groups, accounts, 1001, false},
 		{"name prefix is no member", groups, accounts, 1004, false},
 		{"unknown uid", groups, accounts, 4000, false},
-		{"group missing", "sysmin:x:990:demo-admin\n", accounts, 1002, false},
+		{"group missing", "qsysmin:x:990:demo-admin\n", accounts, 1002, false},
 		{"malformed group line", "sudo:27\n", accounts, 1002, false},
 	} {
 		got, err := adminInDatabase(strings.NewReader(tc.groups), strings.NewReader(tc.accounts), tc.uid)
@@ -498,7 +498,7 @@ func TestShutdownRemovesSocket(t *testing.T) {
 }
 
 func TestShutdownDuringAcceptDoesNotHang(t *testing.T) {
-	dir, err := os.MkdirTemp("", "sysmin-")
+	dir, err := os.MkdirTemp("", "qsysmin-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -534,7 +534,7 @@ func TestShutdownDuringAcceptDoesNotHang(t *testing.T) {
 }
 
 func TestListenReplacesOnlyDeadSockets(t *testing.T) {
-	dir, _ := os.MkdirTemp("", "sysmin-")
+	dir, _ := os.MkdirTemp("", "qsysmin-")
 	defer os.RemoveAll(dir)
 	path := filepath.Join(dir, "s.sock")
 

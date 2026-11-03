@@ -45,7 +45,7 @@ func TestCreateServiceWithHomeDockerAndGroups(t *testing.T) {
 			t.Errorf("not in %s", g)
 		}
 	}
-	if f.member("demo-bot", "sudo") || f.member("demo-bot", "sysmin") {
+	if f.member("demo-bot", "sudo") || f.member("demo-bot", "qsysmin") {
 		t.Error("a service account is never an administrator")
 	}
 	if fi, err := os.Stat(home); err != nil || !fi.IsDir() {

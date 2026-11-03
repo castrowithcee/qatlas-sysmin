@@ -3,8 +3,6 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -55,7 +53,7 @@ func TestUnknownFormatIsUsageError(t *testing.T) {
 	if stdout != "" {
 		t.Errorf("stdout = %q, want empty", stdout)
 	}
-	if !strings.HasPrefix(stderr, "sysmin: usage: ") || !strings.Contains(stderr, "bogus") {
+	if !strings.HasPrefix(stderr, "qsysmin: usage: ") || !strings.Contains(stderr, "bogus") {
 		t.Errorf("stderr = %q", stderr)
 	}
 }
@@ -69,14 +67,14 @@ func TestUnknownCommandIsUsageError(t *testing.T) {
 
 func TestUnknownFlagIsUsageError(t *testing.T) {
 	code, _, stderr := runCLI(t, "version", "--nothing")
-	if code != exitUsage || !strings.HasPrefix(stderr, "sysmin: usage: ") {
+	if code != exitUsage || !strings.HasPrefix(stderr, "qsysmin: usage: ") {
 		t.Errorf("code = %d, stderr = %q", code, stderr)
 	}
 }
 
 func TestHelpTopic(t *testing.T) {
-	code, stdout, _ := runCLI(t, "help", "sysmin")
-	if code != exitOK || !strings.Contains(stdout, "Linux host") || !strings.Contains(stdout, "sysmin --help") ||
+	code, stdout, _ := runCLI(t, "help", "qsysmin")
+	if code != exitOK || !strings.Contains(stdout, "Linux host") || !strings.Contains(stdout, "qsysmin --help") ||
 		strings.Contains(stdout, "exist so far") {
 		t.Errorf("code = %d, stdout = %q", code, stdout)
 	}
@@ -84,7 +82,7 @@ func TestHelpTopic(t *testing.T) {
 
 func TestTUIIsRegisteredAndRejectsArguments(t *testing.T) {
 	code, _, stderr := runCLI(t, "tui", "extra")
-	if code != exitUsage || !strings.Contains(stderr, "sysmin: usage: unexpected argument \"extra\"") ||
+	if code != exitUsage || !strings.Contains(stderr, "qsysmin: usage: unexpected argument \"extra\"") ||
 		!strings.Contains(stderr, "Usage:") {
 		t.Errorf("code = %d, stderr = %q", code, stderr)
 	}
@@ -95,14 +93,14 @@ func TestTUIWithoutTerminalFailsCleanly(t *testing.T) {
 	if code != exitUsage || stdout != "" {
 		t.Fatalf("code = %d, stdout = %q", code, stdout)
 	}
-	if !strings.Contains(stderr, "sysmin: usage: the terminal interface needs a terminal") ||
+	if !strings.Contains(stderr, "qsysmin: usage: the terminal interface needs a terminal") ||
 		strings.Contains(stderr, "Usage:") {
 		t.Errorf("stderr = %q", stderr)
 	}
 }
 
 func TestTUIAcceptsTheSocketFlag(t *testing.T) {
-	code, _, stderr := runCLI(t, "tui", "--socket", "/nonexistent/sysmin.sock")
+	code, _, stderr := runCLI(t, "tui", "--socket", "/nonexistent/qsysmin.sock")
 	if code != exitUsage || !strings.Contains(stderr, "the terminal interface needs a terminal") {
 		t.Errorf("code = %d, stderr = %q", code, stderr)
 	}
@@ -110,7 +108,7 @@ func TestTUIAcceptsTheSocketFlag(t *testing.T) {
 
 func TestVersionFlag(t *testing.T) {
 	code, stdout, stderr := runCLI(t, "--version")
-	if code != exitOK || stderr != "" || stdout != "sysmin "+version+"\n" {
+	if code != exitOK || stderr != "" || stdout != "qsysmin "+version+"\n" {
 		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 }
@@ -140,38 +138,5 @@ func TestOutputUnknownValueIsUsageError(t *testing.T) {
 	code, _, _ := runCLI(t, "version", "--output", "yaml")
 	if code != exitUsage {
 		t.Errorf("code = %d, want %d", code, exitUsage)
-	}
-}
-
-func TestLoadPrefsMigratesOldFile(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	oldPath := filepath.Join(home, ".config", "sysmin", "tui.yaml")
-	if err := os.MkdirAll(filepath.Dir(oldPath), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(oldPath, []byte("theme: terminal\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	_, path, warnings := loadPrefs()
-	if want := filepath.Join(home, ".qatlas", "sysmin", "tui.yaml"); path != want {
-		t.Errorf("path = %q, want %q", path, want)
-	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "moved") {
-		t.Errorf("warnings = %q", warnings)
-	}
-	if _, err := os.Stat(path); err != nil {
-		t.Errorf("new file missing: %v", err)
-	}
-	// With the new file present, a second old file stays untouched.
-	if err := os.WriteFile(oldPath, []byte("theme: other\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, w := loadPrefs(); len(w) != 0 {
-		t.Errorf("warnings = %q, want none", w)
-	}
-	if _, err := os.Stat(oldPath); err != nil {
-		t.Errorf("old file touched: %v", err)
 	}
 }

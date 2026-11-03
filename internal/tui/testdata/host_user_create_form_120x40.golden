@@ -1,19 +1,19 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         1/2 ╭─ demo-admin ───────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name              demo-admin                   │
-║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              regular                      │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             yes                          │
-║   ▸ System accounts (1)                                           ║ │ Docker            yes                          │
-╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗s                          │
-                            ║ New user                                                     ║mo-admin, sudo, docker,    │
-                            ║                                                              ║smin                       │
-                            ║   Kind:             Person                                   ║ome/demo-admin             │
-                            ║   Name:            demo-new                                  ║known                      │
+║   ▾ Users (2)                                                     ║ │ Name               demo-admin                  │
+║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               regular                     │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              yes                         │
+║   ▸ System accounts (1)                                           ║ │ Docker             yes                         │
+╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗es                         │
+                            ║ New user                                                     ║emo-admin, sudo, docker,   │
+                            ║                                                              ║sysmin                     │
+                            ║   Kind:             Person                                   ║home/demo-admin            │
+                            ║   Name:            demo-new                                  ║nknown                     │
                             ║   Password:        ********                                  ║                           │
                             ║   Repeat password: ********                                  ║ the fields only root can  │
                             ║   Admin:            yes                                      ║                           │

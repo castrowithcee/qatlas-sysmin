@@ -14,7 +14,7 @@ import (
 )
 
 // The Changes page lists the latest changes to the host from the journal, which only root can read. It is
-// read through `sudo sysmin host journal` when the person asks (ctrl+r), never on its own, and enter on a
+// read through `sudo qsysmin host journal` when the person asks (ctrl+r), never on its own, and enter on a
 // reversible entry asks to undo it.
 
 // hostChange is one entry of the journal as `host journal` lists it. UndoSentence and UndoCommands are the
@@ -233,7 +233,7 @@ func (m *Model) askReadUser() tea.Cmd {
 	}
 	m.askConfirm(question{
 		title: tr(tHostReadTitle, m.diffText(name)), consequence: tr(tHostReadNote),
-		details: planDetails([]string{"sysmin host user " + shellWord(name)}), keys: "y read as root · n/{back} cancel",
+		details: planDetails([]string{"qsysmin host user " + shellWord(name)}), keys: "y read as root · n/{back} cancel",
 	}, func() tea.Cmd { return m.readUser(name) })
 	return nil
 }

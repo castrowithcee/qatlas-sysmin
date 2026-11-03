@@ -1,19 +1,19 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         1/2 ╭─ demo-admin ───────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name              demo-admin                   │
-║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              regular                      │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             yes                          │
-║   ▸ System accounts (1)                                           ║ │ Docker            yes                          │
-╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (sysmin)  yes                          │
-                                                                      │ Groups            demo-admin, sudo, docker,    │
-                                                                      │                   sysmin                       │
-                            ╔══════════════════════════════════════════════════════════════╗ome/demo-admin             │
-                            ║ ⚠ Wipe the demo folder.                                      ║known                      │
+║   ▾ Users (2)                                                     ║ │ Name               demo-admin                  │
+║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               regular                     │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              yes                         │
+║   ▸ System accounts (1)                                           ║ │ Docker             yes                         │
+╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
+                                                                      │ Groups             demo-admin, sudo, docker,   │
+                                                                      │                    qsysmin                     │
+                            ╔══════════════════════════════════════════════════════════════╗home/demo-admin            │
+                            ║ ⚠ Wipe the demo folder.                                      ║nknown                     │
                             ║                                                              ║                           │
                             ║     This cannot be undone: the old content is not kept       ║ the fields only root can  │
                             ║                                                              ║                           │

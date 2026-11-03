@@ -2,7 +2,7 @@
 
 package tui
 
-// builtinSchemes are the colours of the schemes the theme setting offers besides the sysmin ones; their notices are in
+// builtinSchemes are the colours of the schemes the theme setting offers besides the qsysmin ones; their notices are in
 // themes_builtin_licenses.txt.
 var builtinSchemes = []builtinScheme{
 	{name: "catppuccin mocha", fg: rgb{0xcd, 0xd6, 0xf4}, bg: rgb{0x1e, 0x1e, 0x2e}, ansi: [16]rgb{

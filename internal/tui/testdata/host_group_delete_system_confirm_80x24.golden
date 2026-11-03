@@ -1,4 +1,4 @@
-sysmin                                                         [?] help  [:] cmd
+qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users  [Groups]  Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
@@ -10,7 +10,7 @@ Groups (╔═══════════════════════
 ║   ▾ Sy║     practically root. Packages or services may depend on     ║       ║
 ║   sudo║     this system group. You can undo this under Host >        ║       ║
 ║ > dock║     Changes.                                                 ║       ║
-║   sysm║                                                              ║       ║
+║   qsys║                                                              ║       ║
 ╚═══════║   $ groupdel docker                                          ║═══════╝
         ║                                                              ║        
         ║ [ Delete ]  [ Cancel ]                                       ║        

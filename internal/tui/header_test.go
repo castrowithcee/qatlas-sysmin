@@ -55,7 +55,7 @@ func TestHeaderStaysOneRowWithTheHelpKeyAtEveryWidth(t *testing.T) {
 				if lipgloss.Width(row) > w {
 					t.Errorf("%s at %d: header is %d cells: %q", name, w, lipgloss.Width(row), row)
 				}
-				if !strings.HasPrefix(row, "sysmin") || !strings.Contains(row, "?") {
+				if !strings.HasPrefix(row, "qsysmin") || !strings.Contains(row, "?") {
 					t.Errorf("%s at %d: name or help key missing: %q", name, w, row)
 				}
 				view := plain(m)
@@ -68,7 +68,7 @@ func TestHeaderStaysOneRowWithTheHelpKeyAtEveryWidth(t *testing.T) {
 func TestHeaderNamesEveryStateInWordsWithoutColour(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 	want := map[string]string{
-		"unknown": "checking", "unreachable": "service unreachable", "up": "sysmin", "update": "9.9.9 available",
+		"unknown": "checking", "unreachable": "service unreachable", "up": "qsysmin", "update": "9.9.9 available",
 	}
 	headerStates(t, func(name string, m *Model) {
 		setProfile(detectProfile(os.Stdout))

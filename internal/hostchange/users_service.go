@@ -27,7 +27,7 @@ type createServiceState struct {
 	HomeCreated bool   `json:"home_created"`
 }
 
-// serviceHome is the home path of the account: the usual one when sysmin creates it, otherwise the path that
+// serviceHome is the home path of the account: the usual one when qsysmin creates it, otherwise the path that
 // names no directory.
 func (u userActions) serviceHome(name string, withHome bool) string {
 	if withHome {
@@ -174,7 +174,7 @@ func (u userActions) inverseCreateService(prev json.RawMessage) (Plan, error) {
 	sentence := fmt.Sprintf("Delete the service account %s, keeping files it owns outside a home.", st.Name)
 	if st.HomeCreated {
 		userdel = []string{"userdel", "-r", st.Name}
-		sentence = fmt.Sprintf("Delete the service account %s and its home %s, which sysmin created; files it owns elsewhere stay.", st.Name, st.Home)
+		sentence = fmt.Sprintf("Delete the service account %s and its home %s, which qsysmin created; files it owns elsewhere stay.", st.Name, st.Home)
 	}
 	return Plan{
 		Sentence: sentence,

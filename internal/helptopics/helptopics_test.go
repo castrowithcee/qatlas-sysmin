@@ -50,7 +50,7 @@ func TestWrapIndentsContinuations(t *testing.T) {
 		{"one two three four", 9, "one two\nthree\nfour"},
 		{"1. first item text", 12, "1. first\n   item text"},
 		{"  - bullet item here", 14, "  - bullet\n    item here"},
-		{"  sysmin tools --query x", 16, "  sysmin tools\n  --query x"},
+		{"  qsysmin tools --query x", 16, "  qsysmin tools\n  --query x"},
 		{"abcdefghij", 4, "abcd\nefgh\nij"},
 	} {
 		if got := Wrap(tt.line, tt.width); got != tt.want {
@@ -64,7 +64,7 @@ func TestTopicsAreListedInOrder(t *testing.T) {
 	for _, topic := range All() {
 		names = append(names, topic.Name)
 	}
-	if got := strings.Join(names, ","); got != "sysmin,host-admin" {
-		t.Fatalf("All() = %s, want sysmin,host-admin", got)
+	if got := strings.Join(names, ","); got != "qsysmin,host-admin" {
+		t.Fatalf("All() = %s, want qsysmin,host-admin", got)
 	}
 }

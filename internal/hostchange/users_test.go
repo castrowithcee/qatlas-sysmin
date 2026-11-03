@@ -70,7 +70,7 @@ func TestCreateWithAdminDockerGroupsAndKeys(t *testing.T) {
 	home := filepath.Join(f.dir, "home", "demo-new")
 	res := f.apply(t, ActionUserCreate, createInput(t, marker, k1.line, k2.line), "demo-new", "admin", "docker", "group=projects", "group=media")
 	want := []string{
-		"useradd -m -d " + home + " -U -s /bin/bash -G sudo,sysmin,docker,media,projects demo-new",
+		"useradd -m -d " + home + " -U -s /bin/bash -G sudo,qsysmin,docker,media,projects demo-new",
 		"chpasswd < <password>",
 		"chage -d 0 demo-new",
 		"[builtin] authorized-keys-add demo-new < <ssh key " + k1.fp + ">",
@@ -78,7 +78,7 @@ func TestCreateWithAdminDockerGroupsAndKeys(t *testing.T) {
 	}
 	sameList(t, "executed", f.calls, want)
 	sameList(t, "journaled", res.Entry.Commands, want)
-	for _, g := range []string{"sudo", "sysmin", "docker", "media", "projects"} {
+	for _, g := range []string{"sudo", "qsysmin", "docker", "media", "projects"} {
 		if !f.member("demo-new", g) {
 			t.Errorf("not in %s", g)
 		}
@@ -308,23 +308,23 @@ func TestMembershipChangesAndTheirUndo(t *testing.T) {
 		after      map[string]bool
 	}{
 		{ActionUserSetAdmin, []string{"demo-user", "on"}, "demo-user",
-			[]string{"usermod -aG sudo,sysmin demo-user"}, []string{"gpasswd -d demo-user sudo", "gpasswd -d demo-user sysmin"},
-			map[string]bool{"sudo": true, "sysmin": true}},
+			[]string{"usermod -aG sudo,qsysmin demo-user"}, []string{"gpasswd -d demo-user sudo", "gpasswd -d demo-user qsysmin"},
+			map[string]bool{"sudo": true, "qsysmin": true}},
 		{ActionUserSetAdmin, []string{"demo-boss", "on"}, "demo-boss",
-			[]string{"usermod -aG sudo,sysmin demo-boss"}, []string{"gpasswd -d demo-boss sysmin"},
-			map[string]bool{"sudo": true, "sysmin": true}},
+			[]string{"usermod -aG sudo,qsysmin demo-boss"}, []string{"gpasswd -d demo-boss qsysmin"},
+			map[string]bool{"sudo": true, "qsysmin": true}},
 		{ActionUserSetAdmin, []string{"demo-other", "off"}, "demo-other",
-			[]string{"gpasswd -d demo-other sudo", "gpasswd -d demo-other sysmin"}, []string{"usermod -aG sudo,sysmin demo-other"},
-			map[string]bool{"sudo": false, "sysmin": false}},
-		{ActionUserSetAdmin, []string{"demo-boss", "off", "without-sysmin"}, "demo-boss",
+			[]string{"gpasswd -d demo-other sudo", "gpasswd -d demo-other qsysmin"}, []string{"usermod -aG sudo,qsysmin demo-other"},
+			map[string]bool{"sudo": false, "qsysmin": false}},
+		{ActionUserSetAdmin, []string{"demo-boss", "off", "without-qsysmin"}, "demo-boss",
 			[]string{"gpasswd -d demo-boss sudo"}, []string{"usermod -aG sudo demo-boss"},
-			map[string]bool{"sudo": false, "sysmin": false}},
+			map[string]bool{"sudo": false, "qsysmin": false}},
 		{ActionUserSetDocker, []string{"demo-other", "on"}, "demo-other",
 			[]string{"usermod -aG docker demo-other"}, []string{"gpasswd -d demo-other docker"}, map[string]bool{"docker": true}},
 		{ActionUserSetDocker, []string{"demo-user", "off"}, "demo-user",
 			[]string{"gpasswd -d demo-user docker"}, []string{"usermod -aG docker demo-user"}, map[string]bool{"docker": false}},
 		{ActionUserEnable, []string{"demo-boss"}, "demo-boss",
-			[]string{"usermod -aG sysmin demo-boss"}, []string{"gpasswd -d demo-boss sysmin"}, map[string]bool{"sysmin": true}},
+			[]string{"usermod -aG qsysmin demo-boss"}, []string{"gpasswd -d demo-boss qsysmin"}, map[string]bool{"qsysmin": true}},
 		{ActionUserAddGroups, []string{"demo-other", "projects", "media"}, "demo-other",
 			[]string{"usermod -aG media,projects demo-other"}, []string{"gpasswd -d demo-other media", "gpasswd -d demo-other projects"},
 			map[string]bool{"projects": true, "media": true}},
@@ -402,10 +402,10 @@ func TestAFailingFirstCommandIsNotTakenBack(t *testing.T) {
 
 func TestProtectionRulesRefuseBeforeAnythingRuns(t *testing.T) {
 	onlyOneAdmin := func(f *userFixture) {
-		for _, g := range []string{"sudo", "sysmin"} {
+		for _, g := range []string{"sudo", "qsysmin"} {
 			f.group(g).members = []string{"demo-admin", "demo-user"}
 		}
-		f.group("sysmin").members = []string{"demo-admin"}
+		f.group("qsysmin").members = []string{"demo-admin"}
 		f.flush()
 	}
 	for _, tc := range []struct {
@@ -424,15 +424,15 @@ func TestProtectionRulesRefuseBeforeAnythingRuns(t *testing.T) {
 		{"invalid on/off", 1000, nil, ActionUserSetDocker, []string{"demo-user", "yes"}, "on or off"},
 		{"unknown group", 1000, nil, ActionUserAddGroups, []string{"demo-user", "nothere"}, "no group nothere"},
 		{"sudo as further group", 1000, nil, ActionUserAddGroups, []string{"demo-user", "sudo"}, "own switch"},
-		{"sysmin removal as further group", 1000, nil, ActionUserRemoveGroups, []string{"demo-admin", "sysmin"}, "own switch"},
+		{"qsysmin removal as further group", 1000, nil, ActionUserRemoveGroups, []string{"demo-admin", "qsysmin"}, "own switch"},
 		{"primary group", 1000, nil, ActionUserRemoveGroups, []string{"demo-user", "demo-user"}, "primary group"},
 		{"invalid group name", 1000, nil, ActionUserAddGroups, []string{"demo-user", "../x"}, "not a valid group name"},
 		{"nothing to change", 1000, nil, ActionUserSetDocker, []string{"demo-user", "on"}, "nothing to change"},
 		{"enable a non-admin", 1000, nil, ActionUserEnable, []string{"demo-user"}, "no administrator"},
 		{"remove a group the user is not in", 1000, nil, ActionUserRemoveGroups, []string{"demo-user", "media", "projects"}, "not in the group projects"},
-		{"admin off for an admin without sysmin", 1000, nil, ActionUserSetAdmin, []string{"demo-boss", "off"}, "not in the group sysmin"},
+		{"admin off for an admin without qsysmin", 1000, nil, ActionUserSetAdmin, []string{"demo-boss", "off"}, "not in the group qsysmin"},
 		{"docker off for a non-member", 1000, nil, ActionUserSetDocker, []string{"demo-other", "off"}, "not in the group docker"},
-		{"without-sysmin only with off", 1000, nil, ActionUserSetAdmin, []string{"demo-boss", "on", "without-sysmin"}, "on or off"},
+		{"without-qsysmin only with off", 1000, nil, ActionUserSetAdmin, []string{"demo-boss", "on", "without-qsysmin"}, "on or off"},
 		{"enable an enabled admin", 1000, nil, ActionUserEnable, []string{"demo-other"}, "nothing to change"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -650,7 +650,7 @@ func TestSystemAccountsKeepTheLockoutRules(t *testing.T) {
 	setup := func(f *userFixture) {
 		f.users = append(f.users, worldUser{"demo-svc", 999, 999, "/nonexistent", "*", "19000"})
 		f.groups = append(f.groups, worldGroup{"demo-svc", 999, nil})
-		for _, g := range []string{"sudo", "sysmin"} {
+		for _, g := range []string{"sudo", "qsysmin"} {
 			f.group(g).members = []string{"demo-svc"}
 		}
 		f.flush()
@@ -668,7 +668,7 @@ func TestSystemAccountsKeepTheLockoutRules(t *testing.T) {
 	// A system administrator counts as the remaining one.
 	f = newUserFixture(t, 0)
 	f.group("sudo").members = []string{"demo-admin", "root"}
-	f.group("sysmin").members = []string{"demo-admin", "root"}
+	f.group("qsysmin").members = []string{"demo-admin", "root"}
 	f.flush()
 	if _, err := f.runner.Apply(context.Background(), ActionUserSetAdmin, []string{"demo-admin", "off"}, nil); err != nil {
 		t.Fatalf("another administrator exists: %v", err)

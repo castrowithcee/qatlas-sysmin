@@ -1,4 +1,4 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
    Users   Groups  [Folders]  Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -6,13 +6,13 @@ Folders
                                                                                                                         
 Path: /srv/demo-app                                                                                                     
                                                                                                                         
-Type          folder                                                                                                    
-Owner root    read and write                                                                                            
-Group sysmin  read                                                                                                      
-Others        nothing       ╔══════════════════════════════════════════════════════════════╗                            
-Mode          2750          ║ ⚠ Failed, previous state restored: Change /srv/demo-app and  ║                            
-ACL           set: further r║   everything below it: owner demo-user, group demo-team; the ║                            
-Special       setgid: new en║   owner gets read and write, the group read, everyone else   ║                            
+Type           folder                                                                                                   
+Owner root     read and write                                                                                           
+Group qsysmin  read                                                                                                     
+Others         nothing      ╔══════════════════════════════════════════════════════════════╗                            
+Mode           2750         ║ ⚠ Failed, previous state restored: Change /srv/demo-app and  ║                            
+ACL            set: further ║   everything below it: owner demo-user, group demo-team; the ║                            
+Special        setgid: new e║   owner gets read and write, the group read, everyone else   ║                            
                             ║   no access.                                                 ║                            
                             ║                                                              ║                            
                             ║     The change or its check failed and the previous state is ║                            

@@ -130,7 +130,7 @@ func TestGroupDeleteIsRefusedEarlyForProtectedAndPrimaryGroups(t *testing.T) {
 	m, f, _ := groupsModel(t, 120, 40)
 	for group, says := range map[string]string{
 		"sudo":      "sudo is never deleted",
-		"sysmin":    "sysmin is never deleted",
+		"qsysmin":   "qsysmin is never deleted",
 		"demo-user": "demo-user is the primary group of demo-user and cannot be deleted",
 	} {
 		selectGroup(m, group)
@@ -185,9 +185,9 @@ func TestGroupRenameIsAlwaysRedAndSendsBothNames(t *testing.T) {
 	}
 }
 
-func TestGroupRenameIsRefusedEarlyForSudoAndSysmin(t *testing.T) {
+func TestGroupRenameIsRefusedEarlyForSudoAndQsysmin(t *testing.T) {
 	m, f, _ := groupsModel(t, 120, 40)
-	for _, group := range []string{"sudo", "sysmin"} {
+	for _, group := range []string{"sudo", "qsysmin"} {
 		selectGroup(m, group)
 		send(m, "r")
 		if m.form != nil || m.confirm == nil || !m.confirm.notice || !strings.Contains(flat(m), group+" keeps its name") || len(f.reqs) != 0 {

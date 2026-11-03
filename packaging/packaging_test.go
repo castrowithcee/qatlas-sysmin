@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-const unitFile = "sysmin.service"
+const unitFile = "qsysmin.service"
 
 func readUnit(t *testing.T) string {
 	t.Helper()
@@ -29,13 +29,13 @@ func TestUnitHasRequiredLines(t *testing.T) {
 		"After=network-online.target docker.service",
 		"Wants=network-online.target",
 		"Type=simple",
-		"ExecStart=/usr/local/bin/sysmin run",
-		"User=sysmin",
-		"Group=sysmin",
+		"ExecStart=/usr/local/bin/qsysmin run",
+		"User=qsysmin",
+		"Group=qsysmin",
 		"SupplementaryGroups=docker",
-		"RuntimeDirectory=sysmin",
+		"RuntimeDirectory=qsysmin",
 		"RuntimeDirectoryMode=0750",
-		"StateDirectory=sysmin",
+		"StateDirectory=qsysmin",
 		"StateDirectoryMode=0700",
 		"NoNewPrivileges=yes",
 		"ProtectSystem=full",
@@ -59,7 +59,7 @@ func TestUnitVerifies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	unit := strings.Replace(readUnit(t), "ExecStart=/usr/local/bin/sysmin run", "ExecStart="+exe+" run", 1)
+	unit := strings.Replace(readUnit(t), "ExecStart=/usr/local/bin/qsysmin run", "ExecStart="+exe+" run", 1)
 	path := filepath.Join(t.TempDir(), unitFile)
 	if err := os.WriteFile(path, []byte(unit), 0o600); err != nil {
 		t.Fatal(err)
@@ -72,7 +72,7 @@ func TestUnitVerifies(t *testing.T) {
 	var problems []string
 	for _, l := range strings.Split(string(out), "\n") {
 		if strings.TrimSpace(l) == "" || strings.Contains(l, "docker.service") ||
-			strings.Contains(l, "sysmin") && (strings.Contains(l, "user") || strings.Contains(l, "group") ||
+			strings.Contains(l, "qsysmin") && (strings.Contains(l, "user") || strings.Contains(l, "group") ||
 				strings.Contains(l, "User") || strings.Contains(l, "Group")) {
 			continue
 		}

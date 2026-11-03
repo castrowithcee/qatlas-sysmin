@@ -357,7 +357,7 @@ func TestEachChangeRunsItsOwnActionWithItsOwnConfirm(t *testing.T) {
 		{chgEnable, func(*Model, string) {}, []string{"user.enable", "demo-user"}, "", false},
 		{chgAddGroups, func(m *Model, _ string) { send(m, "tab", "enter", "space", "enter") }, []string{"user.add-groups", "demo-user", "demo-ops"}, "", false},
 		{chgRemoveGroups, func(m *Model, _ string) { send(m, "tab", "enter", "space", "enter") }, []string{"user.remove-groups", "demo-user", "demo-team"}, "", false},
-		{chgAdminOff, func(*Model, string) {}, []string{"user.set-admin", "demo-user", "off", "without-sysmin"}, "", false},
+		{chgAdminOff, func(*Model, string) {}, []string{"user.set-admin", "demo-user", "off", "without-qsysmin"}, "", false},
 		{chgDockerOn, func(*Model, string) {}, []string{"user.set-docker", "demo-user", "on"}, "", true},
 		{chgPassword, func(m *Model, _ string) {
 			send(m, "tab")
@@ -426,8 +426,8 @@ func TestOffersFollowTheUser(t *testing.T) {
 	selectUser(m, "demo-admin")
 	send(m, "e")
 	view := flat(m)
-	if strings.Contains(view, "Enable for sysmin") {
-		t.Error("an enabled admin is not offered Enable for sysmin")
+	if strings.Contains(view, "Enable for qsysmin") {
+		t.Error("an enabled admin is not offered Enable for qsysmin")
 	}
 	want := []string{chgAddGroups, chgAdminOff, chgDockerOff, chgPassword, chgAddKey, chgRemoveKey, chgLock, chgUnlock}
 	if got := m.form.row("what").values; !slices.Equal(got, want) {

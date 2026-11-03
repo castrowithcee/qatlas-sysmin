@@ -21,7 +21,7 @@ const DefaultSecretLabel = "<password>"
 // the program's standard input only; it is never part of Argv, of the displayed text or of any output.
 type Command struct {
 	Argv []string
-	// Builtin marks a step that sysmin runs itself instead of a program; Argv[0] names one of builtinSteps.
+	// Builtin marks a step that qsysmin runs itself instead of a program; Argv[0] names one of builtinSteps.
 	Builtin bool
 	// Secret is the standard input of the program, shown as SecretLabel.
 	Secret []byte

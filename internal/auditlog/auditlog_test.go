@@ -16,8 +16,8 @@ import (
 // The self-exec pattern below runs one real Append from a freshly started process, so the concurrent-writer
 // test exercises the file lock across processes, not only across goroutines of one.
 const (
-	workerModeEnv = "SYSMIN_AUDITLOG_TEST_WORKER"
-	workerDirEnv  = "SYSMIN_AUDITLOG_TEST_DIR"
+	workerModeEnv = "QSYSMIN_AUDITLOG_TEST_WORKER"
+	workerDirEnv  = "QSYSMIN_AUDITLOG_TEST_DIR"
 )
 
 func TestMain(m *testing.M) {

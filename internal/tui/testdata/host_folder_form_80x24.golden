@@ -1,4 +1,4 @@
-sysmin                                                         [?] help  [:] cmd
+qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users   Groups  [Folders]  Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
@@ -7,11 +7,11 @@ Folders
 Path: /s║ Change /srv/demo-app                                         ║        
         ║                                                              ║        
 Type    ║ > Owner:                < root >                             ║        
-Owner ro║   Group:                sysmin                               ║        
-Group sy║   Owner may:            read and write                       ║        
+Owner ro║   Group:                qsysmin                              ║        
+Group qs║   Owner may:            read and write                       ║        
 Others  ║   Group may:            read                                 ║        
 Mode    ║   Others may:           nothing                              ║        
-ACL     ║   Everything below it:  no                                   ║w       
+ACL     ║   Everything below it:  no                                   ║ow      
 Special ║                                                              ║        
         ║ [ Save ]  [ Cancel ]                                         ║        
         ║                                                              ║        

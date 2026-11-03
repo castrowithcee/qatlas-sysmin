@@ -19,7 +19,7 @@ import (
 const demoGroups = `root:x:0:
 sudo:x:27:demo-admin
 docker:x:999:demo-user
-sysmin:x:990:demo-admin,demo-user
+qsysmin:x:990:demo-admin,demo-user
 staff:x:50:demo-user
 demo-admin:x:1000:
 demo-user:x:1001:
@@ -102,14 +102,14 @@ func TestUsersAndFlags(t *testing.T) {
 		t.Fatalf("got %d users, want 5 (broken and comment lines skipped)", len(users))
 	}
 	admin := byName["demo-admin"]
-	if admin.UID != 1000 || admin.PrimaryGroup != "demo-admin" || !reflect.DeepEqual(admin.Groups, []string{"sudo", "sysmin"}) {
+	if admin.UID != 1000 || admin.PrimaryGroup != "demo-admin" || !reflect.DeepEqual(admin.Groups, []string{"qsysmin", "sudo"}) {
 		t.Errorf("demo-admin = %+v", admin)
 	}
 	if !admin.Admin || admin.Docker || !admin.Enabled || admin.System {
 		t.Errorf("demo-admin flags = %+v", admin)
 	}
 	user := byName["demo-user"]
-	if user.Admin || !user.Docker || !user.Enabled || !reflect.DeepEqual(user.Groups, []string{"docker", "staff", "sysmin"}) {
+	if user.Admin || !user.Docker || !user.Enabled || !reflect.DeepEqual(user.Groups, []string{"docker", "qsysmin", "staff"}) {
 		t.Errorf("demo-user = %+v", user)
 	}
 	// The primary group counts although the member list does not name the user.
@@ -163,7 +163,7 @@ func TestIsMember(t *testing.T) {
 		group string
 		want  bool
 	}{
-		{1001, "docker", true}, {1001, "sysmin", true}, {1000, "sysmin", true}, {1001, "sudo", false}, {1000, "no-such-group", false},
+		{1001, "docker", true}, {1001, "qsysmin", true}, {1000, "qsysmin", true}, {1001, "sudo", false}, {1000, "no-such-group", false},
 		{4242, "docker", false},
 	} {
 		if got, err := f.host.IsMember(tc.uid, tc.group); err != nil || got != tc.want {

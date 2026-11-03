@@ -17,7 +17,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
-// The key steps change a user's ~/.ssh/authorized_keys. sysmin runs them itself because no standard tool
+// The key steps change a user's ~/.ssh/authorized_keys. qsysmin runs them itself because no standard tool
 // writes below a directory the user controls without following a link the user may have planted there: each
 // step opens the home, .ssh and the file relative to one another and refuses a link at the last two levels.
 const (
@@ -314,7 +314,7 @@ func replaceAt(dir int, name string, data []byte, uid, gid int, mode uint32) err
 	if _, err := rand.Read(b[:]); err != nil {
 		return err
 	}
-	tmp := "." + name + ".sysmin-" + hex.EncodeToString(b[:])
+	tmp := "." + name + ".qsysmin-" + hex.EncodeToString(b[:])
 	fd, err := unix.Openat(dir, tmp, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0o600)
 	if err != nil {
 		return err

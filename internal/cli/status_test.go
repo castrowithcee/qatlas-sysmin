@@ -28,7 +28,7 @@ func runCLIArgs(args ...string) (int, string, string) {
 	return code, out.String(), errOut.String()
 }
 
-// startService runs the service through runService, as sysmin run does, on temporary directories.
+// startService runs the service through runService, as qsysmin run does, on temporary directories.
 func startService(t *testing.T) string {
 	t.Helper()
 	return startServiceCfg(t, nil)
@@ -37,7 +37,7 @@ func startService(t *testing.T) string {
 // startServiceCfg also lets mod change the service's configuration before it starts.
 func startServiceCfg(t *testing.T, mod func(*service.Config)) string {
 	t.Helper()
-	sockDir, err := os.MkdirTemp("", "sysmin-")
+	sockDir, err := os.MkdirTemp("", "qsysmin-")
 	if err != nil {
 		t.Fatal(err)
 	}

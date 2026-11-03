@@ -73,15 +73,15 @@ func (u userActions) target(name string, uid int) (hostadmin.User, error) {
 	return usr, nil
 }
 
-// guardRevoke keeps the administrators: nobody takes administrator rights or access to sysmin from
-// themselves, and someone else keeps both. Every account in sudo and in sysmin counts, whatever its UID,
-// because each of them can operate sysmin.
+// guardRevoke keeps the administrators: nobody takes administrator rights or access to qsysmin from
+// themselves, and someone else keeps both. Every account in sudo and in qsysmin counts, whatever its UID,
+// because each of them can operate qsysmin.
 func (u userActions) guardRevoke(ctx context.Context, usr hostadmin.User) error {
 	if !usr.Admin {
 		return nil
 	}
 	if actor := ActingUID(ctx); actor != 0 && actor == usr.UID {
-		return Refusef("you cannot take administrator rights or access to sysmin from yourself")
+		return Refusef("you cannot take administrator rights or access to qsysmin from yourself")
 	}
 	users, err := u.h.Accounts.Users()
 	if err != nil {
@@ -92,7 +92,7 @@ func (u userActions) guardRevoke(ctx context.Context, usr hostadmin.User) error 
 			return nil
 		}
 	}
-	return Refusef("%s is the last administrator with access to sysmin and stays one", usr.Name)
+	return Refusef("%s is the last administrator with access to qsysmin and stays one", usr.Name)
 }
 
 // lockedOut reports an account that cannot log in at all: one that has ended, which is what a lock adds. A
@@ -143,7 +143,7 @@ const lastlogRecord = 4 + 32 + 256
 func (u userActions) loginRecorded(uid int) (bool, error) {
 	if u.h.Lastlog2 != "" {
 		if _, err := os.Lstat(u.h.Lastlog2); err == nil {
-			return false, fmt.Errorf("logins are recorded in %s, which sysmin does not read", u.h.Lastlog2)
+			return false, fmt.Errorf("logins are recorded in %s, which qsysmin does not read", u.h.Lastlog2)
 		} else if !errors.Is(err, fs.ErrNotExist) {
 			return false, err
 		}

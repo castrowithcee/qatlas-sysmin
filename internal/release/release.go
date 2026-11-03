@@ -1,4 +1,4 @@
-// Package release verifies the integrity data of a sysmin release without network access: the
+// Package release verifies the integrity data of a qsysmin release without network access: the
 // signature over checksums.txt, the archive checksum it lists, and the hash of the program inside an archive.
 package release
 
@@ -19,7 +19,7 @@ import (
 )
 
 // Namespace is the SSHSIG namespace every release signature is made for.
-const Namespace = "sysmin-release"
+const Namespace = "qsysmin-release"
 
 const (
 	sshsigMagic    = "SSHSIG"
@@ -168,7 +168,7 @@ func ChecksumFor(checksums []byte, archiveName string) (string, error) {
 	return "", fmt.Errorf("checksums.txt does not contain %s", archiveName)
 }
 
-// ProgramSHA256 returns the lowercase hex SHA-256 of bin/sysmin inside a .tar.gz release archive.
+// ProgramSHA256 returns the lowercase hex SHA-256 of bin/qsysmin inside a .tar.gz release archive.
 func ProgramSHA256(archive []byte) (string, error) {
 	sum, err := tarProgram(archive)
 	if err != nil {
@@ -187,12 +187,12 @@ func tarProgram(archive []byte) ([sha256.Size]byte, error) {
 	for {
 		header, err := reader.Next()
 		if errors.Is(err, io.EOF) {
-			return [sha256.Size]byte{}, errors.New("release archive does not contain bin/sysmin")
+			return [sha256.Size]byte{}, errors.New("release archive does not contain bin/qsysmin")
 		}
 		if err != nil {
 			return [sha256.Size]byte{}, fmt.Errorf("read release archive: %w", err)
 		}
-		if header.Typeflag == tar.TypeReg && strings.TrimPrefix(header.Name, "./") == "bin/sysmin" {
+		if header.Typeflag == tar.TypeReg && strings.TrimPrefix(header.Name, "./") == "bin/qsysmin" {
 			return hashEntry(reader)
 		}
 	}

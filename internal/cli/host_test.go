@@ -39,7 +39,7 @@ func hostFixture(t *testing.T, uid int) (env *hostEnv, keyBlob string) {
 		"demo-user:x:1001:1001::" + filepath.Join(dir, "home", "demo-user") + ":/bin/bash\n"
 	files := map[string]string{
 		"passwd": accounts,
-		"group":  "root:x:0:\nsudo:x:27:demo-admin\nsysmin:x:990:demo-user\ndemo-admin:x:1000:\ndemo-user:x:1001:\n",
+		"group":  "root:x:0:\nsudo:x:27:demo-admin\nqsysmin:x:990:demo-user\ndemo-admin:x:1000:\ndemo-user:x:1001:\n",
 		"shadow": "root:*:19000:::::\ndemo-admin:$6$fake:19000:::::\ndemo-user:!$6$fake:19000:::::\n",
 		filepath.Join("home", "demo-admin", ".ssh", "authorized_keys"): "ssh-ed25519 " + keyBlob + " demo-admin@demo-laptop\n",
 	}
@@ -67,13 +67,13 @@ func TestHostRefusesCallersWithoutAdminRights(t *testing.T) {
 		{"host", "folder", "/"}, {"host"}, {"host", "users", "extra"},
 	} {
 		code, out, errOut := runHost(env, args...)
-		if code != 1 || out != "" || errOut != "sysmin is reserved for administrators (sudo)\n" {
+		if code != 1 || out != "" || errOut != "qsysmin is reserved for administrators (sudo)\n" {
 			t.Errorf("%v: code %d, stdout %q, stderr %q", args, code, out, errOut)
 		}
 	}
 	// A caller the database does not know is no administrator either.
 	unknown, _ := hostFixture(t, 4242)
-	if code, _, errOut := runHost(unknown, "host", "users"); code != 1 || !strings.HasPrefix(errOut, "sysmin is reserved") {
+	if code, _, errOut := runHost(unknown, "host", "users"); code != 1 || !strings.HasPrefix(errOut, "qsysmin is reserved") {
 		t.Errorf("unknown caller: code %d, stderr %q", code, errOut)
 	}
 }
@@ -181,7 +181,7 @@ func TestHostUnknownTargets(t *testing.T) {
 		{"host", "user", "nobody-here"}, {"host", "group", "nobody-here"}, {"host", "folder", "/srv/demo-missing-path"},
 	} {
 		code, out, errOut := runHost(env, args...)
-		if code != 1 || out != "" || !strings.HasPrefix(errOut, "sysmin: runtime: host ") || !strings.Contains(errOut, "not found") {
+		if code != 1 || out != "" || !strings.HasPrefix(errOut, "qsysmin: runtime: host ") || !strings.Contains(errOut, "not found") {
 			t.Errorf("%v: code %d, stdout %q, stderr %q", args, code, out, errOut)
 		}
 	}

@@ -1,22 +1,22 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         1/2 ╭─ demo-admin ───────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name              demo-admin                   │
-║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              regular                      │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             yes                          │
-║   ▸ System accounts (1)                                           ║ │ Docker            yes                          │
-╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗s                          │
-                            ║ ⚠ Create the service account demo-svc without login, with    ║mo-admin, sudo, docker,    │
-                            ║   the home /home/demo-svc, with access to Docker, in the     ║smin                       │
-                            ║   group demo-team.                                           ║ome/demo-admin             │
-                            ║                                                              ║known                      │
+║   ▾ Users (2)                                                     ║ │ Name               demo-admin                  │
+║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               regular                     │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              yes                         │
+║   ▸ System accounts (1)                                           ║ │ Docker             yes                         │
+╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗es                         │
+                            ║ ⚠ Create the service account demo-svc without login, with    ║emo-admin, sudo, docker,   │
+                            ║   the home /home/demo-svc, with access to Docker, in the     ║sysmin                     │
+                            ║   group demo-team.                                           ║home/demo-admin            │
+                            ║                                                              ║nknown                     │
                             ║     Admin and Docker rights allow practically everything on  ║                           │
                             ║     this host. You can undo this under Host > Changes.       ║ the fields only root can  │
-                            ║     Undoing it deletes the account and a home sysmin         ║                           │
+                            ║     Undoing it deletes the account and a home qsysmin        ║                           │
                             ║     created; files of the account outside its home stay.     ║───────────────────────────╯
                             ║                                                              ║                            
                             ║   $ useradd --system --create-home --home-dir                ║                            

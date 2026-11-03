@@ -1,4 +1,4 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
    Users   Groups  [Folders]  Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@ Owner root  read and write
 Group root  read                                                                                                        
 Others      read                                                                                                        
 Mode        0755            ╔══════════════════════════════════════════════════════════════╗                            
-Protected   a system path; s║ ⚠ Change /etc: owner root, group root; the owner gets read   ║                            
+Protected   a system path; q║ ⚠ Change /etc: owner root, group root; the owner gets read   ║                            
                             ║   and write, the group read, everyone else read. This is a   ║                            
                             ║   system path.                                               ║                            
                             ║                                                              ║                            

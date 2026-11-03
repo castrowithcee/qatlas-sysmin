@@ -114,7 +114,7 @@ type ovItem struct {
 // noData is the dimmed word a card shows without figures.
 func (m *Model) noData() string { return tr(tOvNone) }
 
-// hostUserFigures counts the admins of the host and those of them who cannot use sysmin yet.
+// hostUserFigures counts the admins of the host and those of them who cannot use qsysmin yet.
 func (m *Model) hostUserFigures() (admins, notEnabled int) {
 	for _, u := range m.hst.users.all {
 		if u.Admin {
@@ -548,7 +548,7 @@ func (m *Model) overviewVersionLine(width int) string {
 	if version == "" {
 		version = m.svc.st.Version
 	}
-	name := strings.TrimSpace("sysmin " + version)
+	name := strings.TrimSpace("qsysmin " + version)
 	text, plain := styles.hint.Render(name), name
 	if latest := m.updateAvailable(); latest != "" {
 		text += styles.warning.Render(" → " + latest)

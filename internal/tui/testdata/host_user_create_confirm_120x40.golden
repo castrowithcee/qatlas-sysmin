@@ -1,25 +1,25 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         1/2 ╭─ demo-admin ───────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name              demo-admin                   │
-║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              regular                      │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             yes                          │
-║   ▸ System accounts (1)                                           ║ │ Docker            yes                          │
-╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗s                          │
-                            ║ ⚠ Create the user demo-new with the home /home/demo-new and  ║mo-admin, sudo, docker,    │
-                            ║   an initial password that must be changed at the first      ║smin                       │
-                            ║   login, as an administrator with access to sysmin, with     ║ome/demo-admin             │
-                            ║   access to Docker, in the group demo-team.                  ║known                      │
+║   ▾ Users (2)                                                     ║ │ Name               demo-admin                  │
+║ > demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               regular                     │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              yes                         │
+║   ▸ System accounts (1)                                           ║ │ Docker             yes                         │
+╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗es                         │
+                            ║ ⚠ Create the user demo-new with the home /home/demo-new and  ║emo-admin, sudo, docker,   │
+                            ║   an initial password that must be changed at the first      ║sysmin                     │
+                            ║   login, as an administrator with access to qsysmin, with    ║home/demo-admin            │
+                            ║   access to Docker, in the group demo-team.                  ║nknown                     │
                             ║                                                              ║                           │
                             ║     Admin and Docker rights allow practically everything on  ║ the fields only root can  │
                             ║     this host. You can undo this under Host > Changes.       ║                           │
                             ║                                                              ║───────────────────────────╯
                             ║   $ useradd -m -d /home/demo-new -U -s /bin/bash -G          ║                            
-                            ║     sudo,sysmin,docker,demo-team demo-new                    ║                            
+                            ║     sudo,qsysmin,docker,demo-team demo-new                   ║                            
                             ║   $ chpasswd < <password>                                    ║                            
                             ║   $ chage -d 0 demo-new                                      ║                            
                             ║                                                              ║                            

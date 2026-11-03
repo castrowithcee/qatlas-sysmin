@@ -38,25 +38,25 @@ const (
 )
 
 const (
-	loginShell          = "/bin/bash"
-	noLoginShell        = "/usr/sbin/nologin"
-	noHome              = "/nonexistent"
-	passwordLabel       = "<password>"
-	previousHashLabel   = "<previous password hash>"
-	maxPasswordBytes    = 256
-	maxCreateKeys       = 16
-	maxFurtherGroups    = 32
-	optionMustChange    = "must-change"
-	optionWithoutSysmin = "without-sysmin"
-	optionAdmin         = "admin"
-	optionDocker        = "docker"
-	optionHome          = "home"
-	optionGroupPrefix   = "group="
-	optionWithHome      = "with-home"
+	loginShell           = "/bin/bash"
+	noLoginShell         = "/usr/sbin/nologin"
+	noHome               = "/nonexistent"
+	passwordLabel        = "<password>"
+	previousHashLabel    = "<previous password hash>"
+	maxPasswordBytes     = 256
+	maxCreateKeys        = 16
+	maxFurtherGroups     = 32
+	optionMustChange     = "must-change"
+	optionWithoutQsysmin = "without-qsysmin"
+	optionAdmin          = "admin"
+	optionDocker         = "docker"
+	optionHome           = "home"
+	optionGroupPrefix    = "group="
+	optionWithHome       = "with-home"
 )
 
 // fixedGroups have switches of their own; the further groups never include them.
-var fixedGroups = map[string]bool{hostadmin.GroupAdmin: true, hostadmin.GroupDocker: true, hostadmin.GroupSysmin: true}
+var fixedGroups = map[string]bool{hostadmin.GroupAdmin: true, hostadmin.GroupDocker: true, hostadmin.GroupQsysmin: true}
 
 type userActions struct{ h UserHost }
 
@@ -169,7 +169,7 @@ type createRequest struct {
 func (c createRequest) groups() []string {
 	var gs []string
 	if c.admin {
-		gs = append(gs, hostadmin.GroupAdmin, hostadmin.GroupSysmin)
+		gs = append(gs, hostadmin.GroupAdmin, hostadmin.GroupQsysmin)
 	}
 	if c.docker {
 		gs = append(gs, hostadmin.GroupDocker)
@@ -305,7 +305,7 @@ func (u userActions) planCreate(args []string, secret []byte) (Plan, error) {
 	sentence := fmt.Sprintf("Create the user %s with the home %s and an initial password that must be changed at the first login", req.name, home)
 	var extras []string
 	if req.admin {
-		extras = append(extras, "as an administrator with access to sysmin")
+		extras = append(extras, "as an administrator with access to qsysmin")
 	}
 	if req.docker {
 		extras = append(extras, "with access to Docker")
@@ -655,7 +655,7 @@ func (u userActions) membershipPlan(m membershipChange) Plan {
 			if !changes {
 				return nil, Refusef("nothing to change: %s is already as asked", m.name)
 			}
-			if !m.add && (slices.Contains(m.groups, hostadmin.GroupAdmin) || slices.Contains(m.groups, hostadmin.GroupSysmin)) {
+			if !m.add && (slices.Contains(m.groups, hostadmin.GroupAdmin) || slices.Contains(m.groups, hostadmin.GroupQsysmin)) {
 				if err := u.guardRevoke(ctx, usr); err != nil {
 					return nil, err
 				}
@@ -687,26 +687,26 @@ func onOff(args []string, action string) (string, bool, error) {
 	return args[0], args[1] == "on", nil
 }
 
-// planAdmin reads "<name> on", "<name> off" or, for an administrator who is not in sysmin,
-// "<name> off without-sysmin", because the commands of a plan cannot depend on the host.
+// planAdmin reads "<name> on", "<name> off" or, for an administrator who is not in qsysmin,
+// "<name> off without-qsysmin", because the commands of a plan cannot depend on the host.
 func (u userActions) planAdmin(args []string, _ []byte) (Plan, error) {
-	withoutSysmin := len(args) == 3 && args[1] == "off" && args[2] == optionWithoutSysmin
-	if withoutSysmin {
+	withoutQsysmin := len(args) == 3 && args[1] == "off" && args[2] == optionWithoutQsysmin
+	if withoutQsysmin {
 		args = args[:2]
 	}
 	name, on, err := onOff(args, ActionUserSetAdmin)
 	if err != nil {
 		return Plan{}, err
 	}
-	m := membershipChange{name: name, groups: []string{hostadmin.GroupAdmin, hostadmin.GroupSysmin}, add: on}
+	m := membershipChange{name: name, groups: []string{hostadmin.GroupAdmin, hostadmin.GroupQsysmin}, add: on}
 	switch {
 	case on:
-		m.sentence = "Make " + name + " an administrator with access to sysmin (groups sudo and sysmin)."
-	case withoutSysmin:
+		m.sentence = "Make " + name + " an administrator with access to qsysmin (groups sudo and qsysmin)."
+	case withoutQsysmin:
 		m.groups = []string{hostadmin.GroupAdmin}
 		m.sentence = "Take administrator rights from " + name + " (group sudo)."
 	default:
-		m.sentence = "Take administrator rights and access to sysmin from " + name + " (groups sudo and sysmin)."
+		m.sentence = "Take administrator rights and access to qsysmin from " + name + " (groups sudo and qsysmin)."
 	}
 	return u.membershipPlan(m), nil
 }
@@ -732,8 +732,8 @@ func (u userActions) planEnable(args []string, _ []byte) (Plan, error) {
 		return Plan{}, err
 	}
 	return u.membershipPlan(membershipChange{
-		name: args[0], groups: []string{hostadmin.GroupSysmin}, add: true, enable: true,
-		sentence: "Give the administrator " + args[0] + " access to sysmin (group sysmin).",
+		name: args[0], groups: []string{hostadmin.GroupQsysmin}, add: true, enable: true,
+		sentence: "Give the administrator " + args[0] + " access to qsysmin (group qsysmin).",
 	}), nil
 }
 

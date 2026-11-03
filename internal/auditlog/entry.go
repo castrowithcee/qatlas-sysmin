@@ -68,7 +68,7 @@ type Damage struct {
 // for a retention-cut marker, which carries only Cut beside the chain fields, and KindDamage for a
 // damaged-line marker, which carries only Damage beside them. MAC is the signature of an entry that an
 // earlier version wrote; it is read, never written. No field ever holds an argument, a result payload, or a
-// secret. The hash covers the stored bytes, so a line with a field this struct no longer has, or an action sysmin no longer writes, still
+// secret. The hash covers the stored bytes, so a line with a field this struct no longer has, or an action qsysmin no longer writes, still
 // reads and verifies.
 type Entry struct {
 	Seq  uint64    `json:"seq"`
@@ -111,7 +111,7 @@ const MaxDuration = 30 * 24 * time.Hour
 // errorCodePattern is the form of Fields.ErrorCode: a lowercase word with dashes.
 var errorCodePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 
-// Validate reports whether f is something sysmin could log: a known action, a result with a matching error
+// Validate reports whether f is something qsysmin could log: a known action, a result with a matching error
 // code, a non-negative bounded duration, and a host action that fits the action. The error names the field, never its value.
 func (f Fields) Validate() error {
 	if !knownOperations[f.Action] {

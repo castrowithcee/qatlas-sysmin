@@ -126,8 +126,8 @@ func TestGroupMembersOfSudoFollowTheAdminSwitch(t *testing.T) {
 	}
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
-	// demo-admin is in sysmin and demo-user is not: the second is taken out of sudo only.
-	want := []string{"apply", "--yes", "--output", "json", "--", "group.set-members", "sudo", "+svc-demo", "-demo-admin", "-demo-user:without-sysmin"}
+	// demo-admin is in qsysmin and demo-user is not: the second is taken out of sudo only.
+	want := []string{"apply", "--yes", "--output", "json", "--", "group.set-members", "sudo", "+svc-demo", "-demo-admin", "-demo-user:without-qsysmin"}
 	if !slices.Equal(lastArgs(f), want) {
 		t.Errorf("calls %+v, want %q", f.reqs, want)
 	}
@@ -137,7 +137,7 @@ func TestGroupMembersAreRefusedEarlyForSelfAndTheLastAdmin(t *testing.T) {
 	m, f, _ := groupsModel(t, 120, 40)
 	selectGroup(m, "sudo")
 	send(m, "e", "tab")
-	tickIn(m, 1) // demo-admin is the first member and the only one with access to sysmin
+	tickIn(m, 1) // demo-admin is the first member and the only one with access to qsysmin
 	save(m)
 	if m.form == nil || !strings.Contains(m.form.notice, "last admin") || m.ask != nil || len(f.reqs) != 0 {
 		t.Fatalf("notice %q ask %+v", m.form.notice, m.ask)

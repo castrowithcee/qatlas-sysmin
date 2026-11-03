@@ -36,7 +36,7 @@ func TestUninstallKeepsDataWithoutPurge(t *testing.T) {
 			t.Errorf("%s removed without --purge", d)
 		}
 	}
-	want := "systemctl disable --now sysmin|systemctl daemon-reload|userdel sysmin|groupdel sysmin"
+	want := "systemctl disable --now qsysmin|systemctl daemon-reload|userdel qsysmin|groupdel qsysmin"
 	if got := strings.Join(h.calls, "|"); got != want {
 		t.Errorf("calls = %s", got)
 	}
@@ -60,8 +60,8 @@ func TestUninstallPurgeRemovesData(t *testing.T) {
 
 func TestUninstallIsIdempotent(t *testing.T) {
 	h := newFakeHost(t, nil)
-	h.fail["userdel sysmin"] = exitStatus(6)
-	h.fail["groupdel sysmin"] = exitStatus(6)
+	h.fail["userdel qsysmin"] = exitStatus(6)
+	h.fail["groupdel qsysmin"] = exitStatus(6)
 	_ = os.Remove(h.binaryPath)
 	code, _, stderr := h.run(t, "", "uninstall", "--purge", "--yes")
 	if code != exitOK {
@@ -77,7 +77,7 @@ func TestUninstallIsIdempotent(t *testing.T) {
 func TestUninstallStopsOnFailure(t *testing.T) {
 	h := newFakeHost(t, nil)
 	installFiles(t, h)
-	h.fail["systemctl disable --now sysmin"] = exitStatus(1)
+	h.fail["systemctl disable --now qsysmin"] = exitStatus(1)
 	code, _, _ := h.run(t, "", "uninstall", "--purge", "--yes")
 	if code != exitRuntime || !exists(h.unitPath) || !exists(h.binaryPath) || !exists(h.dataDirs[0]) {
 		t.Errorf("code = %d; the installation was changed after a failed stop", code)

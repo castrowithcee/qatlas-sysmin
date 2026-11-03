@@ -1,4 +1,4 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
    Users  [Groups]  Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -10,7 +10,7 @@ Groups (4)                                                        3/4 ╭─ doc
 ║   ▾ System groups (3)                                             ║ │ Members  1                                     │
 ║   sudo             2  system                                      ║ │                                                │
 ║ > docker           1  system                                      ║ │                                                │
-║   sysmin           1  syst╔══════════════════════════════════════════════════════════════╗                           │
+║   qsysmin          1  syst╔══════════════════════════════════════════════════════════════╗                           │
 ╚═══════════════════════════║ ⚠ Delete the group docker; its members keep their accounts,  ║───────────────────────────╯
                             ║   and files of the group keep its group number.              ║                            
                             ║                                                              ║                            

@@ -112,7 +112,7 @@ func TestLockRefusals(t *testing.T) {
 	}{
 		{"self", 1001, ActionUserLock, []string{"demo-user"}, nil, "lock yourself"},
 		{"last administrator", 1000, ActionUserLock, []string{"demo-other"}, func(f *userFixture) {
-			f.group("sysmin").members = []string{"demo-other"}
+			f.group("qsysmin").members = []string{"demo-other"}
 			f.flush()
 		}, "last administrator"},
 		{"expired administrator does not remain", 1000, ActionUserLock, []string{"demo-other"}, func(f *userFixture) {
@@ -229,7 +229,7 @@ func TestKeyOnlyAccountLockUnlockAndUndos(t *testing.T) {
 
 func TestKeyOnlyAdminCountsAsRemaining(t *testing.T) {
 	f := newUserFixture(t, 1001)
-	f.group("sysmin").members = []string{"demo-other"}
+	f.group("qsysmin").members = []string{"demo-other"}
 	f.user("demo-other").hash = "!"
 	f.flush()
 	// demo-other has no password but can log in by key, so demo-admin may be locked.

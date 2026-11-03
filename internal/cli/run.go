@@ -19,7 +19,7 @@ func newRunCommand(opts *Options) *cobra.Command {
 	cfg := service.Config{}
 	cmd := &cobra.Command{
 		Use:   "run",
-		Short: "Run the sysmin service",
+		Short: "Run the qsysmin service",
 		Long: "run is what the service unit starts: it serves the control socket to administrators until it\n" +
 			"receives SIGTERM or SIGINT.",
 		Args: noArgs,
@@ -49,6 +49,6 @@ func runService(ctx context.Context, cfg service.Config) error {
 	if err := s.Listen(); err != nil {
 		return fmt.Errorf("start the service: %w", err)
 	}
-	slog.Info("sysmin service started", "socket", cfg.SocketPath, "pid", os.Getpid())
+	slog.Info("qsysmin service started", "socket", cfg.SocketPath, "pid", os.Getpid())
 	return s.Serve(ctx)
 }

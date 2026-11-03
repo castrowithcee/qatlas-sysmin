@@ -39,7 +39,7 @@ func newFixtureHost() *fixtureHost {
 	unlocked, yes := false, true
 	return &fixtureHost{
 		folders: map[string]hostadmin.Folder{
-			"/srv/demo-app": {Path: "/srv/demo-app", Resolved: "/srv/demo-app", Kind: "directory", Owner: "root", Group: "sysmin",
+			"/srv/demo-app": {Path: "/srv/demo-app", Resolved: "/srv/demo-app", Kind: "directory", Owner: "root", Group: "qsysmin",
 				Mode: "2750", OwnerAcc: hostadmin.AccessReadWrite, GroupAcc: hostadmin.AccessRead, OthersAcc: hostadmin.AccessNothing,
 				ACL: &yes, Setgid: true},
 			"/etc": {Path: "/etc", Resolved: "/etc", Kind: "directory", Owner: "root", Group: "root", Mode: "0755",
@@ -48,7 +48,7 @@ func newFixtureHost() *fixtureHost {
 				Group: "demo-team", Mode: "0640", OwnerAcc: hostadmin.AccessReadWrite, GroupAcc: hostadmin.AccessRead, OthersAcc: hostadmin.AccessNothing},
 		},
 		users: []hostadmin.User{
-			{Name: "demo-admin", UID: 1000, PrimaryGroup: "demo-admin", Groups: []string{"demo-admin", "sudo", "docker", "sysmin"},
+			{Name: "demo-admin", UID: 1000, PrimaryGroup: "demo-admin", Groups: []string{"demo-admin", "sudo", "docker", "qsysmin"},
 				Home: "/home/demo-admin", Admin: true, Docker: true, Enabled: true},
 			{Name: "demo-user", UID: 1001, PrimaryGroup: "demo-user", Groups: []string{"demo-user", "sudo", "demo-team"},
 				Home: "/home/demo-user", Admin: true, Locked: &unlocked, SSHKeys: []hostadmin.SSHKey{
@@ -58,7 +58,7 @@ func newFixtureHost() *fixtureHost {
 		groups: []hostadmin.Group{
 			{Name: "sudo", GID: 27, Members: []string{"demo-admin", "demo-user"}, System: true},
 			{Name: "docker", GID: 998, Members: []string{"demo-admin"}, System: true},
-			{Name: "sysmin", GID: 997, Members: []string{"demo-admin"}, System: true},
+			{Name: "qsysmin", GID: 997, Members: []string{"demo-admin"}, System: true},
 			{Name: "demo-team", GID: 1002, Members: []string{"demo-user"}},
 		},
 	}

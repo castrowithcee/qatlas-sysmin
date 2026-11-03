@@ -86,10 +86,10 @@ func (m *Model) openGroupMembers() tea.Cmd {
 			enabled[u.Name] = u.Enabled
 		}
 		for _, n := range removed {
-			// A sudo member who is not in sysmin has no sysmin access to take; the root action cannot decide that
+			// A sudo member who is not in qsysmin has no qsysmin access to take; the root action cannot decide that
 			// for itself, because the commands of a plan do not depend on the host.
 			if g.Name == hostadmin.GroupAdmin && !enabled[n] {
-				n += ":without-sysmin"
+				n += ":without-qsysmin"
 			}
 			ask.args = append(ask.args, "-"+n)
 		}
@@ -107,9 +107,9 @@ func (m *Model) openGroupMembers() tea.Cmd {
 }
 
 // guardMembers gives the early message of the rules the root action enforces for taking administrators out of
-// sudo or sysmin: nobody does it to themselves, and an administrator with access to sysmin remains.
+// sudo or qsysmin: nobody does it to themselves, and an administrator with access to qsysmin remains.
 func (m *Model) guardMembers(g hostadmin.Group, added, removed []string) string {
-	if (g.Name != hostadmin.GroupAdmin && g.Name != hostadmin.GroupSysmin) || len(removed) == 0 {
+	if (g.Name != hostadmin.GroupAdmin && g.Name != hostadmin.GroupQsysmin) || len(removed) == 0 {
 		return ""
 	}
 	uid := hostUID()
@@ -119,15 +119,15 @@ func (m *Model) guardMembers(g hostadmin.Group, added, removed []string) string 
 		}
 	}
 	for _, u := range m.hostUserList() {
-		sudo, sysmin := u.Admin, u.Enabled
+		sudo, qsysmin := u.Admin, u.Enabled
 		if slices.Contains(removed, u.Name) {
-			sysmin = false
+			qsysmin = false
 			sudo = sudo && g.Name != hostadmin.GroupAdmin
 		}
 		if slices.Contains(added, u.Name) {
-			sudo, sysmin = sudo || g.Name == hostadmin.GroupAdmin, true
+			sudo, qsysmin = sudo || g.Name == hostadmin.GroupAdmin, true
 		}
-		if sudo && sysmin && (u.Expired == nil || !*u.Expired) {
+		if sudo && qsysmin && (u.Expired == nil || !*u.Expired) {
 			return ""
 		}
 	}

@@ -71,26 +71,26 @@ func TestGroupSetMembersMixedInOneStep(t *testing.T) {
 	sameList(t, "members", f.members("media"), []string{"demo-user"})
 }
 
-func TestGroupSetMembersSudoAddsSysminToo(t *testing.T) {
+func TestGroupSetMembersSudoAddsQsysminToo(t *testing.T) {
 	f := newUserFixture(t, 1000)
-	// demo-solo is in sysmin already and must keep it when the change is undone.
+	// demo-solo is in qsysmin already and must keep it when the change is undone.
 	f.users = append(f.users, worldUser{"demo-solo", 1500, 1500, "/nonexistent", "*", "19000"})
-	f.group("sysmin").members = append(f.group("sysmin").members, "demo-solo")
+	f.group("qsysmin").members = append(f.group("qsysmin").members, "demo-solo")
 	f.flush()
 	before := f.groupText(t)
 	res := f.apply(t, ActionGroupSetMembers, "", "sudo", "+demo-user", "+demo-solo")
 	sameList(t, "executed", f.calls, []string{
-		"gpasswd -a demo-user sudo", "usermod -aG sysmin demo-user", "gpasswd -a demo-solo sudo", "usermod -aG sysmin demo-solo"})
-	if !slices.Contains(f.members("sysmin"), "demo-user") || !slices.Contains(f.members("sudo"), "demo-solo") {
-		t.Fatalf("sudo %v sysmin %v", f.members("sudo"), f.members("sysmin"))
+		"gpasswd -a demo-user sudo", "usermod -aG qsysmin demo-user", "gpasswd -a demo-solo sudo", "usermod -aG qsysmin demo-solo"})
+	if !slices.Contains(f.members("qsysmin"), "demo-user") || !slices.Contains(f.members("sudo"), "demo-solo") {
+		t.Fatalf("sudo %v qsysmin %v", f.members("sudo"), f.members("qsysmin"))
 	}
 	var st membersState
-	if err := decodeState(res.Entry.Previous, &st); err != nil || !st.Changes[0].Sysmin || st.Changes[1].Sysmin {
-		t.Fatalf("recorded %+v (%v): only the user who was not in sysmin changed it", st, err)
+	if err := decodeState(res.Entry.Previous, &st); err != nil || !st.Changes[0].Qsysmin || st.Changes[1].Qsysmin {
+		t.Fatalf("recorded %+v (%v): only the user who was not in qsysmin changed it", st, err)
 	}
 	f.calls = nil
 	f.undo(t, res.Entry.ID)
-	sameList(t, "undo", f.calls, []string{"gpasswd -d demo-user sudo", "gpasswd -d demo-user sysmin", "gpasswd -d demo-solo sudo"})
+	sameList(t, "undo", f.calls, []string{"gpasswd -d demo-user sudo", "gpasswd -d demo-user qsysmin", "gpasswd -d demo-solo sudo"})
 	if f.groupText(t) != before {
 		t.Errorf("files differ:\n%s", f.groupText(t))
 	}
@@ -100,17 +100,17 @@ func TestGroupSetMembersRemovingFromSudoFollowsTheAdminSwitch(t *testing.T) {
 	f := newUserFixture(t, 1000)
 	before := f.groupText(t)
 	res := f.apply(t, ActionGroupSetMembers, "", "sudo", "-demo-other")
-	sameList(t, "executed", f.calls, []string{"gpasswd -d demo-other sudo", "gpasswd -d demo-other sysmin"})
+	sameList(t, "executed", f.calls, []string{"gpasswd -d demo-other sudo", "gpasswd -d demo-other qsysmin"})
 	f.calls = nil
 	f.undo(t, res.Entry.ID)
-	sameList(t, "undo", f.calls, []string{"gpasswd -a demo-other sudo", "usermod -aG sysmin demo-other"})
+	sameList(t, "undo", f.calls, []string{"gpasswd -a demo-other sudo", "usermod -aG qsysmin demo-other"})
 	if strings.Count(f.groupText(t), "demo-other") != strings.Count(before, "demo-other") {
 		t.Errorf("files differ:\n%s", f.groupText(t))
 	}
 
 	f.calls = nil
-	f.apply(t, ActionGroupSetMembers, "", "sudo", "-demo-boss"+optionNoSysmin)
-	sameList(t, "without sysmin", f.calls, []string{"gpasswd -d demo-boss sudo"})
+	f.apply(t, ActionGroupSetMembers, "", "sudo", "-demo-boss"+optionNoQsysmin)
+	sameList(t, "without qsysmin", f.calls, []string{"gpasswd -d demo-boss sudo"})
 }
 
 func TestGroupSetMembersRefusals(t *testing.T) {
@@ -123,10 +123,10 @@ func TestGroupSetMembersRefusals(t *testing.T) {
 	}{
 		{"self from sudo", 1000, nil, []string{"sudo", "-demo-admin"}, "from yourself"},
 		{"self from sudo among others", 1000, nil, []string{"sudo", "-demo-other", "-demo-admin"}, "from yourself"},
-		{"self from sysmin", 1000, nil, []string{"sysmin", "-demo-admin"}, "from yourself"},
-		{"last admins from sudo", 1003, nil, []string{"sudo", "-demo-admin", "-demo-other"}, "no administrator with access to sysmin"},
-		{"last admins from sysmin", 1003, nil, []string{"sysmin", "-demo-admin", "-demo-other"}, "no administrator with access to sysmin"},
-		{"no sysmin to leave", 1000, nil, []string{"sudo", "-demo-boss"}, "not in the group sysmin"},
+		{"self from qsysmin", 1000, nil, []string{"qsysmin", "-demo-admin"}, "from yourself"},
+		{"last admins from sudo", 1003, nil, []string{"sudo", "-demo-admin", "-demo-other"}, "no administrator with access to qsysmin"},
+		{"last admins from qsysmin", 1003, nil, []string{"qsysmin", "-demo-admin", "-demo-other"}, "no administrator with access to qsysmin"},
+		{"no qsysmin to leave", 1000, nil, []string{"sudo", "-demo-boss"}, "not in the group qsysmin"},
 		{"primary group", 1000, func(f *userFixture) { f.group("demo-user").members = []string{"demo-user"}; f.flush() },
 			[]string{"demo-user", "-demo-user"}, "primary group of demo-user and cannot be removed"},
 		{"already in its primary group", 1000, nil, []string{"demo-user", "+demo-user"}, "in the group demo-user already"},
@@ -142,8 +142,8 @@ func TestGroupSetMembersRefusals(t *testing.T) {
 		{"no sign", 1000, nil, []string{"projects", "demo-user"}, "write +user"},
 		{"bad user", 1000, nil, []string{"projects", "+Demo"}, "not a valid user name"},
 		{"bad group", 1000, nil, []string{"../x", "+demo-user"}, "not a valid group name"},
-		{"option outside sudo", 1000, nil, []string{"media", "-demo-user" + optionNoSysmin}, "applies only to removing a user from sudo"},
-		{"option on add", 1000, nil, []string{"sudo", "+demo-user" + optionNoSysmin}, "applies only to removing"},
+		{"option outside sudo", 1000, nil, []string{"media", "-demo-user" + optionNoQsysmin}, "applies only to removing a user from sudo"},
+		{"option on add", 1000, nil, []string{"sudo", "+demo-user" + optionNoQsysmin}, "applies only to removing"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newUserFixture(t, tc.actor)
@@ -182,8 +182,8 @@ func TestGroupSetMembersUndoRefusals(t *testing.T) {
 		{"undo takes the actor's own rights", 1001, []string{"sudo", "+demo-user"}, nil, "from yourself"},
 		{"undo takes the last administrators", 1003, []string{"sudo", "+demo-user"}, func(f *userFixture) {
 			f.group("sudo").members = []string{"demo-user"}
-			f.group("sysmin").members = []string{"demo-user"}
-		}, "no administrator with access to sysmin"},
+			f.group("qsysmin").members = []string{"demo-user"}
+		}, "no administrator with access to qsysmin"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newUserFixture(t, tc.actor)
@@ -199,21 +199,21 @@ func TestGroupSetMembersUndoRefusals(t *testing.T) {
 
 func TestGroupSetMembersInverseRefusesInvalidRecordedStates(t *testing.T) {
 	u := userActions{}
-	const valid = `{"group":"projects","gid":2000,"changes":[{"name":"demo-user","uid":1001,"add":true,"sysmin":false}]}`
+	const valid = `{"group":"projects","gid":2000,"changes":[{"name":"demo-user","uid":1001,"add":true,"qsysmin":false}]}`
 	if _, err := u.inverseGroupSetMembers(json.RawMessage(valid)); err != nil {
 		t.Fatalf("the valid state is refused: %v", err)
 	}
 	for what, state := range map[string]string{
-		"group":               `{"group":"../x","gid":2000,"changes":[{"name":"demo-user","uid":1001,"add":true}]}`,
-		"gid":                 `{"group":"projects","gid":-1,"changes":[{"name":"demo-user","uid":1001,"add":true}]}`,
-		"no changes":          `{"group":"projects","gid":2000,"changes":[]}`,
-		"user name":           `{"group":"projects","gid":2000,"changes":[{"name":"a,b","uid":1001,"add":true}]}`,
-		"uid":                 `{"group":"projects","gid":2000,"changes":[{"name":"demo-user","uid":-1,"add":true}]}`,
-		"twice":               `{"group":"projects","gid":2000,"changes":[{"name":"demo-user","uid":1001,"add":true},{"name":"demo-user","uid":1001,"add":false}]}`,
-		"sysmin outside sudo": `{"group":"media","gid":2001,"changes":[{"name":"demo-user","uid":1001,"add":true,"sysmin":true}]}`,
-		"unknown field":       `{"group":"projects","gid":2000,"changes":[{"name":"demo-user","uid":1001,"add":true}],"more":1}`,
-		"unknown in item":     `{"group":"projects","gid":2000,"changes":[{"name":"demo-user","uid":1001,"add":true,"more":1}]}`,
-		"not an object":       `[]`,
+		"group":                `{"group":"../x","gid":2000,"changes":[{"name":"demo-user","uid":1001,"add":true}]}`,
+		"gid":                  `{"group":"projects","gid":-1,"changes":[{"name":"demo-user","uid":1001,"add":true}]}`,
+		"no changes":           `{"group":"projects","gid":2000,"changes":[]}`,
+		"user name":            `{"group":"projects","gid":2000,"changes":[{"name":"a,b","uid":1001,"add":true}]}`,
+		"uid":                  `{"group":"projects","gid":2000,"changes":[{"name":"demo-user","uid":-1,"add":true}]}`,
+		"twice":                `{"group":"projects","gid":2000,"changes":[{"name":"demo-user","uid":1001,"add":true},{"name":"demo-user","uid":1001,"add":false}]}`,
+		"qsysmin outside sudo": `{"group":"media","gid":2001,"changes":[{"name":"demo-user","uid":1001,"add":true,"qsysmin":true}]}`,
+		"unknown field":        `{"group":"projects","gid":2000,"changes":[{"name":"demo-user","uid":1001,"add":true}],"more":1}`,
+		"unknown in item":      `{"group":"projects","gid":2000,"changes":[{"name":"demo-user","uid":1001,"add":true,"more":1}]}`,
+		"not an object":        `[]`,
 	} {
 		if _, err := u.inverseGroupSetMembers(json.RawMessage(state)); err == nil {
 			t.Errorf("%s: accepted", what)

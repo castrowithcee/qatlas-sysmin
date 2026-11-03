@@ -17,7 +17,7 @@ import (
 )
 
 func TestDialFailsWithoutService(t *testing.T) {
-	dir, _ := os.MkdirTemp("", "sysmin-")
+	dir, _ := os.MkdirTemp("", "qsysmin-")
 	defer os.RemoveAll(dir)
 	if _, err := client.Dial(filepath.Join(dir, "none.sock")); err == nil {
 		t.Fatal("dial succeeded")
@@ -25,7 +25,7 @@ func TestDialFailsWithoutService(t *testing.T) {
 }
 
 func TestCallReturnsFixedCode(t *testing.T) {
-	dir, _ := os.MkdirTemp("", "sysmin-")
+	dir, _ := os.MkdirTemp("", "qsysmin-")
 	defer os.RemoveAll(dir)
 	path := filepath.Join(dir, "s.sock")
 	ln, err := net.Listen("unix", path)
@@ -86,7 +86,7 @@ func TestDialNamesASessionWithoutTheGroup(t *testing.T) {
 // requestsOf answers every request of one connection with success and hands each request on.
 func requestsOf(t *testing.T) (*client.Client, <-chan control.Request) {
 	t.Helper()
-	dir, _ := os.MkdirTemp("", "sysmin-")
+	dir, _ := os.MkdirTemp("", "qsysmin-")
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	ln, err := net.Listen("unix", filepath.Join(dir, "s.sock"))
 	if err != nil {
@@ -123,7 +123,7 @@ func requestsOf(t *testing.T) (*client.Client, <-chan control.Request) {
 // listen opens a socket in a short temp directory and hands every accepted connection to h.
 func listen(t *testing.T, h func(net.Conn)) string {
 	t.Helper()
-	dir, _ := os.MkdirTemp("", "sysmin-")
+	dir, _ := os.MkdirTemp("", "qsysmin-")
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	path := filepath.Join(dir, "s.sock")
 	ln, err := net.Listen("unix", path)
@@ -162,7 +162,7 @@ func TestDialRefusesAForeignPeerBeforeSendingAnything(t *testing.T) {
 	if !errors.As(err, &pe) || pe.PID != 4321 || pe.UID != own+1 || pe.Silent {
 		t.Fatalf("err = %v", err)
 	}
-	for _, want := range []string{"pid 4321", "uid", "sudo kill 4321", "sudo systemctl restart sysmin"} {
+	for _, want := range []string{"pid 4321", "uid", "sudo kill 4321", "sudo systemctl restart qsysmin"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q lacks %q", err, want)
 		}
@@ -241,7 +241,7 @@ func TestSilentPeerEndsWithTimeoutAfterTheFirstDeadline(t *testing.T) {
 	start := time.Now()
 	err = c.Call(control.OpStatus, nil, nil)
 	var pe *client.PeerError
-	if !errors.As(err, &pe) || !pe.Silent || !strings.Contains(err.Error(), "timeout") || !strings.Contains(err.Error(), "sudo systemctl restart sysmin") {
+	if !errors.As(err, &pe) || !pe.Silent || !strings.Contains(err.Error(), "timeout") || !strings.Contains(err.Error(), "sudo systemctl restart qsysmin") {
 		t.Fatalf("err = %v", err)
 	}
 	if time.Since(start) > 5*time.Second {
@@ -279,7 +279,7 @@ func TestAnswerAfterTheFirstOneMayTakeLonger(t *testing.T) {
 // answering serves one connection that answers every request with code.
 func answering(t *testing.T, code string) string {
 	t.Helper()
-	dir, _ := os.MkdirTemp("", "sysmin-")
+	dir, _ := os.MkdirTemp("", "qsysmin-")
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	path := filepath.Join(dir, "s.sock")
 	ln, err := net.Listen("unix", path)

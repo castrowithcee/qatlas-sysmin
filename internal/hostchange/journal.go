@@ -18,7 +18,7 @@ import (
 )
 
 // DefaultJournalDir is outside the state directory of the service, so the service cannot reach it.
-const DefaultJournalDir = "/var/lib/sysmin-host/journal"
+const DefaultJournalDir = "/var/lib/qsysmin-host/journal"
 
 // KeepEntries is the number of latest changes the journal keeps.
 const KeepEntries = 50

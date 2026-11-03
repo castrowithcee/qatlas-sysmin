@@ -1,4 +1,4 @@
-sysmin                                                         [?] help  [:] cmd
+qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users  [Groups]  Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
@@ -10,7 +10,7 @@ Groups (╔═══════════════════════
 ║   ▾ Sy║     this system group. Admin and Docker rights allow         ║       ║
 ║   sudo║     practically everything on this host. You can undo this   ║       ║
 ║ > dock║     under Host > Changes.                                    ║       ║
-║   sysm║                                                              ║       ║
+║   qsys║                                                              ║       ║
 ╚═══════║   $ gpasswd -a demo-user docker                              ║═══════╝
         ║                                                              ║        
         ║ [ Apply ]  [ Cancel ]                                        ║        

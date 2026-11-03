@@ -31,7 +31,7 @@ type env struct {
 // newEnv opens a service on an empty state directory; nothing is set up beforehand.
 func newEnv(t *testing.T, mods ...func(*Config)) *env {
 	t.Helper()
-	sock, err := os.MkdirTemp("", "sysmin-")
+	sock, err := os.MkdirTemp("", "qsysmin-")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -55,7 +55,7 @@ const (
 	dimContrast  = 3.0
 )
 
-// The shares of the foreground in the mixed roles, close to the steps of the sysmin palettes. The fills are
+// The shares of the foreground in the mixed roles, close to the steps of the qsysmin palettes. The fills are
 // the most a pair with a contrast well above textContrast keeps; a tighter pair scales them down together.
 const (
 	sharePanel     = 0.06

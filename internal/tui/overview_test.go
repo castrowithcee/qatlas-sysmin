@@ -88,7 +88,7 @@ func TestOverviewShowsHeaderCardsAndSteps(t *testing.T) {
 		m := overviewModel(t, overviewFake(), size[0], size[1])
 		view := plain(m)
 		for _, want := range []string{"Overview", "Wed, 28 Oct 2026", "Admins", "Not enabled", "Changes 7 d", "Service",
-			"sysmin 0.0.0-test", "Next steps", "Admins to enable: 1", "Last changes", "user.add-key"} {
+			"qsysmin 0.0.0-test", "Next steps", "Admins to enable: 1", "Last changes", "user.add-key"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("%dx%d: the overview lacks %q:\n%s", size[0], size[1], want, view)
 			}
@@ -298,10 +298,10 @@ func TestOverviewStepForEveryStateAndEnterTakesIt(t *testing.T) {
 func TestOverviewSelfUpdateIsAStep(t *testing.T) {
 	m := overviewModel(t, calmFake(), 120, 40)
 	m.set.upd.phase, m.set.upd.info.Latest = updDone, "9.9.9"
-	if view := plain(m); !strings.Contains(view, "Install sysmin 9.9.9") || !strings.Contains(view, "sysmin 0.0.0-test → 9.9.9") {
+	if view := plain(m); !strings.Contains(view, "Install qsysmin 9.9.9") || !strings.Contains(view, "qsysmin 0.0.0-test → 9.9.9") {
 		t.Fatalf("no update step or version line:\n%s", view)
 	}
-	focusStep(t, m, "Install sysmin 9.9.9")
+	focusStep(t, m, "Install qsysmin 9.9.9")
 	send(m, "enter")
 	if m.ask == nil {
 		t.Error("enter does not ask before installing")
@@ -376,13 +376,13 @@ func TestOverviewInfoDescribesTheFocusedEntry(t *testing.T) {
 	m := overviewModel(t, overviewFake(), 120, 40)
 	focusCard(t, m, "Not enabled")
 	send(m, "i")
-	if view := plain(m); !strings.Contains(view, "not in the sysmin group") {
+	if view := plain(m); !strings.Contains(view, "not in the qsysmin group") {
 		t.Errorf("no info for the Not enabled card:\n%s", view)
 	}
 }
 
 func TestOverviewDropsPartsInOrderAndKeepsTitleAndSteps(t *testing.T) {
-	steps := []ovItem{{label: "Admins to enable: 1"}, {label: "Install sysmin 9.9.9"}}
+	steps := []ovItem{{label: "Admins to enable: 1"}, {label: "Install qsysmin 9.9.9"}}
 	rank := func(p ovPlan) int {
 		switch {
 		case !p.framed:

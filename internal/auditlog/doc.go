@@ -1,4 +1,4 @@
-// Package auditlog appends one entry per action sysmin takes to a daily file and links the entries with a
+// Package auditlog appends one entry per action qsysmin takes to a daily file and links the entries with a
 // SHA-256 hash chain that spans day boundaries: the first entry of a day carries the hash of the last entry
 // of the last day that has one, so the chain keeps going across a day nothing happened on and a day file
 // never has to exist just to carry the link.

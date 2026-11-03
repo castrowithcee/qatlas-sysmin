@@ -37,15 +37,15 @@ type Options struct {
 	HostActions *hostchange.Registry
 }
 
-// ErrRegroup is what Run returns when the person asked to restart the interface with the group sysmin; the
-// caller starts it again under sudo -g sysmin.
-var ErrRegroup = errors.New("restart the interface under sudo -g sysmin")
+// ErrRegroup is what Run returns when the person asked to restart the interface with the group qsysmin; the
+// caller starts it again under sudo -g qsysmin.
+var ErrRegroup = errors.New("restart the interface under sudo -g qsysmin")
 
-// UpdateRequest is what Run returns when the person asked to install a newer release of sysmin; the caller
+// UpdateRequest is what Run returns when the person asked to install a newer release of qsysmin; the caller
 // installs it and starts the interface again.
 type UpdateRequest struct{ Version string }
 
-func (r *UpdateRequest) Error() string { return "install sysmin " + r.Version }
+func (r *UpdateRequest) Error() string { return "install qsysmin " + r.Version }
 
 // Run starts the editor on the terminal streams of opts and returns when the person quits.
 //

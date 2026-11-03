@@ -1,4 +1,4 @@
-sysmin                                             [esc] back  [?] help  [:] cmd
+qsysmin                                            [esc] back  [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings 
   [Users]  Groups   Folders   Changes 
 ────────────────────────────────────────────────────────────────────────────────
@@ -6,14 +6,14 @@ Users › demo-user
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║ [Overview]  Details   Raw                                                    ║
 ║                                                                              ║
-║ Name              demo-user                                                  ║
-║ Type              regular                                                    ║
-║ Admin             yes · not enabled                                          ║
-║ Docker            no                                                         ║
-║ Enabled (sysmin)  no                                                         ║
-║ Groups            demo-user, sudo, demo-team                                 ║
-║ Home              /home/demo-user                                            ║
-║ Locked            no                                                         ║
+║ Name               demo-user                                                 ║
+║ Type               regular                                                   ║
+║ Admin              yes · not enabled                                         ║
+║ Docker             no                                                        ║
+║ Enabled (qsysmin)  no                                                        ║
+║ Groups             demo-user, sudo, demo-team                                ║
+║ Home               /home/demo-user                                           ║
+║ Locked             no                                                        ║
 ║                                                                              ║
 ║                                                                              ║
 ║                                                                              ║

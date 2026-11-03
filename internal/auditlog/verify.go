@@ -63,7 +63,7 @@ type Report struct {
 // as an entry itself, chaining from the last line before the damaged one that parses and passing its check
 // value. A marker that does not hold leaves the damaged line a break as well.
 //
-// A signature that an earlier version wrote in an entry's mac field is not checked, since sysmin keeps no
+// A signature that an earlier version wrote in an entry's mac field is not checked, since qsysmin keeps no
 // key for it; the entry counts as signed, and the chain over its stored bytes still covers it.
 func Verify(dir string) (Report, error) {
 	if _, err := os.Stat(dir); err != nil {

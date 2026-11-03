@@ -1,16 +1,16 @@
-sysmin                                                         [?] help  [:] cmd
+qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    2/2
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║   Name╔══════════════════════════════════════════════════════════════╗System ║
-║   ▾ Us║ ⚠ Give the administrator demo-user access to sysmin (group   ║       ║
-║   demo║   sysmin).                                                   ║       ║
+║   ▾ Us║ ⚠ Give the administrator demo-user access to qsysmin (group  ║       ║
+║   demo║   qsysmin).                                                  ║       ║
 ║ > demo║                                                              ║       ║
 ║   ▸ Sy║     You can undo this under Host > Changes.                  ║       ║
 ╚═══════║                                                              ║═══════╝
-        ║   $ usermod -aG sysmin demo-user                             ║        
+        ║   $ usermod -aG qsysmin demo-user                            ║        
         ║                                                              ║        
         ║ [ Apply ]  [ Cancel ]                                        ║        
         ║                                                              ║        

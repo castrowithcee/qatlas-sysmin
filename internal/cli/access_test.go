@@ -12,18 +12,18 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/service"
 )
 
-// notAdminGroups lets the peer into the group sysmin but knows it as no administrator.
+// notAdminGroups lets the peer into the group qsysmin but knows it as no administrator.
 type notAdminGroups struct{ testGroups }
 
 func (notAdminGroups) IsAdmin(uint32) (bool, error) { return false, nil }
 
-// outsideGroups keeps the peer out of the group sysmin.
+// outsideGroups keeps the peer out of the group qsysmin.
 type outsideGroups struct{ testGroups }
 
 func (outsideGroups) GroupID(string) (uint32, error)           { return uint32(os.Getgid()) + 1, nil }
 func (outsideGroups) PeerGroups(daemon.Peer) ([]uint32, error) { return nil, nil }
 
-const reservedLine = "sysmin is reserved for administrators (sudo)\n"
+const reservedLine = "qsysmin is reserved for administrators (sudo)\n"
 
 func TestCommandsSayReservedOnANotAdminAnswer(t *testing.T) {
 	sock := startServiceCfg(t, func(c *service.Config) { c.Resolver = notAdminGroups{} })
@@ -56,7 +56,7 @@ func TestCommandsNameTheStandingOnSocketPermission(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root is never refused by file permissions")
 	}
-	dir, err := os.MkdirTemp("", "sysmin-")
+	dir, err := os.MkdirTemp("", "qsysmin-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestCommandsNameTheStandingOnSocketPermission(t *testing.T) {
 	}
 	restore := client.SetStandingForTests(true, true)
 	defer restore()
-	if _, _, stderr := runCLIArgs("status", "--socket", sock); strings.Contains(stderr, "reserved") || strings.Contains(stderr, "enabled for sysmin") {
+	if _, _, stderr := runCLIArgs("status", "--socket", sock); strings.Contains(stderr, "reserved") || strings.Contains(stderr, "enabled for qsysmin") {
 		t.Errorf("an enabled administrator got an access line: %q", stderr)
 	}
 }

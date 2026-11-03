@@ -1,18 +1,18 @@
-sysmin                                                                                                 [?] help  [:] cmd
+qsysmin                                                                                                [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
   [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         3/3 ╭─ svc-demo ─────────────────────────────────────╮
 ╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
 ║   Name        Admin              Docker  Groups            System ║ │                                                │
-║   ▾ Users (2)                                                     ║ │ Name              svc-demo                     │
-║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type              system                       │
-║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin             no                           │
-║   ▾ System accounts (1)                                           ║ │ Docker            no                           │
-║ > svc-demo    no                 no      svc-demo          system ║ │ Enabled (sysmin)  no                           │
-╚═══════════════════════════════════════════════════════════════════╝ │ Groups            svc-demo                     │
-                                                                      │ Home              /var/lib/svc-demo            │
-                            ╔══════════════════════════════════════════════════════════════╗known                      │
+║   ▾ Users (2)                                                     ║ │ Name               svc-demo                    │
+║   demo-admin  yes                yes     demo-admin, sud…         ║ │ Type               system                      │
+║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              no                          │
+║   ▾ System accounts (1)                                           ║ │ Docker             no                          │
+║ > svc-demo    no                 no      svc-demo          system ║ │ Enabled (qsysmin)  no                          │
+╚═══════════════════════════════════════════════════════════════════╝ │ Groups             svc-demo                    │
+                                                                      │ Home               /var/lib/svc-demo           │
+                            ╔══════════════════════════════════════════════════════════════╗nknown                     │
                             ║ Add to groups                                                ║                           │
                             ║                                                              ║ the fields only root can  │
                             ║   / Type to search                                           ║                           │

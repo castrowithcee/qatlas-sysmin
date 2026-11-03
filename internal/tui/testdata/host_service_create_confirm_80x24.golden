@@ -1,4 +1,4 @@
-sysmin                                                         [?] help  [:] cmd
+qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────╔══════════════════════════════════════════════════════════════╗────────
@@ -8,7 +8,7 @@ Users (3║ ⚠ Create the service account demo-svc without login, with    ║  
 ║   ▾ Us║                                                              ║       ║
 ║ > demo║     Admin and Docker rights allow practically everything on  ║       ║
 ║   demo║     this host. You can undo this under Host > Changes.       ║       ║
-║   ▸ Sy║     Undoing it deletes the account and a home sysmin         ║       ║
+║   ▸ Sy║     Undoing it deletes the account and a home qsysmin        ║       ║
 ╚═══════║     created; files of the account outside its home stay.     ║═══════╝
         ║                                                              ║        
         ║   $ useradd --system --create-home --home-dir                ║        

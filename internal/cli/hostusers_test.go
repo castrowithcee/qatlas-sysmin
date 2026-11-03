@@ -56,7 +56,7 @@ func newUsersWorld(t *testing.T) (*usersWorld, hostchange.UserHost, func(context
 		"demo-user:x:1001:1001::" + w.path("home/demo-user") + ":/bin/bash\n"
 	files := map[string]string{
 		"passwd": accounts,
-		"group":  "root:x:0:\nsudo:x:27:demo-admin\nsysmin:x:990:demo-admin\ndemo-admin:x:1000:\ndemo-user:x:1001:\n",
+		"group":  "root:x:0:\nsudo:x:27:demo-admin\nqsysmin:x:990:demo-admin\ndemo-admin:x:1000:\ndemo-user:x:1001:\n",
 		"shadow": "root:*:19000::::::\ndemo-admin:$6$demo-a:19000::::::\ndemo-user:$6$demo-u:19000::::::\n",
 	}
 	for name, content := range files {
@@ -261,7 +261,7 @@ func TestHostApplyGroupRefusalsChangeNothing(t *testing.T) {
 	}{
 		{[]string{"group.delete", "sudo"}, 1, "never deleted"},
 		{[]string{"group.delete", "demo-user"}, 1, "primary group of demo-user"},
-		{[]string{"group.rename", "sysmin", "demo-access"}, 1, "never renamed"},
+		{[]string{"group.rename", "qsysmin", "demo-access"}, 1, "never renamed"},
 		{[]string{"group.rename", "demo-user", "sudo"}, 1, "exists already"},
 		{[]string{"group.create", "demo-admin"}, 1, "exists already"},
 		{[]string{"group.create", "Demo"}, 2, ""},

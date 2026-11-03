@@ -174,7 +174,7 @@ func TestLogVerifyUsageErrors(t *testing.T) {
 		{"--key", "x"},
 	} {
 		code, stdout, stderr := runCLI(t, append([]string{"log", "verify"}, args...)...)
-		if code != exitUsage || stdout != "" || !strings.HasPrefix(stderr, "sysmin: usage: ") {
+		if code != exitUsage || stdout != "" || !strings.HasPrefix(stderr, "qsysmin: usage: ") {
 			t.Errorf("args %v: code = %d, stdout = %q, stderr = %q", args, code, stdout, stderr)
 		}
 	}

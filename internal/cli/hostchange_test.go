@@ -95,7 +95,7 @@ func newChangeFixture(t *testing.T) *changeFixture {
 		t.Fatal(err)
 	}
 	tick := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
-	f.dir = filepath.Join(t.TempDir(), "sysmin-host", "journal")
+	f.dir = filepath.Join(t.TempDir(), "qsysmin-host", "journal")
 	f.env = &changeEnv{
 		Registry: reg, Exec: f.w, JournalDir: f.dir, OwnerUID: os.Getuid(),
 		Now:     func() time.Time { tick = tick.Add(time.Second); return tick },
@@ -171,7 +171,7 @@ func TestHostChangeRefusesNonRootAndMissingYes(t *testing.T) {
 	}
 	// A caller who is not an administrator learns nothing else.
 	code, _, errOut = runChange(t, f, 1001, "", "host", "apply", "demo.set", "--yes")
-	if code != 1 || !strings.HasPrefix(errOut, "sysmin is reserved") {
+	if code != 1 || !strings.HasPrefix(errOut, "qsysmin is reserved") {
 		t.Errorf("non-admin: code %d err %q", code, errOut)
 	}
 }

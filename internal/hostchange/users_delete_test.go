@@ -128,12 +128,12 @@ func TestDeleteOfAUserInASharedPrimaryGroupKeepsTheGroup(t *testing.T) {
 	if f.group("projects") == nil || f.group("demo-other") == nil {
 		t.Fatalf("groups gone: %+v", f.groups)
 	}
-	if st := deleteRecord(t, res); st.OwnGroup || st.Group != "projects" || st.GID != 2000 || !slices.Equal(st.Groups, []string{"sudo", "sysmin"}) {
+	if st := deleteRecord(t, res); st.OwnGroup || st.Group != "projects" || st.GID != 2000 || !slices.Equal(st.Groups, []string{"qsysmin", "sudo"}) {
 		t.Fatalf("state %+v", st)
 	}
 	f.calls = nil
 	f.undo(t, res.Entry.ID)
-	if f.calls[0] != "useradd -u 1002 -g projects -G sudo,sysmin -d "+f.user("demo-other").home+" -M -s /bin/bash -c '' demo-other" {
+	if f.calls[0] != "useradd -u 1002 -g projects -G qsysmin,sudo -d "+f.user("demo-other").home+" -M -s /bin/bash -c '' demo-other" {
 		t.Errorf("calls %q", f.calls)
 	}
 	if got := f.accountFiles(t); got != before {
@@ -228,7 +228,7 @@ func TestDeleteRefusals(t *testing.T) {
 		{"self", 1001, []string{"demo-user"}, nil, "your own account"},
 		{"self with home", 1001, []string{"demo-user", "with-home"}, nil, "your own account"},
 		{"last administrator", 1000, []string{"demo-other"}, func(f *userFixture) {
-			f.group("sysmin").members = []string{"demo-other"}
+			f.group("qsysmin").members = []string{"demo-other"}
 		}, "last administrator"},
 		{"running process", 1000, []string{"demo-user"}, func(f *userFixture) { f.process(4711, 1001, 1001) }, "still has running processes; end them first"},
 		{"effective UID", 1000, []string{"demo-user", "with-home"}, func(f *userFixture) { f.process(4712, 0, 1001) }, "running processes"},

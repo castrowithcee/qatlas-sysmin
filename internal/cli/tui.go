@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
@@ -19,24 +18,15 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
-// oldConfigDirName is the folder of sysmin inside the user configuration directory, where earlier versions
-// kept tui.yaml.
-const oldConfigDirName = "sysmin"
-
-// loadPrefs resolves ~/.qatlas/sysmin/tui.yaml, moves the file of an earlier version into place and loads it.
+// loadPrefs resolves ~/.qatlas/qsysmin/tui.yaml and loads it.
 func loadPrefs() (prefs uiprefs.Prefs, path string, warnings []string) {
 	dir, err := uiprefs.UserDir()
 	if err != nil {
 		return uiprefs.Default(), "", []string{fmt.Sprintf("no home directory, using the defaults: %v", err)}
 	}
 	path = uiprefs.Path(dir)
-	if oldDir, err := os.UserConfigDir(); err == nil {
-		if msg := uiprefs.Migrate(path, uiprefs.Path(filepath.Join(oldDir, oldConfigDirName))); msg != "" {
-			warnings = append(warnings, msg)
-		}
-	}
-	prefs, loadWarnings := uiprefs.Load(path)
-	return prefs, path, append(warnings, loadWarnings...)
+	prefs, warnings = uiprefs.Load(path)
+	return prefs, path, warnings
 }
 
 func newTUICommand(opts *Options) *cobra.Command {
@@ -46,7 +36,7 @@ func newTUICommand(opts *Options) *cobra.Command {
 		Short: "Open the terminal interface",
 		Long: "Open the terminal interface. It needs a terminal on both standard input and standard output.\n" +
 			"It talks to the running service; without the service it still opens and says what to check.\n" +
-			"Device-local preferences are read from ~/.qatlas/sysmin/tui.yaml; a missing file means\n" +
+			"Device-local preferences are read from ~/.qatlas/qsysmin/tui.yaml; a missing file means\n" +
 			"the defaults.",
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) > 0 {
@@ -117,7 +107,7 @@ func hostRunner(req tui.HostRequest) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-// execWithGroup replaces this process by the same command under sudo -g sysmin, which carries the group without
+// execWithGroup replaces this process by the same command under sudo -g qsysmin, which carries the group without
 // a new login. It returns only on failure.
 func execWithGroup(args []string) error {
 	sudo, err := lookPath("sudo")
@@ -135,13 +125,13 @@ func execWithGroup(args []string) error {
 	return nil
 }
 
-// updateAndRestart installs version through sudo sysmin update on the terminal, then starts the interface
+// updateAndRestart installs version through sudo qsysmin update on the terminal, then starts the interface
 // again: the new program after an update, the old one after a failure, once enter was pressed so the failure
 // can be read. It returns only when neither can start.
 func updateAndRestart(version string, args []string) error {
 	sudo, err := lookPath("sudo")
 	if err != nil {
-		return errors.New("sudo is not installed; run sysmin update as root")
+		return errors.New("sudo is not installed; run qsysmin update as root")
 	}
 	exe, err := executable()
 	if err != nil {
@@ -150,7 +140,7 @@ func updateAndRestart(version string, args []string) error {
 	update := exec.Command(sudo, exe, "update", "--to", version, "--yes")
 	update.Stdin, update.Stdout, update.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := runCommand(update); err != nil {
-		fmt.Fprintf(os.Stderr, "\nsysmin update did not finish (%v). Press enter to return to the interface.", err)
+		fmt.Fprintf(os.Stderr, "\nqsysmin update did not finish (%v). Press enter to return to the interface.", err)
 		_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
 	}
 	if err := execv(exe, args, os.Environ()); err != nil {

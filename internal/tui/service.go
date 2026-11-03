@@ -25,7 +25,7 @@ type svcState struct {
 	// reachable is false while the last Status failed; fail then says why, as a fixed text.
 	reachable bool
 	fail      string
-	// noGroup says the last Status failed because this login session does not carry the group sysmin yet.
+	// noGroup says the last Status failed because this login session does not carry the group qsysmin yet.
 	noGroup bool
 	// foreign says the last Status failed because a process other than the service answers at the socket.
 	foreign bool
@@ -107,7 +107,7 @@ func (m *Model) takeTick() tea.Cmd {
 // serviceUp reports whether the last Status was answered.
 func (m *Model) serviceUp() bool { return m.svc.known && m.svc.reachable }
 
-// isDenied reports whether err says the caller may not use sysmin.
+// isDenied reports whether err says the caller may not use qsysmin.
 func isDenied(err error) bool {
 	return errors.Is(err, client.ErrReserved) || errors.Is(err, client.ErrNotEnabled)
 }

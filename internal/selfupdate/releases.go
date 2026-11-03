@@ -12,7 +12,7 @@ import (
 
 const (
 	// MinVersion is the oldest release that can be listed or installed.
-	MinVersion = "v0.1.0"
+	MinVersion = "v0.7.0"
 	// listedStable is how many of the newest stable releases the list shows.
 	listedStable = 10
 	// maxReleasePages bounds the pagination so a misbehaving server cannot keep the reader looping.
@@ -177,7 +177,7 @@ func (c *Client) Resolve(ctx context.Context, tag string) (Target, error) {
 		return Target{}, &TargetError{fmt.Sprintf("release %q has an invalid version: %v", r.TagName, err)}
 	}
 	if v.compare(minimum()) < 0 {
-		return Target{}, &TargetError{fmt.Sprintf("%s is older than %s, the oldest version sysmin installs", r.TagName, MinVersion)}
+		return Target{}, &TargetError{fmt.Sprintf("%s is older than %s, the oldest version qsysmin installs", r.TagName, MinVersion)}
 	}
 	if !hasSignature(r) {
 		return Target{}, &TargetError{fmt.Sprintf("release %s is not signed and cannot be chosen", r.TagName)}

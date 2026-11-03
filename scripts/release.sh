@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the sysmin release assets for linux/amd64 and linux/arm64 into <out> (default: dist):
+# Builds the qsysmin release assets for linux/amd64 and linux/arm64 into <out> (default: dist):
 # one archive per architecture, install.sh and checksums.txt over all of them. The output is
 # reproducible: the same source and SOURCE_DATE_EPOCH give byte-identical files.
 set -eu
@@ -33,24 +33,24 @@ export SOURCE_DATE_EPOCH
 
 for goarch in amd64 arm64; do
 	stage="$work/stage-$goarch"
-	mkdir -p "$stage/bin" "$stage/share/doc/sysmin" "$stage/lib/systemd/system"
+	mkdir -p "$stage/bin" "$stage/share/doc/qsysmin" "$stage/lib/systemd/system"
 
 	CGO_ENABLED=0 GOOS=linux GOARCH="$goarch" go build -trimpath -buildvcs=false \
 		-ldflags "-s -w -X github.com/castrowithcee/qatlas-sysmin/internal/cli.version=$version" \
-		-o "$stage/bin/sysmin" .
-	cp LICENSE "$stage/share/doc/sysmin/LICENSE"
-	cp packaging/sysmin.service "$stage/lib/systemd/system/sysmin.service"
-	chmod 755 "$stage/bin/sysmin"
-	chmod 644 "$stage/share/doc/sysmin/LICENSE" "$stage/lib/systemd/system/sysmin.service"
+		-o "$stage/bin/qsysmin" .
+	cp LICENSE "$stage/share/doc/qsysmin/LICENSE"
+	cp packaging/qsysmin.service "$stage/lib/systemd/system/qsysmin.service"
+	chmod 755 "$stage/bin/qsysmin"
+	chmod 644 "$stage/share/doc/qsysmin/LICENSE" "$stage/lib/systemd/system/qsysmin.service"
 
 	# Fixed order, owner and mtime; gzip -n leaves out the name and timestamp.
 	(cd "$stage" && LC_ALL=C tar --sort=name --owner=0 --group=0 --numeric-owner \
 		--mtime="@$SOURCE_DATE_EPOCH" --format=gnu -cf - .) |
-		gzip -n -9 >"$output/sysmin_${version}_linux_${goarch}.tar.gz"
+		gzip -n -9 >"$output/qsysmin_${version}_linux_${goarch}.tar.gz"
 done
 
 # install.sh is a release asset and listed in checksums.txt, so the signature covers it.
 cp "$scripts_dir/install.sh" "$output/install.sh"
 
-(cd "$output" && LC_ALL=C sha256sum "sysmin_${version}_linux_amd64.tar.gz" \
-	"sysmin_${version}_linux_arm64.tar.gz" install.sh) >"$output/checksums.txt"
+(cd "$output" && LC_ALL=C sha256sum "qsysmin_${version}_linux_amd64.tar.gz" \
+	"qsysmin_${version}_linux_arm64.tar.gz" install.sh) >"$output/checksums.txt"

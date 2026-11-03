@@ -57,8 +57,8 @@ func newFakeHost(t *testing.T, server *selfupdatetest.Server) *fakeHost {
 			h.calls = append(h.calls, call)
 			return h.fail[call]
 		},
-		binaryPath: filepath.Join(dir, "bin", "sysmin"),
-		unitPath:   filepath.Join(dir, "sysmin.service"),
+		binaryPath: filepath.Join(dir, "bin", "qsysmin"),
+		unitPath:   filepath.Join(dir, "qsysmin.service"),
 		dataDirs:   []string{filepath.Join(dir, "etc"), filepath.Join(dir, "var")},
 	}
 	h.system.updater = func(v, apiURL string) *selfupdate.Client {
@@ -121,7 +121,7 @@ func TestUpdateInstallsThenRestarts(t *testing.T) {
 	if binary(t, h) != "new program" {
 		t.Error("program not replaced")
 	}
-	if want := []string{"systemctl daemon-reload", "systemctl restart sysmin"}; !slices.Equal(h.calls, want) {
+	if want := []string{"systemctl daemon-reload", "systemctl restart qsysmin"}; !slices.Equal(h.calls, want) {
 		t.Errorf("calls = %v, want %v", h.calls, want)
 	}
 	if b, _ := os.ReadFile(h.unitPath); !strings.Contains(string(b), "v1.1.0") {
@@ -161,7 +161,7 @@ func TestUpdateRefusesBadReleaseWithoutChangeOrRestart(t *testing.T) {
 func TestUpdateRestartFailureIsReported(t *testing.T) {
 	withVersion(t, "v1.0.0")
 	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new"}))
-	h.fail["systemctl restart sysmin"] = exitStatus(1)
+	h.fail["systemctl restart qsysmin"] = exitStatus(1)
 	code, _, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL)
 	if code != exitRuntime || !strings.Contains(stderr, "restarting the service failed") {
 		t.Errorf("code = %d, stderr = %q", code, stderr)
@@ -259,7 +259,7 @@ func TestUpdateWithUnchangedUnitSkipsDaemonReload(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, stdout, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL, "--output", "json")
-	if code != exitOK || !slices.Equal(h.calls, []string{"systemctl restart sysmin"}) || !strings.Contains(stdout, `"unit_updated":false`) {
+	if code != exitOK || !slices.Equal(h.calls, []string{"systemctl restart qsysmin"}) || !strings.Contains(stdout, `"unit_updated":false`) {
 		t.Errorf("code = %d, calls = %v, stdout = %q, stderr = %q", code, h.calls, stdout, stderr)
 	}
 }
@@ -269,7 +269,7 @@ func TestUpdateDaemonReloadFailureIsReported(t *testing.T) {
 	h := newFakeHost(t, selfupdatetest.New(t, "amd64", selfupdatetest.Release{Tag: "v1.1.0", Program: "new"}))
 	h.fail["systemctl daemon-reload"] = exitStatus(1)
 	code, _, stderr := h.run(t, "", "update", "--yes", "--api-url", h.server.URL)
-	if code != exitRuntime || !strings.Contains(stderr, "reloading the service manager failed") || slices.Contains(h.calls, "systemctl restart sysmin") {
+	if code != exitRuntime || !strings.Contains(stderr, "reloading the service manager failed") || slices.Contains(h.calls, "systemctl restart qsysmin") {
 		t.Errorf("code = %d, calls = %v, stderr = %q", code, h.calls, stderr)
 	}
 }

@@ -10,7 +10,7 @@ import (
 // invented64 is a stand-in for a signature of an earlier version; nothing checks it any more.
 const invented64 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-// legacyDay writes one day file in the old line format: actions sysmin no longer knows, a project field and
+// legacyDay writes one day file in the old line format: actions qsysmin no longer knows, a project field and
 // signatures on two of three lines. The hash covers the stored bytes, so the lines stay valid without being
 // re-encoded.
 func legacyDay(t *testing.T, dir string) {

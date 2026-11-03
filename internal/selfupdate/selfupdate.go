@@ -1,4 +1,4 @@
-// Package selfupdate lists and installs signed sysmin releases. A release is installed only after the
+// Package selfupdate lists and installs signed qsysmin releases. A release is installed only after the
 // signature over its checksums.txt and the archive checksum have been verified; the installed program and its
 // systemd unit are then replaced atomically.
 package selfupdate
@@ -32,9 +32,9 @@ const (
 	// RepositoryAPI is the GitHub API base of the release repository.
 	RepositoryAPI = "https://api.github.com/repos/castrowithcee/qatlas-sysmin"
 	// DefaultTarget is the installed program the update replaces.
-	DefaultTarget = "/usr/local/bin/sysmin"
+	DefaultTarget = "/usr/local/bin/qsysmin"
 	// DefaultUnitTarget is the installed systemd unit the update keeps in step with the program.
-	DefaultUnitTarget = "/etc/systemd/system/sysmin.service"
+	DefaultUnitTarget = "/etc/systemd/system/qsysmin.service"
 
 	maxMetadataBytes  = 1 << 20
 	maxArchiveBytes   = 128 << 20
@@ -47,8 +47,8 @@ const (
 
 	checksumsAsset  = "checksums.txt"
 	signatureAsset  = "checksums.txt.sig"
-	executableEntry = "bin/sysmin"
-	unitEntry       = "lib/systemd/system/sysmin.service"
+	executableEntry = "bin/qsysmin"
+	unitEntry       = "lib/systemd/system/qsysmin.service"
 )
 
 // statusError reports a non-2xx answer of the release source.
@@ -170,7 +170,7 @@ func (c *Client) arch() (string, error) {
 }
 
 func assetName(version, arch string) string {
-	return fmt.Sprintf("sysmin_%s_linux_%s.tar.gz", version, arch)
+	return fmt.Sprintf("qsysmin_%s_linux_%s.tar.gz", version, arch)
 }
 
 func (c *Client) getJSON(ctx context.Context, endpoint string, out any) error {
@@ -228,7 +228,7 @@ func (c *Client) fetch(ctx context.Context, rawURL string, limit int64, accept s
 	}
 	req.Header.Set("Accept", accept)
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	req.Header.Set("User-Agent", "sysmin/"+c.Version)
+	req.Header.Set("User-Agent", "qsysmin/"+c.Version)
 	client := c.HTTPClient
 	if client == nil {
 		// No client timeout: it would also cut off a slow download that still moves; request bounds it.
@@ -457,13 +457,13 @@ func (c *Client) Install(ctx context.Context, t Target) (Result, error) {
 	replaceUnit := installedUnit == nil || !bytes.Equal(installedUnit, unit)
 	var stagedUnit string
 	if replaceUnit {
-		stagedUnit, err = stageFile(filepath.Dir(unitTarget), ".sysmin-unit-update-*", unit, 0o644)
+		stagedUnit, err = stageFile(filepath.Dir(unitTarget), ".qsysmin-unit-update-*", unit, 0o644)
 		if err != nil {
 			return Result{}, fmt.Errorf("stage new unit: %w", err)
 		}
 		defer os.Remove(stagedUnit)
 	}
-	staged, err := stageFile(filepath.Dir(target), ".sysmin-update-*", executable, 0o755)
+	staged, err := stageFile(filepath.Dir(target), ".qsysmin-update-*", executable, 0o755)
 	if err != nil {
 		return Result{}, fmt.Errorf("stage new program: %w", err)
 	}

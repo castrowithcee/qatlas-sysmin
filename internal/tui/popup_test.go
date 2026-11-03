@@ -57,7 +57,7 @@ func TestInfoDescribesTheFocusedEntry(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
 	focusCard(t, m, "Not enabled")
 	send(m, "i")
-	if view := plain(m); !strings.Contains(view, "Not enabled") || !strings.Contains(view, "not in the sysmin group") {
+	if view := plain(m); !strings.Contains(view, "Not enabled") || !strings.Contains(view, "not in the qsysmin group") {
 		t.Errorf("no info for the focused row:\n%s", view)
 	}
 	send(m, "esc", "4", "down")

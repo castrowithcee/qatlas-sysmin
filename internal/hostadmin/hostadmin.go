@@ -12,11 +12,11 @@ import (
 	"time"
 )
 
-// Group names that carry a meaning for sysmin.
+// Group names that carry a meaning for qsysmin.
 const (
-	GroupAdmin  = "sudo"
-	GroupDocker = "docker"
-	GroupSysmin = "sysmin"
+	GroupAdmin   = "sudo"
+	GroupDocker  = "docker"
+	GroupQsysmin = "qsysmin"
 )
 
 // Regular accounts and groups have an ID from RegularIDMin to RegularIDMax, the usual range of a Debian
@@ -230,7 +230,7 @@ func (h *Host) buildUser(d *db, p passwdEntry, shadow map[string]shadowEntry) Us
 		System:  !Regular(p.uid),
 		Admin:   d.memberOf(p, GroupAdmin),
 		Docker:  d.memberOf(p, GroupDocker),
-		Enabled: d.memberOf(p, GroupSysmin),
+		Enabled: d.memberOf(p, GroupQsysmin),
 	}
 	if u.Groups == nil {
 		u.Groups = []string{}

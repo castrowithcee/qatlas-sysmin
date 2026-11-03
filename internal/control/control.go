@@ -16,10 +16,10 @@ import (
 const Version = 1
 
 // DefaultSocketPath is where the service listens unless told otherwise.
-const DefaultSocketPath = "/run/sysmin/sysmin.sock"
+const DefaultSocketPath = "/run/qsysmin/qsysmin.sock"
 
 // ServiceGroup is the group whose members may use the control socket, besides root.
-const ServiceGroup = "sysmin"
+const ServiceGroup = "qsysmin"
 
 // The size and time limits of a connection. A request is small; an answer may carry a listing.
 const (

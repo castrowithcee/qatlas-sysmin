@@ -1,4 +1,4 @@
-// Package service is the running sysmin service: it writes the audit log and serves the control socket of
+// Package service is the running qsysmin service: it writes the audit log and serves the control socket of
 // package daemon, to which only administrators and root are admitted.
 package service
 
@@ -15,7 +15,7 @@ import (
 )
 
 // DefaultStateDir is the state directory of the service.
-const DefaultStateDir = "/var/lib/sysmin"
+const DefaultStateDir = "/var/lib/qsysmin"
 
 // Config configures a service. Only the state directory and the socket are usually set.
 type Config struct {

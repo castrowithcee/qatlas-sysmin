@@ -1,4 +1,4 @@
-// Package selfupdatetest serves a local stand-in for the GitHub releases API of the sysmin repository.
+// Package selfupdatetest serves a local stand-in for the GitHub releases API of the qsysmin repository.
 package selfupdatetest
 
 import (
@@ -26,9 +26,9 @@ type Release struct {
 	Tag        string
 	Prerelease bool
 	Draft      bool
-	// Program is the content of bin/sysmin in the archive.
+	// Program is the content of bin/qsysmin in the archive.
 	Program string
-	// Unit is the content of lib/systemd/system/sysmin.service; empty means a unit naming the tag.
+	// Unit is the content of lib/systemd/system/qsysmin.service; empty means a unit naming the tag.
 	Unit string
 	// NoUnit leaves the unit out of the archive.
 	NoUnit bool
@@ -73,9 +73,9 @@ func (s *Server) build(t testing.TB, r Release) map[string][]byte {
 	if unit == "" {
 		unit = "[Unit]\nDescription=" + r.Tag + "\n"
 	}
-	files := []struct{ name, body string }{{"bin/sysmin", r.Program}, {"share/doc/sysmin/LICENSE", "license"}}
+	files := []struct{ name, body string }{{"bin/qsysmin", r.Program}, {"share/doc/qsysmin/LICENSE", "license"}}
 	if !r.NoUnit {
-		files = append(files, struct{ name, body string }{"lib/systemd/system/sysmin.service", unit})
+		files = append(files, struct{ name, body string }{"lib/systemd/system/qsysmin.service", unit})
 	}
 	for _, f := range files {
 		if err := tw.WriteHeader(&tar.Header{Name: f.name, Mode: 0o755, Size: int64(len(f.body)), Typeflag: tar.TypeReg}); err != nil {
@@ -91,7 +91,7 @@ func (s *Server) build(t testing.TB, r Release) map[string][]byte {
 	if err := gz.Close(); err != nil {
 		t.Fatal(err)
 	}
-	name := fmt.Sprintf("sysmin_%s_linux_%s.tar.gz", r.Tag, s.arch)
+	name := fmt.Sprintf("qsysmin_%s_linux_%s.tar.gz", r.Tag, s.arch)
 	sum := sha256.Sum256(buf.Bytes())
 	if r.BadChecksum {
 		sum[0] ^= 0xff

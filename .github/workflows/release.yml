@@ -71,8 +71,8 @@ jobs:
           (umask 077 && printf '%s\n' "$RELEASE_SIGNING_KEY" > "$key")
           chmod 600 "$key"
           cd signing-input
-          ssh-keygen -Y sign -f "$key" -n sysmin-release checksums.txt
-          ssh-keygen -Y verify -f allowed-signers -I sysmin-release -n sysmin-release \
+          ssh-keygen -Y sign -f "$key" -n qsysmin-release checksums.txt
+          ssh-keygen -Y verify -f allowed-signers -I qsysmin-release -n qsysmin-release \
             -s checksums.txt.sig < checksums.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

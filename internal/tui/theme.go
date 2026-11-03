@@ -10,7 +10,7 @@ import (
 )
 
 // palette names the colours of a theme by role. Screen code takes colours only from here or from the styles
-// built on them, never as a literal. The sysmin themes have a truecolor palette (hex) and one hand-picked for 256
+// built on them, never as a literal. The qsysmin themes have a truecolor palette (hex) and one hand-picked for 256
 // and for 16 colours (see paletteOf), because a computed step-down picks muddy neighbours. A palette of a theme
 // without colour is the zero value; an empty role is one the theme leaves to the terminal.
 type palette struct {
@@ -85,7 +85,7 @@ var lightPalette16 = palette{
 	brand:     [8]colour{"3", "4", "3", "6", "5", "2", "5", "1"},
 }
 
-// paletteOf is the palette of a sysmin theme for the colour profile of the terminal.
+// paletteOf is the palette of a qsysmin theme for the colour profile of the terminal.
 func paletteOf(dark bool, profile colorProfile) palette {
 	switch {
 	case profile == profile256 && dark:
@@ -115,8 +115,8 @@ type themeDef struct {
 // colours joins as one more entry whose palette is mixPalette over them.
 var themes = append([]themeDef{
 	{uiprefs.ThemeTerminal, false, terminalPalette},
-	{uiprefs.ThemeSysminDark, true, func(p colorProfile) palette { return paletteOf(true, p) }},
-	{uiprefs.ThemeSysminLight, true, func(p colorProfile) palette { return paletteOf(false, p) }},
+	{uiprefs.ThemeQsysminDark, true, func(p colorProfile) palette { return paletteOf(true, p) }},
+	{uiprefs.ThemeQsysminLight, true, func(p colorProfile) palette { return paletteOf(false, p) }},
 }, builtinThemes()...)
 
 // themeNamed is the theme of a name; a name no theme has gives the default and false.
