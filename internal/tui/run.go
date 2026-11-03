@@ -3,7 +3,6 @@ package tui
 import (
 	"errors"
 	"os"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -81,10 +80,10 @@ func Run(opts Options) error {
 	if len(warnings) > 0 {
 		model.status = "warning: " + warnings[0]
 	}
-	fragments := newFragmentFilter(time.Now)
+	input := kittui.NewInputFilter(nil)
 	program := tea.NewProgram(model, tea.WithInput(opts.In), tea.WithOutput(newLegacyKeys(opts.Out)),
-		tea.WithFilter(fragments.filter), tea.WithColorProfile(toColorprofile(profile)))
-	fragments.send = program.Send
+		tea.WithFilter(input.Filter), tea.WithColorProfile(toColorprofile(profile)))
+	input.Attach(program.Send)
 	final, err := program.Run()
 	if fm, ok := final.(*Model); ok && err == nil {
 		switch {

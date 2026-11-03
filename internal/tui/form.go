@@ -182,7 +182,7 @@ func (m *Model) hitFormWheel(x0, y0, x1, y1 int) {
 	default:
 		return
 	}
-	m.addWheel(x0, y0, x1, y1, func(up bool) tea.Cmd { scroll(up); return nil })
+	m.addWheel(x0, y0, x1, y1, kittui.ZoneForm, func(up bool) tea.Cmd { scroll(up); return nil })
 }
 
 // openForm shows f over the screen with its first visible row focused.

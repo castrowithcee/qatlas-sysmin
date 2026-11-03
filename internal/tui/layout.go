@@ -1,8 +1,6 @@
 package tui
 
 import (
-	tea "charm.land/bubbletea/v2"
-
 	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
@@ -114,46 +112,27 @@ func (m *Model) frameMessage() *kittui.Message {
 	return nil
 }
 
-// frameTargets makes the tabs, the back button and the header keys of the frame clickable, and the bars
-// zones of their own. The keys of the footer are clickable only where they answer a dialog (see footerHits).
+// frameTargets adds the targets the frame drew: its tabs, the back button and the header keys, and the bars as
+// zones of their own. The keys of the footer act only where they answer a dialog (see footerHits).
 func (m *Model) frameTargets(targets []kittui.Target) {
 	m.footerTargets = nil
-	live := m.screen == screenArea
 	zoned := map[int]bool{}
 	for _, t := range targets {
-		x0, y0, x1, y1 := t.Rect.X, t.Rect.Y, t.Rect.X+t.Rect.Width, t.Rect.Y+t.Rect.Height
-		switch {
-		case t.Action != "" && y0 == m.termHeight-1:
+		if t.Action != "" && t.Rect.Y == m.termHeight-1 {
 			m.footerTargets = append(m.footerTargets, t)
-		case t.Action != "":
-			act := t.Action
-			m.addFrameHit(x0, y0, x1, y1, func() tea.Cmd { return m.pressAction(act) })
-		case live && t.Tab != "":
-			id := t.Tab
-			m.addHit(x0, y0, x1, y1, func() tea.Cmd {
-				m.endInput()
-				sub, ok := m.tabIndex(id)
-				if !ok {
-					return nil
-				}
-				return m.setSubPage(sub)
-			})
-		case live && t.Area != "":
-			if a, ok := areaOf(t.Area); ok {
-				m.addHit(x0, y0, x1, y1, func() tea.Cmd { m.endInput(); return m.setArea(a) })
-			}
+			continue
 		}
-		if live && t.Zone != "" && !zoned[y0] {
-			zoned[y0] = true
-			m.addZone(0, y0, m.termWidth, y1, t.Zone)
+		m.addTarget(t)
+		if y := t.Rect.Y; t.Zone != "" && !zoned[y] {
+			zoned[y] = true
+			m.addZone(0, y, m.termWidth, y+t.Rect.Height, t.Zone)
 		}
 	}
 }
 
-// footerHits makes the keys of the footer clickable, where the footer holds the answers of a dialog.
+// footerHits adds the keys of the footer, where the footer holds the answers of a dialog.
 func (m *Model) footerHits() {
 	for _, t := range m.footerTargets {
-		act := t.Action
-		m.addHit(t.Rect.X, t.Rect.Y, t.Rect.X+t.Rect.Width, t.Rect.Y+t.Rect.Height, func() tea.Cmd { return m.pressAction(act) })
+		m.addTarget(t)
 	}
 }

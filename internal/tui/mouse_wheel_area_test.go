@@ -7,6 +7,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // notch is one notch of the wheel at a place, with the commands it asks for run; the clock moves on first so
@@ -21,13 +23,25 @@ func notch(m *Model, now *time.Time, x, y int, up bool) {
 	drain(m, cmd)
 }
 
+// wheelAreas are the parts of the frame drawn last that the wheel scrolls, in the order they were drawn.
+func wheelAreas(m *Model) []kittui.Target {
+	var out []kittui.Target
+	for _, t := range m.mt.targets {
+		if _, ok := m.mt.wheels[t.Zone]; ok && t.Zone != "" && t.Item == "" && t.Action == "" && t.Area == "" && t.Tab == "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 // wheelCell is a cell in the wheel area that pick chooses among the areas of the frame, the last one first.
-func wheelCell(t *testing.T, m *Model, pick func(h wheelHit) bool) (x, y int) {
+func wheelCell(t *testing.T, m *Model, pick func(kittui.Target) bool) (x, y int) {
 	t.Helper()
 	m.render()
-	for i := len(m.wheelHits) - 1; i >= 0; i-- {
-		if h := m.wheelHits[i]; pick(h) {
-			return h.x0 + 2, h.y0 + (h.y1-h.y0)/2
+	areas := wheelAreas(m)
+	for i := len(areas) - 1; i >= 0; i-- {
+		if r := areas[i].Rect; pick(areas[i]) {
+			return r.X + 2, r.Y + r.Height/2
 		}
 	}
 	t.Fatalf("no wheel area:\n%s", plain(m))
@@ -35,7 +49,7 @@ func wheelCell(t *testing.T, m *Model, pick func(h wheelHit) bool) (x, y int) {
 }
 
 // leftArea picks the wheel areas that start at the left edge.
-func leftArea(h wheelHit) bool { return h.x0 == 0 }
+func leftArea(a kittui.Target) bool { return a.Rect.X == 0 }
 
 // stepsOf checks the wheel over a surface with a mark: a notch up at the first entry and a notch down at the
 // last move nothing, and a notch moves it by one.
@@ -123,8 +137,8 @@ func TestTheWheelScrollsTheOpenDetailInSteps(t *testing.T) {
 		t.Errorf("the wheel up at the start moved to %d", p.scroll)
 	}
 	notch(m, now, x, y, false)
-	if p.scroll != wheelText {
-		t.Errorf("one notch moved to %d, want %d", p.scroll, wheelText)
+	if p.scroll != kittui.WheelTextLines {
+		t.Errorf("one notch moved to %d, want %d", p.scroll, kittui.WheelTextLines)
 	}
 	for range 40 {
 		notch(m, now, x, y, false)
@@ -133,7 +147,7 @@ func TestTheWheelScrollsTheOpenDetailInSteps(t *testing.T) {
 	end := p.scroll
 	notch(m, now, x, y, false)
 	plain(m)
-	if p.scroll != end || end <= wheelText {
+	if p.scroll != end || end <= kittui.WheelTextLines {
 		t.Errorf("the wheel at the end moved on from %d to %d", end, p.scroll)
 	}
 	if !p.open {
@@ -158,47 +172,48 @@ func textSteps(t *testing.T, name string, m *Model, now *time.Time, x, y int, of
 		t.Errorf("%s: the wheel up at the start moved to %d", name, offset())
 	}
 	notch(m, now, x, y, false)
-	if offset() != wheelText {
-		t.Errorf("%s: one notch moved to %d, want %d", name, offset(), wheelText)
+	if offset() != kittui.WheelTextLines {
+		t.Errorf("%s: one notch moved to %d, want %d", name, offset(), kittui.WheelTextLines)
 	}
 	for range 60 {
 		notch(m, now, x, y, false)
 	}
 	end := offset()
 	notch(m, now, x, y, false)
-	if offset() != end || end <= wheelText {
+	if offset() != end || end <= kittui.WheelTextLines {
 		t.Errorf("%s: the wheel at the end moved on from %d to %d", name, end, offset())
 	}
 	notch(m, now, x, y, true)
-	if offset() != end-wheelText {
-		t.Errorf("%s: one notch up went to %d, want %d", name, offset(), end-wheelText)
+	if offset() != end-kittui.WheelTextLines {
+		t.Errorf("%s: one notch up went to %d, want %d", name, offset(), end-kittui.WheelTextLines)
 	}
 }
 
-func TestTheWheelStepsEachZoneOfTheOverviewForItself(t *testing.T) {
+// The parts of the overview share the zone of its content, the one zone the kit names for a notch: the wheel
+// over either steps the mark of the part that holds the focus, and the focus stays. Each part is tried with
+// the pointer over the other.
+func TestTheWheelStepsTheFocusedPartOfTheOverview(t *testing.T) {
 	m := overviewModel(t, overviewFake(), 120, 40)
 	m.set.upd = updateState{phase: updDone, info: ReleaseInfo{Latest: "v9.9.9"}}
 	m.ovr.zone = ovSteps
 	zone := m.zoneNow()
 	now := wheelClock(m)
 	m.render()
-	if len(m.wheelHits) != 2 {
-		t.Fatalf("%d wheel areas on the overview, want cards and steps", len(m.wheelHits))
+	areas := wheelAreas(m)
+	if len(areas) != 2 {
+		t.Fatalf("%d wheel areas on the overview, want cards and steps", len(areas))
 	}
-	cards, steps := m.wheelHits[0], m.wheelHits[1]
-	at := func(h wheelHit) (int, int) { return h.x0 + 2, h.y0 }
-	x, y := at(steps)
+	at := func(a kittui.Target) (int, int) { return a.Rect.X + 2, a.Rect.Y }
+	x, y := at(areas[0])
 	stepsOf(t, "next steps", m, now, x, y, func() int { return m.ovr.cursor[ovSteps] }, len(m.overviewSteps()))
-	if m.ovr.zone != ovSteps || m.zoneNow() != zone {
-		t.Errorf("the wheel over the steps moved the focus: %v, %v", m.ovr.zone, m.zoneNow())
+	if m.ovr.zone != ovSteps || m.zoneNow() != zone || m.ovr.cursor[ovCards] != 0 {
+		t.Errorf("the wheel over the steps moved the focus or the cards: %v, %v, %v", m.ovr.zone, m.zoneNow(), m.ovr.cursor)
 	}
-	if m.ovr.cursor[ovCards] != 0 {
-		t.Errorf("the wheel over the steps moved another zone: %v", m.ovr.cursor)
-	}
-	x, y = at(cards)
+	m.ovr.zone, m.ovr.cursor = ovCards, [2]int{}
+	x, y = at(areas[1])
 	stepsOf(t, "cards", m, now, x, y, func() int { return m.ovr.cursor[ovCards] }, len(m.overviewCards()))
-	if m.ovr.zone != ovSteps {
-		t.Errorf("the overview zone is %v, want the steps", m.ovr.zone)
+	if m.ovr.zone != ovCards || m.ovr.cursor[ovSteps] != 0 {
+		t.Errorf("the wheel moved the focus or the steps: %v, %v", m.ovr.zone, m.ovr.cursor)
 	}
 }
 

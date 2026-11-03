@@ -422,11 +422,14 @@ func (m *Model) overviewBody() string {
 		})
 	}
 
-	// wheel lets the wheel step the mark of zone z over the lines [row, row+rows) of the body, among the n
-	// entries shown, without giving the zone the focus.
+	// wheel lets the wheel over the lines [row, row+rows) of the body, among the n entries of zone z shown,
+	// step the mark of the part of the overview that holds its focus, without moving the focus. The kit names
+	// the zone of a notch only, and the parts of the overview share the zone of the content.
+	shown := [2]int{}
 	wheel := func(row, rows, n int, z ovZone) {
-		m.addWheel(0, top+row, width, top+row+rows, func(up bool) tea.Cmd {
-			wheelCursor(&o.cursor[z], n, up)
+		shown[z] = n
+		m.addWheel(0, top+row, width, top+row+rows, zoneContent, func(up bool) tea.Cmd {
+			wheelCursor(&o.cursor[o.zone], shown[o.zone], up)
 			return nil
 		})
 	}

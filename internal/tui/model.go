@@ -124,12 +124,9 @@ type Model struct {
 	termWidth, termHeight int
 	width, height         int
 
-	// The click targets of the frame drawn last; see mouse.go.
-	hits, frameHits []hit
-	// zoneHits are the click targets of the zones, which rank beneath every other target; wheelHits are the
-	// areas the wheel scrolls under the pointer.
-	zoneHits  []hit
-	wheelHits []wheelHit
+	// mt are the targets of the frame being drawn and mouse the map of the frame drawn last; see mouse.go.
+	mt    mouseTargets
+	mouse *kittui.MouseMap
 	// footerTargets are the keys of the footer drawn last, clickable where they answer a dialog.
 	footerTargets []kittui.Target
 	// footerLog collects the key lines a dialog draws itself, so its keys can be clicked as buttons.
@@ -143,9 +140,8 @@ type Model struct {
 	// denied is the error that took the access away while the interface ran; Run returns it after the quit.
 	denied error
 	// updateTo is the release the person quit to install; Run reports it.
-	updateTo  string
-	wheelSeen wheelSeen
-	// now is the clock of the wheel filter; nil means time.Now.
+	updateTo string
+	// now is the clock of the editor; nil means time.Now.
 	now func() time.Time
 	// hostUID is the user running the interface, for the early message about taking admin from oneself.
 	hostUID func() int
@@ -192,10 +188,10 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	defer m.layoutWorkspace()
 	switch msg := msg.(type) {
-	case keysMsg:
+	case kittui.InputBatch:
 		var cmds []tea.Cmd
-		for _, key := range msg {
-			_, cmd := m.Update(key)
+		for _, in := range msg {
+			_, cmd := m.Update(in)
 			cmds = append(cmds, cmd)
 		}
 		return m, tea.Batch(cmds...)
@@ -216,6 +212,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyPressMsg:
 		return m, m.updateKey(m.moveKey(legacyKey(msg)))
+	case tea.PasteMsg:
+		// A paste travels through the key handlers as one key no binding matches.
+		return m, m.updateKey(pasteKey(msg.Content))
 	case statusMsg:
 		return m, m.takeStatus(msg)
 	case tickMsg:
@@ -382,7 +381,14 @@ func (m *Model) renderFrame() string {
 	if m.quitting {
 		return ""
 	}
-	m.hits, m.frameHits, m.zoneHits, m.wheelHits, m.tooSmall = nil, nil, nil, nil, false
+	m.mt, m.tooSmall = mouseTargets{}, false
+	view := m.drawFrame()
+	m.mouse = kittui.NewMouseMap(m.mt.targets, m.mouseEnabled() && !m.tooSmall)
+	return view
+}
+
+// drawFrame draws the frame of the screen shown and collects its targets.
+func (m *Model) drawFrame() string {
 	if m.dd != nil {
 		m.dd.placed = false
 	}

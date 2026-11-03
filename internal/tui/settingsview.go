@@ -21,7 +21,7 @@ func (m *Model) settingsBody() string {
 		m.updatePage(pg)
 	}
 	if m.set.sub == subGeneral {
-		m.addWheel(0, m.workspaceTop(), m.usable(0), pg.y, m.wheelSettings)
+		m.addWheel(0, m.workspaceTop(), m.usable(0), pg.y, zoneContent, m.wheelSettings)
 	}
 	return strings.Join(pg.lines, "\n")
 }
@@ -33,7 +33,7 @@ func (m *Model) wheelSettings(up bool) tea.Cmd {
 		return nil
 	}
 	if m.set.sub == subGeneral {
-		m.set.gen.focus = wheelStep(m.set.gen.focus, 0, genRows, up)
+		m.set.gen.focus = wheelStep(m.set.gen.focus, genRows, up)
 	}
 	return nil
 }

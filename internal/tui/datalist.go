@@ -59,9 +59,9 @@ func (p *dataPage) setRows(names []string, rows map[string][]string) {
 // wheelDetail scrolls the detail by the notches of the wheel.
 func (p *dataPage) wheelDetail(up bool) {
 	if up {
-		p.scroll = max(p.scroll-wheelText, 0)
+		p.scroll = max(p.scroll-kittui.WheelTextLines, 0)
 	} else {
-		p.scroll += wheelText
+		p.scroll += kittui.WheelTextLines
 	}
 }
 
@@ -135,8 +135,7 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	left := m.tableBlock(p, v, tableWidth, avail, top, position, !detailFocus)
 	rowsWheel := func(up bool) tea.Cmd { return m.wheelRows(p, up) }
 	if !wide {
-		m.addZone(0, top, width, top+len(left), zoneContent)
-		m.addWheel(0, top, width, top+len(left), rowsWheel)
+		m.addWheel(0, top, width, top+len(left), zoneContent, rowsWheel)
 		return strings.Join(left, "\n")
 	}
 	inner := detailWidth - 4
@@ -160,10 +159,8 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	}
 	right := panel(m.ui, truncateCells(title, inner-2), body, inner, height, panelOpts{focused: detailFocus})
 	left0 := tableWidth + 1
-	m.addZone(0, top, tableWidth, top+len(left), zoneContent)
-	m.addWheel(0, top, tableWidth, top+len(left), rowsWheel)
-	m.addZone(left0, top, width, top+len(right), zoneDetail)
-	m.addWheel(left0, top, width, top+len(right), func(up bool) tea.Cmd { p.wheelDetail(up); return nil })
+	m.addWheel(0, top, tableWidth, top+len(left), zoneContent, rowsWheel)
+	m.addWheel(left0, top, width, top+len(right), zoneDetail, func(up bool) tea.Cmd { p.wheelDetail(up); return nil })
 	for i, span := range spans {
 		m.addHit(left0+2+span[0], top+1, left0+2+span[1], top+2, func() tea.Cmd {
 			p.tab, p.scroll = i, 0
@@ -275,7 +272,7 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 	for i, span := range spans {
 		m.addHit(2+span[0], top+2, 2+span[1], top+3, func() tea.Cmd { p.tab, p.scroll = i, 0; return nil })
 	}
-	m.addWheel(0, top, width, top+1+room+2, func(up bool) tea.Cmd { p.wheelDetail(up); return nil })
+	m.addWheel(0, top, width, top+1+room+2, zoneDetail, func(up bool) tea.Cmd { p.wheelDetail(up); return nil })
 	return head + "\n" + strings.Join(panel(m.ui, "", body, inner, room+2, panelOpts{focused: true}), "\n")
 }
 

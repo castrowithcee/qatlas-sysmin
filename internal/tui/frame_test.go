@@ -1,6 +1,8 @@
 package tui
 
 import (
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+
 	"strings"
 	"testing"
 	"time"
@@ -264,9 +266,9 @@ func TestDropdownOpensChoosesAndCloses(t *testing.T) {
 	}
 }
 
-func TestFragmentFilterDropsASplitMouseReport(t *testing.T) {
-	f := newFragmentFilter(func() time.Time { return time.Unix(0, 0) })
-	if msg := f.filter(nil, textKey("a")); msg == nil {
+func TestTheInputFilterLetsATypedLetterPass(t *testing.T) {
+	f := kittui.NewInputFilter(func() time.Time { return time.Unix(0, 0) })
+	if msg := f.Filter(nil, textKey("a")); msg == nil {
 		t.Error("a typed letter was dropped")
 	}
 }

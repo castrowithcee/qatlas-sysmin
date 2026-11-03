@@ -1,6 +1,8 @@
 package tui
 
 import (
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+
 	"strings"
 	"testing"
 
@@ -20,10 +22,28 @@ func openedDropdown(t *testing.T, w, h, x, y int) (*Model, *int) {
 	return m, chosen
 }
 
-// drawn renders the frame with the open list, as a terminal shows it, and registers the list's box.
+// drawn renders the frame with the open list, as a terminal shows it, and makes the map of its targets.
 func drawn(m *Model) string {
 	m.layoutWorkspace()
-	return ansi.Strip(m.overlayDropdown(m.frame(m.workspaceView())))
+	m.mt = mouseTargets{}
+	view := ansi.Strip(m.overlayDropdown(m.frame(m.workspaceView())))
+	m.mouse = kittui.NewMouseMap(m.mt.targets, true)
+	return view
+}
+
+// dropdownBox is the cells of the open list as drawn last: the part the wheel scrolls.
+func dropdownBox(t *testing.T, m *Model) kittui.Rect {
+	t.Helper()
+	areas := wheelAreas(m)
+	if len(areas) != 1 {
+		t.Fatalf("%d wheel areas, want the list alone", len(areas))
+	}
+	return areas[0].Rect
+}
+
+// clickDropdown is a click at a cell on the map drawn last.
+func clickDropdown(m *Model, x, y int) {
+	m.handleMouse(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
 }
 
 func TestDropdownKeysMoveWithoutWrappingChooseAndCancel(t *testing.T) {
@@ -91,8 +111,8 @@ func TestDropdownStaysInsideTheTerminal(t *testing.T) {
 	if !strings.Contains(view, "Three") {
 		t.Errorf("a field at the right-bottom corner pushes the list out of sight:\n%s", view)
 	}
-	b := m.dd.box
-	if b.x1 > 80 || b.y1 > 24 || b.x0 < 0 || b.y0 < 0 {
+	b := dropdownBox(t, m)
+	if b.X+b.Width > 80 || b.Y+b.Height > 24 || b.X < 0 || b.Y < 0 {
 		t.Errorf("box %+v leaves the terminal", b)
 	}
 }
@@ -110,29 +130,29 @@ func TestDropdownClosesWhereItsFieldIsGone(t *testing.T) {
 	}
 }
 
-// The screens that own a field draw it on every frame and so note its place again; a test that clicks goes
-// to the handler directly for that reason.
+// The screens that own a field draw it on every frame and so note its place again; a test that clicks hands
+// the click to the map drawn last for that reason.
 func TestDropdownClicksChooseOrClose(t *testing.T) {
 	m, chosen := openedDropdown(t, 80, 24, 6, 4)
 	drawn(m)
-	b := m.dd.box
+	b := dropdownBox(t, m)
 	// The entries start under the top border, inside the side borders.
-	m.clickDropdown(b.x0+2, b.y0+2)
+	clickDropdown(m, b.X+2, b.Y+2)
 	if *chosen != 1 || m.dd != nil {
 		t.Fatalf("a click on the second value chose %d, open %v", *chosen, m.dd != nil)
 	}
 
 	m, chosen = openedDropdown(t, 80, 24, 6, 4)
 	drawn(m)
-	m.clickDropdown(70, 20)
+	clickDropdown(m, 70, 20)
 	if *chosen != -1 || m.dd != nil {
 		t.Errorf("a click outside chose %d or kept the list open", *chosen)
 	}
 
 	m, chosen = openedDropdown(t, 80, 24, 6, 4)
 	drawn(m)
-	b = m.dd.box
-	m.clickDropdown(b.x0, b.y0+2)
+	b = dropdownBox(t, m)
+	clickDropdown(m, b.X, b.Y+2)
 	if *chosen != -1 || m.dd != nil {
 		t.Errorf("a click on the border chose %d or kept the list open", *chosen)
 	}

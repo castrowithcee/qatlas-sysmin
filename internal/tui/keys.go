@@ -86,15 +86,6 @@ func legacyKey(key tea.KeyPressMsg) tea.KeyPressMsg {
 	return key
 }
 
-// linuxFunctionKey is F1 to F5 of the Linux console, which sends them as "\x1b[[" and a letter from A to E; the
-// input reader reports the two apart.
-func linuxFunctionKey(key tea.KeyPressMsg) (tea.KeyPressMsg, bool) {
-	if len(key.Text) != 1 || key.Text[0] < 'A' || key.Text[0] > 'E' {
-		return key, false
-	}
-	return tea.KeyPressMsg{Code: tea.KeyF1 + rune(key.Text[0]-'A')}, true
-}
-
 // textKey is the key press of typed text.
 func textKey(text string) tea.KeyPressMsg {
 	code := tea.KeyExtended

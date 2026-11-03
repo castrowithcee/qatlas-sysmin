@@ -1,62 +1,78 @@
 package tui
 
 import (
-	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
-// The mouse reaches the editor through a list of click targets that the drawing of a frame fills as it goes:
-// every place that draws something clickable says where on the screen it stands and which key press the click
-// stands for. A click then does what that key does, through the same handlers, so every check the key meets
-// (the confirmations, the question before unsaved input is dropped) stays in force, and a
-// click is never stronger than its key. A row is only marked by the first click, so that a click that meant to
-// scroll or to take the focus opens nothing; the click on the marked row is the press. Nothing is drawn from the
-// list and nothing is stored beyond one frame.
+// The mouse reaches the editor through the kit's MouseMap of the frame drawn last. Every place that draws
+// something clickable adds a target as it goes: the frame its keys, tabs and bars, the screens their rows,
+// fields and buttons as items, whose click the editor runs here, and the parts the wheel scrolls as zones. A
+// click does what its key does, through the same handlers, so every check the key meets (the confirmations,
+// the question before unsaved input is dropped) stays in force, and a click is never stronger than its key. A
+// row is only marked by the first click, so that a click that meant to scroll or to take the focus opens
+// nothing; the click on the marked row is the press. Nothing is stored beyond one frame.
 
-// hit is one click target: the cells [x0, x1) by [y0, y1) of the screen and what a click on them does.
-type hit struct {
-	x0, y0, x1, y1 int
-	act            func() tea.Cmd
+// mouseTargets are the targets of the frame being drawn: what a click on each item does and what the wheel
+// does over each zone.
+type mouseTargets struct {
+	targets []kittui.Target
+	clicks  []func() tea.Cmd
+	wheels  map[kittui.FocusZone]func(up bool) tea.Cmd
 }
 
-// addHit registers a click target of the workspace. A screen drawn as the background of a dialog has none: the
-// dialog is what a click reaches then.
+// takesTargets reports whether the drawing in progress adds targets. A screen drawn as the background of a
+// dialog has none: the dialog is what a click reaches then.
+func (m *Model) takesTargets(x0, y0, x1, y1 int) bool {
+	return !m.backdrop && !m.tooSmall && x1 > x0 && y1 > y0
+}
+
+// addTarget adds a target of the kit, such as one the frame drew.
+func (m *Model) addTarget(t kittui.Target) {
+	if m.takesTargets(t.Rect.X, t.Rect.Y, t.Rect.X+t.Rect.Width, t.Rect.Y+t.Rect.Height) {
+		m.mt.targets = append(m.mt.targets, t)
+	}
+}
+
+// addHit adds a click target of the cells [x0, x1) by [y0, y1): an item whose click runs act.
 func (m *Model) addHit(x0, y0, x1, y1 int, act func() tea.Cmd) {
-	if m.backdrop || m.tooSmall || x1 <= x0 || y1 <= y0 {
+	if !m.takesTargets(x0, y0, x1, y1) {
 		return
 	}
-	m.hits = append(m.hits, hit{x0, y0, x1, y1, act})
+	m.mt.targets = append(m.mt.targets, kittui.Target{Rect: rect(x0, y0, x1, y1), Item: strconv.Itoa(len(m.mt.clicks))})
+	m.mt.clicks = append(m.mt.clicks, act)
 }
 
-// wheelHit is an area of the screen the wheel moves under the pointer, without moving the focus. scroll
-// returns what the move asks for, as the key it stands for would.
-type wheelHit struct {
-	x0, y0, x1, y1 int
-	scroll         func(up bool) tea.Cmd
-}
-
-// addZone registers the click target of a zone. It ranks beneath every other target, so a click lands on an
-// element inside the zone if there is one and gives the zone the focus otherwise.
+// addZone adds the free area of zone z. It lies beneath every other target, so a click lands on an element
+// inside the zone if there is one and gives the zone the focus otherwise.
 func (m *Model) addZone(x0, y0, x1, y1 int, z kittui.FocusZone) {
-	if m.backdrop || m.tooSmall || x1 <= x0 || y1 <= y0 {
-		return
+	if m.takesTargets(x0, y0, x1, y1) {
+		m.mt.targets = append(m.mt.targets, kittui.Target{Rect: rect(x0, y0, x1, y1), Zone: z})
 	}
-	m.zoneHits = append(m.zoneHits, hit{x0, y0, x1, y1, func() tea.Cmd { return m.focusZone(z) }})
 }
 
-// addWheel registers an area that the wheel scrolls.
-func (m *Model) addWheel(x0, y0, x1, y1 int, scroll func(up bool) tea.Cmd) {
-	if m.backdrop || m.tooSmall || x1 <= x0 || y1 <= y0 {
+// addWheel adds a part of zone z that the wheel scrolls under the pointer, without moving the focus. scroll
+// returns what the move asks for, as the key it stands for would. The kit names the zone of a notch only, so
+// a zone has one scroll.
+func (m *Model) addWheel(x0, y0, x1, y1 int, z kittui.FocusZone, scroll func(up bool) tea.Cmd) {
+	if !m.takesTargets(x0, y0, x1, y1) {
 		return
 	}
-	m.wheelHits = append(m.wheelHits, wheelHit{x0, y0, x1, y1, scroll})
+	m.addZone(x0, y0, x1, y1, z)
+	if m.mt.wheels == nil {
+		m.mt.wheels = map[kittui.FocusZone]func(up bool) tea.Cmd{}
+	}
+	m.mt.wheels[z] = scroll
+}
+
+func rect(x0, y0, x1, y1 int) kittui.Rect {
+	return kittui.Rect{X: x0, Y: y0, Width: x1 - x0, Height: y1 - y0}
 }
 
 // focusZone is the click on a free place of zone z. It does what tab does and no more: an inner level of the
@@ -91,14 +107,6 @@ func (m *Model) endInput() {
 	}
 }
 
-// addFrameHit registers a click target of the header.
-func (m *Model) addFrameHit(x0, y0, x1, y1 int, act func() tea.Cmd) {
-	if m.backdrop || m.tooSmall || x1 <= x0 || y1 <= y0 {
-		return
-	}
-	m.frameHits = append(m.frameHits, hit{x0, y0, x1, y1, act})
-}
-
 // hitTop is the screen row of the first line after header, a text the workspace starts with.
 func (m *Model) hitTop(header string) int { return m.workspaceTop() + strings.Count(header, "\n") }
 
@@ -124,86 +132,71 @@ func (m *Model) mouseMode() tea.MouseMode {
 	return tea.MouseModeNone
 }
 
-// wheelText is how many rows one notch of the wheel moves in a text area; elsewhere it is one step.
-const wheelText = 3
-
-// wheelMerge is the longest gap between a wheel event and the event after it that can be its release half. A
-// terminal that reports a notch as a press and a release delivers both as presses, back to back.
-const wheelMerge = 15 * time.Millisecond
-
-// wheelSeen is the last wheel event that moved something.
-type wheelSeen struct {
-	button tea.MouseButton
-	x, y   int
-	at     time.Time
-	ok     bool
-}
-
-// repeats reports whether the event is the release half of the notch seen last. It claims at most one event
-// per notch: after it dropped one, the next equal event is a notch of its own however close it is.
-func (w *wheelSeen) repeats(event tea.Mouse, now time.Time) bool {
-	if w.ok && w.button == event.Button && w.x == event.X && w.y == event.Y && now.Sub(w.at) < wheelMerge {
-		w.ok = false
-		return true
-	}
-	return false
-}
-
-// updateMouse handles one mouse event. It acts only on a press of the left button and on the wheel; motion and
-// release do nothing. A terminal too small for the screen and an editor with the mouse switched off take no
-// mouse at all.
+// updateMouse handles one mouse event through the map of the frame the event meets. A press of the left button
+// and the wheel act; the map takes nothing while the mouse is switched off or the terminal is too small. An
+// open list takes every click: one beside its entries only closes it.
 func (m *Model) updateMouse(msg tea.MouseMsg) tea.Cmd {
 	switch msg.(type) {
 	case tea.MouseClickMsg, tea.MouseWheelMsg:
 	default:
+		// Motion and release act on nothing, so they draw nothing either.
 		return nil
 	}
-	event := msg.Mouse()
-	if m.quitting || !m.mouseEnabled() || m.terminalTooSmall() {
+	if m.quitting {
 		return nil
 	}
-	wheel := event.Button == tea.MouseWheelUp || event.Button == tea.MouseWheelDown
-	if !wheel && event.Button != tea.MouseLeft {
-		return nil
-	}
-	if wheel && m.wheelSeen.repeats(event, m.timeNow()) {
-		return nil
-	}
-	// The targets are those of the state the event meets, so the frame is drawn first.
 	m.render()
-	if m.tooSmall {
+	return m.handleMouse(msg)
+}
+
+// handleMouse is updateMouse on the map of the frame drawn last.
+func (m *Model) handleMouse(msg tea.MouseMsg) tea.Cmd {
+	res := m.mouse.Handle(msg)
+	if _, click := msg.(tea.MouseClickMsg); click && m.dd != nil && res.Item == "" {
+		if msg.Mouse().Button == tea.MouseLeft && m.mouseEnabled() && !m.tooSmall {
+			m.dd = nil
+		}
 		return nil
 	}
-	if wheel {
-		for i := len(m.wheelHits) - 1; i >= 0; i-- {
-			if h := m.wheelHits[i]; event.X >= h.x0 && event.X < h.x1 && event.Y >= h.y0 && event.Y < h.y1 {
-				cmd := h.scroll(event.Button == tea.MouseWheelUp)
-				m.wheelSeen = wheelSeen{button: event.Button, x: event.X, y: event.Y, at: m.timeNow(), ok: true}
-				return cmd
-			}
+	switch {
+	case !res.Handled:
+		return nil
+	case res.WheelSteps != 0:
+		up := res.WheelSteps < 0
+		if scroll, ok := m.mt.wheels[res.Zone]; ok && res.Zone != "" {
+			return scroll(up)
 		}
-		// An open list is what the wheel reaches; beside it nothing moves.
 		if m.dd != nil {
 			return nil
 		}
-		cmd := m.wheel(event)
-		m.wheelSeen = wheelSeen{button: event.Button, x: event.X, y: event.Y, at: m.timeNow(), ok: true}
-		return cmd
-	}
-	if m.dd != nil {
-		return m.clickDropdown(event.X, event.Y)
-	}
-	hits := append(append(append([]hit{}, m.zoneHits...), m.frameHits...), m.hits...)
-	for i := len(hits) - 1; i >= 0; i-- {
-		h := hits[i]
-		if event.X >= h.x0 && event.X < h.x1 && event.Y >= h.y0 && event.Y < h.y1 {
-			return h.act()
+		return m.wheel(up)
+	case res.Item != "":
+		i, err := strconv.Atoi(res.Item)
+		if err != nil || i < 0 || i >= len(m.mt.clicks) {
+			return nil
 		}
+		return m.mt.clicks[i]()
+	case res.Action != "":
+		return m.pressAction(res.Action)
+	case res.Tab != "" && m.screen == screenArea:
+		m.endInput()
+		if sub, ok := m.tabIndex(res.Tab); ok {
+			return m.setSubPage(sub)
+		}
+		return nil
+	case res.Area != "" && m.screen == screenArea:
+		m.endInput()
+		if a, ok := areaOf(res.Area); ok {
+			return m.setArea(a)
+		}
+		return nil
+	case res.Zone != "":
+		return m.focusZone(res.Zone)
 	}
 	return nil
 }
 
-// timeNow is the clock of the wheel filter.
+// timeNow is the clock of the editor; tests stand in for it.
 func (m *Model) timeNow() time.Time {
 	if m.now != nil {
 		return m.now()
@@ -211,13 +204,13 @@ func (m *Model) timeNow() time.Time {
 	return time.Now()
 }
 
-// wheel scrolls: a notch is one press of up or down over the rows of the list.
-func (m *Model) wheel(event tea.Mouse) tea.Cmd {
+// wheel scrolls the bare list: a notch is one press of up or down over its rows.
+func (m *Model) wheel(up bool) tea.Cmd {
 	if m.screen != screenList || m.list.editing {
 		return nil
 	}
 	key := rune(tea.KeyDown)
-	if event.Button == tea.MouseWheelUp {
+	if up {
 		key = tea.KeyUp
 	}
 	return m.press(tea.KeyPressMsg{Code: key})
@@ -245,16 +238,16 @@ func wheelList(l *filterList, up bool, moved func() tea.Cmd) tea.Cmd {
 }
 
 // wheelCursor is a notch of the wheel over a list of n entries kept as a bare cursor.
-func wheelCursor(cursor *int, n int, up bool) { *cursor = wheelStep(*cursor, 0, n, up) }
+func wheelCursor(cursor *int, n int, up bool) { *cursor = wheelStep(*cursor, n, up) }
 
-// wheelStep is the place one notch of the wheel leads to from place at among the places [first, n): one step,
-// and none past either end, where the keys of a form may wrap round.
-func wheelStep(at, first, n int, up bool) int {
-	by := 1
+// wheelStep is the place one notch of the wheel leads to from at among n places; it stops at both ends,
+// where the keys may wrap round.
+func wheelStep(at, n int, up bool) int {
+	steps := 1
 	if up {
-		by = -1
+		steps = -1
 	}
-	return max(min(at+by, n-1), first)
+	return kittui.WheelStep(at, n, steps)
 }
 
 // press hands a key to the editor as if it had been typed. A mouse event never makes a character: a letter
@@ -395,16 +388,6 @@ func (m *Model) backShown() bool {
 	return m.screen != screenList || m.list.editing || m.list.query() != ""
 }
 
-// pressBack is a press of the key bound to esc; the click on the back button uses it so it meets every rule
-// the key meets.
-func (m *Model) pressBack() tea.Cmd {
-	key, ok := m.keyByName(m.keyLabel(actBack))
-	if !ok {
-		return nil
-	}
-	return m.press(key)
-}
-
 // markOrAct is the click on a row of a list: it marks the row, and only a click on the row that already was
 // marked, with the focus on the rows, does act. focused says the rows had the focus before the click.
 func markOrAct(cursor *int, i int, focused bool, act func() tea.Cmd) tea.Cmd {
@@ -460,163 +443,4 @@ func (m *Model) hitSelect(l *filterList, on screen, header string, start, end in
 		}
 		return nil
 	})
-}
-
-// fragmentWindow is the longest gap between the pieces of one split mouse report. Typing is slower than this.
-const fragmentWindow = 200 * time.Millisecond
-
-// bracketHold is how long a "[" that may open the rest of a report, alt+[ or a "[" after an escape, waits
-// for it before it counts as the key it is. The text field types it, so it cannot be let through first and
-// taken back. It is as long as fragmentWindow: a head the filter would still take as the rest must find the
-// "[" still held, or the "[" is typed and the rest dropped. The input reader reports the "[" only after it
-// waited for the rest itself, so the rest is later here than at the terminal.
-const bracketHold = fragmentWindow
-
-// fragmentTail matches what a mouse report of the SGR form can still lack: the rest of its parameters and the
-// final M or m.
-var fragmentTail = regexp.MustCompile(`^[0-9;]*[Mm]?`)
-
-// fragmentHead matches the start of such a report that is left once its escape and "[" went into keys of their own.
-var fragmentHead = regexp.MustCompile(`^<[0-9;]*[Mm]?`)
-
-// reportStart matches the start of such a report the input reader gave up on, its rest still to come.
-var reportStart = regexp.MustCompile(`^\x1b\[<[0-9;]*$`)
-
-// keysMsg delivers keys the filter held back, in order, as one message.
-type keysMsg []tea.KeyPressMsg
-
-// heldKeyMsg is the end of the hold of the "[" number id.
-type heldKeyMsg struct{ id int }
-
-// fragmentEsc is the filter state after a lone escape; it names that state, not a key to dispatch on.
-const fragmentEsc = "esc"
-
-// fragmentFilter drops the pieces of a mouse report that the terminal delivered in more than one read with a
-// pause between them longer than the input reader waits: the reader then reports the start it has as an
-// unknown sequence, or as an escape or alt+[, and the rest as typed characters like "<65;12;5M", which a text
-// field would take. The input reader joins pieces that follow each other within its escape wait, so the filter
-// only meets those after a longer pause. A piece counts only when it follows the one before it within
-// fragmentWindow and fits the report form, so the same characters typed by hand, pasted, or standing alone pass
-// unchanged. Only a "[" that may open a piece is held back, briefly; a lone escape is a real key and passes at
-// once, so an escape byte the reader already gave up on still reaches the model as esc.
-// On the way it gives keys the names stored key bindings know (see legacyKey and linuxFunctionKey).
-type fragmentFilter struct {
-	now  func() time.Time
-	send func(tea.Msg) // delivers heldKeyMsg to the event loop; without it nothing is held back
-
-	state string // fragmentEsc or "[" when that key came last, "tail" while a report lacks its end
-	at    time.Time
-	held  *tea.KeyPressMsg
-	id    int
-}
-
-func newFragmentFilter(now func() time.Time) *fragmentFilter {
-	if now == nil {
-		now = time.Now
-	}
-	return &fragmentFilter{now: now}
-}
-
-// unknownSequence returns the bytes of an input sequence the input reader could not name.
-func unknownSequence(msg tea.Msg) (string, bool) {
-	switch u := msg.(type) {
-	case uv.UnknownEvent:
-		return string(u), true
-	case uv.UnknownCsiEvent:
-		return string(u), true
-	}
-	return "", false
-}
-
-// filter is the tea.WithFilter function. It runs in the event loop, one message at a time.
-func (f *fragmentFilter) filter(_ tea.Model, msg tea.Msg) tea.Msg {
-	if h, ok := msg.(heldKeyMsg); ok {
-		if f.held == nil || h.id != f.id {
-			return nil
-		}
-		key := *f.held
-		f.held = nil
-		// The hold is over: a head arriving now is text, whatever the window says, so no race remains
-		// between this timer and the window comparison.
-		if f.state == "[" {
-			f.state = ""
-		}
-		return key
-	}
-	if unknown, ok := unknownSequence(msg); ok && (reportStart.MatchString(unknown) || unknown == "\x1b[[") {
-		f.state, f.at = "tail", f.now()
-		if unknown == "\x1b[[" {
-			f.state = "[["
-		}
-		if held := f.held; held != nil {
-			f.held = nil
-			return keysMsg{*held}
-		}
-		return nil
-	}
-	if paste, ok := msg.(tea.PasteMsg); ok {
-		msg = pasteKey(paste.Content)
-	}
-	key, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return msg
-	}
-	key = legacyKey(key)
-	at, last := f.now(), f.state
-	f.state = ""
-	if last != "" && at.Sub(f.at) > fragmentWindow {
-		last = ""
-	}
-	if last == "[[" {
-		if fn, ok := linuxFunctionKey(key); ok {
-			return fn
-		}
-	}
-	held := f.held
-	f.held = nil
-	_, isPaste := pasted(key)
-	text, plain := "", key.Text != "" && !key.Mod.Contains(tea.ModAlt) && !isPaste
-	if plain {
-		text = key.Text
-	}
-	var n int
-	switch last {
-	case "[":
-		if plain && strings.HasPrefix(text, "<") {
-			n = len(fragmentHead.FindString(text))
-		}
-	case "tail":
-		if plain {
-			n = len(fragmentTail.FindString(text))
-		}
-	}
-	if n > 0 {
-		if piece := text[:n]; !strings.HasSuffix(piece, "M") && !strings.HasSuffix(piece, "m") {
-			f.state, f.at = "tail", at
-		}
-		if n == len(text) {
-			return nil
-		}
-		return textKey(text[n:])
-	}
-	// Not a piece: a held "[" was a key after all and goes first.
-	switch {
-	case isPaste:
-	case key.Code == tea.KeyEscape && key.Mod == 0:
-		f.state, f.at = fragmentEsc, at
-	case f.send != nil && (key.Code == '[' && key.Mod == tea.ModAlt || last == fragmentEsc && text == "["):
-		f.state, f.at = "[", at
-		f.held = &key
-		f.id++
-		id, send := f.id, f.send
-		time.AfterFunc(bracketHold, func() { send(heldKeyMsg{id}) })
-		if held != nil {
-			return keysMsg{*held}
-		}
-		return nil
-	}
-	if held != nil {
-		return keysMsg{*held, key}
-	}
-	return key
 }

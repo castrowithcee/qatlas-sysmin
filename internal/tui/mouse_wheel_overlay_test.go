@@ -1,6 +1,8 @@
 package tui
 
 import (
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+
 	"fmt"
 	"testing"
 )
@@ -9,11 +11,12 @@ import (
 func overlayCell(t *testing.T, m *Model) (x, y, outX, outY int) {
 	t.Helper()
 	m.render()
-	if len(m.wheelHits) != 1 {
-		t.Fatalf("%d wheel areas, want the one of the overlay:\n%s", len(m.wheelHits), plain(m))
+	areas := wheelAreas(m)
+	if len(areas) != 1 {
+		t.Fatalf("%d wheel areas, want the one of the overlay:\n%s", len(areas), plain(m))
 	}
-	h := m.wheelHits[0]
-	return h.x0 + 2, h.y0 + (h.y1-h.y0)/2, h.x1 + 1, h.y1 + 1
+	r := areas[0].Rect
+	return r.X + 2, r.Y + r.Height/2, r.X + r.Width + 1, r.Y + r.Height + 1
 }
 
 // helpModels are the help over both home screens, scrolled to a topic that does not fit.
@@ -29,11 +32,11 @@ func helpModels(t *testing.T, w, h int) map[string]*Model {
 		m.openPopup(popHelp)
 		for i := range helpTopics() {
 			m.pop.topic = i
-			if plain(m); m.pop.last > wheelText {
+			if plain(m); m.pop.last > kittui.WheelTextLines {
 				break
 			}
 		}
-		if m.pop.last <= wheelText {
+		if m.pop.last <= kittui.WheelTextLines {
 			t.Fatalf("%s %dx%d: no help topic scrolls:\n%s", name, w, h, plain(m))
 		}
 	}
@@ -61,8 +64,8 @@ func TestTheWheelScrollsTheHelpByThreeLinesAndStopsAtBothEnds(t *testing.T) {
 			t.Errorf("%s: the wheel up at the start moved to %d", name, m.pop.scroll)
 		}
 		notch(m, now, x, y, false)
-		if m.pop.scroll != wheelText {
-			t.Errorf("%s: one notch moved to %d, want %d", name, m.pop.scroll, wheelText)
+		if m.pop.scroll != kittui.WheelTextLines {
+			t.Errorf("%s: one notch moved to %d, want %d", name, m.pop.scroll, kittui.WheelTextLines)
 		}
 		for range last {
 			notch(m, now, x, y, false)
@@ -75,7 +78,7 @@ func TestTheWheelScrollsTheHelpByThreeLinesAndStopsAtBothEnds(t *testing.T) {
 			t.Errorf("%s: the wheel at the end moved on to %d", name, m.pop.scroll)
 		}
 		notch(m, now, x, y, true)
-		if m.pop.scroll != max(last-wheelText, 0) {
+		if m.pop.scroll != max(last-kittui.WheelTextLines, 0) {
 			t.Errorf("%s: one notch up went to %d", name, m.pop.scroll)
 		}
 		if m.pop.topic != topic || m.pop.kind != popHelp || m.screen != screenPopup {

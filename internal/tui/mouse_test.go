@@ -1,6 +1,8 @@
 package tui
 
 import (
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+
 	"strings"
 	"testing"
 	"time"
@@ -117,30 +119,37 @@ func TestOnlyTheLeftButtonClicks(t *testing.T) {
 	}
 }
 
-// A notch the terminal reports as a press and a release arrives as two equal events: one step.
+// A notch the terminal reports as a press and a release arrives as two equal events, which the input filter
+// of the program takes as one step.
 func TestOneNotchIsOneStepWhateverTheTerminalReports(t *testing.T) {
 	m := frameModel(t, 100, 30)
 	now := wheelClock(m)
-	wheel(m, 5, 10, tea.MouseWheelDown)
-	wheel(m, 5, 10, tea.MouseWheelDown)
+	in := kittui.NewInputFilter(func() time.Time { return *now })
+	filtered := func(x, y int, b tea.MouseButton) {
+		if msg := in.Filter(m, tea.MouseWheelMsg{X: x, Y: y, Button: b}); msg != nil {
+			m.Update(msg)
+		}
+	}
+	filtered(5, 10, tea.MouseWheelDown)
+	filtered(5, 10, tea.MouseWheelDown)
 	if m.list.cursor != 1 {
 		t.Fatalf("a notch with its release moved the cursor to %d, want 1", m.list.cursor)
 	}
 	// Four queued events are two notches.
 	for range 2 {
-		*now = now.Add(wheelMerge)
-		wheel(m, 5, 10, tea.MouseWheelDown)
-		wheel(m, 5, 10, tea.MouseWheelDown)
+		*now = now.Add(time.Second)
+		filtered(5, 10, tea.MouseWheelDown)
+		filtered(5, 10, tea.MouseWheelDown)
 	}
 	if m.list.cursor != 3 {
 		t.Errorf("two more notches ended on %d, want 3", m.list.cursor)
 	}
 	// Another direction or another cell is another notch, however close.
-	wheel(m, 5, 10, tea.MouseWheelUp)
+	filtered(5, 10, tea.MouseWheelUp)
 	if m.list.cursor != 2 {
 		t.Errorf("the wheel up right after a wheel down ended on %d, want 2", m.list.cursor)
 	}
-	wheel(m, 6, 10, tea.MouseWheelUp)
+	filtered(6, 10, tea.MouseWheelUp)
 	if m.list.cursor != 1 {
 		t.Errorf("the wheel up in another cell ended on %d, want 1", m.list.cursor)
 	}

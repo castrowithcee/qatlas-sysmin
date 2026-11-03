@@ -1,6 +1,8 @@
 package tui
 
 import (
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+
 	tea "charm.land/bubbletea/v2"
 
 	"testing"
@@ -106,7 +108,7 @@ func TestTheWheelMovesTheFocusOfAFormDialogOverVisibleRowsAndHoldsAtTheEnds(t *t
 	m.openForm(&formDlg{title: "Demo", saveText: answer(tHintSave, actSave), submit: func(*Model, *formDlg) tea.Cmd { return nil },
 		rows: []formRow{textRow("a", "First", ""), choiceRow("b", "Second", []string{"x", "y"}, nil, 0), hidden,
 			textRow("c", "Third", "")}})
-	x, y := wheelCell(t, m, func(wheelHit) bool { return true })
+	x, y := wheelCell(t, m, func(kittui.Target) bool { return true })
 	down, up := wheelWalk(t, m, now, x, y, func() int { return m.form.focus })
 	if len(down) != 2 || down[0] != 1 || down[1] != 3 {
 		t.Errorf("down went %v, want 1 and 3 over the hidden row", down)
@@ -122,8 +124,8 @@ func TestTheWheelOverTheDimmedBackgroundOfAFormDialogMovesNothing(t *testing.T) 
 	now := wheelClock(m)
 	m.openForm(&formDlg{title: "Demo", saveText: answer(tHintSave, actSave), rows: []formRow{textRow("a", "First", ""), textRow("b", "Second", "")}})
 	m.render()
-	if len(m.wheelHits) != 1 {
-		t.Fatalf("%d wheel areas, want the one of the dialog:\n%s", len(m.wheelHits), plain(m))
+	if n := len(wheelAreas(m)); n != 1 {
+		t.Fatalf("%d wheel areas, want the one of the dialog:\n%s", n, plain(m))
 	}
 	focus := m.set.gen.focus
 	for _, at := range [][2]int{{0, 3}, {m.termWidth - 1, m.termHeight - 3}} {

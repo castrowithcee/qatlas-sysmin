@@ -218,7 +218,7 @@ func (m *Model) popupFrame() string {
 				m.addHit(0, top+i, inner, top+i+1, func() tea.Cmd { return m.pickCommand(idx) })
 			}
 		}
-		m.addWheel(0, m.workspaceTop(), m.termWidth, m.workspaceTop()+2+len(body), m.wheelPopup)
+		m.addWheel(0, m.workspaceTop(), m.termWidth, m.workspaceTop()+2+len(body), zoneDetail, m.wheelPopup)
 		return m.frame(m.boundView(m.ui.st(kittui.StyleTitle).Render(title) + "\n\n" + strings.Join(body, "\n")))
 	}
 	lines := append([]string{m.ui.st(kittui.StyleTitle).Render(title), ""}, body...)
@@ -237,20 +237,20 @@ func (m *Model) popupFrame() string {
 			m.addHit(left+2, top+3+i, left+2+inner, top+4+i, func() tea.Cmd { return m.pickCommand(idx) })
 		}
 	}
-	m.addWheel(left, top, left+ansi.StringWidth(dialog[0]), top+len(dialog), m.wheelPopup)
+	m.addWheel(left, top, left+ansi.StringWidth(dialog[0]), top+len(dialog), zoneDetail, m.wheelPopup)
 	return overlay(m.ui, background, dialog, m.termWidth, m.termHeight)
 }
 
-// wheelPopup is a notch of the wheel over the panel. The help scrolls by wheelText lines and stops at both ends,
+// wheelPopup is a notch of the wheel over the panel. The help scrolls by WheelTextLines lines and stops at both ends,
 // never leaving its topic; the command line moves its choice by one entry and stops at both ends, where the keys
 // wrap round.
 func (m *Model) wheelPopup(up bool) tea.Cmd {
 	p := m.pop
 	switch p.kind {
 	case popHelp:
-		by := wheelText
+		by := kittui.WheelTextLines
 		if up {
-			by = -wheelText
+			by = -kittui.WheelTextLines
 		}
 		p.scroll = min(max(p.scroll+by, 0), p.last)
 	case popCommand:

@@ -50,7 +50,7 @@ func (t *textScroll) scroll(keys *kittui.Keymap, key tea.KeyPressMsg, page int) 
 
 // wheel moves the area by the notches of the wheel.
 func (t *textScroll) wheel(up bool) tea.Cmd {
-	for range wheelText {
+	for range kittui.WheelTextLines {
 		if up {
 			t.vp.ScrollUp(1)
 		} else {

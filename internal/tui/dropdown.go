@@ -94,8 +94,6 @@ type dropdown struct {
 	// x and y are the screen cell of the field's left edge and its row; placed says the frame set them.
 	x, y   int
 	placed bool
-	// box is where the list was drawn last: its cells and the first row of its entries.
-	box struct{ x0, y0, x1, y1 int }
 }
 
 // openDropdown opens the list of a field, on the active value.
@@ -184,23 +182,13 @@ func (m *Model) overlayDropdown(view string) string {
 		left += strings.Repeat(" ", max(x-ansi.StringWidth(left), 0))
 		rows[r] = left + line + ansi.Cut(rows[r], x+w, m.termWidth)
 	}
-	d.box.x0, d.box.y0, d.box.x1, d.box.y1 = x, y, x+w, y+len(box)
-	// The list is modal: the areas beneath it do not take the wheel while it is open.
-	m.wheelHits = nil
-	m.addWheel(x, y, x+w, y+len(box), func(up bool) tea.Cmd { wheelCursor(&d.cursor, len(d.values), up); return nil })
-	return strings.Join(rows, "\n")
-}
-
-// clickDropdown handles a click while a list is open: on an entry it takes that value, anywhere else it only
-// closes the list.
-func (m *Model) clickDropdown(x, y int) tea.Cmd {
-	d := m.dd
-	b := d.box
-	if x > b.x0 && x < b.x1-1 && y > b.y0 && y < b.y1-1 {
-		return m.chooseDropdown(y - b.y0 - 1)
+	// The list is modal: what stands beneath it takes no click and no wheel while it is open.
+	m.mt = mouseTargets{}
+	m.addWheel(x, y, x+w, y+len(box), zoneContent, func(up bool) tea.Cmd { wheelCursor(&d.cursor, len(d.values), up); return nil })
+	for i := range len(box) - 2 {
+		m.addHit(x+1, y+1+i, x+w-1, y+2+i, func() tea.Cmd { return m.chooseDropdown(i) })
 	}
-	m.dd = nil
-	return nil
+	return strings.Join(rows, "\n")
 }
 
 // searchContent is what the search field of the lists shows: "/ " and the query, or the input being typed,
