@@ -1,29 +1,29 @@
 #!/bin/sh
-# End-to-end environment: a simulated Linux host (systemd + Docker) with a local release server, where sysmin
+# End-to-end environment: a simulated Linux host (systemd + Docker) with a local release server, where qsysmin
 # is installed from locally signed test releases.
 #
-#   e2e/run.sh up                 build everything, start the environment, install sysmin v0.1.0 on the host
+#   e2e/run.sh up                 build everything, start the environment, install qsysmin v0.7.0 on the host
 #   e2e/run.sh down               remove every container, network, volume, image and temp directory it made
 #   e2e/run.sh status             show the environment and the installation
 #   e2e/run.sh exec [-u user] <command...>   run a command on the simulated host (default user e2e-admin)
 #   e2e/run.sh env                print the path of the file with the generated test values (source it)
 #   e2e/run.sh scenario           run the acceptance scenario once after up (see e2e/scenario.sh)
 #
-# Everything is named sysmine2e-* and labelled sysmin.e2e=1; down touches only what carries both. Nothing is
+# Everything is named qsysmine2e-* and labelled qsysmin.e2e=1; down touches only what carries both. Nothing is
 # published on the machine's ports. Set E2E_KEEP_ON_FAIL=1 to keep a failed environment for inspection.
 # Needs docker (rootless is fine), go, openssl, ssh-keygen, tar, gzip, sha256sum.
 set -eu
 
-prefix=sysmine2e
-label=sysmin.e2e=1
-domain=sysmine2e.test
-hostname_=sysmin-e2e-host
+prefix=qsysmine2e
+label=qsysmin.e2e=1
+domain=qsysmine2e.test
+hostname_=qsysmin-e2e-host
 admin=e2e-admin
 net=$prefix-net
 host=$prefix-host
 module=github.com/castrowithcee/qatlas-sysmin
-versions='v0.1.0 v0.2.0'
-install_version=v0.1.0
+versions='v0.7.0 v0.8.0'
+install_version=v0.7.0
 
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/.." && pwd)
@@ -157,28 +157,28 @@ build_releases() {
 	mkdir -p "$rel"
 
 	# The installer copy trusts the test key; scripts/install.sh itself stays untouched.
-	sed "s|^signer_line=.*|signer_line='sysmin-release $pub'|" "$root/scripts/install.sh" >"$rel/install.sh"
-	grep -q "^signer_line='sysmin-release $pub'\$" "$rel/install.sh" || fail 'could not set the test signer in the installer copy'
+	sed "s|^signer_line=.*|signer_line='qsysmin-release $pub'|" "$root/scripts/install.sh" >"$rel/install.sh"
+	grep -q "^signer_line='qsysmin-release $pub'\$" "$rel/install.sh" || fail 'could not set the test signer in the installer copy'
 	[ "$(grep -c '^signer_line=' "$rel/install.sh")" = 1 ] || fail 'the installer has more than one signer_line'
 
 	epoch=1767225600
 	for v in $versions; do
 		stage=$work/stage-$v
 		out=$rel/$v
-		mkdir -p "$stage/bin" "$stage/share/doc/sysmin" "$stage/lib/systemd/system" "$out"
-		log "building sysmin $v (linux/$goarch)"
+		mkdir -p "$stage/bin" "$stage/share/doc/qsysmin" "$stage/lib/systemd/system" "$out"
+		log "building qsysmin $v (linux/$goarch)"
 		(cd "$root" && CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go build -trimpath -buildvcs=false \
 			-ldflags "-s -w -X $module/internal/cli.version=$v -X '$module/internal/release.extraKeyLines=$pub'" \
-			-o "$stage/bin/sysmin" .)
-		cp "$root/LICENSE" "$stage/share/doc/sysmin/LICENSE"
-		cp "$root/packaging/sysmin.service" "$stage/lib/systemd/system/sysmin.service"
-		chmod 755 "$stage/bin/sysmin"
-		chmod 644 "$stage/share/doc/sysmin/LICENSE" "$stage/lib/systemd/system/sysmin.service"
+			-o "$stage/bin/qsysmin" .)
+		cp "$root/LICENSE" "$stage/share/doc/qsysmin/LICENSE"
+		cp "$root/packaging/qsysmin.service" "$stage/lib/systemd/system/qsysmin.service"
+		chmod 755 "$stage/bin/qsysmin"
+		chmod 644 "$stage/share/doc/qsysmin/LICENSE" "$stage/lib/systemd/system/qsysmin.service"
 		(cd "$stage" && LC_ALL=C tar --sort=name --owner=0 --group=0 --numeric-owner \
-			--mtime="@$epoch" --format=gnu -cf - .) | gzip -n -9 >"$out/sysmin_${v}_linux_${goarch}.tar.gz"
+			--mtime="@$epoch" --format=gnu -cf - .) | gzip -n -9 >"$out/qsysmin_${v}_linux_${goarch}.tar.gz"
 		cp "$rel/install.sh" "$out/install.sh"
-		(cd "$out" && LC_ALL=C sha256sum "sysmin_${v}_linux_${goarch}.tar.gz" install.sh >checksums.txt &&
-			ssh-keygen -q -Y sign -f "$work/keys/release" -n sysmin-release checksums.txt)
+		(cd "$out" && LC_ALL=C sha256sum "qsysmin_${v}_linux_${goarch}.tar.gz" install.sh >checksums.txt &&
+			ssh-keygen -q -Y sign -f "$work/keys/release" -n qsysmin-release checksums.txt)
 		[ -f "$out/checksums.txt.sig" ] || fail "signing $v failed"
 		rm -rf "$stage"
 	done
@@ -194,7 +194,7 @@ build_images() {
 }
 
 start_services() {
-	docker network create --label "$label" --label "sysmin.e2e.dir=$work" "$net" >/dev/null
+	docker network create --label "$label" --label "qsysmin.e2e.dir=$work" "$net" >/dev/null
 	docker volume create --label "$label" "$prefix-docker" >/dev/null
 	docker volume create --label "$label" "$prefix-containerd" >/dev/null
 
@@ -235,21 +235,21 @@ check_services() {
 	log 'checking the release server from the host'
 	api=$(docker exec "$host" curl -fsS https://api.github.com/repos/castrowithcee/qatlas-sysmin/releases/latest) ||
 		fail 'the releases fake is not reachable over trusted HTTPS'
-	printf '%s' "$api" | grep -q '"tag_name":"v0.2.0"' || fail 'the releases fake does not offer v0.2.0 as the latest release'
+	printf '%s' "$api" | grep -q '"tag_name":"v0.8.0"' || fail 'the releases fake does not offer v0.8.0 as the latest release'
 }
 
-install_sysmin() {
-	log "installing sysmin $install_version on the host with install.sh"
+install_qsysmin() {
+	log "installing qsysmin $install_version on the host with install.sh"
 	sh_on_host "$admin" "curl -fsSL https://releases.$domain/install.sh | sudo sh -s -- --release-url https://releases.$domain/releases --version $install_version"
-	wait_for 'the sysmin service' 30 docker exec "$host" systemctl is-active --quiet sysmin
+	wait_for 'the qsysmin service' 30 docker exec "$host" systemctl is-active --quiet qsysmin
 }
 
 verify_install() {
-	[ "$(docker exec "$host" systemctl is-active sysmin)" = active ] || fail 'sysmin.service is not active'
-	docker exec "$host" id sysmin >/dev/null || fail 'the service user sysmin does not exist'
-	got=$(docker exec "$host" sysmin version) || fail 'sysmin version failed'
-	printf '%s\n' "$got" | grep -q "$install_version" || fail "sysmin version does not show $install_version: $got"
-	log "service: active; user: $(docker exec "$host" id sysmin); version: $got"
+	[ "$(docker exec "$host" systemctl is-active qsysmin)" = active ] || fail 'qsysmin.service is not active'
+	docker exec "$host" id qsysmin >/dev/null || fail 'the service user qsysmin does not exist'
+	got=$(docker exec "$host" qsysmin version) || fail 'qsysmin version failed'
+	printf '%s\n' "$got" | grep -q "$install_version" || fail "qsysmin version does not show $install_version: $got"
+	log "service: active; user: $(docker exec "$host" id qsysmin); version: $got"
 }
 
 up() {
@@ -275,7 +275,7 @@ up() {
 	start_services
 	prepare_host
 	check_services
-	install_sysmin
+	install_qsysmin
 	verify_install
 	done_=1
 	log "up; test values: $work/testenv"
@@ -286,8 +286,8 @@ status() {
 	owned container | while read -r _ name; do
 		printf '%s %s\n' "$name" "$(docker inspect -f '{{.State.Status}}' "$name")"
 	done
-	printf 'sysmin.service: %s\n' "$(docker exec "$host" systemctl is-active sysmin 2>/dev/null || true)"
-	printf 'sysmin version: %s\n' "$(docker exec "$host" sysmin version 2>/dev/null || true)"
+	printf 'qsysmin.service: %s\n' "$(docker exec "$host" systemctl is-active qsysmin 2>/dev/null || true)"
+	printf 'qsysmin version: %s\n' "$(docker exec "$host" qsysmin version 2>/dev/null || true)"
 	printf 'test values: %s\n' "$work/testenv"
 }
 

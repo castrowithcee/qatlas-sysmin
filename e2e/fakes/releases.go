@@ -15,9 +15,9 @@ import (
 
 const releaseRoot = "/srv/releases"
 
-// sysminRepo is the only repository the fake knows; its releases come from the directories under releaseRoot
+// qsysminRepo is the only repository the fake knows; its releases come from the directories under releaseRoot
 // (one directory per tag holding the release assets).
-const sysminRepo = "castrowithcee/qatlas-sysmin"
+const qsysminRepo = "castrowithcee/qatlas-sysmin"
 
 type apiAsset struct {
 	Name        string `json:"name"`
@@ -45,7 +45,7 @@ var (
 	tagPath      = regexp.MustCompile(`^(?:/[^/]+/[^/]+)?/releases/tag/([^/]+)$`)
 )
 
-// runReleases serves the GitHub releases API subset sysmin uses (api.github.com), the release download
+// runReleases serves the GitHub releases API subset qsysmin uses (api.github.com), the release download
 // paths of github.com and the install script, all from the same data under /srv/releases.
 func runReleases() error {
 	return serveTLS(":443", http.HandlerFunc(serveReleases))
@@ -128,14 +128,14 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // releasesOf returns the releases of repo, newest first. Asset URLs point back at host, so a client that
 // only trusts its configured origin follows them.
 func releasesOf(repo, host string) ([]apiRelease, bool) {
-	if repo != sysminRepo {
+	if repo != qsysminRepo {
 		return nil, false
 	}
 	tags := tagDirs()
 	out := make([]apiRelease, 0, len(tags))
 	for _, tag := range tags {
 		rel := apiRelease{
-			TagName: tag, Name: "sysmin " + tag, Prerelease: strings.Contains(tag, "-"),
+			TagName: tag, Name: "qsysmin " + tag, Prerelease: strings.Contains(tag, "-"),
 			Body:        "Invented test release " + tag + ".",
 			HTMLURL:     "https://" + host + "/" + repo + "/releases/tag/" + tag,
 			PublishedAt: "2026-04-01T10:00:00Z",
