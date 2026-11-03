@@ -159,10 +159,12 @@ func (m *Model) cycleZone(step int) {
 	}
 }
 
-// enableAreas makes the area screen the base of the interface, served by backend.
+// enableAreas makes the area screen the base of the interface, served by backend. It opens on the start area of
+// the preferences, with the focus on the tab line.
 func (m *Model) enableAreas(backend Backend) {
 	m.backend = backend
-	m.home, m.screen, m.area, m.zone = screenArea, screenArea, areaOverview, zoneTabs
+	start, _ := areaOf(kittui.AreaID(m.prefs.Start))
+	m.home, m.screen, m.area, m.zone = screenArea, screenArea, start, zoneTabs
 }
 
 // setArea shows an area, on its first page, with the focus in its content. Unsaved input of Settings is asked
@@ -220,6 +222,11 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	if m.barOpen() {
 		return m.filterBarKey(key)
 	}
+	if m.generalFocused() {
+		if cmd, ok := m.generalKey(key); ok {
+			return cmd
+		}
+	}
 	if m.typing() {
 		if p := m.currentPage(); p.filtering() {
 			return m.filterKey(p, key)
@@ -227,7 +234,7 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 		if m.hostTyping() {
 			return m.foldersKey(key)
 		}
-		return m.editKey(key)
+		return nil
 	}
 	switch {
 	case m.keyIs(key, actHelp):
@@ -457,6 +464,9 @@ func (m *Model) areaKeys() []kittui.Hint {
 		// The open list of values takes every key, so the line names no other.
 		return m.filterBarHints()
 	}
+	if m.generalInner() {
+		return m.set.gen.Hints()
+	}
 	if m.typing() {
 		if m.currentPage().filtering() {
 			return keyLine(hint(tHintTypeToFilter), navHint(tHintMove, actUp, actDown), hint(tHintKeepFilter, actEnter),
@@ -465,7 +475,6 @@ func (m *Model) areaKeys() []kittui.Hint {
 		if m.hostTyping() {
 			return m.hostFoldersKeys()
 		}
-		return keyLine(hint(tHintNext, actEnter), hint(tHintStop, actBack), hint(tHintSave, actSave))
 	}
 	var keys []kittui.Hint
 	switch zone := m.zoneNow(); {

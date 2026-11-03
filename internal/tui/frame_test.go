@@ -244,28 +244,6 @@ func TestCopyHandsOverTheNameOfTheRowAndRedactsSecrets(t *testing.T) {
 	}
 }
 
-func TestDropdownOpensChoosesAndCloses(t *testing.T) {
-	m := frameModel(t, 80, 24)
-	chosen := -1
-	m.openDropdown("field", []string{"One", "Two", "Three"}, 0, func(i int) tea.Cmd { chosen = i; return nil })
-	m.noteField("field", 2, 3)
-	m.layoutWorkspace()
-	view := ansi.Strip(m.overlayDropdown(m.frame(m.workspaceView())))
-	assertViewFits(t, view, 80, 24)
-	if !strings.Contains(view, "Three") {
-		t.Errorf("the open list is not drawn:\n%s", view)
-	}
-	press(t, m, "down", "enter")
-	if chosen != 1 || m.dd != nil {
-		t.Errorf("chosen = %d, open = %v, want 1 and closed", chosen, m.dd != nil)
-	}
-	m.openDropdown("field", []string{"One"}, 0, func(int) tea.Cmd { chosen = 9; return nil })
-	press(t, m, "esc")
-	if m.dd != nil || chosen == 9 {
-		t.Error("esc did not close the list without choosing")
-	}
-}
-
 func TestTheInputFilterLetsATypedLetterPass(t *testing.T) {
 	f := kittui.NewInputFilter(func() time.Time { return time.Unix(0, 0) })
 	if msg := f.Filter(nil, textKey("a")); msg == nil {

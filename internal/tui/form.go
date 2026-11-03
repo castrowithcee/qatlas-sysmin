@@ -64,6 +64,13 @@ func choiceRow(key, label string, values, shown []string, sel int) formRow {
 	return formRow{key: key, label: label, choice: true, values: values, shown: shown, sel: sel}
 }
 
+func keyInput(value string) textinput.Model {
+	in := newTextInput()
+	in.Prompt = ""
+	in.SetValue(value)
+	return in
+}
+
 func maskedInput() textinput.Model {
 	in := newTextInput()
 	in.Prompt = ""

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 )
 
 // overlayCell is a cell inside the wheel area of the panel or the list that is open, and a cell outside it.
@@ -115,36 +117,30 @@ func TestTheWheelNeitherTypesNorRunsInTheCommandLine(t *testing.T) {
 	}
 }
 
-// settingsDropdown opens the language list of the settings, whose field the frame draws.
-func settingsDropdown(t *testing.T) *Model {
+// settingsList opens the list of values of the language field of the settings.
+func settingsList(t *testing.T) *Model {
 	t.Helper()
 	m, _ := settingsModel(t, newFake(), "general")
 	send(m, "enter")
-	if m.dd == nil {
+	if !m.set.gen.Open() {
 		t.Fatal("enter opens no list")
 	}
 	return m
 }
 
-func TestTheWheelStepsTheDropdownWithoutChoosingOrClosingIt(t *testing.T) {
-	m := settingsDropdown(t)
+func TestTheWheelStepsTheListOfValuesWithoutChoosingOrClosingIt(t *testing.T) {
+	m := settingsList(t)
 	now := wheelClock(m)
-	language := m.set.gen.language
-	x, y, _, _ := overlayCell(t, m)
-	stepsOf(t, "dropdown", m, now, x, y, func() int { return m.dd.cursor }, len(m.dd.values))
-	if m.dd == nil || m.set.gen.language != language {
-		t.Errorf("the wheel closed the list or chose a value: open %v, language %q", m.dd != nil, m.set.gen.language)
+	x, y := wheelCell(t, m, leftArea)
+	for range 4 {
+		notch(m, now, x, y, false)
 	}
-}
-
-func TestTheWheelBesideTheDropdownMovesNothing(t *testing.T) {
-	m := settingsDropdown(t)
-	now := wheelClock(m)
-	_, _, ox, oy := overlayCell(t, m)
-	before := plain(m)
-	notch(m, now, ox+20, oy+5, false)
-	notch(m, now, 1, m.workspaceTop(), false)
-	if m.dd == nil || m.dd.cursor != 0 || plain(m) != before {
-		t.Errorf("the wheel beside the list changed the screen:\n%s", plain(m))
+	notch(m, now, x, y, true)
+	if !m.set.gen.Open() || genValue(m, fieldLanguage).Choice != kitprefs.LanguageEnglish {
+		t.Fatalf("the wheel closed the list or chose a value: open %v", m.set.gen.Open())
+	}
+	send(m, "enter")
+	if got := genValue(m, fieldLanguage).Choice; got != kitprefs.LanguageGerman {
+		t.Errorf("the wheel stepped to %q, want it to hold at the last value and step back one", got)
 	}
 }

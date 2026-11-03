@@ -63,6 +63,9 @@ func (m *Model) frameSpec(workspace string) kittui.FrameSpec {
 // frameInput is the input focus the frame names keys for. A form reads typed text as a whole, but on a
 // choice or in its list the keys of its key line act, so they are named there.
 func (m *Model) frameInput() kittui.InputFocus {
+	if m.generalFocused() {
+		return m.set.gen.Input()
+	}
 	if f := m.form; m.screen == screenPrompt && f != nil && f.focus < len(f.rows) && (f.pick != nil || f.rows[f.focus].choice) {
 		return kittui.InputNavigation
 	}

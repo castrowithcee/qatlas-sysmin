@@ -116,8 +116,8 @@ func (m *Model) endInput() {
 	}
 }
 
-// mouseEnabled reports whether the editor takes mouse input.
-func (m *Model) mouseEnabled() bool { return m.prefs.MouseEnabled }
+// mouseEnabled reports whether the editor takes mouse input: never while a key field waits for its key.
+func (m *Model) mouseEnabled() bool { return m.prefs.MouseEnabled && !m.generalCapturing() }
 
 // mouseMode is the mouse mode the view asks the terminal for: cell motion while the editor takes the mouse.
 func (m *Model) mouseMode() tea.MouseMode {
@@ -147,12 +147,6 @@ func (m *Model) updateMouse(msg tea.MouseMsg) tea.Cmd {
 // handleMouse is updateMouse on the map of the frame drawn last.
 func (m *Model) handleMouse(msg tea.MouseMsg) tea.Cmd {
 	res := m.mouse.Handle(msg)
-	if _, click := msg.(tea.MouseClickMsg); click && m.dd != nil && res.Item == "" {
-		if msg.Mouse().Button == tea.MouseLeft && m.mouseEnabled() && !m.tooSmall {
-			m.dd = nil
-		}
-		return nil
-	}
 	if res.Handled && m.screen == screenPopup && m.pop != nil {
 		// The part over the screen takes every click and notch; the screen behind it takes none.
 		if res.WheelSteps != 0 {
@@ -168,9 +162,6 @@ func (m *Model) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		up := res.WheelSteps < 0
 		if scroll, ok := m.mt.wheels[res.Zone]; ok && res.Zone != "" {
 			return scroll(up)
-		}
-		if m.dd != nil {
-			return nil
 		}
 		return m.wheel(up)
 	case res.Item != "":
@@ -358,7 +349,7 @@ func dialogOrigin(dialog []string, width, height int) (top, left int) {
 // button stands: from a dialog, a question or a list with a filter, from the content or the page strip of an
 // area, never from the bare list or the tab line.
 func (m *Model) backShown() bool {
-	if m.backdrop || m.dd != nil {
+	if m.backdrop {
 		return false
 	}
 	if _, ok := m.keyByName(m.keyLabel(actBack)); !ok {

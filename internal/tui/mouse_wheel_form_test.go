@@ -48,11 +48,11 @@ func TestTheWheelMovesTheFocusOfSettingsFormsAndHoldsAtTheEnds(t *testing.T) {
 	m, _ := settingsModel(t, newFake(), "general")
 	now := wheelClock(m)
 	x, y := wheelCell(t, m, leftArea)
-	last := genRows - 1
-	down, up := wheelWalk(t, m, now, x, y, func() int { return m.set.gen.focus })
+	last := len(generalOrder()) - 1
+	down, up := wheelWalk(t, m, now, x, y, func() int { return genFocus(m) })
 	wheelEnds(t, "general", down, up, 0, last)
 	if len(down) != last || len(up) != last {
-		t.Errorf("the wheel went %v down and %v up, want one row at a time", down, up)
+		t.Errorf("the wheel went %v down and %v up, want one field at a time", down, up)
 	}
 }
 
@@ -65,38 +65,36 @@ func TestTheWheelOverSettingsKeepsTheZoneAndNeverLeavesForThePageStrip(t *testin
 	}
 	x, y := wheelCell(t, m, leftArea)
 	notch(m, now, x, y, false)
-	if m.set.gen.focus != 1 || m.zoneNow() != zoneTabs {
-		t.Errorf("focus = %d, zone = %v after a notch down", m.set.gen.focus, m.zoneNow())
+	if genFocus(m) != 1 || m.zoneNow() != zoneTabs {
+		t.Errorf("focus = %d, zone = %v after a notch down", genFocus(m), m.zoneNow())
 	}
 	notch(m, now, x, y, true)
 	notch(m, now, x, y, true)
-	if m.set.gen.focus != 0 || m.zoneNow() != zoneTabs {
-		t.Errorf("focus = %d, zone = %v after the wheel up at the first row", m.set.gen.focus, m.zoneNow())
+	if genFocus(m) != 0 || m.zoneNow() != zoneTabs {
+		t.Errorf("focus = %d, zone = %v after the wheel up at the first field", genFocus(m), m.zoneNow())
 	}
-	// From the content, up on the first row would lead to the page strip; the wheel holds.
+	// From the content, up on the first field would lead to the page strip; the wheel holds.
 	m.zone = zoneContent
 	notch(m, now, x, y, true)
-	if m.set.gen.focus != 0 || m.zoneNow() != zoneContent {
-		t.Errorf("focus = %d, zone = %v after the wheel up from the content", m.set.gen.focus, m.zoneNow())
+	if genFocus(m) != 0 || m.zoneNow() != zoneContent {
+		t.Errorf("focus = %d, zone = %v after the wheel up from the content", genFocus(m), m.zoneNow())
 	}
 }
 
-func TestTheWheelRestsWhileAFieldOfSettingsIsEdited(t *testing.T) {
+func TestTheMouseRestsWhileAKeyFieldOfSettingsWaitsForItsKey(t *testing.T) {
 	m, _ := settingsModel(t, newFake(), "general")
 	now := wheelClock(m)
-	m.set.gen.focus = genKeys
-	send(m, "enter")
-	typed(m, "x")
-	if !m.set.editing {
-		t.Fatalf("no field is edited:\n%s", plain(m))
-	}
-	value := m.field().Value()
 	x, y := wheelCell(t, m, leftArea)
+	toField(t, m, keyFieldID(actSave))
+	send(m, "enter")
+	if !m.set.gen.Capturing() {
+		t.Fatalf("the key field does not wait:\n%s", plain(m))
+	}
 	notch(m, now, x, y, false)
-	notch(m, now, x, y, true)
-	if !m.set.editing || m.set.gen.focus != genKeys || m.field().Value() != value {
-		t.Errorf("editing = %v, focus = %d, value = %q after the wheel, want the edit untouched",
-			m.set.editing, m.set.gen.focus, m.field().Value())
+	m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	if !m.set.gen.Capturing() || m.set.gen.Focused() != keyFieldID(actSave) || m.mouseMode() != tea.MouseModeNone {
+		t.Errorf("capturing = %v, focus = %s, mouse mode %v after the mouse, want the wait untouched",
+			m.set.gen.Capturing(), m.set.gen.Focused(), m.mouseMode())
 	}
 }
 
@@ -127,12 +125,12 @@ func TestTheWheelOverTheDimmedBackgroundOfAFormDialogMovesNothing(t *testing.T) 
 	if n := len(wheelAreas(m)); n != 1 {
 		t.Fatalf("%d wheel areas, want the one of the dialog:\n%s", n, plain(m))
 	}
-	focus := m.set.gen.focus
+	focus := genFocus(m)
 	for _, at := range [][2]int{{0, 3}, {m.termWidth - 1, m.termHeight - 3}} {
 		notch(m, now, at[0], at[1], false)
 		notch(m, now, at[0], at[1], true)
 	}
-	if m.form.focus != 0 || m.set.gen.focus != focus {
-		t.Errorf("form focus = %d, page focus = %d after the wheel over the background", m.form.focus, m.set.gen.focus)
+	if m.form.focus != 0 || genFocus(m) != focus {
+		t.Errorf("form focus = %d, page focus = %d after the wheel over the background", m.form.focus, genFocus(m))
 	}
 }

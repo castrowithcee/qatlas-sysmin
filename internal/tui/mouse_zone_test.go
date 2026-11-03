@@ -188,9 +188,7 @@ func TestTheBackgroundOfADialogIsNotClickable(t *testing.T) {
 
 func TestATabClickFromSettingsWithInputAsksFirst(t *testing.T) {
 	m, _ := settingsModel(t, newFake(), "general")
-	send(m, "down", "down", "down", "enter")
-	typed(m, "5")
-	send(m, "esc")
+	send(m, "right") // the language takes its next value
 	if !m.settingsDirty() {
 		t.Fatal("Settings holds no unsaved input")
 	}

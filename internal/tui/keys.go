@@ -18,7 +18,7 @@ func (m *Model) typing() bool {
 	case screenList:
 		return m.base.filtering()
 	case screenArea:
-		return (m.area == areaSettings && m.set.editing) || m.hostTyping() || m.currentPage().filtering()
+		return m.generalCapturing() || m.hostTyping() || m.currentPage().filtering()
 	case screenPopup:
 		return m.pop != nil && m.pop.cmd != nil
 	}

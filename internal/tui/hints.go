@@ -181,6 +181,7 @@ const (
 	tHintSave         textID = "hint.save"
 	tHintScroll       textID = "hint.scroll"
 	tHintSearch       textID = "hint.search"
+	tHintStandard     textID = "hint.standard"
 	tHintStop         textID = "hint.stop"
 	tHintSuggestion   textID = "hint.suggestion"
 	tHintTab          textID = "hint.tab"
@@ -238,6 +239,7 @@ func hintTexts() (en, de map[textID]string) {
 		tHintSave:         "save",
 		tHintScroll:       "scroll",
 		tHintSearch:       "search",
+		tHintStandard:     "standard key",
 		tHintStop:         "stop",
 		tHintSuggestion:   "suggestion",
 		tHintTab:          "tab",
@@ -292,6 +294,7 @@ func hintTexts() (en, de map[textID]string) {
 		tHintSave:         "speichern",
 		tHintScroll:       "scrollen",
 		tHintSearch:       "Suche",
+		tHintStandard:     "Standardtaste",
 		tHintStop:         "beenden",
 		tHintSuggestion:   "Vorschlag",
 		tHintTab:          "Reiter",

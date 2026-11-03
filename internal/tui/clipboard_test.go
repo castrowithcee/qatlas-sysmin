@@ -97,10 +97,10 @@ func TestCopyKeyCopiesNothingWhereItIsATextKeyOrNothingIsMarked(t *testing.T) {
 		t.Error("c copied while a question is open")
 	}
 
-	m = frameModel(t, 100, 30)
-	m.openDropdown("field", []string{"One", "Two"}, 0, func(int) tea.Cmd { return nil })
-	if m.copySource() != nil {
-		t.Error("an open dropdown offers a copy source")
+	m, _ = settingsModel(t, newFake(), "general")
+	send(m, "enter")
+	if !m.set.gen.Open() || m.copySource() != nil {
+		t.Error("an open list of values offers a copy source")
 	}
 }
 

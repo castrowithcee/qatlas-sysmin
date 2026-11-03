@@ -225,11 +225,15 @@ func TestUpOnTheFirstRowLeadsToTheBarAndListsStopAtTheEnds(t *testing.T) {
 	}
 
 	m, _ = settingsModel(t, newFake(), "general")
-	send(m, "end", "down")
-	if m.set.gen.focus != genRows-1 {
-		t.Errorf("down past the last row of General reaches %d", m.set.gen.focus)
+	for range len(generalOrder()) + 1 {
+		send(m, "down")
 	}
-	send(m, "home", "up")
+	if genFocus(m) != len(generalOrder())-1 {
+		t.Errorf("down past the last field of General reaches %d", genFocus(m))
+	}
+	for range len(generalOrder()) {
+		send(m, "up")
+	}
 	if m.zoneNow() != zoneSubs {
 		t.Errorf("up on the first row of General reaches %v, want the page strip", m.zoneNow())
 	}
@@ -245,9 +249,7 @@ func TestCyclingOverSettingsAsksOnlyAboutUnsavedInput(t *testing.T) {
 	}
 
 	m, _ = settingsModel(t, newFake(), "general")
-	send(m, "down", "down", "down", "enter")
-	typed(m, "5")
-	send(m, "esc")
+	send(m, "right") // the language takes its next value
 	if !m.settingsDirty() {
 		t.Fatal("the edit left nothing unsaved")
 	}

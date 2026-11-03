@@ -181,13 +181,16 @@ func (m *Model) infoOf() (string, string) {
 	case areaSettings:
 		switch m.set.sub {
 		case subGeneral:
-			g := m.set.gen
-			ids := []textID{tInfoSetLanguage, tInfoSetTheme, tInfoSetMouse}
-			labels := []textID{tLblLanguage, tLblTheme, tLblMouse, tLblKeySave, tLblKeyHelp, tLblKeyCommand, tLblKeyInfo}
-			if g.focus < len(ids) {
-				return pick(m.tr(labels[g.focus]), ids[g.focus])
+			focused := m.set.gen.Focused()
+			if a, ok := keyFieldAction(focused); ok {
+				return pick(m.tr(keyLabelID(a)), tInfoSetKey)
 			}
-			return pick(m.tr(labels[g.focus]), tInfoSetKey)
+			info := map[kittui.FieldID][2]textID{
+				fieldLanguage: {tLblLanguage, tInfoSetLanguage}, fieldTheme: {tLblTheme, tInfoSetTheme},
+				fieldIcons: {tLblIcons, tInfoSetIcons}, fieldStart: {tLblStart, tInfoSetStart},
+				fieldMouse: {tLblMouse, tInfoSetMouse},
+			}[focused]
+			return pick(m.tr(info[0]), info[1])
 		default:
 			return pick(subTitle(m.ui, subUpdate), tInfoSetUpdate)
 		}

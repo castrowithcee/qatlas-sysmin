@@ -63,8 +63,6 @@ type Model struct {
 	// ask is the question of screenConfirm, dialog the input dialog of screenPrompt.
 	ask    *question
 	dialog *promptDialog
-	// dd is the open list of a dropdown field (see dropdown.go).
-	dd *dropdown
 
 	// home is the base screen: screenList for the bare frame, screenArea once enableAreas ran.
 	home screen
@@ -172,12 +170,17 @@ func newModel(prefs kitprefs.Prefs, redactor *redact.Redactor, profile kittui.Co
 	return m
 }
 
-// Init asks the terminal for its colours where the theme mixes from them.
+// Init asks the terminal for its colours where the theme mixes from them, and for what the start area shows;
+// the overview reads its data once the service has answered.
 func (m *Model) Init() tea.Cmd {
 	if m.backend == nil {
 		return m.ui.terminalColorQuery()
 	}
-	return tea.Batch(m.ui.terminalColorQuery(), m.statusCmd(), m.tickCmd(), m.checkUpdate(false))
+	cmds := []tea.Cmd{m.ui.terminalColorQuery(), m.statusCmd(), m.tickCmd(), m.checkUpdate(false)}
+	if m.area != areaOverview {
+		cmds = append(cmds, m.enterPage())
+	}
+	return tea.Batch(cmds...)
 }
 
 // Update handles one message.
@@ -244,13 +247,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // updateKey handles one key press: first the open dropdown and dialogs, then the list.
 func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	if m.keyIs(key, actForceQuit) {
-		if m.screen == screenArea && m.dd == nil {
+		if m.screen == screenArea {
 			return m.guarded(m.quit)
 		}
 		return m.quit()
-	}
-	if m.dd != nil {
-		return m.updateDropdown(key)
 	}
 	if m.screen == screenPopup {
 		return m.updatePopup(key)
@@ -352,9 +352,6 @@ func (m *Model) renderFrame() string {
 
 // drawFrame draws the frame of the screen shown and collects its targets.
 func (m *Model) drawFrame() string {
-	if m.dd != nil {
-		m.dd.placed = false
-	}
 	m.screenKeys, m.screenPos = nil, ""
 	m.layoutWorkspace()
 	if m.terminalTooSmall() {
@@ -375,7 +372,7 @@ func (m *Model) drawFrame() string {
 		m.hitFormWheel(0, m.workspaceTop(), m.termWidth, m.termHeight)
 		return view
 	}
-	return m.overlayDropdown(m.frame(m.workspaceView()))
+	return m.frame(m.workspaceView())
 }
 
 // workspaceView is the screen of the workspace.
