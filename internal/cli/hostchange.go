@@ -181,7 +181,7 @@ func newHostJournalCommand(opts *Options) *cobra.Command {
 		Use:   "journal",
 		Short: "List the latest changes of the host (run by the TUI via sudo)",
 		Long:  "Lists the latest changes, newest first. The journal is readable by root only.",
-		Args:  gated(opts, noVaultArgs),
+		Args:  gated(opts, noArgs),
 		RunE: func(c *cobra.Command, _ []string) error {
 			if err := requireRoot(opts.system(), "host journal"); err != nil {
 				return err

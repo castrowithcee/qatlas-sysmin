@@ -1,11 +1,11 @@
 // Package uiprefs keeps the device-local preferences of the terminal editor in tui.yaml in the per-user
 // folder ~/.qatlas/sysmin, apart from the service configuration: the file is never part of an export or
-// import and needs no admin session. A missing or damaged file yields the defaults and a warning, never an
+// import. A missing or damaged file yields the defaults and a warning, never an
 // error that stops the editor. The last writer wins.
 //
 // The format is a flat YAML mapping. Keys this version does not know are ignored on read, so later
 // versions can add fields without breaking an older reader; a write by this version writes only the keys
-// it knows.
+// it knows. An action under keys that this version does not know is dropped with a warning.
 package uiprefs
 
 import (
@@ -165,18 +165,12 @@ func Load(path string) (Prefs, []string) {
 		return prefs, []string{fmt.Sprintf("cannot read %s, using the defaults: %v", path, err)}
 	}
 	var raw struct {
-		Theme    *string `yaml:"theme"`
-		Start    *string `yaml:"start"`
-		Icons    *string `yaml:"icons"`
-		Language *string `yaml:"language"`
-		Mouse    *string `yaml:"mouse"`
-		Keys     *struct {
-			Info    *string `yaml:"info"`
-			Save    *string `yaml:"save"`
-			Help    *string `yaml:"help"`
-			Command *string `yaml:"command"`
-			Lock    *string `yaml:"lock"`
-		} `yaml:"keys"`
+		Theme    *string            `yaml:"theme"`
+		Start    *string            `yaml:"start"`
+		Icons    *string            `yaml:"icons"`
+		Language *string            `yaml:"language"`
+		Mouse    *string            `yaml:"mouse"`
+		Keys     map[string]*string `yaml:"keys"`
 	}
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return prefs, []string{fmt.Sprintf("cannot parse %s, using the defaults: %v", path, err)}
@@ -228,10 +222,7 @@ func Load(path string) (Prefs, []string) {
 		}
 	}
 	if raw.Keys != nil {
-		prefs.Keys, warnings = loadKeys(path, map[string]*string{
-			ActionInfo: raw.Keys.Info, ActionSave: raw.Keys.Save, ActionHelp: raw.Keys.Help,
-			ActionCommand: raw.Keys.Command, ActionLock: raw.Keys.Lock,
-		}, warnings)
+		prefs.Keys, warnings = loadKeys(path, raw.Keys, warnings)
 	}
 	return prefs, warnings
 }

@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
@@ -39,18 +38,12 @@ func TestGoldenAreas(t *testing.T) {
 		build func(t *testing.T, w, h int) *Model
 	}{
 		{"overview", func(t *testing.T, w, h int) *Model { return goldenOverview(t, overviewFake(), w, h) }},
-		{"overview_autounlock", func(t *testing.T, w, h int) *Model {
-			fb := overviewFake()
-			fb.unlockMode = control.UnlockTPM2
-			return goldenOverview(t, fb, w, h)
-		}},
-		{"overview_novault", func(t *testing.T, w, h int) *Model { return goldenOverview(t, newFake(control.VaultAbsent), w, h) }},
 		{"settings_general", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "4")
 			return m
 		}},
-		{"settings_vault", func(t *testing.T, w, h int) *Model {
+		{"settings_update", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "4", "esc", "right", "enter")
 			return m
@@ -378,22 +371,14 @@ func TestGoldenAreas(t *testing.T) {
 			}
 			return m
 		}},
-		{"passphrase_change", func(t *testing.T, w, h int) *Model {
-			m := goldenApp(t, overviewFake(), w, h)
-			send(m, "4", "esc", "right", "enter", "enter")
-			typed(m, "old pass")
-			send(m, "tab")
-			typed(m, "new pass")
-			return m
-		}},
 	}
 	for _, s := range screens {
 		for _, size := range sizes {
 			t.Run(fmt.Sprintf("%s_%dx%d", s.name, size[0], size[1]), func(t *testing.T) {
 				m := s.build(t, size[0], size[1])
 				got := m.render()
-				if strings.Contains(got, "old pass") || strings.Contains(got, "new pass") || strings.Contains(got, secretValue) {
-					t.Error("a typed passphrase is in the frame")
+				if strings.Contains(got, secretValue) {
+					t.Error("a secret is in the frame")
 				}
 				assertViewFits(t, plain(m), size[0], size[1])
 				assertGolden(t, fmt.Sprintf("%s_%dx%d", s.name, size[0], size[1]), got)

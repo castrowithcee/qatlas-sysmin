@@ -6,8 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // An area is a task the person came to do; the areas are the tab line. An area draws into the workspace under
@@ -102,10 +100,7 @@ func (m *Model) enterPage() tea.Cmd {
 		return m.hostCmd()
 	case m.area == areaSettings:
 		m.loadForms()
-		switch m.set.sub {
-		case subVault:
-			return m.settingsCmd()
-		case subUpdate:
+		if m.set.sub == subUpdate {
 			return m.checkUpdate(false)
 		}
 	}
@@ -507,24 +502,11 @@ func (m *Model) areaKeys() string {
 	if m.zoneNow() == zoneContent && !m.innerLevel() {
 		keys = append(keys, "{back} back")
 	}
-	keys = append(keys, m.lockKeys()...)
+	if !m.serviceUp() {
+		keys = append(keys, "ctrl+r retry")
+	}
 	keys = append(keys, "{info} info", "{help} help", "{command} cmds", "q quit")
 	return strings.Join(keys, " · ")
-}
-
-// lockKeys is what the lock key does now, as a key group, or what stands in for it.
-func (m *Model) lockKeys() []string {
-	switch state := m.vaultState(); {
-	case state == control.VaultAbsent:
-		return nil
-	case state == control.VaultLocked:
-		return []string{"{lock} unlock"}
-	case !m.serviceUp():
-		return []string{"ctrl+r retry"}
-	case m.adminActive():
-		return []string{"{lock} end admin"}
-	}
-	return []string{"{lock} admin"}
 }
 
 // areaBody is the area under the tab line. Areas without content show one line.

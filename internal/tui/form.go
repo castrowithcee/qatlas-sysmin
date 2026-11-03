@@ -62,6 +62,13 @@ func choiceRow(key, label string, values, shown []string, sel int) formRow {
 	return formRow{key: key, label: label, choice: true, values: values, shown: shown, sel: sel}
 }
 
+func maskedInput() textinput.Model {
+	in := newTextInput()
+	in.Prompt = ""
+	in.EchoMode = textinput.EchoPassword
+	return in
+}
+
 // maskedRow is a text row whose text is drawn as dots.
 func maskedRow(key, label string) formRow {
 	r := formRow{key: key, label: label, in: maskedInput()}
@@ -164,7 +171,7 @@ func (f *formDlg) wheelRow(up bool) {
 func (m *Model) hitFormWheel(x0, y0, x1, y1 int) {
 	var scroll func(up bool)
 	switch {
-	case m.screen != screenPrompt || m.ov != nil:
+	case m.screen != screenPrompt:
 		return
 	case m.form != nil && m.form.pick != nil:
 		scroll = m.form.pick.wheel

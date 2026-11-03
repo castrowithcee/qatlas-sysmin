@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                  [esc] back  [?] help  [:] cmd
+sysmin                                             [esc] back  [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings 
    Users   Groups  [Folders]  Changes 
 ────────────────────────────────────────────────────────────────────────────────
@@ -21,4 +21,4 @@ Special       setgid: new entries take the group of this folder
 
 
 
-enter edit path  e change  esc back  ctrl+l admin  ? help  : cmds  q quit
+enter edit path  e change  esc back  i info  ? help  : cmds  q quit

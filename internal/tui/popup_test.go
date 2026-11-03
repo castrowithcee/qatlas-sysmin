@@ -3,8 +3,6 @@ package tui
 import (
 	"strings"
 	"testing"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 func TestHelpInfoAndCommandsOpenAndCloseWithEsc(t *testing.T) {
@@ -26,14 +24,14 @@ func TestHelpTogglesWithItsOwnKeyAndNamesTheKeysOfTheScreen(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
 	send(m, "?")
 	view := plain(m)
-	for _, want := range []string{"[keys]", "vault", "admin-session", "unlock", "audit-log", "←/→ area", "Everywhere", "F2 save"} {
+	for _, want := range []string{"[keys]", "audit-log", "host", "←/→ area", "Everywhere", "F2 save"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the help lacks %q:\n%s", want, view)
 		}
 	}
 	send(m, "right")
-	if view := plain(m); !strings.Contains(view, "The vault holds the secrets") {
-		t.Errorf("the vault topic is not shown:\n%s", view)
+	if view := plain(m); !strings.Contains(view, "Every request to the service is logged") {
+		t.Errorf("the audit-log topic is not shown:\n%s", view)
 	}
 	send(m, "?")
 	if m.pop != nil {
@@ -73,7 +71,6 @@ func TestCommandLineChangesAreasAndPages(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
 	for text, check := range map[string]func() bool{
 		"host":              func() bool { return m.area == areaHost },
-		"settings vault":    func() bool { return m.area == areaSettings && m.set.sub == subVault },
 		"Settings   Update": func() bool { return m.area == areaSettings && m.set.sub == subUpdate },
 		"settings":          func() bool { return m.area == areaSettings && m.set.sub == subGeneral },
 		"overview":          func() bool { return m.area == areaOverview },
@@ -88,15 +85,8 @@ func TestCommandLineChangesAreasAndPages(t *testing.T) {
 }
 
 func TestCommandLineRunsTheActionsOfTheKeys(t *testing.T) {
-	fb := newFake(control.VaultUnlocked)
-	m := appModel(t, fb, 80, 24)
+	m := appModel(t, newFake(), 80, 24)
 	send(m, ":")
-	typed(m, "lock")
-	send(m, "enter")
-	if m.ov == nil {
-		t.Error("lock asks for no passphrase")
-	}
-	send(m, "esc", ":")
 	typed(m, "help")
 	send(m, "enter")
 	if m.pop == nil || m.pop.kind != popHelp {
@@ -110,37 +100,12 @@ func TestCommandLineRunsTheActionsOfTheKeys(t *testing.T) {
 	}
 }
 
-func TestCommandLineSetupNeedsNoVault(t *testing.T) {
-	m := appModel(t, newFake(control.VaultAbsent), 80, 24)
-	send(m, ":")
-	typed(m, "setup")
-	send(m, "enter")
-	if m.ov == nil || m.ov.kind != entrySetup {
-		t.Error("setup opens no setup")
-	}
-	m = appModel(t, newFake(control.VaultUnlocked), 80, 24)
-	send(m, ":")
-	typed(m, "setup")
-	send(m, "enter")
-	if m.ov != nil || m.pop == nil || !strings.Contains(plain(m), "setup: A vault exists already.") {
-		t.Errorf("setup with a vault: overlay %v, view:\n%s", m.ov != nil, plain(m))
-	}
-}
-
 func TestPanelKeysDoNotActWhereTextIsTyped(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
 	send(m, ":")
 	typed(m, "?i:q")
 	if m.pop == nil || m.pop.kind != popCommand || m.pop.in.Value() != "?i:q" || m.quitting {
 		t.Errorf("the command line did not take its text: %v", m.pop)
-	}
-	send(m, "esc", "ctrl+l")
-	typed(m, "?i:")
-	if m.ov == nil || m.pop != nil || m.screen != screenPrompt {
-		t.Error("the passphrase overlay lets help, info or the command line open")
-	}
-	if strings.Contains(plain(m), "?i:") {
-		t.Error("a typed passphrase is on screen")
 	}
 }
 

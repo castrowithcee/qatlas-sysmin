@@ -3,8 +3,6 @@ package tui
 import (
 	"fmt"
 	"testing"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // overlayCell is a cell inside the wheel area of the panel or the list that is open, and a cell outside it.
@@ -154,7 +152,7 @@ func TestTheWheelBesideTheCommandLineMovesNothing(t *testing.T) {
 // settingsDropdown opens the language list of the settings, whose field the frame draws.
 func settingsDropdown(t *testing.T) *Model {
 	t.Helper()
-	m, _ := settingsModel(t, newFake(control.VaultUnlocked), "general")
+	m, _ := settingsModel(t, newFake(), "general")
 	send(m, "enter")
 	if m.dd == nil {
 		t.Fatal("enter opens no list")

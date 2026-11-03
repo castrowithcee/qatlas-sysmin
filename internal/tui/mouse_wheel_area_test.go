@@ -7,8 +7,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // notch is one notch of the wheel at a place, with the commands it asks for run; the clock moves on first so
@@ -178,9 +176,8 @@ func textSteps(t *testing.T, name string, m *Model, now *time.Time, x, y int, of
 }
 
 func TestTheWheelStepsEachZoneOfTheOverviewForItself(t *testing.T) {
-	fb := overviewFake()
-	fb.unlockMode = control.UnlockHost
-	m := overviewModel(t, fb, 120, 40)
+	m := overviewModel(t, overviewFake(), 120, 40)
+	m.set.upd = updateState{phase: updDone, info: ReleaseInfo{Latest: "v9.9.9"}}
 	m.ovr.zone = ovSteps
 	zone := m.zoneNow()
 	now := wheelClock(m)

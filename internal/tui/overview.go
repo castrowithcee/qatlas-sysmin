@@ -180,19 +180,7 @@ func (m *Model) overviewSteps() []ovItem {
 		}
 		return []ovItem{retry}
 	}
-	st := m.svc.st
 	var steps []ovItem
-	switch st.Vault {
-	case control.VaultAbsent:
-		steps = append(steps, step(statusWarn, tr(tOvSetup), "enter set up",
-			func() tea.Cmd { m.openOverlay(entrySetup, 2, false, nil, false); return nil }))
-	case control.VaultLocked:
-		steps = append(steps, step(statusWarn, tr(tOvUnlockVault), "enter unlock", m.lockKey))
-	}
-	if st.Vault != control.VaultAbsent && (st.Unlock == control.UnlockTPM2 || st.Unlock == control.UnlockHost) {
-		steps = append(steps, step(statusWarn, tr(tOvStepAuto), "enter open",
-			func() tea.Cmd { return m.show(areaSettings, subVault) }))
-	}
 	if latest := m.updateAvailable(); latest != "" {
 		steps = append(steps, step(statusWarn, tr(tOvInstall, latest), "enter update", m.selfUpdate))
 	}

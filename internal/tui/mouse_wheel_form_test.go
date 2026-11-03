@@ -5,8 +5,6 @@ import (
 
 	"testing"
 	"time"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // wheelWalk turns the wheel down until the focus stops, then up until it stops, and returns the places the
@@ -45,24 +43,19 @@ func wheelEnds(t *testing.T, name string, down, up []int, first, last int) {
 }
 
 func TestTheWheelMovesTheFocusOfSettingsFormsAndHoldsAtTheEnds(t *testing.T) {
-	for _, page := range []string{"general", "vault"} {
-		m, _ := settingsModel(t, newFake(control.VaultUnlocked), page)
-		now := wheelClock(m)
-		x, y := wheelCell(t, m, leftArea)
-		focus, last := func() int { return m.set.gen.focus }, genRows-1
-		if page == "vault" {
-			focus, last = func() int { return m.set.vault.focus }, vaultRows-1
-		}
-		down, up := wheelWalk(t, m, now, x, y, focus)
-		wheelEnds(t, page, down, up, 0, last)
-		if len(down) != last || len(up) != last {
-			t.Errorf("%s: the wheel went %v down and %v up, want one row at a time", page, down, up)
-		}
+	m, _ := settingsModel(t, newFake(), "general")
+	now := wheelClock(m)
+	x, y := wheelCell(t, m, leftArea)
+	last := genRows - 1
+	down, up := wheelWalk(t, m, now, x, y, func() int { return m.set.gen.focus })
+	wheelEnds(t, "general", down, up, 0, last)
+	if len(down) != last || len(up) != last {
+		t.Errorf("the wheel went %v down and %v up, want one row at a time", down, up)
 	}
 }
 
 func TestTheWheelOverSettingsKeepsTheZoneAndNeverLeavesForThePageStrip(t *testing.T) {
-	m, _ := settingsModel(t, newFake(control.VaultUnlocked), "general")
+	m, _ := settingsModel(t, newFake(), "general")
 	now := wheelClock(m)
 	send(m, "esc", "esc")
 	if m.zoneNow() != zoneTabs {
@@ -87,7 +80,7 @@ func TestTheWheelOverSettingsKeepsTheZoneAndNeverLeavesForThePageStrip(t *testin
 }
 
 func TestTheWheelRestsWhileAFieldOfSettingsIsEdited(t *testing.T) {
-	m, _ := settingsModel(t, newFake(control.VaultUnlocked), "general")
+	m, _ := settingsModel(t, newFake(), "general")
 	now := wheelClock(m)
 	m.set.gen.focus = genKeys
 	send(m, "enter")
@@ -106,7 +99,7 @@ func TestTheWheelRestsWhileAFieldOfSettingsIsEdited(t *testing.T) {
 }
 
 func TestTheWheelMovesTheFocusOfAFormDialogOverVisibleRowsAndHoldsAtTheEnds(t *testing.T) {
-	m := appModel(t, newFake(control.VaultUnlocked), 80, 24)
+	m := appModel(t, newFake(), 80, 24)
 	now := wheelClock(m)
 	hidden := textRow("hidden", "Hidden", "")
 	hidden.hidden = true
@@ -125,7 +118,7 @@ func TestTheWheelMovesTheFocusOfAFormDialogOverVisibleRowsAndHoldsAtTheEnds(t *t
 }
 
 func TestTheWheelOverTheDimmedBackgroundOfAFormDialogMovesNothing(t *testing.T) {
-	m, _ := settingsModel(t, newFake(control.VaultUnlocked), "general")
+	m, _ := settingsModel(t, newFake(), "general")
 	now := wheelClock(m)
 	m.openForm(&formDlg{title: "Demo", saveText: "{save} save", rows: []formRow{textRow("a", "First", ""), textRow("b", "Second", "")}})
 	m.render()

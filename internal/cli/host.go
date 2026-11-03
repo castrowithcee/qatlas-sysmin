@@ -48,7 +48,7 @@ func newHostCommand(opts *Options) *cobra.Command {
 			"locked or expired and which SSH keys it has are shown only to root; otherwise they are unknown.\n" +
 			"The commands apply, undo and journal change the host and need root; the TUI runs them via sudo.\n" +
 			"See 'sysmin help host-admin'.",
-		Args: gated(opts, noVaultArgs),
+		Args: gated(opts, noArgs),
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			if err := opts.hostEnv().requireAdmin(); err != nil {
 				return err
@@ -88,7 +88,7 @@ func newHostUsersCommand(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "users",
 		Short: "List the local users",
-		Args:  gated(opts, noVaultArgs),
+		Args:  gated(opts, noArgs),
 		RunE: func(c *cobra.Command, _ []string) error {
 			users, err := opts.hostEnv().Host.Users()
 			if err != nil {
@@ -140,7 +140,7 @@ func newHostGroupsCommand(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "groups",
 		Short: "List the local groups",
-		Args:  gated(opts, noVaultArgs),
+		Args:  gated(opts, noArgs),
 		RunE: func(c *cobra.Command, _ []string) error {
 			groups, err := opts.hostEnv().Host.Groups()
 			if err != nil {

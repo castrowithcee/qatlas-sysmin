@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 var cursorProfiles = map[string]colorProfile{"truecolor": profileTrueColor, "16": profile16, "none": profileNone}
@@ -41,25 +39,6 @@ func TestTheCursorStandsInTheFocusedFormField(t *testing.T) {
 		typed(m, "demo-app")
 		if before := cursorBefore(t, m); !strings.HasSuffix(before, "demo-app") {
 			t.Errorf("%s: text before the cursor = %q, want it to end with the value", name, before)
-		}
-	}
-}
-
-func TestTheCursorStandsInThePassphraseDialog(t *testing.T) {
-	for name, p := range cursorProfiles {
-		fb := newFake(control.VaultUnlocked)
-		m := appModel(t, fb, 100, 30)
-		setProfile(p)
-		var done []error
-		drain(m, m.requireAdmin(gated(fb, &done)))
-		if m.ov == nil {
-			t.Fatalf("%s: no passphrase asked", name)
-		}
-		typed(m, "abc")
-		before := cursorBefore(t, m)
-		mask := string(m.ov.inputs[0].EchoCharacter)
-		if mask == "" || !strings.HasSuffix(before, strings.Repeat(mask, 3)) {
-			t.Errorf("%s: text before the cursor = %q, want three mask cells at its end", name, before)
 		}
 	}
 }

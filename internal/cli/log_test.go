@@ -16,7 +16,7 @@ func seedLog(t *testing.T, dir string, signed bool, actions ...string) string {
 	t.Helper()
 	logger := auditlog.New(dir, auditlog.DefaultRetentionDays)
 	if signed {
-		key, err := auditlog.DeriveKey([]byte("invented-vault-key-for-tests-0001"))
+		key, err := auditlog.DeriveKey([]byte("invented-log-key-for-tests-0001"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -59,7 +59,7 @@ func verifyJSON(t *testing.T, args ...string) (int, []verifyRow, string) {
 
 func TestLogVerifyIntactSignedLogReportsSignaturesNotChecked(t *testing.T) {
 	dir := t.TempDir()
-	seedLog(t, dir, true, auditlog.OperationConfigApply, auditlog.OperationVaultLock)
+	seedLog(t, dir, true, auditlog.OperationConfigApply, auditlog.OperationControlStatus)
 
 	code, rows, stderr := verifyJSON(t, "--dir", dir)
 	if code != exitOK || stderr != "" || len(rows) != 1 {
@@ -72,7 +72,7 @@ func TestLogVerifyIntactSignedLogReportsSignaturesNotChecked(t *testing.T) {
 
 func TestLogVerifyUnsignedLogIsIntact(t *testing.T) {
 	dir := t.TempDir()
-	seedLog(t, dir, false, auditlog.OperationConfigApply, auditlog.OperationVaultLock)
+	seedLog(t, dir, false, auditlog.OperationConfigApply, auditlog.OperationControlStatus)
 	code, rows, _ := verifyJSON(t, "--dir", dir)
 	if code != exitOK || len(rows) != 1 || rows[0].Chain != "intact" || rows[0].Signatures != "not checked" {
 		t.Errorf("code = %d, rows = %v", code, rows)
@@ -81,12 +81,12 @@ func TestLogVerifyUnsignedLogIsIntact(t *testing.T) {
 
 func TestLogVerifyBrokenChain(t *testing.T) {
 	dir := t.TempDir()
-	path := seedLog(t, dir, true, auditlog.OperationConfigApply, auditlog.OperationVaultUnlock, auditlog.OperationVaultLock)
+	path := seedLog(t, dir, true, auditlog.OperationConfigApply, auditlog.OperationControlRequest, auditlog.OperationControlStatus)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	changed := strings.Replace(string(data), "vault.unlock", "vault.rekey", 1)
+	changed := strings.Replace(string(data), "control.request", "control.refuse", 1)
 	if err := os.WriteFile(path, []byte(changed), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestLogVerifyCountsDocumentedDamage(t *testing.T) {
 	if err := f.Close(); err != nil {
 		t.Fatal(err)
 	}
-	seedLog(t, dir, false, auditlog.OperationVaultLock)
+	seedLog(t, dir, false, auditlog.OperationControlStatus)
 
 	code, rows, stderr := verifyJSON(t, "--dir", dir)
 	if code != exitOK || stderr != "" || len(rows) != 1 || rows[0].Chain != "intact" || rows[0].Damaged != 1 || rows[0].Entries != 2 {

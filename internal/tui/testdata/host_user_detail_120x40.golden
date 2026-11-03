@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+sysmin                                                                                     [esc] back  [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings 
   [Users]  Groups   Folders   Changes 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -37,4 +37,4 @@ Users (3)                                                         2/2 ╔═ dem
 
 
 
-esc back  ctrl+r read as root  ctrl+l admin  i info  c copy  ? help  : cmds  q quit             ←/→ tab  ↑/↓ scroll  2/2
+esc back  ctrl+r read as root  i info  c copy  ? help  : cmds  q quit                           ←/→ tab  ↑/↓ scroll  2/2

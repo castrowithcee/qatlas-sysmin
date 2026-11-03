@@ -19,7 +19,6 @@ const (
 	actSave      action = "save"
 	actHelp      action = "help"
 	actCommand   action = "command"
-	actLock      action = "lock"
 	actBack      action = "back"
 	actDelete    action = "delete"
 	actForceQuit action = "forcequit"
@@ -93,7 +92,6 @@ var keyDefs = []struct {
 	{actSave, levelGlobal, []string{"f2"}, tKeyHelpSave},
 	{actHelp, levelGlobal, []string{"?"}, tKeyHelpHelp},
 	{actCommand, levelGlobal, []string{":"}, tKeyHelpCommand},
-	{actLock, levelGlobal, []string{"ctrl+l"}, tKeyHelpLock},
 	{actBack, levelGlobal, []string{"esc"}, tKeyHelpBack},
 	{actForceQuit, levelGlobal, []string{"ctrl+c"}, tKeyHelpForceQuit},
 
@@ -157,7 +155,7 @@ var infoExtra string
 
 // userActions maps the rebindable actions of the preferences to the actions of the keymap.
 var userActions = map[string]action{
-	uiprefs.ActionSave: actSave, uiprefs.ActionHelp: actHelp, uiprefs.ActionCommand: actCommand, uiprefs.ActionLock: actLock,
+	uiprefs.ActionSave: actSave, uiprefs.ActionHelp: actHelp, uiprefs.ActionCommand: actCommand,
 }
 
 func init() { uiprefs.Reserved = reservedOwner }
@@ -250,7 +248,7 @@ var footerPlaceholders = []struct {
 	act  action
 }{
 	{"{save}", actSave}, {"{help}", actHelp}, {"{info}", actInfo}, {"{command}", actCommand},
-	{"{lock}", actLock}, {"{back}", actBack}, {"{delete}", actDelete}, {"{copy}", actCopy},
+	{"{back}", actBack}, {"{delete}", actDelete}, {"{copy}", actCopy},
 }
 
 // footerKeys replaces the key placeholders of a footer text with the current key names, so a footer

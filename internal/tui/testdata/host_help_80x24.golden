@@ -1,8 +1,8 @@
-sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+sysmin                                                         [?] help  [:] cmd
    1 Ove╔══════════════════════════════════════════════════════════════╗        
   [Users║ Help                                                         ║        
 ────────║                                                              ║────────
-Users (3║  keys   vault   admin-session   unlock   audit-log  [host]   ║     1/2
+Users (3║  keys   audit-log  [host]                                    ║     1/2
 ╔═══════║                                                              ║═══════╗
 ║   Name║ Host shows the users, groups and folder permissions of this  ║System ║
 ║   ▾ Us║ machine. Admin means sudo rights, Docker is practically      ║       ║

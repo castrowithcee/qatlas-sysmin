@@ -14,33 +14,16 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
-// testPass is the invented passphrase of the fake service.
-const testPass = "correct horse test"
-
-// fakeBackend is a service in memory: a vault with a passphrase and one admin session.
+// fakeBackend is a service in memory.
 type fakeBackend struct {
-	mu        sync.Mutex
-	vault     string
-	pass      string
-	session   bool
-	remaining int64
-	timeout   string
-	down      error
-	calls     []string
-	changes   int
-	// unlockMode is what Status reports as the unlock mode; empty reads as manual.
-	unlockMode string
-	// invalidTimeout makes SetAdminTimeout refuse its input with a problem of the field.
-	invalidTimeout bool
-	// once makes the session cover one change only, like an admin timeout of 0.
-	once bool
+	mu    sync.Mutex
+	down  error
+	calls []string
 	// audit is the state of the log.
 	audit fakeLog
 }
 
-func newFake(vault string) *fakeBackend {
-	return &fakeBackend{vault: vault, pass: testPass, remaining: 900, timeout: "15m0s"}
-}
+func newFake() *fakeBackend { return &fakeBackend{} }
 
 func (f *fakeBackend) record(call string) { f.calls = append(f.calls, call) }
 
@@ -51,122 +34,7 @@ func (f *fakeBackend) Status() (control.StatusResult, error) {
 	if f.down != nil {
 		return control.StatusResult{}, f.down
 	}
-	st := control.StatusResult{Version: "0.0.0-test", Vault: f.vault, AdminTimeout: f.timeout, ConfigDir: "/etc/sysmin-test"}
-	if f.vault != control.VaultAbsent {
-		st.Unlock = control.UnlockManual
-		if f.unlockMode != "" {
-			st.Unlock = f.unlockMode
-		}
-	}
-	if f.session {
-		st.Admin, st.AdminRemaining = true, f.remaining
-		if f.once {
-			st.AdminRemaining = 0
-		}
-	}
-	return st, nil
-}
-
-func (f *fakeBackend) Unlock(pass string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.record("unlock")
-	if pass != f.pass {
-		return &control.Error{Code: control.CodeWrongPassphrase}
-	}
-	f.vault = control.VaultUnlocked
-	return nil
-}
-
-func (f *fakeBackend) OpenSession(pass string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.record("session")
-	if f.vault != control.VaultUnlocked {
-		return &control.Error{Code: control.CodeLocked}
-	}
-	if pass != f.pass {
-		return &control.Error{Code: control.CodeWrongPassphrase}
-	}
-	f.session = true
-	return nil
-}
-
-func (f *fakeBackend) EndSession() error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.record("end")
-	f.session = false
-	return nil
-}
-
-func (f *fakeBackend) CreateVault(pass string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.record("create")
-	if f.vault != control.VaultAbsent {
-		return &control.Error{Code: control.CodeExists}
-	}
-	f.vault, f.pass = control.VaultUnlocked, pass
-	return nil
-}
-
-func (f *fakeBackend) ChangePassphrase(old, next string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.record("passphrase")
-	switch {
-	case !f.session:
-		return &control.Error{Code: control.CodeAdminRequired}
-	case old != f.pass:
-		return &control.Error{Code: control.CodeWrongPassphrase}
-	}
-	f.pass = next
-	return nil
-}
-
-func (f *fakeBackend) SetAdminTimeout(text string) (control.SettingsResult, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.record("timeout " + text)
-	if !f.session {
-		return control.SettingsResult{}, &control.Error{Code: control.CodeAdminRequired}
-	}
-	if f.invalidTimeout {
-		return control.SettingsResult{}, &control.Error{Code: control.CodeInvalid, Problems: []control.Problem{
-			{Field: "vault.admin_timeout", Code: "range", Message: "must not be negative", Hint: "use 0 or a positive duration"}}}
-	}
-	d, err := time.ParseDuration(text)
-	if err != nil {
-		return control.SettingsResult{}, &control.Error{Code: control.CodeBadRequest}
-	}
-	f.timeout = d.String()
-	return control.SettingsResult{AdminTimeout: f.timeout, Explicit: true}, nil
-}
-
-func (f *fakeBackend) Settings() (control.SettingsResult, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.record("settings")
-	if f.down != nil {
-		return control.SettingsResult{}, f.down
-	}
-	return control.SettingsResult{AdminTimeout: f.timeout}, nil
-}
-
-// expire ends the session on the service without the interface hearing of it.
-func (f *fakeBackend) expire() { f.mu.Lock(); f.session = false; f.mu.Unlock() }
-
-// change is a changing call of the fake service: it needs the session.
-func (f *fakeBackend) change(Backend) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.record("change")
-	if !f.session {
-		return &control.Error{Code: control.CodeAdminRequired}
-	}
-	f.changes++
-	return nil
+	return control.StatusResult{Version: "0.0.0-test", ConfigDir: "/etc/sysmin-test"}, nil
 }
 
 func (f *fakeBackend) count(call string) int {
@@ -231,7 +99,7 @@ func send(m *Model, keys ...string) {
 	}
 }
 
-// typed enters text into the focused field of the overlay.
+// typed enters text into the focused field.
 func typed(m *Model, text string) {
 	for _, r := range text {
 		_, cmd := m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
@@ -247,17 +115,6 @@ func clockModel(m *Model, start time.Time) *time.Time {
 }
 
 var errDropped = errors.New("connection dropped")
-
-// spend checks the session for a changing call and uses it up where it covers one change only.
-func (f *fakeBackend) spend() error {
-	if !f.session {
-		return &control.Error{Code: control.CodeAdminRequired}
-	}
-	if f.once {
-		f.session = false
-	}
-	return nil
-}
 
 // fakeLog is the state of the log in the fake service.
 type fakeLog struct {

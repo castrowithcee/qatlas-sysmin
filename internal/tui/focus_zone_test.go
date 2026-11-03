@@ -3,8 +3,6 @@ package tui
 import (
 	"strings"
 	"testing"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // headerOf is the first row of the frame, where the back button stands.
@@ -224,7 +222,7 @@ func TestUpOnTheFirstRowLeadsToTheBarAndListsStopAtTheEnds(t *testing.T) {
 		t.Errorf("up on the first step of the overview reaches %v", m.zoneNow())
 	}
 
-	m, _ = settingsModel(t, newFake(control.VaultUnlocked), "general")
+	m, _ = settingsModel(t, newFake(), "general")
 	send(m, "end", "down")
 	if m.set.gen.focus != genRows-1 {
 		t.Errorf("down past the last row of General reaches %d", m.set.gen.focus)
@@ -238,14 +236,14 @@ func TestUpOnTheFirstRowLeadsToTheBarAndListsStopAtTheEnds(t *testing.T) {
 // Moving over Settings on the tab line asks nothing while it holds nothing unsaved, and the usual question
 // when it does.
 func TestCyclingOverSettingsAsksOnlyAboutUnsavedInput(t *testing.T) {
-	m := appModel(t, newFake(control.VaultUnlocked), 80, 24)
+	m := appModel(t, newFake(), 80, 24)
 	send(m, "left", "left", "right", "right")
 	if m.screen != screenArea || m.leave != nil || m.area != areaOverview {
 		t.Errorf("cycling over unchanged Settings asks: screen %v, area %v", m.screen, m.area)
 	}
 
-	m, _ = settingsModel(t, newFake(control.VaultUnlocked), "vault")
-	send(m, "down", "enter")
+	m, _ = settingsModel(t, newFake(), "general")
+	send(m, "down", "down", "down", "enter")
 	typed(m, "5")
 	send(m, "esc")
 	if !m.settingsDirty() {

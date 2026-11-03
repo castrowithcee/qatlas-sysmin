@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/autounlock"
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 	"github.com/castrowithcee/qatlas-sysmin/internal/output"
@@ -31,8 +30,6 @@ type Options struct {
 	// Redactor removes secret values from anything the process prints.
 	Redactor *redact.Redactor
 
-	// binder builds the vault binder; nil means the real one. Tests set it.
-	binder func(dir string) *autounlock.Binder
 	// resolver answers the service's peer check; nil means the system's groups. Tests set it.
 	resolver daemon.Resolver
 	// sys supplies the host access of update and uninstall; nil means the real host. Tests set it.
@@ -121,7 +118,6 @@ func newRootCommand(opts *Options) *cobra.Command {
 
 	cmd.AddCommand(newVersionCommand(opts))
 	cmd.AddCommand(newLogCommand(opts))
-	cmd.AddCommand(newVaultCommand(opts))
 	cmd.AddCommand(newRunCommand(opts), newStatusCommand(opts), newHostCommand(opts))
 	cmd.AddCommand(newTUICommand(opts))
 	cmd.AddCommand(newUpdateCommand(opts), newUninstallCommand(opts))

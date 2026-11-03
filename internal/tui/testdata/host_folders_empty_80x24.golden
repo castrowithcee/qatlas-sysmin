@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                  [esc] back  [?] help  [:] cmd
+sysmin                                             [esc] back  [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings 
 >  Users   Groups  [Folders]  Changes 
 ────────────────────────────────────────────────────────────────────────────────
@@ -21,4 +21,4 @@ Type a path and press enter to see who may read and write it.
 
 
 
-←/→ page  ↓ open  esc back  ctrl+l admin  i info  ? help  : cmds  q quit
+←/→ page  ↓ open  esc back  i info  ? help  : cmds  q quit

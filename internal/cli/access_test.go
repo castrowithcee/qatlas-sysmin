@@ -26,7 +26,7 @@ func (outsideGroups) PeerGroups(daemon.Peer) ([]uint32, error) { return nil, nil
 const reservedLine = "sysmin is reserved for administrators (sudo)\n"
 
 func TestCommandsSayReservedOnANotAdminAnswer(t *testing.T) {
-	sock, _, _ := startServiceCfg(t, false, nil, func(c *service.Config) { c.Resolver = notAdminGroups{} })
+	sock := startServiceCfg(t, func(c *service.Config) { c.Resolver = notAdminGroups{} })
 	code, stdout, stderr := runCLIArgs("status", "--socket", sock)
 	if code != exitRuntime || stdout != "" || stderr != reservedLine {
 		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
@@ -34,7 +34,7 @@ func TestCommandsSayReservedOnANotAdminAnswer(t *testing.T) {
 }
 
 func TestCommandsNameTheStandingOnARefusedAnswer(t *testing.T) {
-	sock, _, _ := startServiceCfg(t, false, nil, func(c *service.Config) { c.Resolver = outsideGroups{} })
+	sock := startServiceCfg(t, func(c *service.Config) { c.Resolver = outsideGroups{} })
 	for _, tc := range []struct {
 		name           string
 		admin, enabled bool

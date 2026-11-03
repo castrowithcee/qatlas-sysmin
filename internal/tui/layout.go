@@ -6,7 +6,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
@@ -140,8 +139,8 @@ func (m *Model) headerStatus() []string {
 	return []string{name}
 }
 
-// serviceHeader is the header of the service interface: at the left the name and the marks of the vault and
-// the admin session, at the right the back button and the keys of help and commands. It stays one row. Where
+// serviceHeader is the header of the service interface: at the left the name and the update mark, at the
+// right the back button and the keys of help and commands. It stays one row. Where
 // the row is too narrow, the parts give way in a fixed order: first the marks shrink to short words and then
 // go, then the key hints, then the back button; the name stays.
 func (m *Model) serviceHeader(width int) ([]string, navSpan) {
@@ -151,7 +150,7 @@ func (m *Model) serviceHeader(width int) ([]string, navSpan) {
 			return []string{placed}, span
 		}
 	}
-	line, _ := fitParts(m.headerMarks(3), width)
+	line, _ := fitParts(m.headerMarks(2), width)
 	return []string{line}, navSpan{}
 }
 
@@ -182,18 +181,18 @@ func (m *Model) headerCombos(back string) []headerCombo {
 	var combos []headerCombo
 	if back != "" && hints != "" {
 		right := headerRight{text: back + headerSep + hints, back: navSpan{0, lipgloss.Width(back)}}
-		for level := 0; level <= 3; level++ {
+		for level := 0; level <= 2; level++ {
 			combos = append(combos, headerCombo{level, right})
 		}
 	}
 	if hints != "" && back == "" {
-		for level := 0; level <= 3; level++ {
+		for level := 0; level <= 2; level++ {
 			combos = append(combos, headerCombo{level, headerRight{text: hints}})
 		}
 	}
 	if back != "" {
 		right := headerRight{text: back, back: navSpan{0, lipgloss.Width(back)}}
-		for level := 0; level <= 3; level++ {
+		for level := 0; level <= 2; level++ {
 			combos = append(combos, headerCombo{level, right})
 		}
 	}
@@ -215,11 +214,10 @@ func placeBlock(line string, block headerRight, width int) (string, navSpan, boo
 }
 
 // headerMarks are the left parts of the header at a level: 0 names the states in full, 1 in short words,
-// 2 leaves out the admin mark, 3 is the name alone. The marks pair a symbol with a word, so no state rests on
-// its colour.
+// 2 is the name alone. The marks pair a symbol with a word, so no state rests on its colour.
 func (m *Model) headerMarks(level int) []string {
 	parts := m.stateMarks(level)
-	if latest := m.updateAvailable(); latest != "" && level < 3 {
+	if latest := m.updateAvailable(); latest != "" && level < 2 {
 		text := tr(tUpdHeader, latest)
 		if level >= 1 {
 			text = tr(tUpdHeaderShort)
@@ -229,10 +227,10 @@ func (m *Model) headerMarks(level int) []string {
 	return parts
 }
 
-// stateMarks are the marks of the service, the vault and the admin session at a level of headerMarks.
+// stateMarks are the marks of the service at a level of headerMarks.
 func (m *Model) stateMarks(level int) []string {
 	parts := m.headerStatus()
-	if level >= 3 {
+	if level >= 2 {
 		return parts
 	}
 	short := level >= 1
@@ -250,24 +248,5 @@ func (m *Model) stateMarks(level int) []string {
 	case !m.svc.reachable:
 		return append(parts, statusMark(statusFail, pick(tServiceDown, tServiceDownShort)))
 	}
-	switch m.svc.st.Vault {
-	case control.VaultAbsent:
-		return append(parts, statusMark(statusWarn, tr(tVaultNone)))
-	case control.VaultLocked:
-		parts = append(parts, statusMark(statusWarn, pick(tVaultLocked, tVaultLockedShort)))
-	case control.VaultUnlocked:
-		parts = append(parts, statusMark(statusOK, pick(tVaultOpen, tVaultOpenShort)))
-	default:
-		parts = append(parts, statusMark(statusWarn, tr(tErrService)))
-	}
-	if level >= 2 {
-		return parts
-	}
-	switch {
-	case m.adminOnce():
-		return append(parts, statusMark(statusOK, tr(tAdminOnce)))
-	case m.adminActive():
-		return append(parts, statusMark(statusOK, tr(map[bool]textID{false: tAdminLeft, true: tAdminLeftShort}[short], m.adminMinutes())))
-	}
-	return append(parts, statusMark(statusDim, tr(tAdminOff)))
+	return parts
 }

@@ -16,10 +16,10 @@ func newUninstallCommand(opts *Options) *cobra.Command {
 		Use:   "uninstall",
 		Short: "Remove the sysmin installation from this host",
 		Long: "uninstall stops and disables the service and removes its unit, the program, and the user and\n" +
-			"group sysmin. The configuration and state directories, which hold the vault, stay in place unless\n" +
+			"group sysmin. The configuration and state directories stay in place unless\n" +
 			"--purge is given. Parts that are already gone are skipped. It needs root and asks for\n" +
 			"confirmation on a terminal; --yes confirms.",
-		Args: noVaultArgs,
+		Args: noArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			s := opts.system()
 			if err := requireRoot(s, "uninstall"); err != nil {
@@ -28,10 +28,10 @@ func newUninstallCommand(opts *Options) *cobra.Command {
 			if err := requireConfirmation(s, c.InOrStdin(), yes, "uninstall"); err != nil {
 				return err
 			}
-			question := "Remove sysmin: the service, its unit, the program, and the user and group sysmin. The vault and configuration stay in place."
+			question := "Remove sysmin: the service, its unit, the program, and the user and group sysmin. Its configuration and state stay in place."
 			if purge {
 				question = "Remove sysmin including its data: the service, its unit, the program, the user and group sysmin, and " +
-					"ALL of its configuration and state, the vault included. This cannot be undone."
+					"ALL of its configuration and state. This cannot be undone."
 			}
 			ok, err := confirm(c, yes, question)
 			if err != nil {
@@ -49,7 +49,7 @@ func newUninstallCommand(opts *Options) *cobra.Command {
 			}})
 		},
 	}
-	cmd.Flags().BoolVar(&purge, "purge", false, "also remove the configuration and state directories, the vault included")
+	cmd.Flags().BoolVar(&purge, "purge", false, "also remove the configuration and state directories")
 	cmd.Flags().BoolVar(&yes, "yes", false, "confirm without asking")
 	return cmd
 }

@@ -6,8 +6,6 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // settingsBody is the page of Settings under the bars of the frame.
@@ -17,12 +15,10 @@ func (m *Model) settingsBody() string {
 	switch m.set.sub {
 	case subGeneral:
 		m.generalPage(pg)
-	case subVault:
-		m.vaultPage(pg)
 	default:
 		m.updatePage(pg)
 	}
-	if m.set.sub == subGeneral || m.set.sub == subVault {
+	if m.set.sub == subGeneral {
 		m.addWheel(0, m.workspaceTop(), m.usable(0), pg.y, m.wheelSettings)
 	}
 	return strings.Join(pg.lines, "\n")
@@ -34,11 +30,8 @@ func (m *Model) wheelSettings(up bool) tea.Cmd {
 	if m.set.editing {
 		return nil
 	}
-	switch m.set.sub {
-	case subGeneral:
+	if m.set.sub == subGeneral {
 		m.set.gen.focus = wheelStep(m.set.gen.focus, 0, genRows, up)
-	case subVault:
-		m.set.vault.focus = wheelStep(m.set.vault.focus, 0, vaultRows, up)
 	}
 	return nil
 }
@@ -89,8 +82,8 @@ func labelWidth(labels []string) int {
 func (m *Model) generalPage(p *pageDraw) {
 	g := &m.set.gen
 	labels := []string{tr(tLblLanguage), tr(tLblTheme), tr(tLblMouse), tr(tLblKeySave), tr(tLblKeyHelp), tr(tLblKeyCommand),
-		tr(tLblKeyLock), tr(tLblKeyInfo)}
-	// The actions come in the order of uiprefs.Actions: save, help, command, lock, info.
+		tr(tLblKeyInfo)}
+	// The actions come in the order of uiprefs.Actions: save, help, command, info.
 	lw := labelWidth(labels)
 	values := []string{g.language, g.theme, g.mouse}
 	ids := []string{"language", "theme", "mouse"}
@@ -124,36 +117,6 @@ func (m *Model) keyField(label string, lw int, in *textinput.Model, focused bool
 		value = "-"
 	}
 	return head + truncateCells(value, max(room-lipgloss.Width(head), 1))
-}
-
-func (m *Model) vaultPage(p *pageDraw) {
-	v := &m.set.vault
-	labels := []string{tr(tLblPassphrase), tr(tLblAdminTimeout), tr(tOvUnlock)}
-	lw := labelWidth(labels)
-	room := m.usable(0) - 2
-	p.row(barMarker(v.focus == vaultPass)+m.textRow(labels[0], lw, "[ "+tr(tValChange)+" ]", v.focus == vaultPass, room),
-		vaultPass, &v.focus)
-
-	focused := v.focus == vaultTimeout
-	timeout := m.keyField(labels[1], lw, &v.timeout, focused, room)
-	if !v.explicit && v.loaded != "" && !m.vaultDirty() {
-		timeout += " " + styles.hint.Render(tr(tValDefault))
-	}
-	p.row(barMarker(focused)+timeout, vaultTimeout, &v.focus)
-	p.problem(v.problem)
-
-	unlock := tr(tValUnknown)
-	switch m.svc.st.Unlock {
-	case control.UnlockManual:
-		unlock = tr(tValManual)
-	case control.UnlockTPM2:
-		unlock = tr(tValAutoTPM)
-	case control.UnlockHost:
-		unlock = tr(tValAutoHost)
-	}
-	p.row(barMarker(v.focus == vaultUnlock)+m.textRow(labels[2], lw, unlock, v.focus == vaultUnlock, room),
-		vaultUnlock, &v.focus)
-	p.add(m.indented(tr(tBindHint)))
 }
 
 // textRow is a read-only line of a page: the label on the field surface of a focused row, then the value.

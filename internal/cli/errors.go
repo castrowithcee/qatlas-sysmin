@@ -2,6 +2,9 @@ package cli
 
 import (
 	"errors"
+	"fmt"
+
+	"github.com/spf13/cobra"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/output"
 )
@@ -58,3 +61,10 @@ func exitCode(err error) int {
 type plainError struct{ msg string }
 
 func (e *plainError) Error() string { return e.msg }
+
+func noArgs(_ *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		return newSyntaxError(fmt.Errorf("unexpected argument %q", args[0]))
+	}
+	return nil
+}

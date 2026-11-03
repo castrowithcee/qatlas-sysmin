@@ -12,8 +12,6 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate"
 )
 
-const lockedNotice = "The service restarts and the vault is locked afterwards unless automatic unlock is set up."
-
 func newUpdateCommand(opts *Options) *cobra.Command {
 	var to, apiURL string
 	var list, yes bool
@@ -26,9 +24,9 @@ func newUpdateCommand(opts *Options) *cobra.Command {
 			"shows the signed releases that can be chosen, prereleases included.\n" +
 			"The signature over the release's checksums.txt is verified against the release keys built into\n" +
 			"sysmin, then the archive's SHA-256 checksum; any failure leaves the installation unchanged.\n" +
-			"Installing needs root. The service restarts afterwards and the vault is locked again unless\n" +
-			"automatic unlock is set up, so update asks for confirmation on a terminal; --yes confirms.",
-		Args: noVaultArgs,
+			"Installing needs root. The service restarts afterwards, so update asks for confirmation on a\n" +
+			"terminal; --yes confirms.",
+		Args: noArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			return runUpdate(c, opts, updateRequest{to: to, list: list, yes: yes, apiURL: apiURL})
 		},
@@ -96,7 +94,7 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 	if target.Older {
 		action = "Roll back"
 	}
-	ok, err := confirm(c, req.yes, fmt.Sprintf("%s sysmin from %s to %s. %s", action, version, target.Version, lockedNotice))
+	ok, err := confirm(c, req.yes, fmt.Sprintf("%s sysmin from %s to %s. The service restarts.", action, version, target.Version))
 	if err != nil {
 		return err
 	}

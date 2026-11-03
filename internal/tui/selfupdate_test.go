@@ -5,15 +5,13 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // updateModel is the interface right after its start, with release v0.1.1 newer than the running v0.1.0.
 func updateModel(t *testing.T, info ReleaseInfo) (*Model, *int) {
 	t.Helper()
 	var calls int
-	m := appModel(t, newFake(control.VaultUnlocked), 120, 24)
+	m := appModel(t, newFake(), 120, 24)
 	m.version, m.releases = "v0.1.0", releases(info, nil, &calls)
 	drain(m, m.Init())
 	return m, &calls

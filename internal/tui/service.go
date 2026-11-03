@@ -10,9 +10,9 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
-// The intervals of the header. The countdown of the admin session runs locally; the service is asked every
-// pollEvery at most, which stays below the idle limit of its connections and keeps its log short, because
-// every request is a log entry there. They are variables only so a test can change them.
+// The intervals of the header. The service is asked every pollEvery at most, which stays below the idle limit
+// of its connections and keeps its log short, because every request is a log entry there. They are variables
+// only so a test can change them.
 var (
 	tickEvery = 10 * time.Second
 	pollEvery = 60 * time.Second
@@ -42,7 +42,7 @@ type statusMsg struct {
 	err error
 }
 
-// tickMsg drives the countdown and the periodic Status.
+// tickMsg drives the periodic Status.
 type tickMsg struct{}
 
 func tickCmd() tea.Cmd { return tea.Tick(tickEvery, func(time.Time) tea.Msg { return tickMsg{} }) }
@@ -107,46 +107,13 @@ func (m *Model) takeTick() tea.Cmd {
 // serviceUp reports whether the last Status was answered.
 func (m *Model) serviceUp() bool { return m.svc.known && m.svc.reachable }
 
-// vaultState is the vault state of the last answer, "" while the service is unknown or unreachable.
-func (m *Model) vaultState() string {
-	if !m.serviceUp() {
-		return ""
-	}
-	return m.svc.st.Vault
-}
-
-// adminLeft is how long the admin session of this window still lasts, counted down locally from the last
-// answer; zero for none, and for a session that covers one change only (see adminOnce).
-func (m *Model) adminLeft() time.Duration {
-	if !m.svc.reachable || !m.svc.st.Admin || m.svc.st.AdminRemaining <= 0 {
-		return 0
-	}
-	left := time.Duration(m.svc.st.AdminRemaining)*time.Second - m.timeNow().Sub(m.svc.at)
-	return max(left, 0)
-}
-
-// adminOnce reports a session that covers exactly one change: the admin timeout is 0.
-func (m *Model) adminOnce() bool {
-	return m.svc.reachable && m.svc.st.Admin && m.svc.st.AdminRemaining <= 0
-}
-
-// adminActive reports whether a change would meet an admin session now, as far as the interface knows. The
-// service has the last word: a change it refuses as admin-required asks for the passphrase again.
-func (m *Model) adminActive() bool { return m.adminLeft() > 0 || m.adminOnce() }
-
-// adminMinutes is the remaining time in whole minutes, rounded up, so a session never reads 0 while it lasts.
-func (m *Model) adminMinutes() int {
-	left := m.adminLeft()
-	return int((left + time.Minute - 1) / time.Minute)
-}
-
 // isDenied reports whether err says the caller may not use sysmin.
 func isDenied(err error) bool {
 	return errors.Is(err, client.ErrReserved) || errors.Is(err, client.ErrNotEnabled)
 }
 
 // errorText is the fixed, short text of a failure. It never repeats what the service or the system said, so a
-// passphrase cannot reach the screen through it.
+// secret cannot reach the screen through it.
 func errorText(err error) string {
 	switch {
 	case errors.Is(err, client.ErrReserved):
@@ -168,16 +135,6 @@ func errorText(err error) string {
 		return tr(tErrUnreachable)
 	}
 	switch ce.Code {
-	case control.CodeWrongPassphrase:
-		return tr(tErrWrongPassphrase)
-	case control.CodeLocked:
-		return tr(tErrLocked)
-	case control.CodeAdminRequired:
-		return tr(tErrAdminRequired)
-	case control.CodeVaultAbsent:
-		return tr(tErrVaultAbsent)
-	case control.CodeExists:
-		return tr(tErrExists)
 	case control.CodeBusy:
 		return tr(tErrBusy)
 	case control.CodeTimeout:
@@ -186,12 +143,6 @@ func errorText(err error) string {
 		return tr(tErrInvalid)
 	}
 	return tr(tErrService)
-}
-
-// isCode reports whether err is a failure of the service with the given code.
-func isCode(err error, code string) bool {
-	var ce *control.Error
-	return errors.As(err, &ce) && ce.Code == code
 }
 
 // listsCmd reads the log when its page is shown and has not been read yet.

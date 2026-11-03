@@ -4,8 +4,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 func commandNames(list []command) []string {
@@ -61,8 +59,6 @@ func TestCommandSuggestionsMatchPrefixWordAliasAndCase(t *testing.T) {
 		{"", "go overview"},
 		{"QU", "quit"},
 		{"exit", "quit"},
-		{"lock", "admin session"},
-		{"unlock", "admin session"},
 		{"refresh", "reload"},
 		{"upgrade", "update"},
 		{"settings", "go settings"},
@@ -108,7 +104,7 @@ func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
 			if !strings.Contains(line, "Show Overview") || !strings.Contains(line, " 1 │") {
 				t.Errorf("row lacks description or key: %q", line)
 			}
-		case strings.Contains(line, "go settings vault"):
+		case strings.Contains(line, "go settings update"):
 			t.Errorf("a hidden page is listed: %q", line)
 		}
 	}
@@ -118,7 +114,7 @@ func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
 func TestEmptyLineKeysFollowTheBindingAndDescriptionsNameNoKey(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
 	keys := map[string]string{"go overview": "1", "go settings": "4",
-		"admin session": keyLabel(actLock), "reload": keyLabel(actReload),
+		"reload": keyLabel(actReload),
 		"update": keyLabel(actSelfUpdate), "help": keyLabel(actHelp), "info": keyLabel(actInfo), "quit": keyLabel(actQuit)}
 	for _, c := range matchCommands(m.commands(), "") {
 		want, has := keys[c.name]
@@ -129,7 +125,7 @@ func TestEmptyLineKeysFollowTheBindingAndDescriptionsNameNoKey(t *testing.T) {
 		if has && got != want {
 			t.Errorf("%s: key %q, want %q", c.name, got, want)
 		}
-		if !has && got != "" && c.name != "setup" && !strings.HasPrefix(c.name, "go ") {
+		if !has && got != "" && !strings.HasPrefix(c.name, "go ") {
 			t.Errorf("%s: unexpected key %q", c.name, got)
 		}
 		for _, word := range strings.Fields(strings.ToLower(c.desc)) {
@@ -141,7 +137,7 @@ func TestEmptyLineKeysFollowTheBindingAndDescriptionsNameNoKey(t *testing.T) {
 }
 
 func TestPaletteScrollKeepsTheChoiceVisible(t *testing.T) {
-	m := appModel(t, overviewFake(), 80, 20)
+	m := appModel(t, overviewFake(), 60, 14)
 	send(m, ":")
 	all := matchCommands(m.commands(), "")
 	if len(paletteRows(m)) >= len(all) {
@@ -203,7 +199,6 @@ func TestAreaCommandsActLikeTheDigits(t *testing.T) {
 
 func TestPageAliasesKeepTheOldNamesValid(t *testing.T) {
 	cases := map[string]func(m *Model) bool{
-		"settings vault":    func(m *Model) bool { return m.area == areaSettings && m.set.sub == subVault },
 		"Settings   Update": func(m *Model) bool { return m.area == areaSettings && m.set.sub == subUpdate },
 		"settings general":  func(m *Model) bool { return m.area == areaSettings && m.set.sub == subGeneral },
 		"activity log":      func(m *Model) bool { return m.area == areaActivity && m.act.sub == actLog },
@@ -242,17 +237,15 @@ func TestUnknownCommandNamesTheInputAndTheNextStep(t *testing.T) {
 
 func TestCommandsActOnlyWhereTheirKeyActs(t *testing.T) {
 	overview := appModel(t, overviewFake(), 100, 30)
-	noVault := appModel(t, newFake(control.VaultAbsent), 100, 30)
-	vault := appModel(t, overviewFake(), 100, 30)
-	send(vault, "3")
+	activity := appModel(t, overviewFake(), 100, 30)
+	send(activity, "3")
 
 	cases := []struct {
 		name   string
 		model  *Model
 		reason string
 	}{
-		{"info", vault, ""}, {"help", vault, ""}, {"admin session", vault, ""},
-		{"setup", vault, "A vault exists already."}, {"setup", noVault, ""},
+		{"info", activity, ""}, {"help", activity, ""},
 		{"go overview", overview, ""}, {"reload", overview, ""}, {"regroup", overview, ""}, {"quit", overview, ""},
 	}
 	for _, c := range cases {
@@ -298,8 +291,9 @@ func TestPaletteClickRunsTheRow(t *testing.T) {
 	// A click on a command that cannot run keeps the line and names the reason.
 	m := appModel(t, overviewFake(), 120, 40)
 	send(m, ":")
-	clickOn(t, m, "setup")
-	if m.pop == nil || !strings.Contains(plain(m), "setup: A vault exists already.") {
+	rebind(t, actReload, "x")
+	clickOn(t, m, "reload")
+	if m.pop == nil || !strings.Contains(plain(m), "reload: No key is bound to reload.") {
 		t.Errorf("click on an unavailable row:\n%s", plain(m))
 	}
 }

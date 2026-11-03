@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                              [?] help  [:] cmd
+sysmin                                                         [?] help  [:] cmd
 > [1 Overview]  2 Host   3 Activity   4 Settings 
 ────────────────────────────────────────────────────────────────────────────────
 Overview                                                        Wed, 28 Oct 2026
@@ -21,4 +21,4 @@ sysmin 0.0.0-test  /etc/sysmin-test
 
 
 
-←/→ area  ↓ open  ctrl+l admin  i info  ? help  : cmds  q quit
+←/→ area  ↓ open  i info  ? help  : cmds  q quit

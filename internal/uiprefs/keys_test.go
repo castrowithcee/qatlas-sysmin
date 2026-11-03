@@ -15,7 +15,6 @@ func TestCheckRejectsWithReason(t *testing.T) {
 		{ActionInfo, "i", "already the key of info"},
 		{ActionSave, "?", "already the key of help"},
 		{ActionSave, "x", "acts on text lines"},
-		{ActionLock, "!", "acts on text lines"},
 		{ActionHelp, "ctrl+c", "quits"},
 		{ActionHelp, "esc", "goes back"},
 		{ActionHelp, "tab", "move between fields"},
@@ -24,7 +23,7 @@ func TestCheckRejectsWithReason(t *testing.T) {
 		{ActionInfo, "f5", "terminals take"},
 		{ActionInfo, "f21", "F1 to F20"},
 		{ActionInfo, "ctrl+a", "text lines, the terminal, or a screen"},
-		{ActionLock, "ctrl+r", "text lines, the terminal, or a screen"},
+		{ActionHelp, "ctrl+r", "text lines, the terminal, or a screen"},
 		{ActionSave, "ctrl+t", "text lines, the terminal, or a screen"},
 		{ActionInfo, "j", "acts on text lines"},
 		{ActionInfo, "!", "acts on text lines"},
@@ -79,7 +78,7 @@ func TestKeysSectionRoundTripWritesOnlyChanges(t *testing.T) {
 
 func TestInvalidKeysFallBackWithWarning(t *testing.T) {
 	path := Path(t.TempDir())
-	data := "keys:\n  info: f5\n  save: f3\n  help: f3\n  lock: x\n"
+	data := "keys:\n  info: f5\n  save: f3\n  help: f3\n  command: x\n"
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +90,7 @@ func TestInvalidKeysFallBackWithWarning(t *testing.T) {
 	if len(warnings) != 4 {
 		t.Fatalf("warnings = %v, want one per invalid key", warnings)
 	}
-	for _, w := range []string{"keys.info", "keys.help", "keys.save", "keys.lock"} {
+	for _, w := range []string{"keys.info", "keys.help", "keys.save", "keys.command"} {
 		found := false
 		for _, got := range warnings {
 			found = found || strings.Contains(got, w)
@@ -112,11 +111,11 @@ func TestSaveRefusesInvalidKeys(t *testing.T) {
 
 func TestFileSwapIsValidAsAWhole(t *testing.T) {
 	path := Path(t.TempDir())
-	if err := os.WriteFile(path, []byte("keys:\n  save: ctrl+l\n  lock: ctrl+o\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  save: ctrl+l\n  help: ctrl+o\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	got, warnings := Load(path)
-	if got.Keys.Save != "ctrl+l" || got.Keys.Lock != "ctrl+o" || len(warnings) != 0 {
+	if got.Keys.Save != "ctrl+l" || got.Keys.Help != "ctrl+o" || len(warnings) != 0 {
 		t.Fatalf("keys = %+v, warnings %v; want the swap kept", got.Keys, warnings)
 	}
 }
@@ -125,15 +124,15 @@ func TestFileSwapIsValidAsAWhole(t *testing.T) {
 // action keeps its standard with a warning that names the reason, as for any other key that breaks a rule.
 func TestFileWithPickerKeysFallsBackToTheStandard(t *testing.T) {
 	path := Path(t.TempDir())
-	if err := os.WriteFile(path, []byte("keys:\n  lock: ctrl+r\n  save: ctrl+t\n  help: ctrl+g\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  command: ctrl+r\n  save: ctrl+t\n  help: ctrl+g\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	got, warnings := Load(path)
-	if got.Keys.Lock != DefaultKeys().Lock || got.Keys.Save != DefaultKeys().Save || got.Keys.Help != "ctrl+g" {
-		t.Fatalf("keys = %+v, want the standard for lock and save and the valid help key kept", got.Keys)
+	if got.Keys.Command != DefaultKeys().Command || got.Keys.Save != DefaultKeys().Save || got.Keys.Help != "ctrl+g" {
+		t.Fatalf("keys = %+v, want the standard for command and save and the valid help key kept", got.Keys)
 	}
-	if len(warnings) != 2 || !strings.Contains(warnings[0], "keys.save") || !strings.Contains(warnings[1], "keys.lock") {
-		t.Fatalf("warnings = %v, want one each for lock and save", warnings)
+	if len(warnings) != 2 || !strings.Contains(warnings[0], "keys.save") || !strings.Contains(warnings[1], "keys.command") {
+		t.Fatalf("warnings = %v, want one each for command and save", warnings)
 	}
 	if err := got.Keys.Validate(); err != nil {
 		t.Fatalf("the result is invalid: %v", err)
@@ -142,7 +141,7 @@ func TestFileWithPickerKeysFallsBackToTheStandard(t *testing.T) {
 
 func TestFileCollisionFallsBackConflictFree(t *testing.T) {
 	path := Path(t.TempDir())
-	if err := os.WriteFile(path, []byte("keys:\n  save: f3\n  info: f3\n  lock: f2\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  save: f3\n  info: f3\n  command: f2\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	got, warnings := Load(path)
@@ -154,5 +153,25 @@ func TestFileCollisionFallsBackConflictFree(t *testing.T) {
 	}
 	if got.Keys.Save != "f2" && got.Keys.Save != "f3" {
 		t.Fatalf("keys = %+v", got.Keys)
+	}
+}
+
+func TestFileWithRemovedLockActionLoadsWithWarning(t *testing.T) {
+	path := Path(t.TempDir())
+	if err := os.WriteFile(path, []byte("keys:\n  save: f3\n  lock: ctrl+o\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, warnings := Load(path)
+	if got.Keys.Save != "f3" || got.Keys.Help != DefaultKeys().Help {
+		t.Fatalf("keys = %+v, want the valid entries kept", got.Keys)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "keys.lock") {
+		t.Fatalf("warnings = %v, want one for the removed lock entry", warnings)
+	}
+	if err := Save(path, got); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); strings.Contains(string(data), "lock") {
+		t.Fatalf("saved file still holds lock:\n%s", data)
 	}
 }

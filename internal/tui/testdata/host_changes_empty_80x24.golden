@@ -1,4 +1,4 @@
-sysmin  ● vault open  ● admin off                  [esc] back  [?] help  [:] cmd
+sysmin                                             [esc] back  [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings 
    Users   Groups   Folders  [Changes]
 ────────────────────────────────────────────────────────────────────────────────
@@ -21,4 +21,4 @@ Changes (0)
 
 
 
-enter undo  ctrl+r read as root  esc back  ctrl+l admin  ? help  : cmds  q quit
+enter undo  ctrl+r read as root  / filter  esc back  ? help  : cmds  q quit

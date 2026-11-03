@@ -21,8 +21,6 @@ func keyMsg(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEscape}
 	case "space":
 		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
-	case "ctrl+l":
-		return tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl}
 	case "ctrl+c":
 		return tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	case "up":

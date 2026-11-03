@@ -7,8 +7,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // The command line (':') runs the interface's actions by name. It is a register, not a second set of keys:
@@ -68,23 +66,6 @@ func (m *Model) commands() []command {
 		}
 	}
 	list = append(list,
-		command{name: "admin session", desc: tr(tCmdAdmin), aliases: []string{"lock", "unlock"},
-			shortcut: func() string { return keyLabel(actLock) },
-			run:      func(m *Model) tea.Cmd { return m.lockKey() }},
-		command{name: "setup", desc: tr(tCmdSetup),
-			shortcut: func() string {
-				if m.vaultState() == control.VaultAbsent {
-					return keyLabel(actLock)
-				}
-				return ""
-			},
-			unavailable: func(m *Model) string {
-				if s := m.vaultState(); s != "" && s != control.VaultAbsent {
-					return tr(tErrExists)
-				}
-				return ""
-			},
-			run: func(m *Model) tea.Cmd { return m.lockKey() }},
 		command{name: "reload", desc: tr(tCmdReload), aliases: []string{"refresh"},
 			shortcut: func() string { return keyLabel(actReload) },
 			unavailable: func(m *Model) string {

@@ -23,13 +23,13 @@ func hostChangeEntry(seq uint64, minutes int, action, undoOf string) control.Log
 
 // overviewFake is a service whose log holds two host changes, the newer one the undo of an older action.
 func overviewFake() *fakeBackend {
-	fb := newFake(control.VaultUnlocked)
+	fb := newFake()
 	fb.audit.entries = []control.LogEntry{hostChangeEntry(2, 30, "user.lock", "user.unlock"), hostChangeEntry(1, 26*60, "user.add-key", "")}
 	return fb
 }
 
 // calmFake is a service with nothing to do.
-func calmFake() *fakeBackend { return newFake(control.VaultUnlocked) }
+func calmFake() *fakeBackend { return newFake() }
 
 // calmModel is an Overview whose admins are all enabled: nothing to do.
 func calmModel(t *testing.T, fb *fakeBackend, w, h int) *Model {
@@ -208,12 +208,9 @@ func TestOverviewCardsBecomeATextLineWhereBoxesDoNotFit(t *testing.T) {
 }
 
 func TestOverviewHasNoPermanentHintText(t *testing.T) {
-	auto := overviewFake()
-	auto.unlockMode = control.UnlockHost
-	foreign := newFake(control.VaultUnlocked)
+	foreign := newFake()
 	foreign.down = &client.PeerError{PID: 4321, UID: 1234}
-	fbs := map[string]*fakeBackend{"usual": overviewFake(), "calm": calmFake(), "locked": newFake(control.VaultLocked),
-		"novault": newFake(control.VaultAbsent), "auto": auto, "foreign": foreign}
+	fbs := map[string]*fakeBackend{"usual": overviewFake(), "calm": calmFake(), "foreign": foreign}
 	for name, fb := range fbs {
 		for _, size := range [][2]int{{80, 24}, {120, 40}, {60, 20}} {
 			m := overviewModel(t, fb, size[0], size[1])
@@ -246,17 +243,17 @@ func TestOverviewStepForEveryStateAndEnterTakesIt(t *testing.T) {
 	}
 	states := []state{
 		{"unreachable", func() *fakeBackend {
-			fb := newFake(control.VaultUnlocked)
+			fb := newFake()
 			fb.down = errDropped
 			return fb
 		}, "Retry", retried},
 		{"foreign peer", func() *fakeBackend {
-			fb := newFake(control.VaultUnlocked)
+			fb := newFake()
 			fb.down = &client.PeerError{PID: 4321, UID: 1234}
 			return fb
 		}, "Retry · Another process answers at the socket (pid 4321", nil},
 		{"no group", func() *fakeBackend {
-			fb := newFake(control.VaultUnlocked)
+			fb := newFake()
 			fb.down = fmt.Errorf("cannot reach the service: %w", client.ErrSessionGroup)
 			return fb
 		}, "Restart with group", func(t *testing.T, m *Model, _ *fakeBackend) {
@@ -264,30 +261,9 @@ func TestOverviewStepForEveryStateAndEnterTakesIt(t *testing.T) {
 				t.Errorf("enter does not quit to restart: regroup %v, quitting %v", m.regroupAsked, m.quitting)
 			}
 		}},
-		{"no vault", func() *fakeBackend { return newFake(control.VaultAbsent) }, "Set up vault",
-			func(t *testing.T, m *Model, _ *fakeBackend) {
-				if m.ov == nil || m.ov.kind != entrySetup {
-					t.Error("enter does not open the setup")
-				}
-			}},
-		{"locked vault", func() *fakeBackend { return newFake(control.VaultLocked) }, "Unlock vault",
-			func(t *testing.T, m *Model, _ *fakeBackend) {
-				if m.ov == nil || !m.ov.locked {
-					t.Error("enter does not ask for the passphrase")
-				}
-			}},
 		{"admin without enablement", overviewFake, "Admins to enable: 1", func(t *testing.T, m *Model, _ *fakeBackend) {
 			if m.area != areaHost || m.hst.sub != hostUsers {
 				t.Errorf("enter leads to area %v page %d, want Host, Users", m.area, m.hst.sub)
-			}
-		}},
-		{"auto unlock", func() *fakeBackend {
-			fb := calmFake()
-			fb.unlockMode = control.UnlockTPM2
-			return fb
-		}, "Review auto-unlock", func(t *testing.T, m *Model, _ *fakeBackend) {
-			if m.area != areaSettings || m.set.sub != subVault {
-				t.Errorf("enter leads to area %v page %d, want Settings, Vault", m.area, m.set.sub)
 			}
 		}},
 		{"nothing to do", calmFake, "Nothing to do", func(t *testing.T, m *Model, _ *fakeBackend) {
@@ -332,7 +308,7 @@ func TestOverviewSelfUpdateIsAStep(t *testing.T) {
 	}
 }
 
-func TestOverviewNoAdminSessionIsNoStep(t *testing.T) {
+func TestOverviewWithoutOpenStepsShowsNothingToDo(t *testing.T) {
 	m := calmModel(t, calmFake(), 80, 24)
 	if steps := m.overviewSteps(); len(steps) != 1 || steps[0].label != "Nothing to do" || steps[0].act != nil {
 		t.Errorf("steps %v, want the dimmed Nothing to do alone", steps)
@@ -387,7 +363,7 @@ func TestOverviewFooterNamesTheKeyOfTheFocusedEntry(t *testing.T) {
 	if foot := lastRow(m); strings.Contains(foot, "enter") {
 		t.Errorf("footer on a step without action names enter: %q", foot)
 	}
-	fb := newFake(control.VaultUnlocked)
+	fb := newFake()
 	fb.down = errDropped
 	m = overviewModel(t, fb, 120, 40)
 	send(m, "1")

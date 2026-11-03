@@ -2,33 +2,29 @@ package tui
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
-// Settings has three pages. General is device-local and needs no admin session; Vault changes the service and
-// goes through requireAdmin; Update only looks at the releases.
+// Settings has two pages. General is device-local and needs no service; Update only looks at the releases.
 const (
 	subGeneral = iota
-	subVault
 	subUpdate
 	subCount
 )
 
 // subTitle is the name of a Settings page as drawn.
 func subTitle(sub int) string {
-	return tr([...]textID{tSubGeneral, tSubVault, tSubUpdate}[sub])
+	return tr([...]textID{tSubGeneral, tSubUpdate}[sub])
 }
 
 // subKey is the English name of a Settings page, the one commands are given by.
-func subKey(sub int) string { return [...]string{"general", "vault", "update"}[sub] }
+func subKey(sub int) string { return [...]string{"general", "update"}[sub] }
 
 // ReleaseInfo is the answer of a release lookup: the newest stable release that is newer than the running
 // program, empty when there is none, or Dev for a build that has no release version to compare.
@@ -51,7 +47,6 @@ type settingsState struct {
 	editing bool
 	loaded  bool
 	gen     generalForm
-	vault   vaultForm
 	upd     updateState
 }
 
@@ -61,32 +56,15 @@ const (
 	genTheme
 	genMouse
 	genKeys
-	genRows = genKeys + 5
+	genRows = genKeys + 4
 )
 
 // generalForm is the General page as it is edited.
 type generalForm struct {
 	language, theme, mouse string
-	keys                   [5]textinput.Model
+	keys                   [4]textinput.Model
 	focus                  int
-	problems               [5]string
-}
-
-// Vault rows.
-const (
-	vaultPass = iota
-	vaultTimeout
-	vaultUnlock
-	vaultRows
-)
-
-// vaultForm is the Vault page: the admin timeout is the one text field.
-type vaultForm struct {
-	focus    int
-	timeout  textinput.Model
-	loaded   string
-	explicit bool
-	problem  string
+	problems               [4]string
 }
 
 type updatePhase int
@@ -105,12 +83,7 @@ type updateState struct {
 	seq   int
 }
 
-// settingsMsg is the answer of the settings read; updateMsg of a release lookup.
-type settingsMsg struct {
-	res control.SettingsResult
-	err error
-}
-
+// updateMsg is the answer of a release lookup.
 type updateMsg struct {
 	seq  int
 	info ReleaseInfo
@@ -143,8 +116,6 @@ func (m *Model) loadForms() {
 	for i, a := range uiprefs.Actions {
 		g.keys[i] = keyInput(keys.Get(a))
 	}
-	timeout := m.svc.st.AdminTimeout
-	m.set.vault = vaultForm{timeout: keyInput(timeout), loaded: timeout}
 }
 
 // resetForms drops the forms; the next visit loads them anew.
@@ -174,23 +145,12 @@ func (m *Model) generalDirty() bool {
 	return false
 }
 
-func (m *Model) vaultDirty() bool {
-	v := &m.set.vault
-	return strings.TrimSpace(v.timeout.Value()) != v.loaded
-}
-
 // settingsDirty reports unsaved input on the page shown.
 func (m *Model) settingsDirty() bool {
 	if m.area != areaSettings || !m.set.loaded {
 		return false
 	}
-	switch m.set.sub {
-	case subGeneral:
-		return m.generalDirty()
-	case subVault:
-		return m.vaultDirty()
-	}
-	return false
+	return m.set.sub == subGeneral && m.generalDirty()
 }
 
 // setSub shows page sub of Settings, asking first about unsaved input.
@@ -203,28 +163,6 @@ func (m *Model) setSub(sub int) tea.Cmd {
 		m.clearMessages()
 		return m.enterPage()
 	})
-}
-
-// settingsCmd reads the admin timeout of the service.
-func (m *Model) settingsCmd() tea.Cmd {
-	if m.backend == nil || !m.serviceUp() {
-		return nil
-	}
-	b := m.backend
-	return func() tea.Msg {
-		res, err := b.Settings()
-		return settingsMsg{res, err}
-	}
-}
-
-// takeSettings shows the admin timeout of the service unless the person already changed the field.
-func (m *Model) takeSettings(msg settingsMsg) {
-	if msg.err != nil || !m.set.loaded || m.vaultDirty() {
-		return
-	}
-	v := &m.set.vault
-	v.loaded, v.explicit = msg.res.AdminTimeout, msg.res.Explicit
-	v.timeout.SetValue(msg.res.AdminTimeout)
 }
 
 // checkUpdate looks the releases up in the background. The result of this run is kept; force asks again.
@@ -257,7 +195,7 @@ func (m *Model) takeUpdate(msg updateMsg) {
 // settingsKeys is the key text of the page shown.
 func (m *Model) settingsKeys() []string {
 	switch m.set.sub {
-	case subGeneral, subVault:
+	case subGeneral:
 		return []string{"↑/↓ move", "enter edit", "{save} save"}
 	}
 	return []string{"t check"}
@@ -269,11 +207,8 @@ func (m *Model) settingsKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	if keyIs(key, actSave) {
 		return m.saveCurrent(), true
 	}
-	switch m.set.sub {
-	case subGeneral:
+	if m.set.sub == subGeneral {
 		return m.generalKey(key)
-	case subVault:
-		return m.vaultKey(key)
 	}
 	switch {
 	case keyIs(key, actTest):
@@ -341,31 +276,10 @@ func (m *Model) generalKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, true
 }
 
-func (m *Model) vaultKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
-	v := &m.set.vault
-	if m.formMove(&v.focus, vaultRows, key) {
-		return nil, true
-	}
-	if !keyIs(key, actEnter) {
-		return nil, false
-	}
-	switch v.focus {
-	case vaultPass:
-		m.clearMessages()
-		m.openOverlay(entryChange, 3, m.vaultState() == control.VaultLocked, nil, false)
-	case vaultTimeout:
-		m.startEditing()
-	}
-	return nil, true
-}
-
 // field is the text field under the focus of the page shown, nil when the focus is on none.
 func (m *Model) field() *textinput.Model {
-	switch {
-	case m.set.sub == subGeneral && m.set.gen.focus >= genKeys:
+	if m.set.sub == subGeneral && m.set.gen.focus >= genKeys {
 		return &m.set.gen.keys[m.set.gen.focus-genKeys]
-	case m.set.sub == subVault && m.set.vault.focus == vaultTimeout:
-		return &m.set.vault.timeout
 	}
 	return nil
 }
@@ -393,11 +307,7 @@ func (m *Model) editKey(key tea.KeyPressMsg) tea.Cmd {
 		m.set.editing = false
 		return nil
 	}
-	rows := genRows
-	focus := &m.set.gen.focus
-	if m.set.sub == subVault {
-		rows, focus = vaultRows, &m.set.vault.focus
-	}
+	rows, focus := genRows, &m.set.gen.focus
 	switch {
 	case keyIs(key, actSave):
 		m.stopEditing()
@@ -423,17 +333,14 @@ func (m *Model) editKey(key tea.KeyPressMsg) tea.Cmd {
 // saveCurrent saves the page shown.
 func (m *Model) saveCurrent() tea.Cmd {
 	m.clearMessages()
-	switch m.set.sub {
-	case subGeneral:
+	if m.set.sub == subGeneral {
 		return m.saveGeneral()
-	case subVault:
-		return m.saveTimeout()
 	}
 	return nil
 }
 
-// saveGeneral stores the preferences on this device. It needs no admin session and no service: the file is
-// not part of the configuration. Every key is checked first and a problem stands under its line.
+// saveGeneral stores the preferences on this device. It needs no service: the file is not part of the
+// configuration. Every key is checked first and a problem stands under its line.
 func (m *Model) saveGeneral() tea.Cmd {
 	g := &m.set.gen
 	keys := uiprefs.Keys{}
@@ -477,48 +384,6 @@ func (m *Model) saveGeneral() tea.Cmd {
 	m.loadForms()
 	m.set.gen.focus = focus
 	return query
-}
-
-// saveTimeout sets vault.admin_timeout through the admin session. The duration is the text as typed, "0"
-// included; the service has the last word, and a problem it names stands under the field.
-func (m *Model) saveTimeout() tea.Cmd {
-	v := &m.set.vault
-	v.problem = ""
-	text := strings.TrimSpace(v.timeout.Value())
-	if _, err := time.ParseDuration(text); err != nil {
-		v.problem = tr(tTimeoutBad)
-		return nil
-	}
-	var res control.SettingsResult
-	return m.requireAdmin(change{
-		call: func(b Backend) (err error) { res, err = b.SetAdminTimeout(text); return err },
-		done: func(m *Model, err error) tea.Cmd {
-			v := &m.set.vault
-			var ce *control.Error
-			switch {
-			case err == nil:
-				v.loaded, v.explicit = res.AdminTimeout, res.Explicit
-				v.timeout.SetValue(res.AdminTimeout)
-				m.status = tr(tTimeoutSaved)
-			case errors.As(err, &ce) && ce.Code == control.CodeInvalid && len(ce.Problems) > 0:
-				m.fail, v.problem = "", problemText(ce.Problems)
-			}
-			return nil
-		},
-	})
-}
-
-// problemText is what the service found wrong, with the way out: its causes carry no secret.
-func problemText(problems []control.Problem) string {
-	var parts []string
-	for _, p := range problems {
-		text := p.Message
-		if p.Hint != "" {
-			text += " (" + p.Hint + ")"
-		}
-		parts = append(parts, text)
-	}
-	return strings.Join(parts, "; ")
 }
 
 // leaveAsk is the question before unsaved input is dropped; next is what the person was about to do.

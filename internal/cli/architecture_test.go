@@ -64,8 +64,6 @@ var storeHandles = map[string]map[string]bool{
 var architectureExceptions = []archException{
 	{ruleImports, "internal/cli/run.go", "internal/service", "entry point of the service itself"},
 	{ruleImports, "internal/cli/cli.go", "internal/daemon", "Options field that lets tests replace the service's peer resolver"},
-	{ruleImports, "internal/cli/cli.go", "internal/autounlock", "Options field that lets tests replace the machine-binding helper"},
-	{ruleImports, "internal/cli/vault.go", "internal/autounlock", "root-local machine binding works without the service"},
 }
 
 func TestArchitecture(t *testing.T) {

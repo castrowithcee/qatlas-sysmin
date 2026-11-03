@@ -75,10 +75,6 @@ type Model struct {
 	zone    zone
 	backend Backend
 	svc     svcState
-	// ov is the passphrase overlay drawn as the prompt of screenPrompt, nil while there is none; ovSeq numbers
-	// them.
-	ov    *passEntry
-	ovSeq int
 	// confirm is the question of screenConfirm that waits for y, nil while there is none.
 	confirm *confirmAsk
 	// form is a short form, drawn as the prompt of screenPrompt, nil while there is none.
@@ -202,19 +198,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.takeStatus(msg)
 	case tickMsg:
 		return m, m.takeTick()
-	case verifiedMsg:
-		return m, m.takeVerified(msg)
-	case createdMsg:
-		return m, m.takeCreated(msg)
-	case changeDoneMsg:
-		return m, m.takeChange(msg)
-	case sessionEndedMsg:
-		return m, m.takeSessionEnded(msg)
 	case overviewMsg:
 		m.takeOverview(msg)
-		return m, nil
-	case settingsMsg:
-		m.takeSettings(msg)
 		return m, nil
 	case hostUsersMsg:
 		m.takeHostUsers(msg)
@@ -242,16 +227,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // updateKey handles one key press: first the open dropdown and dialogs, then the list.
 func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	if keyIs(key, actForceQuit) {
-		if m.screen == screenArea && m.ov == nil && m.dd == nil {
+		if m.screen == screenArea && m.dd == nil {
 			return m.guarded(m.quit)
 		}
 		return m.quit()
 	}
 	if m.dd != nil {
 		return m.updateDropdown(key)
-	}
-	if m.ov != nil {
-		return m.updateOverlay(key)
 	}
 	if m.screen == screenPopup {
 		return m.updatePopup(key)
@@ -266,9 +248,6 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 		return m.updateForm(key)
 	}
 	if m.screen == screenArea {
-		if keyIs(key, actLock) {
-			return m.lockKey()
-		}
 		return m.updateArea(key)
 	}
 	switch m.screen {

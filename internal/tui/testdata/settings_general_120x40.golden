@@ -1,6 +1,6 @@
-sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+sysmin                                                                                     [esc] back  [?] help  [:] cmd
    1 Overview   2 Host   3 Activity  [4 Settings]
-  [General]  Vault   Update 
+  [General]  Update 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 >  Language:       english ▾ 
    Theme:          terminal ▾ 
@@ -8,7 +8,6 @@ sysmin  ● vault open  ● admin off                                           
    Save key:       f2
    Help key:       ?
    Command key:    :
-   Lock key:       ctrl+l
    Extra info key: -
 
 
@@ -37,4 +36,5 @@ sysmin  ● vault open  ● admin off                                           
 
 
 
-enter edit  F2 save  esc back  ctrl+l admin  i info  ? help  : cmds  q quit                                     ↑/↓ move
+
+enter edit  F2 save  esc back  i info  ? help  : cmds  q quit                                                   ↑/↓ move

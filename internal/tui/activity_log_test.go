@@ -22,7 +22,7 @@ func utcClock(t *testing.T) {
 
 // testLogEntries is a log of n entries, newest first, with invented values.
 func testLogEntries(n int) []control.LogEntry {
-	actions := []string{"config.read", "host.change", "vault.unlock", "control.refuse", "session.open"}
+	actions := []string{"config.read", "host.change", "control.status", "control.refuse", "config.apply"}
 	start := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
 	var out []control.LogEntry
 	for i := range n {
@@ -65,7 +65,7 @@ func f2(m *Model) {
 
 // activityFake is a service with a short log.
 func activityFake() *fakeBackend {
-	fb := newFake(control.VaultUnlocked)
+	fb := newFake()
 	fb.audit.entries = testLogEntries(12)
 	fb.audit.verify = intactChain()
 	return fb

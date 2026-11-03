@@ -13,7 +13,7 @@ import (
 // The mouse reaches the editor through a list of click targets that the drawing of a frame fills as it goes:
 // every place that draws something clickable says where on the screen it stands and which key press the click
 // stands for. A click then does what that key does, through the same handlers, so every check the key meets
-// (the admin session, the confirmations, the question before unsaved input is dropped) stays in force, and a
+// (the confirmations, the question before unsaved input is dropped) stays in force, and a
 // click is never stronger than its key. A row is only marked by the first click, so that a click that meant to
 // scroll or to take the focus opens nothing; the click on the marked row is the press. Nothing is drawn from the
 // list and nothing is stored beyond one frame.

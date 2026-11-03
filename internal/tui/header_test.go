@@ -8,7 +8,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/i18n"
 )
 
@@ -17,29 +16,29 @@ func lipglossWidth(s string) int { return lipgloss.Width(s) }
 // headerStates puts m into each state the header can show and calls check with its name.
 func headerStates(t *testing.T, check func(name string, m *Model)) {
 	t.Helper()
-	build := func(vault string, mutate func(*fakeBackend)) *Model {
-		fb := newFake(vault)
+	build := func(mutate func(*Model, *fakeBackend)) *Model {
+		fb := newFake()
+		m := appModel(t, fb, 60, 20)
 		if mutate != nil {
-			mutate(fb)
+			mutate(m, fb)
 		}
-		return appModel(t, fb, 60, 20)
+		return m
 	}
-	unknown := appModel(t, newFake(control.VaultUnlocked), 60, 20)
+	unknown := build(nil)
 	unknown.svc = svcState{}
 	states := map[string]*Model{
-		"unknown":     unknown,
-		"unreachable": build(control.VaultUnlocked, func(f *fakeBackend) { f.down = errDropped }),
-		"absent":      build(control.VaultAbsent, nil),
-		"locked":      build(control.VaultLocked, nil),
-		"open":        build(control.VaultUnlocked, nil),
-		"admin":       build(control.VaultUnlocked, func(f *fakeBackend) { f.session, f.remaining = true, 3540 }),
-		"once":        build(control.VaultUnlocked, func(f *fakeBackend) { f.session, f.remaining = true, 0 }),
+		"unknown": unknown,
+		"unreachable": build(func(m *Model, f *fakeBackend) {
+			f.down = errDropped
+			drain(m, m.statusCmd())
+		}),
+		"up": build(nil),
+		"update": build(func(m *Model, _ *fakeBackend) {
+			m.set.upd = updateState{phase: updDone, info: ReleaseInfo{Latest: "9.9.9"}}
+		}),
 	}
 	for name, m := range states {
 		check(name, m)
-		overlay := appModel(t, newFake(control.VaultLocked), 60, 20)
-		send(overlay, "ctrl+l")
-		check("overlay", overlay)
 	}
 }
 
@@ -69,13 +68,9 @@ func TestHeaderStaysOneRowWithTheHelpKeyAtEveryWidth(t *testing.T) {
 func TestHeaderNamesEveryStateInWordsWithoutColour(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 	want := map[string]string{
-		"unknown": "checking", "unreachable": "service unreachable", "absent": "no vault", "locked": "vault locked",
-		"open": "vault open", "admin": "admin 59 min", "once": "admin once",
+		"unknown": "checking", "unreachable": "service unreachable", "up": "sysmin", "update": "9.9.9 available",
 	}
 	headerStates(t, func(name string, m *Model) {
-		if name == "overlay" {
-			return
-		}
 		setProfile(detectProfile(os.Stdout))
 		if currentProfile() != profileNone {
 			t.Fatal("NO_COLOR keeps the colours")
@@ -91,9 +86,9 @@ func TestHeaderNamesEveryStateInWordsWithoutColour(t *testing.T) {
 }
 
 func TestHeaderShortensBeforeItDropsTheKeyHints(t *testing.T) {
-	m := appModel(t, newFake(control.VaultUnlocked), 80, 20)
-	m.svc.st.Admin, m.svc.st.AdminRemaining = true, 900
-	for w, wants := range map[int]string{80: "vault open", 50: "open", 40: "open"} {
+	m := appModel(t, newFake(), 80, 20)
+	m.set.upd = updateState{phase: updDone, info: ReleaseInfo{Latest: "9.9.9"}}
+	for w, wants := range map[int]string{80: "9.9.9 available", 40: "update"} {
 		sizedModel(m, w, 20)
 		row := ansi.Strip(m.headerLines()[0])
 		if !strings.Contains(row, wants) || !strings.Contains(row, "?") {
@@ -102,19 +97,11 @@ func TestHeaderShortensBeforeItDropsTheKeyHints(t *testing.T) {
 	}
 }
 
-func TestHeaderBackButtonIsClickable(t *testing.T) {
-	m := appModel(t, newFake(control.VaultLocked), 80, 16)
-	send(m, "ctrl+l")
-	m.render()
-	if len(m.frameHits) == 0 {
-		t.Fatal("no back button over the overlay")
-	}
-}
-
 func TestGermanHeader(t *testing.T) {
-	m := appModel(t, newFake(control.VaultUnlocked), 80, 20)
+	m := appModel(t, newFake(), 80, 20)
+	m.set.upd = updateState{phase: updDone, info: ReleaseInfo{Latest: "9.9.9"}}
 	useLanguage(t, i18n.German)
-	if row := ansi.Strip(m.headerLines()[0]); !strings.Contains(row, "Tresor offen") || !strings.Contains(row, "Admin aus") || !strings.Contains(row, "Hilfe") {
+	if row := ansi.Strip(m.headerLines()[0]); !strings.Contains(row, "9.9.9 verfügbar") || !strings.Contains(row, "Hilfe") {
 		t.Errorf("header = %q", row)
 	}
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/daemon"
 	"github.com/castrowithcee/qatlas-sysmin/internal/redact"
 	"github.com/castrowithcee/qatlas-sysmin/internal/service"
-	"github.com/castrowithcee/qatlas-sysmin/internal/vault"
 )
 
 type testGroups struct{}
@@ -30,54 +29,23 @@ func runCLIArgs(args ...string) (int, string, string) {
 }
 
 // startService runs the service through runService, as sysmin run does, on temporary directories.
-func startService(t *testing.T, bound bool) string {
+func startService(t *testing.T) string {
 	t.Helper()
-	return startServiceWith(t, bound, nil)
-}
-
-// startServiceWith also lets setup fill the service's configuration directory before it starts.
-func startServiceWith(t *testing.T, bound bool, setup func(configDir string)) string {
-	t.Helper()
-	sock, _, _ := startServiceDirs(t, bound, setup)
-	return sock
-}
-
-// startServiceDirs also returns the state and the configuration directory of the service.
-func startServiceDirs(t *testing.T, bound bool, setup func(configDir string)) (sock, state, configDir string) {
-	t.Helper()
-	return startServiceCfg(t, bound, setup, nil)
+	return startServiceCfg(t, nil)
 }
 
 // startServiceCfg also lets mod change the service's configuration before it starts.
-func startServiceCfg(t *testing.T, bound bool, setup func(configDir string), mod func(*service.Config)) (sock, state, configDir string) {
+func startServiceCfg(t *testing.T, mod func(*service.Config)) string {
 	t.Helper()
-	vault.LowerWorkFactorForTests()
 	t.Setenv("CREDENTIALS_DIRECTORY", "")
 	sockDir, err := os.MkdirTemp("", "sysmin-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(sockDir) })
-	state = t.TempDir()
-	v := vault.New(filepath.Join(state, "vault"))
-	if err := v.Create("example-passphrase-1"); err != nil {
-		t.Fatal(err)
-	}
-	credentials := ""
-	if bound {
-		id, _ := v.Identity()
-		credentials = t.TempDir()
-		if err := os.WriteFile(filepath.Join(credentials, "vault-key"), []byte(id.String()), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	configDir = t.TempDir()
-	if setup != nil {
-		setup(configDir)
-	}
 	cfg := service.Config{
-		ConfigDir: configDir, StateDir: state, SocketPath: filepath.Join(sockDir, "s.sock"),
-		Version: "9.9.9", Resolver: testGroups{}, CredentialsDir: credentials,
+		ConfigDir: t.TempDir(), StateDir: t.TempDir(), SocketPath: filepath.Join(sockDir, "s.sock"),
+		Version: "9.9.9", Resolver: testGroups{},
 	}
 	if mod != nil {
 		mod(&cfg)
@@ -90,45 +58,36 @@ func startServiceCfg(t *testing.T, bound bool, setup func(configDir string), mod
 		// The socket file exists between bind and listen; only a successful dial means the service accepts.
 		if c, err := net.Dial("unix", cfg.SocketPath); err == nil {
 			c.Close()
-			return cfg.SocketPath, state, configDir
+			return cfg.SocketPath
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatal("service did not start")
-	return "", "", ""
+	return ""
 }
 
-func TestStatusAgainstLockedService(t *testing.T) {
-	sock := startService(t, false)
+func TestStatusAgainstService(t *testing.T) {
+	sock := startService(t)
 	code, stdout, stderr := runCLIArgs("status", "--socket", sock, "--output", "json")
 	if code != exitOK {
 		t.Fatalf("code = %d, stderr = %q", code, stderr)
 	}
-	for _, want := range []string{`"version":"9.9.9"`, `"vault":"locked"`, `"unlock":"manual"`, `"socket":"` + sock + `"`} {
+	for _, want := range []string{`"version":"9.9.9"`, `"socket":"` + sock + `"`} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("stdout %q lacks %s", stdout, want)
 		}
 	}
-	code, stdout, _ = runCLIArgs("vault", "status", "--socket", sock, "--output", "compact")
-	if code != exitOK || !strings.Contains(stdout, "locked") {
-		t.Errorf("vault status: code = %d, stdout = %q", code, stdout)
-	}
-}
-
-func TestStatusAgainstUnlockedService(t *testing.T) {
-	sock := startService(t, true)
-	code, stdout, stderr := runCLIArgs("status", "--socket", sock, "--output", "json")
-	if code != exitOK || !strings.Contains(stdout, `"vault":"unlocked"`) || !strings.Contains(stdout, `"warning":"`) {
-		t.Fatalf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	for _, unwanted := range []string{"vault", "unlock", "warning"} {
+		if strings.Contains(stdout, unwanted) {
+			t.Errorf("stdout %q names %s", stdout, unwanted)
+		}
 	}
 }
 
 func TestStatusWithoutService(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "none.sock")
-	for _, args := range [][]string{{"status"}, {"vault", "status"}} {
-		code, stdout, stderr := runCLIArgs(append(args, "--socket", sock)...)
-		if code != exitRuntime || stdout != "" || !strings.Contains(stderr, "cannot reach the service") {
-			t.Errorf("%v: code = %d, stdout = %q, stderr = %q", args, code, stdout, stderr)
-		}
+	code, stdout, stderr := runCLIArgs("status", "--socket", sock)
+	if code != exitRuntime || stdout != "" || !strings.Contains(stderr, "cannot reach the service") {
+		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 }

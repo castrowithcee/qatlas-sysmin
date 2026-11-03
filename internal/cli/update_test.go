@@ -132,7 +132,7 @@ func TestUpdateInstallsThenRestarts(t *testing.T) {
 			t.Errorf("stdout %q lacks %s", stdout, want)
 		}
 	}
-	if !strings.Contains(stderr, "v1.1.0") || !strings.Contains(stderr, "vault is locked") {
+	if !strings.Contains(stderr, "v1.1.0") || !strings.Contains(stderr, "service restarts") {
 		t.Errorf("stderr %q lacks the confirmation text", stderr)
 	}
 }

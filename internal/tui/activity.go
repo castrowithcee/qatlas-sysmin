@@ -42,8 +42,7 @@ const (
 // logActions are the actions of the log the filter offers, in the order of the service's own list.
 var logActions = []string{
 	"config.apply", "config.read",
-	"vault.unlock", "vault.lock", "vault.rekey", "vault.create", "vault.status",
-	"control.request", "control.refuse", "control.status", "session.open", "session.end",
+	"control.request", "control.refuse", "control.status",
 	"host.change",
 }
 

@@ -41,9 +41,6 @@ var helpTopics = []struct {
 	text textID
 }{
 	{"keys", ""},
-	{"vault", tHelpVault},
-	{"admin-session", tHelpAdmin},
-	{"unlock", tHelpUnlock},
 	{"audit-log", tHelpAuditLog},
 	{"host", tHelpHost},
 }
@@ -113,16 +110,11 @@ func (m *Model) infoOf() (string, string) {
 		case subGeneral:
 			g := m.set.gen
 			ids := []textID{tInfoSetLanguage, tInfoSetTheme, tInfoSetMouse}
-			labels := []textID{tLblLanguage, tLblTheme, tLblMouse, tLblKeySave, tLblKeyHelp, tLblKeyCommand, tLblKeyLock, tLblKeyInfo}
+			labels := []textID{tLblLanguage, tLblTheme, tLblMouse, tLblKeySave, tLblKeyHelp, tLblKeyCommand, tLblKeyInfo}
 			if g.focus < len(ids) {
 				return pick(tr(labels[g.focus]), ids[g.focus])
 			}
 			return pick(tr(labels[g.focus]), tInfoSetKey)
-		case subVault:
-			ids := []textID{tInfoSetPassphrase, tInfoSetTimeout, tInfoSetUnlock}
-			labels := []textID{tLblPassphrase, tLblAdminTimeout, tOvUnlock}
-			f := m.set.vault.focus
-			return pick(tr(labels[f]), ids[f])
 		default:
 			return pick(subTitle(subUpdate), tInfoSetUpdate)
 		}
@@ -139,10 +131,10 @@ func (m *Model) helpBody(width int) []string {
 	topic := helpTopics[m.pop.topic]
 	var lines []string
 	if topic.id == "keys" {
-		everywhere := []string{"{help} help", "{command} cmds", "{info} info", "{lock} admin", "{save} save", "{back} back", "q quit"}
+		everywhere := []string{"{help} help", "{command} cmds", "{info} info", "{save} save", "{back} back", "q quit"}
 		lines = append(lines, styles.title.Render(tr(tHelpKeysScreen)))
 		for _, g := range strings.Split(m.areaKeys(), " · ") {
-			if !slices.Contains(everywhere, g) && !strings.HasPrefix(g, "{lock}") {
+			if !slices.Contains(everywhere, g) {
 				lines = append(lines, "  "+truncateCells(footerKeys(g), width-2))
 			}
 		}

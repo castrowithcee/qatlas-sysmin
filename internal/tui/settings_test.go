@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
@@ -20,10 +19,8 @@ func settingsModel(t *testing.T, fb *fakeBackend, page string) (*Model, string) 
 	m.prefsPath = filepath.Join(t.TempDir(), "tui.yaml")
 	send(m, "4")
 	switch page {
-	case "vault":
-		send(m, "esc", "right", "enter")
 	case "update":
-		send(m, "esc", "right", "right", "enter")
+		send(m, "esc", "right", "enter")
 	}
 	return m, m.prefsPath
 }
@@ -42,16 +39,16 @@ func choose(t *testing.T, m *Model, steps int) {
 }
 
 func TestSettingsOpensOnGeneralWithTheThreePages(t *testing.T) {
-	m, _ := settingsModel(t, newFake(control.VaultUnlocked), "general")
+	m, _ := settingsModel(t, newFake(), "general")
 	view := plain(m)
-	for _, want := range []string{"[General]", "Vault", "Update", "Language:", "Theme:", "Mouse:", "Save key:"} {
+	for _, want := range []string{"[General]", "Update", "Language:", "Theme:", "Mouse:", "Save key:"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the General page lacks %q:\n%s", want, view)
 		}
 	}
 	send(m, "esc", "right")
-	if m.set.sub != subVault {
-		t.Errorf("right leads to page %d, want Vault", m.set.sub)
+	if m.set.sub != subUpdate {
+		t.Errorf("right leads to page %d, want Update", m.set.sub)
 	}
 	send(m, "2", "4")
 	if m.set.sub != subGeneral {
@@ -60,7 +57,7 @@ func TestSettingsOpensOnGeneralWithTheThreePages(t *testing.T) {
 }
 
 func TestGeneralSavesToTheFileWithoutTheServiceAndActsAtOnce(t *testing.T) {
-	fb := newFake(control.VaultUnlocked)
+	fb := newFake()
 	m, path := settingsModel(t, fb, "general")
 	calls := len(fb.log())
 	choose(t, m, 1) // language: deutsch
@@ -80,17 +77,14 @@ func TestGeneralSavesToTheFileWithoutTheServiceAndActsAtOnce(t *testing.T) {
 		t.Errorf("the language does not change at once:\n%s", view)
 	}
 	for _, c := range fb.log()[calls:] {
-		if c != "status" && c != "settings" {
+		if c != "status" {
 			t.Errorf("saving the preferences called the service: %v", fb.log()[calls:])
 		}
-	}
-	if fb.session || m.ov != nil {
-		t.Error("saving the preferences asked for an admin session")
 	}
 }
 
 func TestGeneralPicksTheThemeFromAList(t *testing.T) {
-	m, path := settingsModel(t, newFake(control.VaultUnlocked), "general")
+	m, path := settingsModel(t, newFake(), "general")
 	send(m, "down")
 	choose(t, m, 1)
 	if m.set.gen.theme != themes[1].name {
@@ -103,7 +97,7 @@ func TestGeneralPicksTheThemeFromAList(t *testing.T) {
 }
 
 func TestGeneralRebindsAKeyAndRefusesAnInvalidOne(t *testing.T) {
-	m, path := settingsModel(t, newFake(control.VaultUnlocked), "general")
+	m, path := settingsModel(t, newFake(), "general")
 	send(m, "down", "down", "down") // save key
 	send(m, "enter")
 	if !m.set.editing {
@@ -137,166 +131,19 @@ func TestGeneralRebindsAKeyAndRefusesAnInvalidOne(t *testing.T) {
 }
 
 func TestEditingATextFieldTakesQuestionMarksAndLetters(t *testing.T) {
-	m, _ := settingsModel(t, newFake(control.VaultUnlocked), "general")
+	m, _ := settingsModel(t, newFake(), "general")
 	send(m, "end") // the extra info key, the last row
 	send(m, "enter")
 	typed(m, "?q:i")
 	if m.screen != screenArea || m.pop != nil || m.quitting {
 		t.Fatal("a key meant for the text did something else")
 	}
-	if got := m.set.gen.keys[4].Value(); got != "?q:i" {
+	if got := m.set.gen.keys[3].Value(); got != "?q:i" {
 		t.Errorf("field = %q", got)
 	}
 	send(m, "esc")
 	if m.set.editing {
 		t.Error("esc keeps editing")
-	}
-}
-
-func TestVaultTimeoutAsksOnceThenSetsOnce(t *testing.T) {
-	for _, value := range []string{"30m", "0"} {
-		fb := newFake(control.VaultUnlocked)
-		m, _ := settingsModel(t, fb, "vault")
-		if got := m.set.vault.timeout.Value(); got != "15m0s" {
-			t.Fatalf("the field shows %q, want the timeout of the service", got)
-		}
-		send(m, "down", "enter")
-		m.set.vault.timeout.SetValue("")
-		typed(m, value)
-		send(m, "f2")
-		if m.ov == nil || fb.count("timeout "+value) != 0 {
-			t.Fatalf("%s: no passphrase asked before the change (calls %v)", value, fb.log())
-		}
-		typed(m, testPass)
-		send(m, "enter")
-		if n := fb.count("timeout " + value); n != 1 {
-			t.Errorf("%s: SetAdminTimeout ran %d times, want once (calls %v)", value, n, fb.log())
-		}
-		if m.ov != nil || m.set.vault.problem != "" || m.vaultDirty() {
-			t.Errorf("%s: overlay %v, problem %q, dirty %v", value, m.ov != nil, m.set.vault.problem, m.vaultDirty())
-		}
-	}
-}
-
-func TestVaultTimeoutRunsAtOnceWithASession(t *testing.T) {
-	fb := newFake(control.VaultUnlocked)
-	fb.session = true
-	m, _ := settingsModel(t, fb, "vault")
-	send(m, "down", "enter")
-	m.set.vault.timeout.SetValue("")
-	typed(m, "5m")
-	send(m, "f2")
-	if m.ov != nil || fb.count("timeout 5m") != 1 {
-		t.Errorf("overlay %v, calls %v", m.ov != nil, fb.log())
-	}
-	if !strings.Contains(plain(m), "Admin timeout saved.") {
-		t.Errorf("no confirmation:\n%s", plain(m))
-	}
-}
-
-func TestVaultTimeoutShowsAProblemUnderTheField(t *testing.T) {
-	fb := newFake(control.VaultUnlocked)
-	fb.session, fb.invalidTimeout = true, true
-	m, _ := settingsModel(t, fb, "vault")
-	send(m, "down", "enter")
-	m.set.vault.timeout.SetValue("")
-	typed(m, "-5m")
-	send(m, "f2")
-	lines := strings.Split(plain(m), "\n")
-	for i, line := range lines {
-		if strings.Contains(line, "Admin timeout:") {
-			if i+1 >= len(lines) || !strings.Contains(lines[i+1], "must not be negative (use 0 or a positive duration)") {
-				t.Errorf("the problem does not stand under the field:\n%s", plain(m))
-			}
-			return
-		}
-	}
-	t.Errorf("no timeout row:\n%s", plain(m))
-}
-
-func TestVaultTimeoutRefusesWhatIsNoDuration(t *testing.T) {
-	fb := newFake(control.VaultUnlocked)
-	m, _ := settingsModel(t, fb, "vault")
-	send(m, "down", "enter")
-	m.set.vault.timeout.SetValue("soon")
-	send(m, "f2")
-	if m.ov != nil || !strings.Contains(plain(m), "Use a duration such as 15m, or 0.") {
-		t.Errorf("overlay %v:\n%s", m.ov != nil, plain(m))
-	}
-}
-
-func TestVaultShowsTheUnlockModeAndHowToBindIt(t *testing.T) {
-	fb := newFake(control.VaultUnlocked)
-	fb.unlockMode = control.UnlockHost
-	m, _ := settingsModel(t, fb, "vault")
-	if view := plain(m); !strings.Contains(view, "automatic (host key)") || !strings.Contains(view, "sudo sysmin vault bind") {
-		t.Errorf("unlock mode or hint missing:\n%s", view)
-	}
-}
-
-func TestChangePassphraseKeepsTheOverlayOnAWrongCurrentOne(t *testing.T) {
-	fb := newFake(control.VaultUnlocked)
-	m, _ := settingsModel(t, fb, "vault")
-	send(m, "enter")
-	if m.ov == nil || m.ov.kind != entryChange || len(m.ov.inputs) != 3 {
-		t.Fatal("enter on the passphrase row opens no change overlay")
-	}
-	typed(m, "wrong current")
-	send(m, "tab")
-	typed(m, "brand new pass")
-	send(m, "tab")
-	typed(m, "brand new pass")
-	if view := plain(m); strings.Contains(view, "wrong current") || strings.Contains(view, "brand new") {
-		t.Errorf("a passphrase is on screen:\n%s", view)
-	}
-	send(m, "enter")
-	if m.ov == nil || !strings.Contains(plain(m), "Wrong passphrase.") {
-		t.Fatalf("the overlay closed or hides the error:\n%s", plain(m))
-	}
-	if fb.count("passphrase") != 0 || fb.pass != testPass {
-		t.Error("the passphrase changed after a wrong current one")
-	}
-	for _, in := range m.ov.inputs {
-		if in.Value() != "" {
-			t.Error("a field keeps its passphrase after use")
-		}
-	}
-}
-
-func TestChangePassphraseChangesItOnce(t *testing.T) {
-	fb := newFake(control.VaultUnlocked)
-	m, _ := settingsModel(t, fb, "vault")
-	send(m, "enter")
-	typed(m, testPass)
-	send(m, "tab")
-	typed(m, "brand new pass")
-	send(m, "tab")
-	typed(m, "brand new pass")
-	send(m, "enter")
-	if fb.count("passphrase") != 1 || fb.pass != "brand new pass" || m.ov != nil {
-		t.Errorf("calls %v, passphrase %q, overlay %v", fb.log(), fb.pass, m.ov != nil)
-	}
-	if !strings.Contains(plain(m), "Passphrase changed.") {
-		t.Errorf("no confirmation:\n%s", plain(m))
-	}
-}
-
-func TestChangePassphraseRefusesEmptyAndDifferingEntries(t *testing.T) {
-	fb := newFake(control.VaultUnlocked)
-	m, _ := settingsModel(t, fb, "vault")
-	send(m, "enter")
-	typed(m, testPass)
-	send(m, "tab")
-	typed(m, "one")
-	send(m, "tab")
-	typed(m, "other")
-	send(m, "enter")
-	if m.fail != "The passphrases differ." || fb.count("session") != 0 {
-		t.Errorf("fail %q, calls %v", m.fail, fb.log())
-	}
-	send(m, "enter", "enter", "enter")
-	if m.fail != "The passphrase is empty." {
-		t.Errorf("fail %q", m.fail)
 	}
 }
 
@@ -321,9 +168,9 @@ func TestUpdatePageShowsTheLookupOfThisRun(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			var calls int
-			m := appModel(t, newFake(control.VaultUnlocked), 80, 24)
+			m := appModel(t, newFake(), 80, 24)
 			m.version, m.releases = "0.0.0-test", releases(c.info, c.err, &calls)
-			send(m, "4", "esc", "right", "right", "enter")
+			send(m, "4", "esc", "right", "enter")
 			view := plain(m)
 			if calls != 1 || !strings.Contains(view, "0.0.0-test") {
 				t.Errorf("lookups %d:\n%s", calls, view)
@@ -349,7 +196,7 @@ func TestUpdatePageShowsTheLookupOfThisRun(t *testing.T) {
 }
 
 func TestUpdatePageWithoutALookupShowsNoData(t *testing.T) {
-	m, _ := settingsModel(t, newFake(control.VaultUnlocked), "update")
+	m, _ := settingsModel(t, newFake(), "update")
 	if view := plain(m); !strings.Contains(view, "no data") {
 		t.Errorf("no state:\n%s", view)
 	}
@@ -357,7 +204,7 @@ func TestUpdatePageWithoutALookupShowsNoData(t *testing.T) {
 }
 
 func TestLeavingUnsavedInputAsksFirst(t *testing.T) {
-	m, path := settingsModel(t, newFake(control.VaultUnlocked), "general")
+	m, path := settingsModel(t, newFake(), "general")
 	choose(t, m, 1)
 	send(m, "1")
 	if m.screen != screenConfirm || m.area != areaSettings {
@@ -391,7 +238,7 @@ func TestLeavingUnsavedInputAsksFirst(t *testing.T) {
 func TestSettingsPagesFitEverySizeInBothLanguages(t *testing.T) {
 	eachLanguage(t, func(t *testing.T) {
 		for _, size := range [][2]int{{40, 14}, {60, 16}, {80, 24}, {120, 40}} {
-			for _, page := range []string{"general", "vault", "update"} {
+			for _, page := range []string{"general", "update"} {
 				m, _ := settingsModel(t, overviewFake(), page)
 				sizedModel(m, size[0], size[1])
 				assertViewFits(t, plain(m), size[0], size[1])

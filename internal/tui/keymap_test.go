@@ -22,7 +22,7 @@ func rebind(t *testing.T, a action, key string) {
 
 func TestDefaultKeymapKeepsTheKnownKeys(t *testing.T) {
 	want := map[action]string{
-		actInfo: "i", actSave: "f2", actHelp: "?", actCommand: ":", actLock: "ctrl+l", actBack: "esc", actDelete: "d",
+		actInfo: "i", actSave: "f2", actHelp: "?", actCommand: ":", actBack: "esc", actDelete: "d",
 		actForceQuit: "ctrl+c", actUp: "up", actDown: "down", actLeft: "left", actRight: "right", actHome: "home",
 		actEnd: "end", actPageUp: "pgup", actPageDown: "pgdown", actNext: "tab", actPrev: "shift+tab",
 		actVimUp: "k", actVimDown: "j", actVimLeft: "h", actVimRight: "l",

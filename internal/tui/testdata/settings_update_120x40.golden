@@ -1,11 +1,9 @@
-sysmin  ● vault open  ● admin off                                                          [esc] back  [?] help  [:] cmd
+sysmin                                                                                     [esc] back  [?] help  [:] cmd
    1 Overview   2 Host   3 Activity  [4 Settings]
-   General  [Vault]  Update 
+   General  [Update]
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
->  Passphrase:    [ change ]
-   Admin timeout: 15m0s (default)
-   Unlock:        manual
-    Automatic unlock: sudo sysmin vault bind
+● Running:  0.0.0-test
+○ Latest :  no data
 
 
 
@@ -37,4 +35,6 @@ sysmin  ● vault open  ● admin off                                           
 
 
 
-enter edit  F2 save  esc back  ctrl+l admin  i info  ? help  : cmds  q quit                                     ↑/↓ move
+
+
+t check  esc back  i info  ? help  : cmds  q quit

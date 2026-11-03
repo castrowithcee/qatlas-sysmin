@@ -91,9 +91,6 @@ func (m *Model) promptNotes() string {
 
 // prompt is the short input dialog of the current screen, and false for a screen that is none.
 func (m *Model) prompt() (promptDialog, bool) {
-	if m.screen == screenPrompt && m.ov != nil {
-		return m.overlayDialog(), true
-	}
 	if m.screen == screenPrompt && m.form != nil {
 		return m.formDialog(), true
 	}

@@ -28,7 +28,6 @@ type footerItem struct {
 const (
 	footerHelp     = 0 // never dropped
 	footerBack     = 1
-	footerLock     = 2 // the only way to learn the lock key
 	footerPrimary  = 3 // enter, y, n, the delete key, the digits of the areas, the filter key and the bars
 	footerSave     = 4
 	footerCommand  = 5
@@ -58,8 +57,6 @@ func footerGroupRank(group string, index int) (rank int, right bool) {
 		return footerQuit, false
 	case slices.Contains(strings.Split(key, "/"), keyOf(actEnter)) || key == keyOf(actYes) || key == keyOf(actNo) || key == keyOf(actFilter) || key == keyName(keyOf(actDelete)) || isSectionRange(key):
 		return footerPrimary, false
-	case key == keyName(keyOf(actLock)):
-		return footerLock, false
 	case key == keyName(keyOf(actCommand)):
 		return footerCommand, false
 	case key == keyLabel(actInfo) || key == keyName(keyOf(actInfo)):

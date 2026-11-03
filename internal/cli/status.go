@@ -57,7 +57,7 @@ func newStatusCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show the state of the running service",
-		Args:  noVaultArgs,
+		Args:  noArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			var st control.StatusResult
 			err := withService(socket, func(cl *client.Client) (err error) {
@@ -69,36 +69,7 @@ func newStatusCommand(opts *Options) *cobra.Command {
 			}
 			return emit(c, opts, output.Object{Fields: []output.Field{
 				{Name: "version", Value: st.Version},
-				{Name: "vault", Value: st.Vault},
-				{Name: "unlock", Value: st.Unlock},
-				{Name: "warning", Value: st.Warning},
 				{Name: "socket", Value: st.Socket},
-			}})
-		},
-	}
-	cmd.Flags().StringVar(&socket, "socket", control.DefaultSocketPath, "control socket path")
-	return cmd
-}
-
-func newVaultStatusCommand(opts *Options) *cobra.Command {
-	var socket string
-	cmd := &cobra.Command{
-		Use:   "status",
-		Short: "Show whether the service's vault is locked and how it was unlocked",
-		Args:  noVaultArgs,
-		RunE: func(c *cobra.Command, _ []string) error {
-			var st control.VaultStatusResult
-			err := withService(socket, func(cl *client.Client) (err error) {
-				st, err = cl.VaultStatus()
-				return err
-			})
-			if err != nil {
-				return fmt.Errorf("vault status: %w", err)
-			}
-			return emit(c, opts, output.Object{Fields: []output.Field{
-				{Name: "vault", Value: st.Vault},
-				{Name: "unlock", Value: st.Unlock},
-				{Name: "warning", Value: st.Warning},
 			}})
 		},
 	}

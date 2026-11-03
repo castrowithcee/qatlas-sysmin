@@ -99,12 +99,12 @@ func TestBackAndBarClicksUseTheirRows(t *testing.T) {
 	if m.area != areaSettings {
 		t.Fatalf("tab click reached area %v", m.area)
 	}
-	x, y := cellOf(t, m, "Vault")
+	x, y := cellOf(t, m, "Update")
 	if y != 2 {
 		t.Fatalf("the page strip stands in row %d, want 2", y)
 	}
 	clickAt(m, x, y)
-	if m.set.sub != subVault {
+	if m.set.sub != subUpdate {
 		t.Errorf("page strip click reached page %d", m.set.sub)
 	}
 	send(m, "down", "down")

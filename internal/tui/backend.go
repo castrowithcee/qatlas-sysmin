@@ -12,29 +12,16 @@ import (
 // implementation may block; it must serialize its calls, because the connection behind it is not safe for
 // concurrent use. A failure the service reports is a *control.Error.
 type Backend interface {
-	// Status reports the vault and the admin session of this window.
+	// Status reports the state of the service.
 	Status() (control.StatusResult, error)
-	// Unlock opens the vault; OpenSession starts the admin session of this window.
-	Unlock(passphrase string) error
-	OpenSession(passphrase string) error
-	// EndSession ends the admin session of this window.
-	EndSession() error
-	// CreateVault creates the vault with its first passphrase and leaves it unlocked.
-	CreateVault(passphrase string) error
-	// ChangePassphrase replaces the vault passphrase; SetAdminTimeout sets vault.admin_timeout from a duration
-	// text. Both need the admin session.
-	ChangePassphrase(oldPassphrase, newPassphrase string) error
-	SetAdminTimeout(timeout string) (control.SettingsResult, error)
-	// Settings only reads.
-	Settings() (control.SettingsResult, error)
-	// LogEntries and VerifyLog only read and never need the admin session; every call is an entry of the audit
-	// log itself, so none is made on a timer.
+	// LogEntries and VerifyLog only read; every call is an entry of the audit log itself, so none is made on a
+	// timer.
 	LogEntries(p control.LogListParams) (control.LogListResult, error)
 	VerifyLog() (control.LogVerifyResult, error)
 }
 
 // NewBackend is the Backend over the control socket at path. It dials on the first call and again after the
-// connection broke; a new connection starts without an admin session, which is the truth after a loss.
+// connection broke.
 func NewBackend(socket string) *ClientBackend { return &ClientBackend{socket: socket} }
 
 // ClientBackend is a Backend over one connection to the service.
@@ -57,9 +44,9 @@ func (b *ClientBackend) Close() error {
 }
 
 // do runs fn on the connection. A failure that is no answer of the service means the connection is gone or
-// not trustworthy, so it is dropped and the next call dials again. A read-only call may be repeated once on a
-// fresh connection; a changing one never is, because its outcome is not known.
-func (b *ClientBackend) do(repeatable bool, fn func(*client.Client) error) error {
+// not trustworthy, so it is dropped and the next call dials again; the read-only call is repeated once on a
+// fresh connection.
+func (b *ClientBackend) do(fn func(*client.Client) error) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for attempt := 0; ; attempt++ {
@@ -77,53 +64,23 @@ func (b *ClientBackend) do(repeatable bool, fn func(*client.Client) error) error
 		}
 		_ = b.conn.Close()
 		b.conn = nil
-		if !repeatable || attempt > 0 {
+		if attempt > 0 {
 			return err
 		}
 	}
 }
 
 func (b *ClientBackend) Status() (st control.StatusResult, err error) {
-	err = b.do(true, func(c *client.Client) (e error) { st, e = c.Status(); return e })
+	err = b.do(func(c *client.Client) (e error) { st, e = c.Status(); return e })
 	return st, err
 }
 
-func (b *ClientBackend) Unlock(passphrase string) error {
-	return b.do(false, func(c *client.Client) error { return c.Unlock(passphrase) })
-}
-
-func (b *ClientBackend) OpenSession(passphrase string) error {
-	return b.do(false, func(c *client.Client) error { return c.OpenSession(passphrase) })
-}
-
-func (b *ClientBackend) EndSession() error {
-	return b.do(false, func(c *client.Client) error { return c.EndSession() })
-}
-
-func (b *ClientBackend) CreateVault(passphrase string) error {
-	return b.do(false, func(c *client.Client) error { return c.CreateVault(passphrase) })
-}
-
-func (b *ClientBackend) ChangePassphrase(oldPassphrase, newPassphrase string) error {
-	return b.do(false, func(c *client.Client) error { return c.ChangePassphrase(oldPassphrase, newPassphrase) })
-}
-
-func (b *ClientBackend) SetAdminTimeout(timeout string) (res control.SettingsResult, err error) {
-	err = b.do(false, func(c *client.Client) (e error) { res, e = c.SetAdminTimeout(timeout); return e })
-	return res, err
-}
-
-func (b *ClientBackend) Settings() (res control.SettingsResult, err error) {
-	err = b.do(true, func(c *client.Client) (e error) { res, e = c.Settings(); return e })
-	return res, err
-}
-
 func (b *ClientBackend) LogEntries(p control.LogListParams) (res control.LogListResult, err error) {
-	err = b.do(true, func(c *client.Client) (e error) { res, e = c.LogEntries(p); return e })
+	err = b.do(func(c *client.Client) (e error) { res, e = c.LogEntries(p); return e })
 	return res, err
 }
 
 func (b *ClientBackend) VerifyLog() (res control.LogVerifyResult, err error) {
-	err = b.do(true, func(c *client.Client) (e error) { res, e = c.VerifyLog(); return e })
+	err = b.do(func(c *client.Client) (e error) { res, e = c.VerifyLog(); return e })
 	return res, err
 }

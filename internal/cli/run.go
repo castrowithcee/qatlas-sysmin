@@ -23,7 +23,7 @@ func newRunCommand(opts *Options) *cobra.Command {
 		Long: "run is what the service unit starts: it holds the vault, opens it with the credential the service\n" +
 			"manager hands over (otherwise it stays locked until the passphrase arrives over the control\n" +
 			"socket), and serves the control socket until it receives SIGTERM or SIGINT.",
-		Args: noVaultArgs,
+		Args: noArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			// Keeps other processes from reading the vault's key out of this process's memory.
 			if err := unix.Prctl(unix.PR_SET_DUMPABLE, 0, 0, 0, 0); err != nil {

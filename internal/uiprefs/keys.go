@@ -2,7 +2,9 @@ package uiprefs
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -12,11 +14,10 @@ const (
 	ActionSave    = "save"
 	ActionHelp    = "help"
 	ActionCommand = "command"
-	ActionLock    = "lock"
 )
 
 // Actions lists the rebindable actions in the order they are shown, saved, and checked.
-var Actions = []string{ActionSave, ActionHelp, ActionCommand, ActionLock, ActionInfo}
+var Actions = []string{ActionSave, ActionHelp, ActionCommand, ActionInfo}
 
 // Keys are the keys of the global actions, named as the terminal library reports them ("f3", "ctrl+g",
 // "?"). Info is the exception: it always keeps its letter and Info is a second key beside it, empty by
@@ -26,7 +27,6 @@ type Keys struct {
 	Save    string
 	Help    string
 	Command string
-	Lock    string
 }
 
 // Reserved, when set, names the action that owns a key no binding may take, or "" when the key is free. The
@@ -42,7 +42,7 @@ const (
 
 // DefaultKeys returns the keys of a device without a keys section.
 func DefaultKeys() Keys {
-	return Keys{Save: "f2", Help: "?", Command: ":", Lock: "ctrl+l"}
+	return Keys{Save: "f2", Help: "?", Command: ":"}
 }
 
 // WithDefaults fills the actions that have no key with their default. Info stays empty on purpose.
@@ -56,9 +56,6 @@ func (k Keys) WithDefaults() Keys {
 	}
 	if k.Command == "" {
 		k.Command = d.Command
-	}
-	if k.Lock == "" {
-		k.Lock = d.Lock
 	}
 	return k
 }
@@ -74,8 +71,6 @@ func (k Keys) Get(action string) string {
 		return k.Help
 	case ActionCommand:
 		return k.Command
-	case ActionLock:
-		return k.Lock
 	}
 	return ""
 }
@@ -91,8 +86,6 @@ func (k Keys) With(action, key string) Keys {
 		k.Help = key
 	case ActionCommand:
 		k.Command = key
-	case ActionLock:
-		k.Lock = key
 	}
 	return k
 }
@@ -196,7 +189,7 @@ func checkCharacter(action, key string, r rune) error {
 		return fmt.Errorf("%s: space and control characters are no binding", key)
 	case key == deleteKey:
 		return fmt.Errorf("%s: d deletes", key)
-	case action == ActionSave || action == ActionLock || action == ActionInfo:
+	case action == ActionSave || action == ActionInfo:
 		return fmt.Errorf("%s: %s acts on text lines, where a printable key is typed text", key, action)
 	case r == '/':
 		return fmt.Errorf("%s: / searches", key)
@@ -225,7 +218,6 @@ type keysFile struct {
 	Save    string `yaml:"save,omitempty"`
 	Help    string `yaml:"help,omitempty"`
 	Command string `yaml:"command,omitempty"`
-	Lock    string `yaml:"lock,omitempty"`
 }
 
 func (k Keys) file() *keysFile {
@@ -240,9 +232,6 @@ func (k Keys) file() *keysFile {
 	if k.Command != d.Command {
 		f.Command = k.Command
 	}
-	if k.Lock != d.Lock {
-		f.Lock = k.Lock
-	}
 	if f == (keysFile{}) {
 		return nil
 	}
@@ -251,10 +240,15 @@ func (k Keys) file() *keysFile {
 
 // loadKeys applies the keys of a file. Every key is first checked against the rules of its action alone,
 // then the final assignment is checked for two actions on one key, so a swap such as save on ctrl+l and
-// lock on ctrl+o is valid as a whole. A key that breaks a rule, or collides, keeps the default of its
+// help on ctrl+o is valid as a whole. A key that breaks a rule, or collides, keeps the default of its
 // action and adds a warning that names the reason; the result is always free of collisions.
 func loadKeys(path string, given map[string]*string, warnings []string) (Keys, []string) {
 	keys, fromFile := DefaultKeys(), map[string]bool{}
+	for _, name := range slices.Sorted(maps.Keys(given)) {
+		if !slices.Contains(Actions, name) {
+			warnings = append(warnings, fmt.Sprintf("%s: keys.%s is not an action, ignored", path, name))
+		}
+	}
 	for _, a := range Actions {
 		v := given[a]
 		if v == nil {

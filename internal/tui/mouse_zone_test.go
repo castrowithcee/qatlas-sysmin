@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
 // longGroupsHost is the fixture host with enough members in every group for the detail to scroll.
@@ -189,8 +187,8 @@ func TestTheBackgroundOfADialogIsNotClickable(t *testing.T) {
 }
 
 func TestATabClickFromSettingsWithInputAsksFirst(t *testing.T) {
-	m, _ := settingsModel(t, newFake(control.VaultUnlocked), "vault")
-	send(m, "down", "enter")
+	m, _ := settingsModel(t, newFake(), "general")
+	send(m, "down", "down", "down", "enter")
 	typed(m, "5")
 	send(m, "esc")
 	if !m.settingsDirty() {
