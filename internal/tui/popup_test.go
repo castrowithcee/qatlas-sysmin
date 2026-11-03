@@ -57,9 +57,9 @@ func TestHelpTopicsAreTranslatedButKeepTheirIdentifiers(t *testing.T) {
 
 func TestInfoDescribesTheFocusedEntry(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
-	focusCard(t, m, "Approvals")
+	focusCard(t, m, "Not enabled")
 	send(m, "i")
-	if view := plain(m); !strings.Contains(view, "Approvals") || !strings.Contains(view, "wait in Access") {
+	if view := plain(m); !strings.Contains(view, "Not enabled") || !strings.Contains(view, "not in the sysmin group") {
 		t.Errorf("no info for the focused row:\n%s", view)
 	}
 	send(m, "esc", "6", "down")

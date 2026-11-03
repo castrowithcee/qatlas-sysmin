@@ -193,7 +193,7 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	case (keyIs(key, actPrev) || keyIs(key, actBack)) && !inner:
 		m.toBar()
 	case keyIs(key, actReload):
-		return m.statusCmd()
+		return tea.Batch(m.statusCmd(), m.overviewCmd())
 	}
 	return m.digitKey(key)
 }
@@ -290,7 +290,7 @@ func (m *Model) barKey(key tea.KeyPressMsg) tea.Cmd {
 			m.zone = zoneSubs
 		}
 	case keyIs(key, actReload):
-		return m.statusCmd()
+		return tea.Batch(m.statusCmd(), m.overviewCmd())
 	default:
 		return m.digitKey(key)
 	}

@@ -88,7 +88,6 @@ func (m *Model) accessCmd() tea.Cmd {
 func (m *Model) takeAccess(msg accessMsg) {
 	a := &m.acc
 	a.err, a.have = "", msg.err == nil
-	m.ovr.approvals, m.ovr.haveApprovals = msg.list, msg.err == nil
 	if msg.err != nil {
 		a.err = errorText(msg.err)
 		msg.list = nil

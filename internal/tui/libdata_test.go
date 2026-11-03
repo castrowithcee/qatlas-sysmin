@@ -334,7 +334,8 @@ func TestActivityLoadsEntriesAndShowsAnIntactChain(t *testing.T) {
 				t.Errorf("%dx%d: lacks %q:\n%s", size[0], size[1], want, view)
 			}
 		}
-		if fb.count("log") != 1 || fb.count("log-verify") != 1 {
+		// One read of the log is the Overview's at the start.
+		if fb.count("log") != 2 || fb.count("log-verify") != 1 {
 			t.Errorf("calls = %v", fb.log())
 		}
 		assertViewFits(t, view, size[0], size[1])

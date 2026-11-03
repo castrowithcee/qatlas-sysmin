@@ -87,13 +87,7 @@ func (m *Model) hostCmd() tea.Cmd {
 	src := m.hostSrc
 	switch m.hst.sub {
 	case hostUsers:
-		return func() tea.Msg {
-			if src == nil {
-				return hostUsersMsg{err: errNoHostSource}
-			}
-			list, err := src.Users()
-			return hostUsersMsg{list, err}
-		}
+		return m.readHostUsers()
 	case hostGroups:
 		return func() tea.Msg {
 			if src == nil {
@@ -107,6 +101,18 @@ func (m *Model) hostCmd() tea.Cmd {
 	}
 	// Changes reads the journal only when asked: that needs root.
 	return nil
+}
+
+// readHostUsers reads the users from the files; Host and the Overview both show what it brings.
+func (m *Model) readHostUsers() tea.Cmd {
+	src := m.hostSrc
+	return func() tea.Msg {
+		if src == nil {
+			return hostUsersMsg{err: errNoHostSource}
+		}
+		list, err := src.Users()
+		return hostUsersMsg{list, err}
+	}
 }
 
 func (m *Model) takeHostUsers(msg hostUsersMsg) {

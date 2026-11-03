@@ -161,7 +161,9 @@ func New(prefs uiprefs.Prefs, redactor *redact.Redactor) *Model {
 	if redactor == nil {
 		redactor = &redact.Redactor{}
 	}
-	return &Model{prefs: prefs, redactor: redactor, list: newFilterList(func(name string) string { return name })}
+	m := &Model{prefs: prefs, redactor: redactor, list: newFilterList(func(name string) string { return name })}
+	m.ovr.reset()
+	return m
 }
 
 // Init asks the terminal for its colours where the theme mixes from them.

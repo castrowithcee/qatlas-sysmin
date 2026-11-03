@@ -31,11 +31,14 @@ func commandByName(t *testing.T, m *Model, name string) command {
 func paletteRows(m *Model) []string {
 	var got []string
 	for _, line := range strings.Split(plain(m), "\n") {
-		line = strings.TrimLeft(line, "│║ >")
-		for _, c := range m.commands() {
-			if strings.HasPrefix(line, c.name+"  ") {
-				got = append(got, c.name)
-				break
+		// The palette stands over the page, so a row may start behind the borders of what lies under it.
+		for _, cell := range strings.FieldsFunc(line, func(r rune) bool { return r == '│' || r == '║' }) {
+			cell = strings.TrimLeft(cell, " >")
+			for _, c := range m.commands() {
+				if strings.HasPrefix(cell, c.name+"  ") {
+					got = append(got, c.name)
+					break
+				}
 			}
 		}
 	}

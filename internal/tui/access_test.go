@@ -64,10 +64,9 @@ func TestAccessListMarksFreeCommands(t *testing.T) {
 	}
 }
 
-func TestOverviewJumpLandsInTheAccessList(t *testing.T) {
+func TestAccessShowsItsList(t *testing.T) {
 	m := appModel(t, accessFake(), 80, 24)
-	focusCard(t, m, "Approvals")
-	send(m, "enter")
+	send(m, "3")
 	if m.area != areaAccess || len(m.acc.page.list.all) != 2 {
 		t.Errorf("area %v with %d rows, want the Access list with 2", m.area, len(m.acc.page.list.all))
 	}
@@ -143,9 +142,6 @@ func TestApproveGivesTheShownFingerprintAndNeedsTheDetail(t *testing.T) {
 	}
 	if len(m.acc.page.list.all) != 1 || !strings.Contains(m.status, "Approved sample-app") {
 		t.Errorf("the list was not reloaded: %v, status %q", m.acc.page.list.all, m.status)
-	}
-	if m.ovr.approvals == nil || len(m.ovr.approvals) != 1 {
-		t.Errorf("the overview counter was not refreshed: %v", m.ovr.approvals)
 	}
 }
 

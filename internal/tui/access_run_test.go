@@ -50,7 +50,7 @@ func TestAccessTakenAwayQuitsTheInterface(t *testing.T) {
 	if !errors.Is(m.denied, client.ErrReserved) {
 		t.Errorf("denied = %v", m.denied)
 	}
-	if m.ovr.haveApprovals {
+	if m.ovr.haveLog {
 		t.Error("the overview still holds data")
 	}
 }

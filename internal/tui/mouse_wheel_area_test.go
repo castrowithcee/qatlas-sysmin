@@ -200,10 +200,7 @@ func TestTheWheelStepsEachZoneOfTheOverviewForItself(t *testing.T) {
 		t.Errorf("the wheel over the steps moved another zone: %v", m.ovr.cursor)
 	}
 	x, y = at(cards)
-	notch(m, now, x, y, false)
-	if m.ovr.cursor[ovCards] != 0 {
-		t.Errorf("the wheel stepped the only card to %d", m.ovr.cursor[ovCards])
-	}
+	stepsOf(t, "cards", m, now, x, y, func() int { return m.ovr.cursor[ovCards] }, len(m.overviewCards()))
 	if m.ovr.zone != ovSteps {
 		t.Errorf("the overview zone is %v, want the steps", m.ovr.zone)
 	}

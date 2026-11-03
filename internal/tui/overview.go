@@ -9,11 +9,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
 
-// The Overview: key figures as cards and the next steps. The cards and steps are two focus zones; hints for
-// the focused entry stand in the footer only.
+// The Overview: the host as key figures (cards), the next steps and the last changes to the host. The cards
+// and steps are two focus zones; hints for the focused entry stand in the footer only. The last changes are
+// read from the log when the Overview is shown or reloaded, never on a timer: every request is a log entry.
 
 // ovZone is the part of the Overview that takes the keys.
 type ovZone int
@@ -26,44 +28,78 @@ const (
 const (
 	ovCardRows = 3 // a card: frame and one line
 	// ovCardMin is the narrowest a card gets; below four of them in a row the cards become one text line.
-	ovCardMin = 8
+	ovCardMin = 10
+	// ovMaxChanges is how many changes the panel lists; ovWindowDays how far back the log is read.
+	ovMaxChanges = 5
+	ovWindowDays = 7
 )
 
-// overviewState is what the Overview knows besides the status: the open approvals, which the service reports
-// only for an unlocked vault, and where the focus is.
+// overviewState is what the Overview knows besides the status and the host users: the host changes of the
+// last days from the log, and where the focus is.
 type overviewState struct {
-	zone          ovZone
-	cursor        [2]int
-	approvals     []control.ApprovalSummary
-	haveApprovals bool
+	zone   ovZone
+	cursor [2]int
+	// changes are the host changes of the window, newest first; more says the log holds further ones.
+	changes []control.LogEntry
+	more    bool
+	haveLog bool
+	// usersAsked and logAsked say the reads were made since the Overview was shown or reloaded.
+	usersAsked, logAsked bool
 }
 
-func (o *overviewState) clear() { o.approvals, o.haveApprovals = nil, false }
+func (o *overviewState) clearLog() {
+	o.changes, o.more, o.haveLog, o.logAsked = nil, false, false, false
+}
 
 // reset puts the focus on the first next step, the thing to do first.
 func (o *overviewState) reset() { o.zone, o.cursor = ovSteps, [2]int{} }
 
-// overviewMsg is the answer of the read of the overview; a failed read leaves it without data.
+// overviewMsg is the answer of the read of the host changes; a failed read leaves the Overview without data.
 type overviewMsg struct {
-	approvals []control.ApprovalSummary
-	aerr      error
+	res control.LogListResult
+	err error
 }
 
-// overviewCmd reads the approvals while the overview is shown and the vault is open.
+// overviewCmd reads the data of the Overview anew, when it is shown or reloaded.
 func (m *Model) overviewCmd() tea.Cmd {
-	if m.backend == nil || m.area != areaOverview || m.vaultState() != control.VaultUnlocked {
+	m.ovr.usersAsked, m.ovr.logAsked = false, false
+	return m.overviewReads()
+}
+
+// overviewReads makes the reads of the Overview that have not been made since it was shown: the host users
+// from the files, and the host changes from the log where the service answers.
+func (m *Model) overviewReads() tea.Cmd {
+	if m.backend == nil || m.area != areaOverview {
 		return nil
 	}
-	b := m.backend
-	return func() tea.Msg {
-		a, aerr := b.Approvals()
-		return overviewMsg{approvals: a, aerr: aerr}
+	o := &m.ovr
+	var cmds []tea.Cmd
+	if !o.usersAsked {
+		o.usersAsked = true
+		cmds = append(cmds, m.readHostUsers())
 	}
+	if !o.logAsked && m.serviceUp() {
+		o.logAsked = true
+		b := m.backend
+		params := control.LogListParams{
+			Action: auditlog.OperationHostChange, Result: control.LogResultSuccess,
+			From: m.timeNow().AddDate(0, 0, -ovWindowDays).Format(time.RFC3339), Limit: control.LogMaxLimit,
+		}
+		cmds = append(cmds, func() tea.Msg {
+			res, err := b.LogEntries(params)
+			return overviewMsg{res, err}
+		})
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) takeOverview(msg overviewMsg) {
 	o := &m.ovr
-	o.approvals, o.haveApprovals = msg.approvals, msg.aerr == nil
+	o.haveLog = msg.err == nil
+	o.changes, o.more = nil, false
+	if msg.err == nil {
+		o.changes, o.more = msg.res.Entries, msg.res.Next != ""
+	}
 }
 
 // ovItem is a card or a next step. act is what enter does there and key how the footer names it; both are
@@ -75,30 +111,53 @@ type ovItem struct {
 	act               func() tea.Cmd
 }
 
-// noData is the dimmed word a card shows without figures: the vault is locked or there is nothing.
-func (m *Model) noData() string {
-	if m.vaultState() == control.VaultLocked {
-		return tr(tValLocked)
+// noData is the dimmed word a card shows without figures.
+func (m *Model) noData() string { return tr(tOvNone) }
+
+// hostUserFigures counts the admins of the host and those of them who cannot use sysmin yet.
+func (m *Model) hostUserFigures() (admins, notEnabled int) {
+	for _, u := range m.hst.users.all {
+		if u.Admin {
+			admins++
+			if !u.Enabled {
+				notEnabled++
+			}
+		}
 	}
-	return tr(tOvNone)
+	return
 }
 
-// overviewCards are the key figures; without data each shows the word of noData.
+// overviewCards are the key figures of the host; without data each shows the word of noData.
 func (m *Model) overviewCards() []ovItem {
 	o := &m.ovr
-	figure := func(label string, have bool, n int, warn statusKind, info textID, act func() tea.Cmd) ovItem {
+	users := func() tea.Cmd { return m.show(areaHost, hostUsers) }
+	figure := func(label, value string, have bool, warn bool, info textID, act func() tea.Cmd) ovItem {
 		c := ovItem{label: label, kind: statusDim, value: m.noData(), key: "enter open", info: info, act: act}
 		if have {
-			c.kind, c.value = statusOK, fmt.Sprint(n)
-			if n > 0 {
-				c.kind = warn
+			c.kind, c.value = statusOK, value
+			if warn {
+				c.kind = statusWarn
 			}
 		}
 		return c
 	}
+	admins, notEnabled := m.hostUserFigures()
+	haveUsers := m.hst.users.have
+	changes := fmt.Sprint(len(o.changes))
+	if o.more {
+		changes += "+"
+	}
+	service := ovItem{label: tr(tOvService), kind: statusOK, value: tr(tOvReachable), info: tInfoOvService}
+	if !m.serviceUp() {
+		service.kind, service.value = statusFail, tr(tOvUnreachable)
+		service.key, service.act = "enter retry", m.statusCmd
+	}
 	return []ovItem{
-		figure(tr(tOvApprovals), o.haveApprovals, len(o.approvals), statusWarn, tInfoOvApprovals,
-			func() tea.Cmd { return m.show(areaAccess, 0) }),
+		figure(tr(tOvAdmins), fmt.Sprint(admins), haveUsers, false, tInfoOvAdmins, users),
+		figure(tr(tOvNotEnabled), fmt.Sprint(notEnabled), haveUsers, notEnabled > 0, tInfoOvNotEnabled, users),
+		figure(tr(tOvChanges), changes, o.haveLog, false, tInfoOvChanges,
+			func() tea.Cmd { return m.show(areaActivity, actLog) }),
+		service,
 	}
 }
 
@@ -121,7 +180,7 @@ func (m *Model) overviewSteps() []ovItem {
 		}
 		return []ovItem{retry}
 	}
-	st, o := m.svc.st, &m.ovr
+	st := m.svc.st
 	var steps []ovItem
 	switch st.Vault {
 	case control.VaultAbsent:
@@ -130,16 +189,16 @@ func (m *Model) overviewSteps() []ovItem {
 	case control.VaultLocked:
 		steps = append(steps, step(statusWarn, tr(tOvUnlockVault), "enter unlock", m.lockKey))
 	}
-	if len(o.approvals) > 0 {
-		steps = append(steps, step(statusWarn, tr(tOvStepApprovals), "enter open",
-			func() tea.Cmd { return m.show(areaAccess, 0) }))
-	}
 	if st.Vault != control.VaultAbsent && (st.Unlock == control.UnlockTPM2 || st.Unlock == control.UnlockHost) {
 		steps = append(steps, step(statusWarn, tr(tOvStepAuto), "enter open",
 			func() tea.Cmd { return m.show(areaSettings, subVault) }))
 	}
 	if latest := m.updateAvailable(); latest != "" {
 		steps = append(steps, step(statusWarn, tr(tOvInstall, latest), "enter update", m.selfUpdate))
+	}
+	if _, notEnabled := m.hostUserFigures(); m.hst.users.have && notEnabled > 0 {
+		steps = append(steps, step(statusWarn, tr(tOvStepEnable, notEnabled), "enter open",
+			func() tea.Cmd { return m.show(areaHost, hostUsers) }))
 	}
 	if len(steps) == 0 {
 		steps = append(steps, ovItem{label: tr(tOvNothing), kind: statusDim, info: tInfoOvSteps})
@@ -154,6 +213,7 @@ type ovPlan struct {
 	version bool
 	framed  bool // the steps in a panel
 	steps   int  // steps shown
+	changes int  // lines of the panel of the last changes, 0 for no panel
 }
 
 // stepTextWidth is the room of a step's text: the width less the frame, the bar and the mark.
@@ -173,10 +233,11 @@ func stepPieces(steps []ovItem, width int) [][]string {
 	return out
 }
 
-// overviewPlan fits the parts into room lines. A short terminal gives up, in this order: the cards (they
-// become a text line), the version line, the frame of the steps. The title and the steps stay.
-func overviewPlan(room, width int, steps []ovItem) ovPlan {
-	p := ovPlan{line: width < 4*ovCardMin+3, version: true, framed: true, steps: len(steps)}
+// overviewPlan fits the parts into room lines; changes is how many lines the panel of the last changes would
+// take. A short terminal gives up, in this order: the lines of that panel, the cards (they become a text
+// line), the version line, the frame of the steps. The title and the steps stay.
+func overviewPlan(room, width int, steps []ovItem, changes int) ovPlan {
+	p := ovPlan{line: width < 4*ovCardMin+3, version: true, framed: true, steps: len(steps), changes: changes}
 	cost := func() int {
 		n := 1
 		if p.blank {
@@ -197,9 +258,15 @@ func overviewPlan(room, width int, steps []ovItem) ovPlan {
 			n += len(piece)
 		}
 		n += frame
+		if p.changes > 0 {
+			n += p.changes + 2
+		}
 		return n
 	}
 	fits := func() bool { return cost() <= room }
+	for p.changes > 0 && !fits() {
+		p.changes--
+	}
 	if !fits() {
 		p.line = true
 	}
@@ -227,7 +294,7 @@ func (p ovPlan) zones() []ovZone { return []ovZone{ovCards, ovSteps} }
 func (m *Model) overviewNow() (cards, steps []ovItem, p ovPlan) {
 	cards, steps = m.overviewCards(), m.overviewSteps()
 	if len(steps) > 0 {
-		p = overviewPlan(m.height, m.usable(0), steps)
+		p = overviewPlan(m.height, m.usable(0), steps, len(m.changeLines(m.usable(0)-4)))
 	}
 	return
 }
@@ -454,7 +521,37 @@ func (m *Model) overviewBody() string {
 	}
 	wheel(stepsRow, len(lines)-stepsRow, min(len(steps), p.steps), ovSteps)
 
+	if p.changes > 0 {
+		rows := m.changeLines(width - 4)[:p.changes]
+		lines = append(lines, panel(tr(tOvLastChanges), rows, width-4, len(rows), panelOpts{})...)
+	}
+
 	return strings.Join(lines, "\n")
+}
+
+// changeLines are the lines of the panel of the last changes to the host, newest first, each with its time and
+// the action the log records; the log carries no more than that. Without data the panel says so in one dimmed
+// line.
+func (m *Model) changeLines(width int) []string {
+	o := &m.ovr
+	if !m.serviceUp() || !o.haveLog {
+		return []string{styles.hint.Render(clipCells(m.noData(), width))}
+	}
+	if len(o.changes) == 0 {
+		return []string{styles.hint.Render(clipCells(tr(tOvNoChanges), width))}
+	}
+	var lines []string
+	for _, e := range o.changes[:min(len(o.changes), ovMaxChanges)] {
+		what := m.diffText(e.Action)
+		if e.Host != nil {
+			what = m.diffText(e.Host.ActionID)
+			if e.Host.UndoOf != "" {
+				what += " · " + tr(tOvUndo)
+			}
+		}
+		lines = append(lines, clipCells(e.Time.Local().Format("2006-01-02 15:04")+"  "+what, width))
+	}
+	return lines
 }
 
 // overviewVersionLine is the running version, with the newer release where there is one, and the config path

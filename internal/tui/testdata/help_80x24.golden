@@ -3,17 +3,17 @@ sysmin  ● vault open  ● admin off                              [?] help  [:]
 ────────╔══════════════════════════════════════════════════════════════╗────────
 Overview║ Help                                                         ║Oct 2026
         ║                                                              ║        
-╭─ Appro║ [keys]  vault   admin-session   approvals   unlock   secret… ║───────╮
+╭─ Admin║ [keys]  vault   admin-session   approvals   unlock   secret… ║───────╮
 │ 2     ║                                                              ║       │
 ╰───────║ This screen                                                  ║───────╯
 sysmin 0║   ←/→ area                                                   ║        
 ╭─ Next ║   ↓ open                                                     ║───────╮
-│   ⚠ Re║                                                              ║       │
+│   ⚠ Ad║                                                              ║       │
 ╰───────║ Everywhere                                                   ║───────╯
-        ║   ? help                                                     ║        
-        ║   : cmds                                                     ║        
-        ║   i info                                                     ║        
-        ║   ctrl+l admin                                               ║        
+╭─ Last ║   ? help                                                     ║───────╮
+│ 2026-1║   : cmds                                                     ║       │
+│ 2026-1║   i info                                                     ║       │
+╰───────║   ctrl+l admin                                               ║───────╯
         ║   F2 save                                                    ║        
         ║   esc back                                                   ║        
         ║   q quit                                                     ║        

@@ -24,8 +24,8 @@ func TestStartsReadOnlyWithoutAPassphrase(t *testing.T) {
 	if m.area != areaOverview || m.screen != screenArea {
 		t.Fatalf("area %v screen %v, want the overview", m.area, m.screen)
 	}
-	if got := fb.log(); strings.Join(got, " ") != "status approvals" {
-		t.Errorf("calls = %v, want the status and the read of the overview, nothing that changes", got)
+	if got := fb.log(); strings.Join(got, " ") != "status log" {
+		t.Errorf("calls = %v, want the status and the read of the host changes, nothing that changes", got)
 	}
 	if view := plain(m); !strings.Contains(view, "vault open") || !strings.Contains(view, "admin off") {
 		t.Errorf("header lacks the states:\n%s", view)

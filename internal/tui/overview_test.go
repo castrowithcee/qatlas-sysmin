@@ -15,15 +15,33 @@ import (
 // ovNow is the fixed clock of the overview tests: Wednesday, 28 October 2026, in UTC.
 var ovNow = time.Date(2026, 10, 28, 12, 30, 0, 0, time.UTC)
 
-// overviewFake is a service with open approvals: the usual case of the overview.
+// hostChangeEntry is a host change of the log, minutes before the fixed clock.
+func hostChangeEntry(seq uint64, minutes int, action, undoOf string) control.LogEntry {
+	return control.LogEntry{Seq: seq, Time: ovNow.Add(-time.Duration(minutes) * time.Minute), Action: "host.change",
+		Result: control.LogResultSuccess, Host: &control.LogHost{ActionID: action, JournalID: "j-demo", UndoOf: undoOf}}
+}
+
+// overviewFake is a service whose log holds two host changes, the newer one the undo of an older action.
 func overviewFake() *fakeBackend {
 	fb := newFake(control.VaultUnlocked)
-	fb.approvals = []control.ApprovalSummary{{Project: "demo-app", Kind: "new"}, {Project: "sample-app", Kind: "changed"}}
+	fb.lib.entries = []control.LogEntry{hostChangeEntry(2, 30, "user.lock", "user.unlock"), hostChangeEntry(1, 26*60, "user.add-key", "")}
 	return fb
 }
 
 // calmFake is a service with nothing to do.
 func calmFake() *fakeBackend { return newFake(control.VaultUnlocked) }
+
+// calmModel is an Overview whose admins are all enabled: nothing to do.
+func calmModel(t *testing.T, fb *fakeBackend, w, h int) *Model {
+	t.Helper()
+	m := overviewModel(t, fb, w, h)
+	host := m.hostSrc.(*fixtureHost)
+	for i := range host.users {
+		host.users[i].Enabled = true
+	}
+	drain(m, m.overviewCmd())
+	return m
+}
 
 // overviewModel is appModel with the fixed clock, in UTC.
 func overviewModel(t *testing.T, fb *fakeBackend, w, h int) *Model {
@@ -69,8 +87,8 @@ func TestOverviewShowsHeaderCardsAndSteps(t *testing.T) {
 	for _, size := range [][2]int{{80, 24}, {120, 40}} {
 		m := overviewModel(t, overviewFake(), size[0], size[1])
 		view := plain(m)
-		for _, want := range []string{"Overview", "Wed, 28 Oct 2026", "Approvals", "sysmin 0.0.0-test", "/etc/sysmin-test",
-			"Next steps", "Review approvals"} {
+		for _, want := range []string{"Overview", "Wed, 28 Oct 2026", "Admins", "Not enabled", "Changes 7 d", "Service",
+			"sysmin 0.0.0-test", "/etc/sysmin-test", "Next steps", "Admins to enable: 1", "Last changes", "user.add-key"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("%dx%d: the overview lacks %q:\n%s", size[0], size[1], want, view)
 			}
@@ -79,13 +97,13 @@ func TestOverviewShowsHeaderCardsAndSteps(t *testing.T) {
 	}
 }
 
-func TestOverviewCardsCountApprovals(t *testing.T) {
+func TestOverviewCardsCountTheHost(t *testing.T) {
 	m := overviewModel(t, overviewFake(), 80, 24)
 	got := map[string]string{}
 	for _, c := range m.overviewCards() {
 		got[c.label] = c.value
 	}
-	want := map[string]string{"Approvals": "2"}
+	want := map[string]string{"Admins": "2", "Not enabled": "1", "Changes 7 d": "2", "Service": "reachable"}
 	for k, v := range want {
 		if got[k] != v {
 			t.Errorf("card %s = %q, want %q", k, got[k], v)
@@ -93,14 +111,99 @@ func TestOverviewCardsCountApprovals(t *testing.T) {
 	}
 }
 
-func TestOverviewCardsWithoutDataShowLockedOrNone(t *testing.T) {
-	for vault, word := range map[string]string{control.VaultLocked: "locked", control.VaultAbsent: "none"} {
-		m := overviewModel(t, newFake(vault), 80, 24)
-		for _, c := range m.overviewCards() {
-			if c.value != word || c.kind != statusDim {
-				t.Errorf("%s: card %s = %q (kind %v), want a dimmed %q", vault, c.label, c.value, c.kind, word)
+func TestOverviewCardsWithoutDataShowNone(t *testing.T) {
+	fb := overviewFake()
+	fb.down = errDropped
+	m := overviewModel(t, fb, 80, 24)
+	m.hostSrc = nil
+	drain(m, m.overviewCmd())
+	for _, c := range m.overviewCards() {
+		switch c.label {
+		case "Service":
+			if c.value != "unreachable" || c.kind != statusFail {
+				t.Errorf("service card = %q (kind %v)", c.value, c.kind)
+			}
+		default:
+			if c.value != "none" || c.kind != statusDim {
+				t.Errorf("card %s = %q (kind %v), want a dimmed none", c.label, c.value, c.kind)
 			}
 		}
+	}
+	if view := plain(m); !strings.Contains(view, "Last changes") || strings.Contains(view, "user.lock") {
+		t.Errorf("the panel shows data without a service:\n%s", view)
+	}
+	if n := len(fb.lib.logCalls); n != 0 {
+		t.Errorf("the log was read %d times without a service", n)
+	}
+}
+
+func TestOverviewReadsTheHostChangesOfTheLastWeekOnShowAndReload(t *testing.T) {
+	fb := overviewFake()
+	m := overviewModel(t, fb, 120, 40)
+	if n := len(fb.lib.logCalls); n != 1 {
+		t.Fatalf("the log was read %d times at the start, want once", n)
+	}
+	if p := fb.lib.logCalls[0]; p.Action != "host.change" || p.Result != control.LogResultSuccess || p.Limit != control.LogMaxLimit {
+		t.Errorf("log request %+v", p)
+	}
+	for range 3 {
+		drain(m, m.statusCmd())
+		_, cmd := m.Update(tickMsg{})
+		drain(m, cmd)
+	}
+	if n := len(fb.lib.logCalls); n != 1 {
+		t.Errorf("the log was read %d times after polls, want once", n)
+	}
+	send(m, "ctrl+r")
+	if n := len(fb.lib.logCalls); n != 2 {
+		t.Fatalf("the log was read %d times after a reload, want twice", n)
+	}
+	if from := fb.lib.logCalls[1].From; from != ovNow.AddDate(0, 0, -7).Format(time.RFC3339) {
+		t.Errorf("the log is read from %s, want seven days before now", from)
+	}
+	send(m, "2", "1")
+	if n := len(fb.lib.logCalls); n < 4 {
+		t.Errorf("showing the Overview again did not read the log: %d calls", n)
+	}
+}
+
+func TestOverviewListsTheLastChangesNewestFirst(t *testing.T) {
+	m := overviewModel(t, overviewFake(), 120, 40)
+	view := plain(m)
+	lock, key := strings.Index(view, "2026-10-28 12:00  user.lock · undo"), strings.Index(view, "2026-10-27 10:30  user.add-key")
+	if lock < 0 || key < 0 || lock > key {
+		t.Errorf("the panel lacks the changes or their order:\n%s", view)
+	}
+}
+
+func TestOverviewStartsOnTheTabLineAndDownReachesTheFirstStep(t *testing.T) {
+	m := overviewModel(t, overviewFake(), 120, 40)
+	if m.zoneNow() != zoneTabs {
+		t.Fatalf("the Overview starts in %v, want the tab line", m.zoneNow())
+	}
+	send(m, "down")
+	if m.zoneNow() != zoneContent || m.ovr.zone != ovSteps || m.ovr.cursor[ovSteps] != 0 {
+		t.Fatalf("down reaches %v in zone %v at %d, want the first step", m.zoneNow(), m.ovr.zone, m.ovr.cursor[ovSteps])
+	}
+	if got := m.overviewCurrent().label; got != "Admins to enable: 1" {
+		t.Fatalf("the focused step is %q", got)
+	}
+	send(m, "enter")
+	if m.area != areaHost || m.hst.sub != hostUsers {
+		t.Errorf("enter leads to area %v page %d, want Host, Users", m.area, m.hst.sub)
+	}
+}
+
+func TestOverviewCardsBecomeATextLineWhereBoxesDoNotFit(t *testing.T) {
+	m := overviewModel(t, overviewFake(), 41, 24)
+	view := plain(m)
+	if !strings.Contains(view, "Admins 2  Not enabled 1") || strings.Contains(view, "╭─ Admins") {
+		t.Errorf("the cards are not one text line:\n%s", view)
+	}
+	assertViewFits(t, view, 41, 24)
+	m = overviewModel(t, overviewFake(), 80, 24)
+	if view := plain(m); !strings.Contains(view, "╭─ Admins") {
+		t.Errorf("the cards are not boxes at 80 columns:\n%s", view)
 	}
 }
 
@@ -134,14 +237,6 @@ func TestOverviewStepForEveryStateAndEnterTakesIt(t *testing.T) {
 		build func() *fakeBackend
 		step  string
 		check func(t *testing.T, m *Model, fb *fakeBackend)
-	}
-	area := func(want area) func(*testing.T, *Model, *fakeBackend) {
-		return func(t *testing.T, m *Model, _ *fakeBackend) {
-			t.Helper()
-			if m.area != want {
-				t.Errorf("enter leads to area %v, want %v", m.area, want)
-			}
-		}
 	}
 	retried := func(t *testing.T, m *Model, _ *fakeBackend) {
 		t.Helper()
@@ -181,7 +276,11 @@ func TestOverviewStepForEveryStateAndEnterTakesIt(t *testing.T) {
 					t.Error("enter does not ask for the passphrase")
 				}
 			}},
-		{"open approvals", overviewFake, "Review approvals", area(areaAccess)},
+		{"admin without enablement", overviewFake, "Admins to enable: 1", func(t *testing.T, m *Model, _ *fakeBackend) {
+			if m.area != areaHost || m.hst.sub != hostUsers {
+				t.Errorf("enter leads to area %v page %d, want Host, Users", m.area, m.hst.sub)
+			}
+		}},
 		{"auto unlock", func() *fakeBackend {
 			fb := calmFake()
 			fb.unlockMode = control.UnlockTPM2
@@ -200,7 +299,10 @@ func TestOverviewStepForEveryStateAndEnterTakesIt(t *testing.T) {
 	for _, s := range states {
 		t.Run(s.name, func(t *testing.T) {
 			fb := s.build()
-			m := overviewModel(t, fb, 120, 40)
+			m := calmModel(t, fb, 120, 40)
+			if s.name == "admin without enablement" {
+				m = overviewModel(t, fb, 120, 40)
+			}
 			if !strings.Contains(plain(m), s.step) {
 				t.Fatalf("no %q step:\n%s", s.step, plain(m))
 			}
@@ -231,18 +333,20 @@ func TestOverviewSelfUpdateIsAStep(t *testing.T) {
 }
 
 func TestOverviewNoAdminSessionIsNoStep(t *testing.T) {
-	m := overviewModel(t, calmFake(), 80, 24)
+	m := calmModel(t, calmFake(), 80, 24)
 	if steps := m.overviewSteps(); len(steps) != 1 || steps[0].label != "Nothing to do" || steps[0].act != nil {
 		t.Errorf("steps %v, want the dimmed Nothing to do alone", steps)
 	}
 }
 
 func TestOverviewEnterOnCardsOpensTheirPages(t *testing.T) {
-	m := overviewModel(t, overviewFake(), 120, 40)
-	focusCard(t, m, "Approvals")
-	send(m, "enter")
-	if m.area != areaAccess {
-		t.Errorf("enter on Approvals leads to %v, want %v", m.area, areaAccess)
+	for card, want := range map[string]area{"Admins": areaHost, "Not enabled": areaHost, "Changes 7 d": areaActivity} {
+		m := overviewModel(t, overviewFake(), 120, 40)
+		focusCard(t, m, card)
+		send(m, "enter")
+		if m.area != want {
+			t.Errorf("enter on %s leads to %v, want %v", card, m.area, want)
+		}
 	}
 }
 func TestOverviewTabVisitsTheZonesAndLeavesToTheTabLine(t *testing.T) {
@@ -274,11 +378,11 @@ func TestOverviewTabVisitsTheZonesAndLeavesToTheTabLine(t *testing.T) {
 }
 func TestOverviewFooterNamesTheKeyOfTheFocusedEntry(t *testing.T) {
 	m := overviewModel(t, overviewFake(), 120, 40)
-	focusCard(t, m, "Approvals")
+	focusCard(t, m, "Admins")
 	if foot := lastRow(m); !strings.Contains(foot, "enter open") || !strings.Contains(foot, "↑/↓ move") {
 		t.Errorf("footer on a card: %q", foot)
 	}
-	m = overviewModel(t, calmFake(), 120, 40)
+	m = calmModel(t, calmFake(), 120, 40)
 	send(m, "1")
 	if foot := lastRow(m); strings.Contains(foot, "enter") {
 		t.Errorf("footer on a step without action names enter: %q", foot)
@@ -294,29 +398,31 @@ func TestOverviewFooterNamesTheKeyOfTheFocusedEntry(t *testing.T) {
 
 func TestOverviewInfoDescribesTheFocusedEntry(t *testing.T) {
 	m := overviewModel(t, overviewFake(), 120, 40)
-	focusCard(t, m, "Approvals")
+	focusCard(t, m, "Not enabled")
 	send(m, "i")
-	if view := plain(m); !strings.Contains(view, "wait in Access") {
-		t.Errorf("no info for the Approvals card:\n%s", view)
+	if view := plain(m); !strings.Contains(view, "not in the sysmin group") {
+		t.Errorf("no info for the Not enabled card:\n%s", view)
 	}
 }
 
 func TestOverviewDropsPartsInOrderAndKeepsTitleAndSteps(t *testing.T) {
-	steps := []ovItem{{label: "Review approvals"}, {label: "Install sysmin 9.9.9"}}
+	steps := []ovItem{{label: "Admins to enable: 1"}, {label: "Install sysmin 9.9.9"}}
 	rank := func(p ovPlan) int {
 		switch {
 		case !p.framed:
-			return 3
+			return 4
 		case !p.version:
-			return 2
+			return 3
 		case p.line:
+			return 2
+		case p.changes == 0:
 			return 1
 		}
 		return 0
 	}
 	last, seen := 0, map[int]bool{}
 	for room := 40; room >= 3; room-- {
-		p := overviewPlan(room, 80, steps)
+		p := overviewPlan(room, 80, steps, 3)
 		if p.steps < 1 {
 			t.Fatalf("room %d: no step shown", room)
 		}
@@ -327,7 +433,7 @@ func TestOverviewDropsPartsInOrderAndKeepsTitleAndSteps(t *testing.T) {
 		}
 		seen[rank(p)] = true
 	}
-	for r := 0; r <= 3; r++ {
+	for r := 0; r <= 4; r++ {
 		if !seen[r] {
 			t.Errorf("no room drops exactly down to level %d", r)
 		}
@@ -338,7 +444,7 @@ func TestOverviewInASmallTerminalKeepsTitleAndSteps(t *testing.T) {
 	for _, h := range []int{14, 15, 16, 18} {
 		m := overviewModel(t, overviewFake(), 80, h)
 		view := plain(m)
-		for _, want := range []string{"Overview", "Wed, 28 Oct 2026", "Review approvals"} {
+		for _, want := range []string{"Overview", "Wed, 28 Oct 2026", "Admins to enable: 1"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("height %d lacks %q:\n%s", h, want, view)
 			}
@@ -363,7 +469,7 @@ func TestOverviewDistinguishesStatesWithoutColour(t *testing.T) {
 			t.Errorf("the mark %q is missing:\n%s", mark, view)
 		}
 	}
-	if !strings.Contains(plain(overviewModel(t, calmFake(), 80, 24)), "○") {
+	if !strings.Contains(plain(calmModel(t, calmFake(), 80, 24)), "○") {
 		t.Error("the mark of a step without action is missing")
 	}
 }
@@ -372,17 +478,17 @@ func TestOverviewIsClickable(t *testing.T) {
 	t.Run("card", func(t *testing.T) {
 		m := overviewModel(t, overviewFake(), 120, 40)
 		m.render()
-		clickOn(t, m, "Approvals")
-		if m.area != areaAccess {
-			t.Errorf("a click on the Approvals card leads to %v, want Access", m.area)
+		clickOn(t, m, "Admins")
+		if m.area != areaHost {
+			t.Errorf("a click on the Admins card leads to %v, want Host", m.area)
 		}
 	})
 	t.Run("step", func(t *testing.T) {
 		m := overviewModel(t, overviewFake(), 120, 40)
 		m.render()
-		clickOn(t, m, "Review approvals")
-		if m.area != areaAccess {
-			t.Errorf("a click on the approvals step leads to %v, want Access", m.area)
+		clickOn(t, m, "Admins to enable: 1")
+		if m.area != areaHost {
+			t.Errorf("a click on the enable step leads to %v, want Host", m.area)
 		}
 	})
 }
@@ -392,11 +498,11 @@ func TestOverviewFocusMarkShowsWithoutColour(t *testing.T) {
 	m := overviewModel(t, overviewFake(), 120, 40)
 	send(m, "1")
 	view := plain(m)
-	if !slices.ContainsFunc(strings.Split(view, "\n"), func(l string) bool { return strings.Contains(l, "> "+warnMark+" Review approvals") }) {
+	if !slices.ContainsFunc(strings.Split(view, "\n"), func(l string) bool { return strings.Contains(l, "> "+warnMark+" Admins to enable: 1") }) {
 		t.Errorf("the focused step has no mark:\n%s", view)
 	}
-	focusCard(t, m, "Approvals")
-	if view := plain(m); !strings.Contains(view, "> Approvals") || !strings.Contains(view, "╔") {
+	focusCard(t, m, "Admins")
+	if view := plain(m); !strings.Contains(view, "> Admins") || !strings.Contains(view, "╔") {
 		t.Errorf("the focused card has no mark:\n%s", view)
 	}
 }
