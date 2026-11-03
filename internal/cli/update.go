@@ -8,13 +8,15 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-kit/cobracli"
 	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate"
 )
 
 func newUpdateCommand(opts *Options) *cobra.Command {
 	var to, apiURL string
-	var list, yes bool
+	var list bool
+	var gate *cobracli.Gate
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update qsysmin to the latest stable release or to a chosen one",
@@ -24,16 +26,15 @@ func newUpdateCommand(opts *Options) *cobra.Command {
 			"shows the signed releases that can be chosen, prereleases included.\n" +
 			"The signature over the release's checksums.txt is verified against the release keys built into\n" +
 			"qsysmin, then the archive's SHA-256 checksum; any failure leaves the installation unchanged.\n" +
-			"Installing needs root. The service restarts afterwards, so update asks for confirmation on a\n" +
-			"terminal; --yes confirms.",
-		Args: noArgs,
+			"Installing needs root. The service restarts afterwards, so installing needs --confirm and asks for\n" +
+			"confirmation on a terminal; --yes answers the question.",
 		RunE: func(c *cobra.Command, _ []string) error {
-			return runUpdate(c, opts, updateRequest{to: to, list: list, yes: yes, apiURL: apiURL})
+			return runUpdate(c, opts, gate, updateRequest{to: to, list: list, apiURL: apiURL})
 		},
 	}
+	gate = opts.prog.AddGate(cmd, cobracli.Gates{Question: true, Change: true})
 	cmd.Flags().StringVar(&to, "to", "", "install this release version, for example v1.2.3")
 	cmd.Flags().BoolVar(&list, "list", false, "list the releases that can be installed")
-	cmd.Flags().BoolVar(&yes, "yes", false, "confirm without asking")
 	cmd.Flags().StringVar(&apiURL, "api-url", "",
 		"read releases from this GitHub-API-compatible base URL instead of GitHub, in the form\n"+
 			"https://api.github.com/repos/<owner>/<repo>; signatures are still checked against the\n"+
@@ -43,12 +44,12 @@ func newUpdateCommand(opts *Options) *cobra.Command {
 
 type updateRequest struct {
 	to, apiURL string
-	list, yes  bool
+	list       bool
 }
 
-func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
-	if req.list && (req.to != "" || req.yes) {
-		return newSyntaxError(errors.New("--list cannot be combined with --to or --yes"))
+func runUpdate(c *cobra.Command, opts *Options, gate *cobracli.Gate, req updateRequest) error {
+	if req.list && (req.to != "" || c.Flags().Changed("yes") || c.Flags().Changed("confirm")) {
+		return syntaxFailure(errors.New("--list cannot be combined with --to, --yes or --confirm"))
 	}
 	s := opts.system()
 	updater := s.updater(version, req.apiURL)
@@ -59,7 +60,7 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 	if req.list {
 		entries, err := updater.List(ctx)
 		if err != nil {
-			return fmt.Errorf("update: %w", err)
+			return updateError(err)
 		}
 		rows := make([]output.Row, len(entries))
 		for i, e := range entries {
@@ -72,18 +73,19 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 		return err
 	}
 	if version == "" || version == "dev" {
-		return selfupdate.ErrDevelopmentBuild
+		return updateError(selfupdate.ErrDevelopmentBuild)
 	}
-	if err := requireConfirmation(s, c.InOrStdin(), req.yes, "update"); err != nil {
+	// A request without --confirm fails before the release server is asked.
+	if err := gate.Run(cobracli.Request{Changes: true}, func() error { return nil }); err != nil {
 		return err
 	}
 	target, err := updater.Resolve(ctx, req.to)
 	if err != nil {
 		var te *selfupdate.TargetError
 		if errors.As(err, &te) && req.to != "" {
-			return &UsageError{err}
+			return usageFailure(err, "Choose a version from 'qsysmin update --list'.")
 		}
-		return fmt.Errorf("update: %w", err)
+		return updateError(err)
 	}
 	// Without --to the newest stable release never replaces a newer running build.
 	if target.Current || (req.to == "" && target.Older) {
@@ -94,14 +96,14 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 	if target.Older {
 		action = "Roll back"
 	}
-	ok, err := confirm(c, req.yes, fmt.Sprintf("%s qsysmin from %s to %s. The service restarts.", action, version, target.Version))
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return errors.New("update cancelled; nothing was changed")
-	}
+	question := fmt.Sprintf("%s qsysmin from %s to %s. The service restarts.", action, version, target.Version)
+	return gate.Run(cobracli.Request{Question: question, Changes: true}, func() error {
+		return install(c, opts, s, updater, target)
+	})
+}
 
+func install(c *cobra.Command, opts *Options, s system, updater *selfupdate.Client, target selfupdate.Target) error {
+	ctx := c.Context()
 	if f, ok := c.ErrOrStderr().(*os.File); ok && isTerminal(f) {
 		updater.Progress = progressPrinter(c.ErrOrStderr())
 	}
@@ -110,20 +112,27 @@ func runUpdate(c *cobra.Command, opts *Options, req updateRequest) error {
 		if result.UnitUpdated {
 			// The unit is already new; let the service manager know even though the program is not.
 			_ = s.command(ctx, "systemctl", "daemon-reload")
-			return fmt.Errorf("update: the unit was replaced, but installing the program failed: %w", err)
+			return updateError(fmt.Errorf("the unit was replaced, but installing the program failed: %w", err))
 		}
-		return fmt.Errorf("update: %w", err)
+		return updateError(err)
 	}
 	// The service manager reads a replaced unit before the restart, which happens once the program is in place.
 	if result.UnitUpdated {
 		if err := s.command(ctx, "systemctl", "daemon-reload"); err != nil {
-			return fmt.Errorf("update: qsysmin %s is installed, but reloading the service manager failed: %w", result.Version, err)
+			return updateError(fmt.Errorf("qsysmin %s is installed, but reloading the service manager failed: %w", result.Version, err))
 		}
 	}
 	if err := s.command(ctx, "systemctl", "restart", serviceName); err != nil {
-		return fmt.Errorf("update: qsysmin %s is installed, but restarting the service failed: %w", result.Version, err)
+		return updateError(fmt.Errorf("qsysmin %s is installed, but restarting the service failed: %w", result.Version, err))
 	}
 	return emitUpdate(c, opts, result.Previous, result.Version, true, true, result.UnitUpdated)
+}
+
+// updateError is a failed update or release lookup; the message says whether the installation changed.
+func updateError(err error) error {
+	return failure(codeUpdateFailed, fmt.Errorf("update: %w", err),
+		"Read the message: the installation is unchanged unless it says otherwise. Fix the cause, then repeat the update.",
+		askUserReport)
 }
 
 func emitUpdate(c *cobra.Command, opts *Options, previous, current string, updated, restarted, unitUpdated bool) error {

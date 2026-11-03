@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/castrowithcee/qatlas-kit/cli"
+	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
@@ -142,11 +144,23 @@ const ReservedMessage = "qsysmin is reserved for administrators (sudo)"
 // NotEnabledMessage is what an administrator hears whose account is not a member of the group qsysmin.
 const NotEnabledMessage = "your account is not enabled for qsysmin; an enabled administrator enables it in qsysmin tui under Host › Users"
 
+// CodeNotEnabled is the error code of an administrator outside the group qsysmin.
+const CodeNotEnabled output.Code = "not-enabled"
+
 // ErrReserved is a caller who is no administrator, or no longer is. ErrNotEnabled is an administrator who
-// is not a member of the group qsysmin in the group database.
+// is not a member of the group qsysmin in the group database. Both are diagnostics with a code and a next
+// step, so every surface that prints them says the same.
 var (
-	ErrReserved   = errors.New(ReservedMessage)
-	ErrNotEnabled = errors.New(NotEnabledMessage)
+	ErrReserved = &cli.Failure{
+		Code: output.CodeAdminRequired, Message: ReservedMessage,
+		NextStep:      "Run qsysmin as root or as a member of the group sudo.",
+		AgentNextStep: "Stop and tell the user that qsysmin is reserved for administrators; do not try other accounts.",
+	}
+	ErrNotEnabled = &cli.Failure{
+		Code: CodeNotEnabled, Message: NotEnabledMessage,
+		NextStep:      "Ask an enabled administrator to enable your account in qsysmin tui under Host > Users.",
+		AgentNextStep: "Tell the user that their account is not enabled for qsysmin; an enabled administrator enables it in the TUI.",
+	}
 )
 
 // standing reads the group database for the caller: whether the account is an administrator and whether it

@@ -24,7 +24,7 @@ func (testGroups) IsAdmin(uint32) (bool, error)             { return true, nil }
 func runCLIArgs(args ...string) (int, string, string) {
 	opts := &Options{Redactor: &redact.Redactor{}}
 	var out, errOut bytes.Buffer
-	code := run(newRootCommand(opts), opts, args, &out, &errOut)
+	code := run(opts, nil, args, &out, &errOut)
 	return code, out.String(), errOut.String()
 }
 

@@ -118,7 +118,7 @@ func TestCreateBuildsTheActionAndPassesPasswordAndKeyOnStandardInputOnly(t *test
 	if len(f.reqs) != 2 || !f.reqs[0].Validate || len(f.reqs[0].Args) != 0 || len(f.reqs[0].Secret) != 0 {
 		t.Fatalf("the first call must only ask sudo for the password: %+v", f.reqs)
 	}
-	want := []string{"apply", "--yes", "--output", "json", "--", "user.create", "demo-new", "admin", "docker", "group=demo-ops"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "user.create", "demo-new", "admin", "docker", "group=demo-ops"}
 	if !slices.Equal(f.reqs[1].Args, want) {
 		t.Errorf("args %q, want %q", f.reqs[1].Args, want)
 	}
@@ -175,7 +175,7 @@ func TestServiceAccountAsksNeitherPasswordNorKeyAndSendsItsOwnAction(t *testing.
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	reads := host.users
 	send(m, "y")
-	want := []string{"apply", "--yes", "--output", "json", "--", "user.create-service", "demo-svc", "home", "docker", "group=demo-ops"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "user.create-service", "demo-svc", "home", "docker", "group=demo-ops"}
 	if len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) || len(f.reqs[0].Secret) != 0 || len(f.stdins) != 0 {
 		t.Errorf("requests %+v stdins %q, want args %q", f.reqs, f.stdins, want)
 	}
@@ -201,7 +201,7 @@ func TestServiceAccountWithoutHomeAndSwitchingKindForgetsThePerson(t *testing.T)
 	}
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
-	if want := []string{"apply", "--yes", "--output", "json", "--", "user.create-service", "demo-svc"}; len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) {
+	if want := []string{"apply", "--confirm", "--output", "json", "--", "user.create-service", "demo-svc"}; len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) {
 		t.Errorf("requests %+v, want %q", f.reqs, want)
 	}
 	seeNoInput(t, m, "the result")
@@ -403,7 +403,7 @@ func TestEachChangeRunsItsOwnActionWithItsOwnConfirm(t *testing.T) {
 		if wantReqs == 2 && !f.reqs[0].Validate {
 			t.Errorf("%s: a secret needs sudo -v first: %+v", tc.id, f.reqs)
 		}
-		want := append([]string{"apply", "--yes", "--output", "json", "--"}, args...)
+		want := append([]string{"apply", "--confirm", "--output", "json", "--"}, args...)
 		if !slices.Equal(f.reqs[call].Args, want) {
 			t.Errorf("%s: args %q, want %q", tc.id, f.reqs[call].Args, want)
 		}
@@ -696,7 +696,7 @@ func TestUnlockIsOfferedAndAcceptedForALockedAccount(t *testing.T) {
 	}
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
-	want := []string{"apply", "--yes", "--output", "json", "--", "user.unlock", "demo-user"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "user.unlock", "demo-user"}
 	if len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) {
 		t.Errorf("calls %+v", f.reqs)
 	}
@@ -748,7 +748,7 @@ func TestDeleteAsksForTheHomeAndSendsItsChoice(t *testing.T) {
 			f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 			reads := host.users
 			send(m, "y")
-			want := append([]string{"apply", "--yes", "--output", "json", "--"}, tc.wantArgs...)
+			want := append([]string{"apply", "--confirm", "--output", "json", "--"}, tc.wantArgs...)
 			if len(f.reqs) != 1 || !slices.Equal(f.reqs[0].Args, want) || len(f.stdins) != 0 {
 				t.Fatalf("calls %+v, want %q", f.reqs, want)
 			}

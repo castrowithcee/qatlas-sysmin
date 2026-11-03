@@ -1,11 +1,9 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -24,8 +22,6 @@ const (
 // or real paths.
 type system struct {
 	euid func() int
-	// interactive reports whether in is a terminal a person can answer on.
-	interactive func(in io.Reader) bool
 	// command runs an external program and returns its failure, which carries ExitCode() for a program
 	// that ended with a status.
 	command func(ctx context.Context, name string, args ...string) error
@@ -39,8 +35,7 @@ type system struct {
 
 func defaultSystem() system {
 	return system{
-		euid:        os.Geteuid,
-		interactive: readerIsTerminal,
+		euid: os.Geteuid,
 		command: func(ctx context.Context, name string, args ...string) error {
 			out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
 			if err != nil {
@@ -64,43 +59,11 @@ func (o *Options) system() system {
 	return defaultSystem()
 }
 
-func readerIsTerminal(in io.Reader) bool {
-	f, ok := in.(*os.File)
-	return ok && isTerminal(f)
-}
-
 func requireRoot(s system, action string) error {
 	if s.euid() != 0 {
-		return fmt.Errorf("%s must run as root; use sudo", action)
+		return rootRequired(action)
 	}
 	return nil
-}
-
-// requireConfirmation fails before anything is done when there is neither --yes nor a terminal to ask on.
-func requireConfirmation(s system, in io.Reader, yes bool, action string) error {
-	if !yes && !s.interactive(in) {
-		return &UsageError{fmt.Errorf("%s needs confirmation: run it on a terminal or pass --yes", action)}
-	}
-	return nil
-}
-
-// confirm asks on a terminal; with --yes it only prints the question's subject.
-func confirm(c interface {
-	InOrStdin() io.Reader
-	ErrOrStderr() io.Writer
-}, yes bool, question string) (bool, error) {
-	w := c.ErrOrStderr()
-	if yes {
-		fmt.Fprintln(w, question)
-		return true, nil
-	}
-	fmt.Fprintf(w, "%s [y/N] ", question)
-	line, err := bufio.NewReader(c.InOrStdin()).ReadString('\n')
-	if err != nil && !errors.Is(err, io.EOF) {
-		return false, err
-	}
-	answer := strings.ToLower(strings.TrimSpace(line))
-	return answer == "y" || answer == "yes", nil
 }
 
 type exitCoder interface{ ExitCode() int }
