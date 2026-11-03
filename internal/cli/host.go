@@ -58,7 +58,7 @@ func newHostCommand(opts *Options) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
 	cmd.AddCommand(newHostUsersCommand(opts), newHostUserCommand(opts), newHostGroupsCommand(opts),
-		newHostGroupCommand(opts), newHostFolderCommand(opts), newHostApplyCommand(opts), newHostPreviewCommand(opts), newHostUndoCommand(opts),
+		newHostGroupCommand(opts), newHostFolderCommand(opts), newHostApplyCommand(opts), newHostUndoCommand(opts),
 		newHostJournalCommand(opts))
 	return cmd
 }

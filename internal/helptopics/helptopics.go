@@ -20,7 +20,7 @@ type Topic struct {
 func All() []Topic {
 	return []Topic{
 		{Name: "sysmin", Short: "What sysmin is and what it is for", Text: sysmin},
-		{Name: "host-admin", Short: "Read users, groups and folder permissions of the host", Text: hostAdmin},
+		{Name: "host-admin", Short: "Read and change users, groups and folder permissions of the host", Text: hostAdmin},
 	}
 }
 
@@ -81,7 +81,7 @@ const sysmin = `sysmin is a Go tool that runs as a service on a Linux host. It t
 
 'sysmin --help' lists the commands; 'sysmin tui' opens the terminal interface.`
 
-const hostAdmin = `The host commands show the local users, groups and folder permissions. They only read; nothing on the host is changed.
+const hostAdmin = `The host commands read the local users, groups and folder permissions. Changes (host apply, host undo) run through sudo after a confirmation, are recorded in a root-only journal with the previous state, and can be undone.
 
 Commands:
   sysmin host users

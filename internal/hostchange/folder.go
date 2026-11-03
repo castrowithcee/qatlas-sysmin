@@ -123,12 +123,6 @@ func isPseudoFS(path string) bool {
 type FolderHost struct {
 	Accounts *hostadmin.Host
 	Stacks   StackCheck
-	// rootUID is the owner the stack folder setup writes; tests that cannot own files as root change it.
-	rootUID int
-	// service says who the service user is; nil asks the host. Tests set it.
-	service func() (serviceIdentity, error)
-	// readACL reads the access ACL of a parent folder; nil reads the host. Tests set it.
-	readACL func(path string) ([]byte, error)
 }
 
 // DefaultFolderHost is the real host.
@@ -139,13 +133,7 @@ func DefaultFolderHost() FolderHost {
 // RegisterFolderActions adds the folder actions, reading the host through h.
 func RegisterFolderActions(r *Registry, h FolderHost) error {
 	f := folderActions{h}
-	if err := r.Register(Definition{ID: ActionFolderSetPermissions, Plan: f.planSetPermissions, Inverse: f.inverseSetPermissions}); err != nil {
-		return err
-	}
-	if err := r.Register(Definition{ID: ActionFolderSetupStacks, Plan: f.planSetupStacks, Inverse: f.inverseSetupStacks, Preview: f.previewSetupStacks}); err != nil {
-		return err
-	}
-	return r.Register(Definition{ID: ActionStackSetupAccess, Plan: f.planStackAccess, Inverse: f.inverseStackAccess, Preview: f.previewStackAccess})
+	return r.Register(Definition{ID: ActionFolderSetPermissions, Plan: f.planSetPermissions, Inverse: f.inverseSetPermissions})
 }
 
 type folderActions struct{ h FolderHost }
