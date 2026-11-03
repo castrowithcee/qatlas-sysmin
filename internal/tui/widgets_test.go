@@ -29,7 +29,6 @@ func TestWidgetsCloseTheirFrameAtEveryWidth(t *testing.T) {
 			blocks := map[string][]string{
 				"panel":   panel(ui, "a long title "+long, []string{long, "", "x"}, w-4, 4, panelOpts{}),
 				"focused": panel(ui, "t", []string{long}, w-4, 2, panelOpts{focused: true}),
-				"card":    card(ui, "Services "+long, "10"+long, w),
 			}
 			for name, lines := range blocks {
 				for i, l := range lines {

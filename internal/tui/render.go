@@ -172,12 +172,8 @@ func (m *Model) indentedWith(style lipgloss.Style, text string) string {
 	return strings.Join(lines, "\n")
 }
 
-// row draws one line of a list. A line that does not fit is continued under its own entry instead of being
-// cut off at the right edge: the list is where the source of every secret role stands, and that is the part
-// that falls off first.
-func (m *Model) row(active bool, text string) string { return m.rowIn(m.usable(0), active, text) }
-
-// rowIn is row within the first room cells of the workspace.
+// rowIn draws one line of a list within the first room cells of the workspace. A line that does not fit is
+// continued under its own entry instead of being cut off at the right edge.
 func (m *Model) rowIn(room int, active bool, text string) string {
 	blank, width := m.fitIn(room, "  ")
 	marker := blank
@@ -199,16 +195,10 @@ func (m *Model) rowIn(room int, active bool, text string) string {
 	return strings.Join(lines, "\n")
 }
 
-// listRow draws one row of a table screen: a list or a picker. text is
-// already cut to fit beside the marker: long cells are shortened before they ever reach here, never
-// wrapped. The marked row is highlighted the full width of the row, behind a narrow accent mark, which is
-// '>' where colour cannot show the bar, so NO_COLOR or an ASCII terminal still shows which one it is; every
-// other row is plain.
-func (m *Model) listRow(active bool, text string) string {
-	return m.listRowIn(m.usable(0), active, text)
-}
-
-// listRowIn is listRow within the first room cells of the workspace.
+// listRowIn draws one row of a table within the first room cells of the workspace. text is already cut to fit
+// beside the marker: long cells are shortened before they ever reach here, never wrapped. The marked row is
+// highlighted the full width of the row, behind a narrow accent mark, which is '>' where colour cannot show
+// the bar, so NO_COLOR or an ASCII terminal still shows which one it is; every other row is plain.
 func (m *Model) listRowIn(room int, active bool, text string) string {
 	blank, width := m.fitIn(room, "  ")
 	if !active {
@@ -222,10 +212,6 @@ func (m *Model) listRowIn(room int, active bool, text string) string {
 	// The cells of the text may reset their own styles, so the bar is set again after each reset.
 	return m.ui.st(kittui.StyleSelectionMark).Render(m.ui.styles.SelectionMark()) + m.ui.st(kittui.StyleActiveRow).Render(keepStyle(" "+body, m.ui.st(kittui.StyleActiveRow)))
 }
-
-// hint is the key line of a screen. Like every other prose line it is wrapped into the terminal instead of
-// being cut off at its right edge.
-func (m *Model) hint(text string) string { return "\n" + m.wrapped(m.ui.st(kittui.StyleHint), text) }
 
 // keyHint hands the key line of a screen to the footer of the frame and returns nothing for the workspace;
 // only while a modal dialog is drawn does it return the line itself (see dialogKeyHint).

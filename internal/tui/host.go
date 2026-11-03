@@ -308,13 +308,13 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 		}, width)
 		if u.Locked == nil {
 			lines = append(lines, "")
-			lines = append(lines, wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostReadHint, "ctrl+r"), width)...)
+			lines = append(lines, wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostReadHint), width)...)
 		}
 		return lines
 	case tabDetails:
 		if u.SSHKeys == nil {
 			lines := wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostKeysUnknown), width)
-			return append(append(lines, ""), wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostReadHint, "ctrl+r"), width)...)
+			return append(append(lines, ""), wrapIndented(m.ui.st(kittui.StyleHint), "", m.tr(tHostReadHint), width)...)
 		}
 		if len(u.SSHKeys) == 0 {
 			return []string{m.ui.st(kittui.StyleHint).Render(m.tr(tHostNoKeys))}
@@ -345,7 +345,7 @@ func (m *Model) hostUserLines(name string, tab, width int) []string {
 func (m *Model) hostChangesView(top int) string {
 	body := m.dataBody(&m.hst.chg.page, m.hostChangesSpec(), top)
 	if m.hst.chg.stale && m.hst.chg.have && !m.backdrop {
-		body += "\n" + m.wrapped(m.ui.st(kittui.StyleWarn), m.tr(tHostChangesStale, "ctrl+r"))
+		body += "\n" + m.wrapped(m.ui.st(kittui.StyleWarn), m.tr(tHostChangesStale))
 	}
 	return body
 }

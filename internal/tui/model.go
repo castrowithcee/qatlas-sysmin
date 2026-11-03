@@ -144,16 +144,10 @@ type Model struct {
 	tickEvery, updateTimeout time.Duration
 }
 
-// New returns the frame with an empty list and the keys of prefs in force. Preferences without a theme, such
-// as the zero value, are read as the defaults; a nil redactor as one that knows no secret.
-func New(prefs kitprefs.Prefs, redactor *redact.Redactor) *Model {
-	m := newModel(prefs, redactor, kittui.ProfileNone, kittui.CharsetUnicode)
-	m.bindKeys()
-	return m
-}
-
-// newModel is New with the default keys, in the language and the theme of prefs, for a terminal of the given
-// colour profile and character set. A theme this version does not have draws the terminal theme.
+// newModel returns the frame with an empty list and the default keys, in the language and the theme of prefs,
+// for a terminal of the given colour profile and character set. Preferences without a theme, such as the zero
+// value, are read as the defaults; a nil redactor as one that knows no secret. A theme this version does not
+// have draws the terminal theme.
 func newModel(prefs kitprefs.Prefs, redactor *redact.Redactor, profile kittui.ColorProfile, charset kittui.CharsetMode) *Model {
 	if redactor == nil {
 		redactor = &redact.Redactor{}
@@ -425,12 +419,4 @@ func (m *Model) resizeView() string {
 		m.ui.st(kittui.StyleHint).Render("  " + m.tr(tResizeNow, m.termWidth, m.termHeight)),
 	}
 	return m.boundTo(strings.Join(lines, "\n"), m.termWidth, m.termHeight)
-}
-
-// wrap is i taken into 0..n-1: past either end it comes round.
-func wrap(i, n int) int {
-	if n <= 0 {
-		return 0
-	}
-	return ((i % n) + n) % n
 }

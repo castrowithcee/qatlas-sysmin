@@ -80,9 +80,6 @@ func TestEnglishIsTheDefaultAndFallback(t *testing.T) {
 	if got := m.tr(tAreaSettings); got != "Einstellungen" {
 		t.Errorf("German area = %q", got)
 	}
-	if got := m.ui.wordText("a word nobody translated"); got != "a word nobody translated" {
-		t.Errorf("an untranslated word = %q, want it as it is", got)
-	}
 	if got := m.hintText(keyLine(hint(tHintQuit, actQuit), hint(tHintBack, actBack))); got != "q Ende · esc zurück" {
 		t.Errorf("hintText = %q", got)
 	}

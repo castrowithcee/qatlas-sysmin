@@ -36,6 +36,19 @@ type fakeSudo struct {
 	order []string
 }
 
+// askHostChange asks for the action id with args and, on y, runs it as root. Nothing is run or changed before
+// the answer; a refusal of the arguments or of the action comes back as a message. An action that wants a
+// secret input is asked through confirmHost by the form that collects it.
+func (m *Model) askHostChange(id string, args []string) tea.Cmd {
+	p, refusal := m.planHost(hostAsk{id: id, args: args})
+	if refusal != "" {
+		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: closeKeys()})
+		return nil
+	}
+	m.confirmHost(p)
+	return nil
+}
+
 func (f *fakeSudo) run(req HostRequest) (*exec.Cmd, error) {
 	f.reqs = append(f.reqs, req)
 	if f.buildErr != nil {

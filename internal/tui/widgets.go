@@ -192,13 +192,6 @@ func tabStrip(ui *uiContext, words []string, active int, focused bool) (string, 
 	return b.String(), spans
 }
 
-// card is a bordered figure: the label dimmed above a large value. Width is the total width in cells.
-func card(ui *uiContext, label, value string, width int) []string {
-	inner := max(width-4, 0)
-	lines := []string{ui.st(kittui.StyleHint).Render(truncateCells(label, inner)), ui.st(kittui.StyleTitle).Render(truncateCells(value, inner))}
-	return panel(ui, "", lines, inner, 2, panelOpts{})
-}
-
 type statusKind int
 
 const (

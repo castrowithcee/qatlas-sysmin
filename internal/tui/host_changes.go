@@ -108,7 +108,7 @@ func (m *Model) hostChangeColumns() []kittui.Column {
 func (m *Model) hostChangesSpec() dataSpec {
 	note := ""
 	if !m.hst.chg.have {
-		note = m.tr(tHostChangesHint, "ctrl+r")
+		note = m.tr(tHostChangesHint)
 	}
 	return dataSpec{title: m.tr(tSubChanges), note: note, lines: m.hostChangeLines}
 }

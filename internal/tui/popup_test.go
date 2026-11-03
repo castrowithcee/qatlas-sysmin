@@ -10,6 +10,17 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 )
 
+// kind is which part is open.
+func (p *popup) kind() popKind {
+	switch {
+	case p.info != nil:
+		return popInfo
+	case p.cmd != nil:
+		return popCommand
+	}
+	return popHelp
+}
+
 func TestHelpInfoAndCommandsOpenAndCloseWithEsc(t *testing.T) {
 	for key, kind := range map[string]popKind{"?": popHelp, "i": popInfo, ":": popCommand} {
 		for _, size := range [][2]int{{80, 24}, {40, 14}} {

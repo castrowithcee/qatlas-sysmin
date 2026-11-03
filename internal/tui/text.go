@@ -16,9 +16,6 @@ import (
 // textID is the key of one text of the catalog.
 type textID = kittui.TextID
 
-// Keys that are built from a name instead of being declared as constants.
-func wordID(english string) textID { return textID("word." + english) }
-
 // catalog is the editor's catalog in English and German: the texts of the frame and those of each screen
 // that keeps its own.
 func catalog() i18n.Catalogs[textID] {
@@ -55,10 +52,6 @@ func (u *uiContext) trOr(id textID, fallback string) string {
 	}
 	return fallback
 }
-
-// wordText is how a word or short phrase is drawn that the editor takes from its own tables, such as the
-// title of a group. An unknown word is drawn as it is.
-func (u *uiContext) wordText(english string) string { return u.trOr(wordID(english), english) }
 
 // tr is the text of id in the language of the editor; args are formatted into it.
 func (m *Model) tr(id textID, args ...any) string { return m.ui.tr(id, args...) }

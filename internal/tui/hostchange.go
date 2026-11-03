@@ -452,19 +452,6 @@ func (m *Model) confirmHost(p hostPlanned) {
 	m.confirm.cancel = func() { zeroAll(a.secret, a.mask) }
 }
 
-// askHostChange asks for the action id with args and, on y, runs it as root. Nothing is run or changed before
-// the answer; a refusal of the arguments or of the action comes back as a message. An action that wants a
-// secret input is asked through confirmHost by the form that collects it.
-func (m *Model) askHostChange(id string, args []string) tea.Cmd {
-	p, refusal := m.planHost(hostAsk{id: id, args: args})
-	if refusal != "" {
-		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: closeKeys()})
-		return nil
-	}
-	m.confirmHost(p)
-	return nil
-}
-
 // runHostChange runs a host apply or undo and shows what it reported. The page shown is read again afterwards:
 // the host may have changed even when the run failed and was restored.
 func (m *Model) runHostChange(argv []string, sentence string, secret []byte, mask [][]byte) tea.Cmd {

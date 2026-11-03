@@ -8,6 +8,14 @@ import (
 )
 
 // headerOf is the first row of the frame, where the back button stands.
+// wrap is i taken into 0..n-1: past either end it comes round.
+func wrap(i, n int) int {
+	if n <= 0 {
+		return 0
+	}
+	return ((i % n) + n) % n
+}
+
 func headerOf(m *Model) string { return strings.Split(plain(m), "\n")[0] }
 
 // footerOf is the last row of the frame.

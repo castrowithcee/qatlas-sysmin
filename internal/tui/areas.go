@@ -45,16 +45,6 @@ func (a area) titleID() textID {
 	return [...]textID{tAreaOverview, tAreaHost, tAreaActivity, tAreaSettings}[a]
 }
 
-// areaByName finds the area whose English name is name, ignoring case.
-func areaByName(name string) (area, bool) {
-	for a := area(0); a < areaCount; a++ {
-		if strings.EqualFold(a.key(), name) {
-			return a, true
-		}
-	}
-	return areaOverview, false
-}
-
 // The zones of the area screen are the kit's: the tab line, the sub-tabs of an area with more than one, the
 // rows of the content under them and the detail beside the rows. Tab walks them in the kit's order.
 const (
@@ -195,9 +185,6 @@ func (m *Model) showIn(a area, sub int, z kittui.FocusZone) tea.Cmd {
 		return m.enterPage()
 	})
 }
-
-// showActivity makes page sub of Activity the screen.
-func (m *Model) showActivity(sub int) tea.Cmd { return m.show(areaActivity, sub) }
 
 // enterPage asks for what the page just shown needs and has not yet.
 func (m *Model) enterPage() tea.Cmd {

@@ -29,17 +29,6 @@ type popup struct {
 	cmd  *kittui.CommandLine
 }
 
-// kind is which part is open.
-func (p *popup) kind() popKind {
-	switch {
-	case p.info != nil:
-		return popInfo
-	case p.cmd != nil:
-		return popCommand
-	}
-	return popHelp
-}
-
 // globalKeys are the actions the help lists as acting on every screen.
 func globalKeys() []action { return []action{actHelp, actCommand, actInfo, actSave, actBack, actQuit} }
 

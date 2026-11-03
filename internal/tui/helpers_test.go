@@ -7,8 +7,17 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/castrowithcee/qatlas-kit/redact"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 )
+
+// New is the frame for a plain terminal with the keys of prefs in force.
+func New(prefs kitprefs.Prefs, redactor *redact.Redactor) *Model {
+	m := newModel(prefs, redactor, kittui.ProfileNone, kittui.CharsetUnicode)
+	m.bindKeys()
+	return m
+}
 
 // testKeys is the key table with its default keys.
 func testKeys() *kittui.Keymap { return testUI().keys }
