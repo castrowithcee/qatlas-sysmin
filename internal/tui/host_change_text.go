@@ -108,12 +108,6 @@ func hostChangeTexts() (en, de map[textID]string) {
 		tHostRefused:           "Not changed: %s",
 		tHostRefusedNote:       "A rule of the host refused this change before anything was done.",
 		tHostPowerWarn:         "Admin and Docker rights allow practically everything on this host.",
-
-		footerID("y apply"):             "y apply",
-		footerID("y undo"):              "y undo",
-		footerID("y read as root"):      "y read as root",
-		footerID("enter undo"):          "enter undo",
-		footerID("ctrl+r read as root"): "ctrl+r read as root",
 	}
 	de = map[textID]string{
 		tSubChanges:            "Änderungen",
@@ -166,12 +160,6 @@ func hostChangeTexts() (en, de map[textID]string) {
 		tHostRefused:           "Nicht geändert: %s",
 		tHostRefusedNote:       "Eine Regel des Hosts hat diese Änderung abgelehnt, bevor etwas geschah.",
 		tHostPowerWarn:         "Admin- und Docker-Rechte erlauben praktisch alles auf diesem Host.",
-
-		footerID("y apply"):             "y ausführen",
-		footerID("y undo"):              "y rückgängig",
-		footerID("y read as root"):      "y als root lesen",
-		footerID("enter undo"):          "enter rückgängig",
-		footerID("ctrl+r read as root"): "ctrl+r als root lesen",
 	}
 	return en, de
 }

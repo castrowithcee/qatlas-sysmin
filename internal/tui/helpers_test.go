@@ -89,13 +89,16 @@ func screenOf(m *Model) string {
 	if m.quitting || m.terminalTooSmall() {
 		return m.render()
 	}
-	m.screenKeys, m.screenPos = "", ""
+	m.screenKeys, m.screenPos = nil, ""
 	return withFooter(m, m.workspaceView())
 }
 
 // withFooter is a view drawn by a single screen function with the footer under it, which the keys of that
 // screen went to.
-func withFooter(m *Model, view string) string { return m.ui.shown(view + "\n" + m.footerLine()) }
+func withFooter(m *Model, view string) string {
+	rows := strings.Split(m.frame(view), "\n")
+	return m.ui.shown(view + "\n" + rows[len(rows)-1])
+}
 
 // flatText is a view as one line of words, where the spacing between groups of keys does not matter.
 func flatText(view string) string { return strings.Join(strings.Fields(view), " ") }

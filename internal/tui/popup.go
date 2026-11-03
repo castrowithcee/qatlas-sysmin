@@ -134,16 +134,18 @@ func (m *Model) helpBody(width int) []string {
 	topic := helpTopics()[m.pop.topic]
 	var lines []string
 	if topic.id == "keys" {
-		everywhere := []string{"{help} help", "{command} cmds", "{info} info", "{save} save", "{back} back", "q quit"}
+		everywhere := keyLine(hint(tHintHelp, actHelp), hint(tHintCmds, actCommand), hint(tHintInfo, actInfo),
+			hint(tHintSave, actSave), hint(tHintBack, actBack), hint(tHintQuit, actQuit))
+		screen := slices.DeleteFunc(m.areaKeys(), func(h kittui.Hint) bool {
+			return slices.ContainsFunc(everywhere, func(e kittui.Hint) bool { return e.Action == h.Action && e.Label == h.Label })
+		})
 		lines = append(lines, m.ui.st(kittui.StyleTitle).Render(m.tr(tHelpKeysScreen)))
-		for _, g := range strings.Split(m.areaKeys(), " · ") {
-			if !slices.Contains(everywhere, g) {
-				lines = append(lines, "  "+truncateCells(m.footerKeys(g), width-2))
-			}
+		for _, g := range m.hintGroups(screen, kittui.InputNavigation) {
+			lines = append(lines, "  "+truncateCells(g.Text(), width-2))
 		}
 		lines = append(lines, "", m.ui.st(kittui.StyleTitle).Render(m.tr(tHelpKeysEverywhere)))
-		for _, g := range everywhere {
-			lines = append(lines, "  "+truncateCells(m.footerKeys(g), width-2))
+		for _, g := range m.hintGroups(everywhere, kittui.InputNavigation) {
+			lines = append(lines, "  "+truncateCells(g.Text(), width-2))
 		}
 		return lines
 	}
@@ -151,14 +153,14 @@ func (m *Model) helpBody(width int) []string {
 }
 
 // popupKeys is the key line of a panel.
-func popupKeys(kind popKind) string {
+func popupKeys(kind popKind) []kittui.Hint {
 	switch kind {
 	case popHelp:
-		return "↑/↓ scroll · ←/→ topic · {back} close"
+		return keyLine(navHint(tHintScroll, actUp, actDown), navHint(tHintTopic, actLeft, actRight), hint(tHintClose, actBack))
 	case popInfo:
-		return "{back} close"
+		return hint(tHintClose, actBack)
 	}
-	return paletteKeys
+	return paletteKeys()
 }
 
 // popupContent is the title and the lines of a panel of the help or the info. The command line draws itself
@@ -193,7 +195,7 @@ func (m *Model) popupFrame() string {
 		inner = min(modalMaxInner, m.termWidth-8)
 	}
 	keys := popupKeys(m.pop.kind)
-	keyLines := m.keyHintLinesWith(keys, func(g string) string { return keyHintGroupFoot(m.ui, g) })
+	keyLines := m.keyHintLinesWith(keys, kittui.StyleFooterKey)
 	room := m.height - 2
 	if modal {
 		room = m.termHeight - 4 - 2 - 1 - len(keyLines)

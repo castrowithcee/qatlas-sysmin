@@ -177,10 +177,10 @@ func (m *Model) askUndo() tea.Cmd {
 	e := m.hst.chg.items[id]
 	if !e.Reversible || e.UndoSentence == "" {
 		m.hostNotice(question{title: m.tr(tHostUndoRefused), consequence: m.tr(tHostUndoRefusedNote, m.diffText(e.Sentence)),
-			warn: true, keys: "{back} close"})
+			warn: true, keys: closeKeys()})
 		return nil
 	}
-	q := planQuestion(m.ui, e.UndoSentence, e.UndoCommands, "", "undo")
+	q := planQuestion(m.ui, e.UndoSentence, e.UndoCommands, "", tHintUndo)
 	q.title = m.diffText(e.UndoSentence)
 	q.consequence = m.tr(tHostUndoNote, m.diffText(e.Sentence))
 	argv := []string{"undo", "--confirm", "--output", "json", "--", id}
@@ -235,7 +235,7 @@ func (m *Model) askReadUser() tea.Cmd {
 	}
 	m.askConfirm(question{
 		title: m.tr(tHostReadTitle, m.diffText(name)), consequence: m.tr(tHostReadNote),
-		details: planDetails(m.ui, []string{"qsysmin host user " + shellWord(name)}), keys: "y read as root · n/{back} cancel",
+		details: planDetails(m.ui, []string{"qsysmin host user " + shellWord(name)}), keys: keyLine(answer(tHintReadAsRoot, actYes), answer(tHintCancel, actNo, actBack)),
 	}, func() tea.Cmd { return m.readUser(name) })
 	return nil
 }

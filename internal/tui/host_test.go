@@ -38,8 +38,8 @@ func TestTabLineStaysOneLineAt80Columns(t *testing.T) {
 		if ansi.StringWidth(rows[1]) > 80 || !strings.Contains(rows[1], "Host") && !strings.Contains(rows[1], "2") {
 			t.Errorf("area %s: tab line %q", digit, rows[1])
 		}
-		if m.barRows() > 2 {
-			t.Errorf("area %s: %d bar rows", digit, m.barRows())
+		if m.workspaceTop() > 4 {
+			t.Errorf("area %s: the workspace starts at row %d", digit, m.workspaceTop())
 		}
 	}
 }
@@ -239,7 +239,7 @@ func TestSpaceOnARowDoesNothingAndAHeadingHasNoDetail(t *testing.T) {
 	if _, ok := p.current(); ok {
 		t.Errorf("a heading is a row")
 	}
-	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "enter collapse") || strings.Contains(keys, "space hide") {
+	if keys := m.hintText(m.hostKeys()); !strings.Contains(keys, "enter collapse") || strings.Contains(keys, "space hide") {
 		t.Errorf("keys %q", keys)
 	}
 	send(m, "enter")

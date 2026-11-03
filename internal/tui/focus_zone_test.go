@@ -1,6 +1,8 @@
 package tui
 
 import (
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+
 	"strings"
 	"testing"
 )
@@ -141,7 +143,7 @@ func TestTabAndShiftTabChangeTheZoneAndNeverTheArea(t *testing.T) {
 	send(m, "2", "esc", "esc")
 	for _, step := range []struct {
 		key  string
-		want zone
+		want kittui.FocusZone
 	}{
 		{"tab", zoneSubs}, {"tab", zoneContent}, {"tab", zoneTabs},
 		{"shift+tab", zoneContent}, {"shift+tab", zoneSubs}, {"shift+tab", zoneTabs},
@@ -287,10 +289,10 @@ func TestClickOnTheBackButtonActsLikeEscAndTabClicksOpenTheArea(t *testing.T) {
 }
 
 // zonesOf walks the tab chain forward from the current zone and returns the zones it meets until it is back.
-func zonesOf(t *testing.T, m *Model, key string) []zone {
+func zonesOf(t *testing.T, m *Model, key string) []kittui.FocusZone {
 	t.Helper()
 	start := m.zoneNow()
-	out := []zone{start}
+	out := []kittui.FocusZone{start}
 	for range 6 {
 		send(m, key)
 		z := m.zoneNow()
@@ -303,7 +305,7 @@ func zonesOf(t *testing.T, m *Model, key string) []zone {
 	return nil
 }
 
-func sameZones(a, b []zone) bool {
+func sameZones(a, b []kittui.FocusZone) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -338,17 +340,17 @@ func TestTheDetailIsAFocusZoneOfTheTabChain(t *testing.T) {
 		if m.zoneNow() != zoneContent {
 			t.Fatalf("%s: starts on %v, want the rows", c.name, m.zoneNow())
 		}
-		want := []zone{zoneContent, zoneDetail, zoneTabs}
+		want := []kittui.FocusZone{zoneContent, zoneDetail, zoneTabs}
 		if c.subs {
-			want = []zone{zoneContent, zoneDetail, zoneTabs, zoneSubs}
+			want = []kittui.FocusZone{zoneContent, zoneDetail, zoneTabs, zoneSubs}
 		}
 		if got := zonesOf(t, m, "tab"); !sameZones(got, want) {
 			t.Errorf("%s: tab walks %v, want %v", c.name, got, want)
 		}
 		m.zone = zoneContent
-		back := []zone{zoneContent, zoneTabs, zoneDetail}
+		back := []kittui.FocusZone{zoneContent, zoneTabs, zoneDetail}
 		if c.subs {
-			back = []zone{zoneContent, zoneSubs, zoneTabs, zoneDetail}
+			back = []kittui.FocusZone{zoneContent, zoneSubs, zoneTabs, zoneDetail}
 		}
 		if got := zonesOf(t, m, "shift+tab"); !sameZones(got, back) {
 			t.Errorf("%s: shift+tab walks %v, want %v", c.name, got, back)

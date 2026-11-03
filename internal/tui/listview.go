@@ -95,16 +95,17 @@ func (m *Model) listFrame() (string, string) {
 		head.WriteString(note(m.ui.st(kittui.StyleHint), m.tr(tFormNoEntryMatchesPressEsc, m.list.query())))
 	}
 
-	keys := "↑/↓ move · / filter · q quit"
+	keys := keyLine(navHint(tHintMove, actUp, actDown), hint(tHintFilter, actSearch), hint(tHintQuit, actQuit))
 	if m.list.editing {
-		keys = "type to filter · ↑/↓ move · enter keep filter · {back} clear filter"
+		keys = keyLine(hint(tHintTypeToFilter), navHint(tHintMove, actUp, actDown), hint(tHintKeepFilter, actEnter),
+			hint(tHintClearFilter, actBack))
 	}
 	m.keyHint(keys)
 	foot := ""
 	if framed {
 		foot = panelBottom(m.ui, room, true) + foot
 	}
-	return head.String(), foot + m.notes()
+	return head.String(), foot
 }
 
 // filterLine shows the filter of l: while it is typed with its cursor, afterwards as the text it holds.

@@ -49,11 +49,7 @@ func TestHeaderStaysOneRowWithTheHelpKeyAtEveryWidth(t *testing.T) {
 		headerStates(t, func(name string, m *Model) {
 			for _, w := range []int{40, 50, 60, 80, 120} {
 				sizedModel(m, w, 20)
-				lines := m.headerLines()
-				if len(lines) != 1 {
-					t.Fatalf("%s at %d: %d header rows", name, w, len(lines))
-				}
-				row := ansi.Strip(lines[0])
+				row := headerOf(m)
 				if lipgloss.Width(row) > w {
 					t.Errorf("%s at %d: header is %d cells: %q", name, w, lipgloss.Width(row), row)
 				}
@@ -92,7 +88,7 @@ func TestHeaderShortensBeforeItDropsTheKeyHints(t *testing.T) {
 	m.set.upd = updateState{phase: updDone, info: ReleaseInfo{Latest: "9.9.9"}}
 	for w, wants := range map[int]string{80: "9.9.9 available", 40: "update"} {
 		sizedModel(m, w, 20)
-		row := ansi.Strip(m.headerLines()[0])
+		row := headerOf(m)
 		if !strings.Contains(row, wants) || !strings.Contains(row, "?") {
 			t.Errorf("%d columns: %q", w, row)
 		}
@@ -103,7 +99,7 @@ func TestGermanHeader(t *testing.T) {
 	m := appModel(t, newFake(), 80, 20)
 	m.set.upd = updateState{phase: updDone, info: ReleaseInfo{Latest: "9.9.9"}}
 	useLanguage(t, m, i18n.German)
-	if row := ansi.Strip(m.headerLines()[0]); !strings.Contains(row, "9.9.9 verfügbar") || !strings.Contains(row, "Hilfe") {
+	if row := headerOf(m); !strings.Contains(row, "9.9.9 verfügbar") || !strings.Contains(row, "Hilfe") {
 		t.Errorf("header = %q", row)
 	}
 }

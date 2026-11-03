@@ -1,24 +1,24 @@
 qsysmin                                            [esc] back  [?] help  [:] cmd
-   1 Overview   2 Host   3 Activity  [4 Settings]
-   General  [Update]
+   1 Overview   2 Host   3 Activity  [4 Settings]                               
+   General  [Update]                                                            
 ────────────────────────────────────────────────────────────────────────────────
-● Running:  0.0.0-test
-○ Latest :  no data
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-t check  esc back  i info  ? help  : cmds  q quit
+● Running:  0.0.0-test                                                          
+○ Latest :  no data                                                             
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+t check  esc back  i info  ? help  : cmds  q quit                               

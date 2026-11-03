@@ -218,7 +218,3 @@ func (u *uiContext) reloadPress() (tea.KeyPressMsg, bool) {
 	}
 	return tea.KeyPressMsg{}, false
 }
-
-// footerKeys translates a footer text and puts the keys in force in place of its placeholders, so a footer
-// follows the keymap while a screen-local key stays a plain literal in its text.
-func (m *Model) footerKeys(text string) string { return m.ui.footerText(text) }

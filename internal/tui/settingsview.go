@@ -60,7 +60,7 @@ func (p *pageDraw) row(line string, i int, focus *int) {
 			*focus = i
 			return nil
 		}
-		return m.contentPress("enter")
+		return m.contentPress(actEnter)
 	})
 	p.add(line)
 }

@@ -104,7 +104,7 @@ func TestDropdownClosesWhereItsFieldIsGone(t *testing.T) {
 		t.Error("a list whose field the frame did not draw stayed open")
 	}
 	m, _ = openedDropdown(t, 80, 24, 2, 3)
-	m.screen, m.ask = screenConfirm, &question{title: "Sure?", keys: "y yes · n/{back} no"}
+	m.screen, m.ask = screenConfirm, &question{title: "Sure?", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
 	if drawn(m); m.dd != nil {
 		t.Error("a list stayed open over a question")
 	}

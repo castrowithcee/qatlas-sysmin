@@ -99,7 +99,7 @@ func tabStripLine(ui *uiContext, p *dataPage, width int, focused bool) (string, 
 // dataBody draws the page from screen row top on.
 func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	width := m.usable(0)
-	avail := max(m.height-(top-m.workspaceTop())-strings.Count(m.notes(), "\n"), 3)
+	avail := max(m.height-(top-m.workspaceTop()), 3)
 	name, have := p.current()
 	if !have {
 		p.open = false
@@ -198,7 +198,7 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 		return panelSide(m.ui, text, room, focused)
 	}
 	total, shown := p.entries(), len(p.list.matches)
-	lines := []string{titleLine(m.ui, fmt.Sprintf("%s (%d)", v.title, total), position, width)}
+	lines := []string{m.ui.styles.TitleLine(fmt.Sprintf("%s (%d)", v.title, total), position, width)}
 	if framed {
 		lines = append(lines, panelTop(m.ui, "", "", room, focused))
 	}
@@ -249,7 +249,7 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 			if fromDetail {
 				return nil
 			}
-			return m.contentPress("enter")
+			return m.contentPress(actEnter)
 		})
 		lines = append(lines, inside(row))
 	}
@@ -271,7 +271,7 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 	}
 	strip, spans := tabStripLine(m.ui, p, inner, true)
 	body := append([]string{strip, ""}, content[p.scroll:min(p.scroll+room, len(content))]...)
-	head := titleLine(m.ui, v.title+" › "+truncateCells(name, max(width-lipgloss.Width(v.title)-4, 4)), note, width)
+	head := m.ui.styles.TitleLine(v.title+" › "+truncateCells(name, max(width-lipgloss.Width(v.title)-4, 4)), note, width)
 	for i, span := range spans {
 		m.addHit(2+span[0], top+2, 2+span[1], top+3, func() tea.Cmd { p.tab, p.scroll = i, 0; return nil })
 	}

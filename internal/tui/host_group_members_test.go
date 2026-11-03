@@ -34,7 +34,7 @@ func lastArgs(f *fakeSudo) []string {
 func TestGroupMembersFormOffersTheRightUsersAndSendsOneActionForAllChanges(t *testing.T) {
 	m, f, _ := groupsModel(t, 120, 40)
 	selectGroup(m, "demo-team")
-	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "e members") {
+	if keys := m.hintText(m.hostKeys()); !strings.Contains(keys, "e members") {
 		t.Errorf("keys %q lack e members", keys)
 	}
 	send(m, "e")
@@ -184,7 +184,7 @@ func TestGroupMembersFormSpeaksGerman(t *testing.T) {
 	m, _, _ := groupsModel(t, 120, 40)
 	useLanguage(t, m, "de")
 	selectGroup(m, "docker")
-	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "e members") {
+	if keys := m.hintText(m.hostKeys()); !strings.Contains(keys, "e Mitglieder") {
 		t.Errorf("keys %q", keys)
 	}
 	send(m, "e")

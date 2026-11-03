@@ -103,7 +103,7 @@ func TestTheWheelMovesTheFocusOfAFormDialogOverVisibleRowsAndHoldsAtTheEnds(t *t
 	now := wheelClock(m)
 	hidden := textRow("hidden", "Hidden", "")
 	hidden.hidden = true
-	m.openForm(&formDlg{title: "Demo", saveText: "{save} save", submit: func(*Model, *formDlg) tea.Cmd { return nil },
+	m.openForm(&formDlg{title: "Demo", saveText: answer(tHintSave, actSave), submit: func(*Model, *formDlg) tea.Cmd { return nil },
 		rows: []formRow{textRow("a", "First", ""), choiceRow("b", "Second", []string{"x", "y"}, nil, 0), hidden,
 			textRow("c", "Third", "")}})
 	x, y := wheelCell(t, m, func(wheelHit) bool { return true })
@@ -120,7 +120,7 @@ func TestTheWheelMovesTheFocusOfAFormDialogOverVisibleRowsAndHoldsAtTheEnds(t *t
 func TestTheWheelOverTheDimmedBackgroundOfAFormDialogMovesNothing(t *testing.T) {
 	m, _ := settingsModel(t, newFake(), "general")
 	now := wheelClock(m)
-	m.openForm(&formDlg{title: "Demo", saveText: "{save} save", rows: []formRow{textRow("a", "First", ""), textRow("b", "Second", "")}})
+	m.openForm(&formDlg{title: "Demo", saveText: answer(tHintSave, actSave), rows: []formRow{textRow("a", "First", ""), textRow("b", "Second", "")}})
 	m.render()
 	if len(m.wheelHits) != 1 {
 		t.Fatalf("%d wheel areas, want the one of the dialog:\n%s", len(m.wheelHits), plain(m))

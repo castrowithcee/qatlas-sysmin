@@ -1,7 +1,7 @@
-qsysmin
+qsysmin                                                                         
 ────────────────────────────────────────────────────────────────────────────────
 Services (4)                                                                 2/4
-
+                                                                                
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║   Name         State    Note                                                 ║
 ║   example-app  running  demo web service                                     ║
@@ -9,16 +9,16 @@ Services (4)                                                                 2/4
 ║   sample-job   stopped  demo nightly job                                     ║
 ║   test-proxy   failed   demo reverse proxy                                   ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-
-
-
-
-
-
-
-
-
-
-
-
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
 / filter  q quit  c copy                                           ↑/↓ move  2/4

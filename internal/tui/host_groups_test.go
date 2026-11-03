@@ -32,7 +32,7 @@ func selectGroup(m *Model, name string) {
 func TestGroupsPageOffersNewRenameAndDeleteInTheFooter(t *testing.T) {
 	m, _, _ := groupsModel(t, 120, 40)
 	selectGroup(m, "demo-team")
-	keys := strings.Join(m.hostKeys(), " ")
+	keys := m.hintText(m.hostKeys())
 	for _, want := range []string{"n new", "r rename", "d delete"} {
 		if !strings.Contains(keys, want) {
 			t.Errorf("keys %q lack %q", keys, want)
@@ -40,7 +40,7 @@ func TestGroupsPageOffersNewRenameAndDeleteInTheFooter(t *testing.T) {
 	}
 	p := &m.hst.groups.page
 	p.list.selectName(sectionRow("groups"))
-	if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "n new") || strings.Contains(keys, "rename") || strings.Contains(keys, "delete") {
+	if keys := m.hintText(m.hostKeys()); !strings.Contains(keys, "n new") || strings.Contains(keys, "rename") || strings.Contains(keys, "delete") {
 		t.Errorf("on a heading only n works: %q", keys)
 	}
 	send(m, "d", "r")

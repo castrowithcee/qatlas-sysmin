@@ -277,7 +277,7 @@ func (m *Model) hostFailNoticeAs(title string, kind hostFailure, exit int, err e
 	default:
 		text = m.hostFailText(kind, exit, err, change)
 	}
-	m.hostNotice(question{title: title, consequence: text, warn: true, danger: true, keys: "{back} close"})
+	m.hostNotice(question{title: title, consequence: text, warn: true, danger: true, keys: closeKeys()})
 }
 
 func (m *Model) hostFailText(kind hostFailure, exit int, err error, change bool) string {
@@ -360,8 +360,9 @@ func planDetails(ui *uiContext, commands []string) []string {
 }
 
 // planQuestion is the confirmation of a plan: the sentence, the commands, and the answers.
-func planQuestion(ui *uiContext, sentence string, commands []string, notReversible, verb string) question {
-	q := question{title: sentence, details: planDetails(ui, commands), keys: "y " + verb + " · n/{back} cancel"}
+func planQuestion(ui *uiContext, sentence string, commands []string, notReversible string, verb textID) question {
+	q := question{title: sentence, details: planDetails(ui, commands), keys: keyLine(answer(verb, actYes),
+		answer(tHintCancel, actNo, actBack))}
 	if notReversible != "" {
 		q.consequence, q.warn, q.danger = ui.tr(tHostIrreversible, notReversible), true, true
 	} else {
@@ -417,9 +418,9 @@ func (m *Model) planHost(a hostAsk) (hostPlanned, string) {
 // confirmHost shows the confirmation of a planned change; y runs it.
 func (m *Model) confirmHost(p hostPlanned) {
 	a := p.ask
-	verb := "apply"
+	verb := tHintRunChange
 	if a.id == hostchange.ActionUserDelete || a.id == hostchange.ActionGroupDelete {
-		verb = "delete"
+		verb = tHintDelete
 	}
 	q := planQuestion(m.ui, p.plan.Sentence, p.commands, p.plan.NotReversible, verb)
 	if a.power {
@@ -457,7 +458,7 @@ func (m *Model) confirmHost(p hostPlanned) {
 func (m *Model) askHostChange(id string, args []string) tea.Cmd {
 	p, refusal := m.planHost(hostAsk{id: id, args: args})
 	if refusal != "" {
-		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: "{back} close"})
+		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: closeKeys()})
 		return nil
 	}
 	m.confirmHost(p)
@@ -490,7 +491,7 @@ func (m *Model) hostResult(r hostReport, asked string) {
 	if sentence == "" {
 		sentence = asked
 	}
-	q := question{keys: "{back} close"}
+	q := question{keys: closeKeys()}
 	switch r.Result {
 	case hostchange.ResultApplied:
 		q.title = m.tr(tHostDone, m.diffText(sentence))

@@ -97,7 +97,7 @@ func (m *Model) groupNameProblem(name string) string {
 }
 
 func (m *Model) openGroupCreate() tea.Cmd {
-	f := &formDlg{title: m.tr(tHostGroupNewTitle), hint: m.tr(tHostGroupNewHint), saveText: "{save} save"}
+	f := &formDlg{title: m.tr(tHostGroupNewTitle), hint: m.tr(tHostGroupNewHint), saveText: answer(tHintSave, actSave)}
 	f.rows = []formRow{textRow("name", m.tr(tColName), "")}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
 		name := f.row("name").value()
@@ -122,7 +122,7 @@ func (m *Model) refuseProtected(g hostadmin.Group, why textID) bool {
 	if !protectedGroup(g.Name) {
 		return false
 	}
-	m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: m.tr(why, m.diffText(g.Name)), warn: true, keys: "{back} close"})
+	m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: m.tr(why, m.diffText(g.Name)), warn: true, keys: closeKeys()})
 	return true
 }
 
@@ -131,7 +131,7 @@ func (m *Model) openGroupRename() tea.Cmd {
 	if !ok || m.refuseProtected(g, tHostGroupKeepName) {
 		return nil
 	}
-	f := &formDlg{title: m.tr(tHostGroupRenameTitle, m.diffText(g.Name)), hint: m.tr(tHostGroupRenameHint), saveText: "{save} continue"}
+	f := &formDlg{title: m.tr(tHostGroupRenameTitle, m.diffText(g.Name)), hint: m.tr(tHostGroupRenameHint), saveText: answer(tHintContinue, actSave)}
 	f.rows = []formRow{textRow("name", m.tr(tHostFormNewName), "")}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
 		name := f.row("name").value()
@@ -160,12 +160,12 @@ func (m *Model) askGroupDelete() tea.Cmd {
 	}
 	if users := m.primaryUsers(g.Name); len(users) > 0 {
 		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: m.tr(tHostGroupPrimary, m.diffText(g.Name), m.diffText(strings.Join(users, ", "))),
-			warn: true, keys: "{back} close"})
+			warn: true, keys: closeKeys()})
 		return nil
 	}
 	p, refusal := m.planHost(hostAsk{id: hostchange.ActionGroupDelete, args: []string{g.Name}, risk: m.groupRisk(g)})
 	if refusal != "" {
-		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: "{back} close"})
+		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: closeKeys()})
 		return nil
 	}
 	m.confirmHost(p)

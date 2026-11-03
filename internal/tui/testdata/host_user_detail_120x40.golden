@@ -1,6 +1,6 @@
 qsysmin                                                                                    [esc] back  [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings 
-  [Users]  Groups   Folders   Changes 
+   1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
+  [Users]  Groups   Folders   Changes                                                                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                         2/2 ╔═ demo-user ════════════════════════════════════╗
 ╭───────────────────────────────────────────────────────────────────╮ ║ [Overview]  Details   Raw                      ║
@@ -14,27 +14,27 @@ Users (3)                                                         2/2 ╔═ dem
                                                                       ║ Home               /home/demo-user             ║
                                                                       ║ Locked             no                          ║
                                                                       ╚════════════════════════════════════════════════╝
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
 esc back  ctrl+r read as root  i info  c copy  ? help  : cmds  q quit                           ←/→ tab  ↑/↓ scroll  2/2

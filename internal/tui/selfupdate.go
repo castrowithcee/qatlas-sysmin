@@ -23,7 +23,7 @@ func (m *Model) selfUpdate() tea.Cmd {
 	return m.guarded(func() tea.Cmd {
 		m.askConfirm(question{
 			title: m.tr(tUpdTitle, m.version, latest), consequence: m.tr(tUpdConsequence), warn: true,
-			keys: "y update · n/{back} cancel",
+			keys: keyLine(answer(tHintUpdate, actYes), answer(tHintCancel, actNo, actBack)),
 		}, func() tea.Cmd {
 			m.updateTo = latest
 			return m.quit()

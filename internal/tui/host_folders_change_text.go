@@ -33,8 +33,6 @@ func hostFolderChangeTexts() (en, de map[textID]string) {
 		tHostFolderCount:       "%d entries are changed: the folder and everything below it.",
 		tHostFolderTooMany:     "%s has more than %d entries. Change a smaller folder. Nothing was changed.",
 		tHostFolderCountFailed: "The entries below the folder cannot be counted: %s. Nothing was changed.",
-
-		footerID("e change"): "e change",
 	}
 	de = map[textID]string{
 		tHostFolderChangeTitle: "%s ändern",
@@ -50,8 +48,6 @@ func hostFolderChangeTexts() (en, de map[textID]string) {
 		tHostFolderCount:       "%d Einträge werden geändert: der Ordner und alles darunter.",
 		tHostFolderTooMany:     "%s hat mehr als %d Einträge. Ändere einen kleineren Ordner. Es wurde nichts geändert.",
 		tHostFolderCountFailed: "Die Einträge unter dem Ordner lassen sich nicht zählen: %s. Es wurde nichts geändert.",
-
-		footerID("e change"): "e ändern",
 	}
 	return en, de
 }

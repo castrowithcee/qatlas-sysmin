@@ -506,7 +506,7 @@ func TestEveryAccountOffersTheChangeForm(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
 	for _, name := range []string{"svc-demo", "demo-user"} {
 		selectAccount(m, name)
-		if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "e edit") {
+		if keys := m.hintText(m.hostKeys()); !strings.Contains(keys, "e edit") {
 			t.Errorf("%s: keys %q", name, keys)
 		}
 		send(m, "e")
@@ -719,7 +719,7 @@ func TestDeleteAsksForTheHomeAndSendsItsChoice(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m, f, host, _ := userModel(t, 120, 40)
 			selectUser(m, "demo-user")
-			if keys := strings.Join(m.hostKeys(), " "); !strings.Contains(keys, "d delete") {
+			if keys := m.hintText(m.hostKeys()); !strings.Contains(keys, "d delete") {
 				t.Errorf("keys %q", keys)
 			}
 			send(m, "d")

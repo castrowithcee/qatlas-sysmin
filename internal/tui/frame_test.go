@@ -109,7 +109,7 @@ func TestQuestionIsAModalWithButtonsOverTheList(t *testing.T) {
 	m := frameModel(t, 80, 24)
 	m.screen = screenConfirm
 	m.ask = &question{title: "Remove the example entry?", consequence: "The entry is gone.", danger: true,
-		keys: "y remove · n/{back} cancel"}
+		keys: keyLine(answer("remove", actYes), answer(tHintCancel, actNo, actBack))}
 	view := plain(m)
 	assertViewFits(t, view, 80, 24)
 	for _, want := range []string{"Remove the example entry?", "The entry is gone.", "Remove", "Cancel", "alpha"} {
@@ -126,7 +126,7 @@ func TestQuestionIsAModalWithButtonsOverTheList(t *testing.T) {
 func TestQuestionFillsASmallTerminal(t *testing.T) {
 	m := frameModel(t, 50, 16)
 	m.screen = screenConfirm
-	m.ask = &question{title: "Remove the example entry?", consequence: "The entry is gone.", keys: "y remove · n/{back} cancel"}
+	m.ask = &question{title: "Remove the example entry?", consequence: "The entry is gone.", keys: keyLine(answer("remove", actYes), answer(tHintCancel, actNo, actBack))}
 	view := plain(m)
 	assertViewFits(t, view, 50, 16)
 	if !strings.Contains(view, "Remove the example entry?") || !strings.Contains(view, "y remove") {
@@ -137,7 +137,7 @@ func TestQuestionFillsASmallTerminal(t *testing.T) {
 func TestPromptDialogIsAModal(t *testing.T) {
 	m := frameModel(t, 80, 24)
 	m.screen = screenPrompt
-	m.dialog = &promptDialog{title: "Name the entry", input: "name: example", hint: "Letters only.", keys: "enter save · {back} cancel"}
+	m.dialog = &promptDialog{title: "Name the entry", input: "name: example", hint: "Letters only.", keys: keyLine(answer(tHintSave, actEnter), answer(tHintCancel, actBack))}
 	view := plain(m)
 	assertViewFits(t, view, 80, 24)
 	for _, want := range []string{"Name the entry", "example", "Letters only.", "Save", "Cancel"} {
@@ -217,7 +217,7 @@ func TestBackButtonStandsOnDialogsAndPressesEsc(t *testing.T) {
 		t.Error("the bare list shows a back button")
 	}
 	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", consequence: "Nothing happens.", keys: "y yes · n/{back} no"}
+	m.ask = &question{title: "Sure?", consequence: "Nothing happens.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
 	first := strings.Split(plain(m), "\n")[0]
 	at := strings.Index(first, "[esc] back")
 	if at < 0 {

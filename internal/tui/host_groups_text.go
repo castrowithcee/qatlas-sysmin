@@ -45,8 +45,6 @@ func hostGroupTexts() (en, de map[textID]string) {
 		tHostMembersAdd:       "Add",
 		tHostMembersRemove:    "Remove",
 		tHostMembersTickOne:   "Choose at least one user.",
-		footerID("e members"): "e members",
-		footerID("r rename"):  "r rename",
 	}
 	de = map[textID]string{
 		tHostGroupNewTitle:    "Neue Gruppe",
@@ -68,8 +66,6 @@ func hostGroupTexts() (en, de map[textID]string) {
 		tHostMembersAdd:       "Hinzufügen",
 		tHostMembersRemove:    "Entfernen",
 		tHostMembersTickOne:   "Wähle mindestens einen Benutzer.",
-		footerID("e members"): "e Mitglieder",
-		footerID("r rename"):  "r umbenennen",
 	}
 	return en, de
 }

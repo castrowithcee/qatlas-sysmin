@@ -8,6 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // The mouse reaches the editor through a list of click targets that the drawing of a frame fills as it goes:
@@ -42,7 +44,7 @@ type wheelHit struct {
 
 // addZone registers the click target of a zone. It ranks beneath every other target, so a click lands on an
 // element inside the zone if there is one and gives the zone the focus otherwise.
-func (m *Model) addZone(x0, y0, x1, y1 int, z zone) {
+func (m *Model) addZone(x0, y0, x1, y1 int, z kittui.FocusZone) {
 	if m.backdrop || m.tooSmall || x1 <= x0 || y1 <= y0 {
 		return
 	}
@@ -60,7 +62,7 @@ func (m *Model) addWheel(x0, y0, x1, y1 int, scroll func(up bool) tea.Cmd) {
 // focusZone is the click on a free place of zone z. It does what tab does and no more: an inner level of the
 // content (a typed filter, a log, a guided setup, an open detail) keeps the focus, and a detail that does not
 // stand beside the rows or a page strip that is not there cannot be focused.
-func (m *Model) focusZone(z zone) tea.Cmd {
+func (m *Model) focusZone(z kittui.FocusZone) tea.Cmd {
 	if m.screen != screenArea || m.innerLevel() {
 		return nil
 	}
@@ -96,10 +98,6 @@ func (m *Model) addFrameHit(x0, y0, x1, y1 int, act func() tea.Cmd) {
 	}
 	m.frameHits = append(m.frameHits, hit{x0, y0, x1, y1, act})
 }
-
-// workspaceTop is the screen row of the first line of the workspace: below the header, the bars and the rule.
-// Every click target of the workspace counts its rows from here.
-func (m *Model) workspaceTop() int { return len(m.headerLines()) + m.barRows() + 1 }
 
 // hitTop is the screen row of the first line after header, a text the workspace starts with.
 func (m *Model) hitTop(header string) int { return m.workspaceTop() + strings.Count(header, "\n") }
@@ -269,25 +267,25 @@ func (m *Model) press(key tea.KeyPressMsg) tea.Cmd {
 	return cmd
 }
 
-// contentPress is pressName for a click in the content of the area screen, which the key reaches only with
+// contentPress is pressAction for a click in the content of the area screen, which the key reaches only with
 // the focus there.
-func (m *Model) contentPress(name string) tea.Cmd {
+func (m *Model) contentPress(a action) tea.Cmd {
 	if m.screen == screenArea {
 		m.zone = zoneContent
 	}
-	return m.pressName(name)
+	return m.pressAction(a)
 }
 
-// pressName is press for a key named as a footer names it.
-func (m *Model) pressName(name string) tea.Cmd {
-	key, ok := m.keyByName(name)
+// pressAction is press for the first key of an action, where a click can press it.
+func (m *Model) pressAction(a action) tea.Cmd {
+	key, ok := m.keyByName(m.firstKeyLabel(a))
 	if !ok {
 		return nil
 	}
 	return m.press(key)
 }
 
-// keyByName is the key press a footer's key name stands for, for the keys a dialog's buttons use.
+// keyByName is the key press a key label stands for, for the keys a click can press.
 func (m *Model) keyByName(name string) (tea.KeyPressMsg, bool) {
 	switch name {
 	case m.keyLabel(actEnter):
@@ -332,27 +330,16 @@ func functionKeyCode(name string) (rune, bool) {
 	return 0, false
 }
 
-// footerSpan is one key group of a footer line: the cells it stands in and the key it names.
+// footerSpan is one key group of a key line: the cells it stands in and the action of its first key.
 type footerSpan struct {
 	x0, x1 int
-	key    string
+	act    action
 }
 
 // footerLine is a footer line as drawn, and where its key groups stand.
 type footerLine struct {
 	plain string
 	spans []footerSpan
-}
-
-// footerKey is the key a footer group opens with ("y delete" names y). Of alternatives ("n/esc") the first
-// stands for the group. A group that opens with anything else, such as "1-4" or "type to filter", has none.
-func (m *Model) footerKey(group string) string {
-	word, _, _ := strings.Cut(group, " ")
-	word, _, _ = strings.Cut(word, "/")
-	if _, ok := m.keyByName(word); ok {
-		return word
-	}
-	return ""
 }
 
 // hitDialog makes the keys of the footer lines of a dialog clickable: they are its buttons. lines are the
@@ -372,11 +359,11 @@ func (m *Model) hitFooters(lines []string, log []footerLine, y0, x0 int) {
 			}
 			used[i] = true
 			for _, span := range footer.spans {
-				if span.key == "" {
+				if span.act == "" {
 					continue
 				}
-				name := span.key
-				m.addHit(x0+span.x0, y0+i, x0+span.x1, y0+i+1, func() tea.Cmd { return m.pressName(name) })
+				act := span.act
+				m.addHit(x0+span.x0, y0+i, x0+span.x1, y0+i+1, func() tea.Cmd { return m.pressAction(act) })
 			}
 			break
 		}
@@ -390,22 +377,6 @@ func dialogOrigin(dialog []string, width, height int) (top, left int) {
 		dialogWidth = max(dialogWidth, ansi.StringWidth(line))
 	}
 	return max((height-len(dialog))/2, 0), max((width-dialogWidth)/2, 0)
-}
-
-// navSpan is the cells one entry of the tab line or the option bar stands in.
-type navSpan struct{ x0, x1 int }
-
-// spanItems places the items of a bar one after the other from column start on, with sep between them, and
-// cuts the places to width cells.
-func spanItems(items []string, start int, sep string, width int) []navSpan {
-	spans := make([]navSpan, len(items))
-	x := start
-	for i, item := range items {
-		w := ansi.StringWidth(item)
-		spans[i] = navSpan{min(x, width), min(x+w, width)}
-		x += w + ansi.StringWidth(sep)
-	}
-	return spans
 }
 
 // backShown reports whether esc leads one level back from the screen shown now, which is where the back
@@ -432,11 +403,6 @@ func (m *Model) pressBack() tea.Cmd {
 		return nil
 	}
 	return m.press(key)
-}
-
-// registerBack makes the back button of the header clickable.
-func (m *Model) registerBack(span navSpan) {
-	m.addFrameHit(span.x0, 0, span.x1, 1, m.pressBack)
 }
 
 // markOrAct is the click on a row of a list: it marks the row, and only a click on the row that already was

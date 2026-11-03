@@ -75,7 +75,7 @@ type Model struct {
 	// area is the current area of screenArea and zone the part of it that takes the keys; backend serves it;
 	// svc is what the service last reported.
 	area    area
-	zone    zone
+	zone    kittui.FocusZone
 	backend Backend
 	svc     svcState
 	// confirm is the question of screenConfirm that waits for y, nil while there is none.
@@ -116,7 +116,7 @@ type Model struct {
 
 	// screenKeys and screenPos are what the screen drawn last hands to the footer: its key line and its
 	// position, such as "3/12".
-	screenKeys string
+	screenKeys []kittui.Hint
 	screenPos  string
 
 	// termWidth and termHeight are what the terminal reported. width and height are the room of the
@@ -128,9 +128,10 @@ type Model struct {
 	hits, frameHits []hit
 	// zoneHits are the click targets of the zones, which rank beneath every other target; wheelHits are the
 	// areas the wheel scrolls under the pointer.
-	zoneHits    []hit
-	wheelHits   []wheelHit
-	footerSpans []footerSpan
+	zoneHits  []hit
+	wheelHits []wheelHit
+	// footerTargets are the keys of the footer drawn last, clickable where they answer a dialog.
+	footerTargets []kittui.Target
 	// footerLog collects the key lines a dialog draws itself, so its keys can be clicked as buttons.
 	footerLog *[]footerLine
 	// inModal and inPanel say that a dialog is drawn into a modal or a panel; backdrop, that the frame is
@@ -385,7 +386,7 @@ func (m *Model) renderFrame() string {
 	if m.dd != nil {
 		m.dd.placed = false
 	}
-	m.screenKeys, m.screenPos = "", ""
+	m.screenKeys, m.screenPos = nil, ""
 	m.layoutWorkspace()
 	if m.terminalTooSmall() {
 		m.tooSmall = true
@@ -414,7 +415,7 @@ func (m *Model) workspaceView() string {
 	case m.screen == screenArea:
 		return m.boundView(m.areaView())
 	case m.questionScreen():
-		return m.boundKeepingKeys(m.framedQuestion(m.questionView), m.width, m.height) + m.notes()
+		return m.boundKeepingKeys(m.framedQuestion(m.questionView), m.width, m.height)
 	case m.promptScreen():
 		d, _ := m.prompt()
 		return m.boundKeepingKeys(m.promptView(d), m.width, m.height)
@@ -428,32 +429,18 @@ func (m *Model) terminalTooSmall() bool {
 
 // resizeView is the notice that replaces the screen while the terminal is smaller than the editor needs.
 func (m *Model) resizeView() string {
-	way := "q quit"
+	way := hint(tHintQuit, actQuit)
 	if m.screen != m.home {
-		way = "{back} leave"
+		way = hint(tHintLeave, actBack)
 	}
 	// The way out comes first, so it is the last thing a terminal of a single row loses.
 	lines := []string{
-		m.ui.st(kittui.StyleKey).Render(m.footerKeys(way)),
+		m.ui.st(kittui.StyleKey).Render(m.hintText(way)),
 		m.ui.st(kittui.StyleWarn).Render(warnMark + " " + m.tr(tResizeTitle)),
 		m.ui.st(kittui.StyleHint).Render("  " + m.tr(tResizeNeed, minimumWidth, minimumHeight)),
 		m.ui.st(kittui.StyleHint).Render("  " + m.tr(tResizeNow, m.termWidth, m.termHeight)),
 	}
 	return m.boundTo(strings.Join(lines, "\n"), m.termWidth, m.termHeight)
-}
-
-// notes are the lines under every screen: what is still running, and what the last action did.
-func (m *Model) notes() string {
-	out := ""
-	if m.busy != "" {
-		out += "\n\n" + m.wrapped(m.ui.st(kittui.StyleHint), m.tr(tNoteRunning, m.busy))
-	}
-	if m.fail != "" {
-		out += "\n\n" + m.wrapped(m.ui.st(kittui.StyleFail), m.tr(tNoteError, m.fail))
-	} else if m.status != "" {
-		out += "\n\n" + m.wrapped(m.ui.st(kittui.StyleHint), m.status)
-	}
-	return out
 }
 
 // searchLine shows the filter of l behind the given label.

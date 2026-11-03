@@ -40,23 +40,6 @@ func (m *Model) copySource() func() string {
 // copyKeyShown reports whether a footer names the copy key: where it copies something.
 func (m *Model) copyKeyShown() bool { return m.helpReachable() && m.copySource() != nil }
 
-// withCopyKey adds the copy group to a key line, ahead of the groups every screen ends with.
-func withCopyKey(text string) string {
-	if strings.Contains(text, "{copy}") {
-		return text
-	}
-	at := -1
-	for _, marker := range []string{"{command} cmds", "{help} help"} {
-		if i := strings.Index(text, marker); i >= 0 && (at < 0 || i < at) {
-			at = i
-		}
-	}
-	if at < 0 {
-		return text + " · {copy} copy"
-	}
-	return text[:at] + "{copy} copy · " + text[at:]
-}
-
 // copyCurrent hands the text of the copy source to the terminal and says so; it is nil where there is
 // nothing to copy.
 func (m *Model) copyCurrent() tea.Cmd {

@@ -192,7 +192,7 @@ type createForm struct{ keyList }
 // openUserCreate opens the form for a new person or service account.
 func (m *Model) openUserCreate() tea.Cmd {
 	st := &createForm{}
-	f := &formDlg{title: m.tr(tHostNewTitle), saveText: "{save} save"}
+	f := &formDlg{title: m.tr(tHostNewTitle), saveText: answer(tHintSave, actSave)}
 	yesNo := []string{hostNo, hostYes}
 	shown := []string{m.tr(tHostNo), m.tr(tHostYes)}
 	f.rows = []formRow{
@@ -424,7 +424,7 @@ func (m *Model) openUserEdit() tea.Cmd {
 		fps, fpShown = []string{""}, []string{""}
 	}
 	st := &editForm{u: u, add: add, remove: remove}
-	f := &formDlg{title: m.tr(tHostEditTitle, m.diffText(u.Name)), saveText: "{save} save", submit: st.submit}
+	f := &formDlg{title: m.tr(tHostEditTitle, m.diffText(u.Name)), saveText: answer(tHintSave, actSave), submit: st.submit}
 	f.rows = []formRow{
 		choiceRow("what", m.tr(tHostFormWhat), ids, shown, 0),
 		pickRow("add", m.tr(tHostFormAddTo), add, m.systemNotes(add)),
@@ -665,7 +665,7 @@ func (m *Model) openUserDelete() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	f := &formDlg{title: m.tr(tHostDeleteTitle, m.diffText(u.Name)), saveText: "{save} continue"}
+	f := &formDlg{title: m.tr(tHostDeleteTitle, m.diffText(u.Name)), saveText: answer(tHintContinue, actSave)}
 	f.rows = []formRow{
 		choiceRow("home", m.tr(tHostFormHome), []string{homeKeep, homeDelete}, []string{m.tr(tHostHomeKeep), m.tr(tHostHomeDelete)}, 0),
 	}

@@ -83,10 +83,10 @@ func TestEnglishIsTheDefaultAndFallback(t *testing.T) {
 	if got := m.ui.wordText("a word nobody translated"); got != "a word nobody translated" {
 		t.Errorf("an untranslated word = %q, want it as it is", got)
 	}
-	if got := m.ui.footerText("x unknown · q quit · {back} back"); got != "x unknown · q Ende · esc zurück" {
-		t.Errorf("footerText = %q", got)
+	if got := m.hintText(keyLine(hint(tHintQuit, actQuit), hint(tHintBack, actBack))); got != "q Ende · esc zurück" {
+		t.Errorf("hintText = %q", got)
 	}
-	if got := m.ui.footerText("{save} keep · y maybe"); got != "F2 keep · y maybe" {
+	if got := m.hintText(keyLine(hint("keep", actSave), hint("maybe", actYes))); got != "F2 keep · y maybe" {
 		t.Errorf("an untranslated group keeps its words and names its key: %q", got)
 	}
 }

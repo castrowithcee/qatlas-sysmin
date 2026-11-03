@@ -209,10 +209,10 @@ func (m *Model) hostFoldersBody() string {
 }
 
 // hostFoldersKeys is the key line of Folders while the line takes letters.
-func (m *Model) hostFoldersKeys() string {
-	keys := "enter read · {back} stop"
+func (m *Model) hostFoldersKeys() []kittui.Hint {
 	if len(m.foldersReady().in.matches) > 0 {
-		keys = "enter read · tab complete · ctrl+n/ctrl+p suggestion · {back} stop"
+		return keyLine(hint(tHintRead, actEnter), navHint(tHintComplete, actNext),
+			hint(tHintSuggestion, actSuggestNext, actSuggestPrev), hint(tHintStop, actBack))
 	}
-	return keys
+	return keyLine(hint(tHintRead, actEnter), hint(tHintStop, actBack))
 }

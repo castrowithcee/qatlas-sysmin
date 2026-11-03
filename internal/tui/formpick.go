@@ -165,7 +165,8 @@ func (m *Model) pickDialog(f *formDlg) promptDialog {
 		lines = append(lines, m.ui.st(kittui.StyleHint).Render("    "+m.tr(tPickPosition, l.cursor+1, len(l.matches))))
 	}
 	return promptDialog{title: f.rows[pk.row].label, input: strings.Join(lines, "\n"),
-		keys: "↑/↓ move · space tick · enter keep · {back} discard"}
+		keys: keyLine(navHint(tHintMove, actUp, actDown), hint(tHintTick, actSpace), answer(tHintKeep, actEnter),
+			answer(tHintDiscard, actBack))}
 }
 
 // tickText is the plain box of a ticked or unticked entry.
@@ -205,16 +206,14 @@ const (
 // pickTexts are the texts of the pick row and its list, in English and German.
 func pickTexts() (en, de map[textID]string) {
 	en = map[textID]string{
-		tPickNone:                  "none",
-		tPickNothing:               "nothing to choose",
-		tPickMore:                  "+%d",
-		footerID("{back} discard"): "{back} discard",
+		tPickNone:    "none",
+		tPickNothing: "nothing to choose",
+		tPickMore:    "+%d",
 	}
 	de = map[textID]string{
-		tPickNone:                  "keine",
-		tPickNothing:               "nichts zur Auswahl",
-		tPickMore:                  "+%d",
-		footerID("{back} discard"): "{back} verwerfen",
+		tPickNone:    "keine",
+		tPickNothing: "nichts zur Auswahl",
+		tPickMore:    "+%d",
 	}
 	return en, de
 }

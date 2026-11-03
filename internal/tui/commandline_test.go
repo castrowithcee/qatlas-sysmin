@@ -331,7 +331,7 @@ func TestPaletteReadsWithoutColour(t *testing.T) {
 
 func TestFooterHasNoCommandHint(t *testing.T) {
 	m := appModel(t, overviewFake(), 200, 30)
-	for _, line := range []string{m.footerLine(), plain(m)} {
+	for _, line := range []string{footerOf(m), plain(m)} {
 		if strings.Contains(line, "via :") {
 			t.Errorf("the footer hints at the commands: %q", line)
 		}

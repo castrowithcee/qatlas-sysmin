@@ -1,24 +1,24 @@
 qsysmin                                            [esc] back  [?] help  [:] cmd
-   1 Overview   2 Host   3 Activity  [4 Settings]
-  [General]  Update 
+   1 Overview   2 Host   3 Activity  [4 Settings]                               
+  [General]  Update                                                             
 ────────────────────────────────────────────────────────────────────────────────
->  Language:       english ▾ 
-   Theme:          terminal ▾ 
-   Mouse:          on ▾ 
-   Save key:       f2
-   Help key:       ?
-   Command key:    :
-   Extra info key: -
-
-
-
-
-
-
-
-
-
-
-
-
+>  Language:       english ▾                                                    
+   Theme:          terminal ▾                                                   
+   Mouse:          on ▾                                                         
+   Save key:       f2                                                           
+   Help key:       ?                                                            
+   Command key:    :                                                            
+   Extra info key: -                                                            
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
 enter edit  F2 save  esc back  i info  ? help  : cmds  q quit           ↑/↓ move

@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 )
 
@@ -19,9 +20,9 @@ const (
 )
 
 // subTitle is the name of a Settings page as drawn.
-func subTitle(ui *uiContext, sub int) string {
-	return ui.tr([...]textID{tSubGeneral, tSubUpdate}[sub])
-}
+func subTitle(ui *uiContext, sub int) string { return ui.tr(subTitleID(sub)) }
+
+func subTitleID(sub int) textID { return [...]textID{tSubGeneral, tSubUpdate}[sub] }
 
 // subKey is the English name of a Settings page, the one commands are given by.
 func subKey(sub int) string { return [...]string{"general", "update"}[sub] }
@@ -191,12 +192,12 @@ func (m *Model) takeUpdate(msg updateMsg) {
 }
 
 // settingsKeys is the key text of the page shown.
-func (m *Model) settingsKeys() []string {
+func (m *Model) settingsKeys() []kittui.Hint {
 	switch m.set.sub {
 	case subGeneral:
-		return []string{"↑/↓ move", "enter edit", "{save} save"}
+		return keyLine(navHint(tHintMove, actUp, actDown), hint(tHintEdit, actEnter), hint(tHintSave, actSave))
 	}
-	return []string{"t check"}
+	return hint(tHintCheck, actTest)
 }
 
 // settingsKey handles a key of Settings while no field takes the text. It reports false for a key the area
@@ -405,7 +406,7 @@ func (m *Model) guarded(next func() tea.Cmd) tea.Cmd {
 	m.set.editing = false
 	m.leave = &leaveAsk{next}
 	m.ask = &question{title: m.tr(tLeaveTitle), consequence: m.tr(tLeaveConsequence), warn: true,
-		keys: "{save} save · d discard · {back} keep editing"}
+		keys: keyLine(answer(tHintSave, actSave), answer(tHintDiscard, actDiscard), answer(tHintKeepEditing, actBack))}
 	m.screen = screenConfirm
 	return nil
 }

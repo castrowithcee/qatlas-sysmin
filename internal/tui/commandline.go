@@ -211,7 +211,10 @@ func (m *Model) pickCommand(i int) tea.Cmd {
 }
 
 // paletteKeys is the key line of the command line.
-const paletteKeys = "type to search · ↑/↓ or tab choose · enter run · {back} close"
+func paletteKeys() []kittui.Hint {
+	return keyLine(hint(tHintTypeToSearch), navHint(tHintChoose, actUp, actDown, actNext), hint(tHintRun, actEnter),
+		hint(tHintClose, actBack))
+}
 
 // paletteMaxRows caps the entries shown at once; the list scrolls with the choice.
 const paletteMaxRows = 12

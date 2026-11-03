@@ -1,6 +1,8 @@
 package tui
 
 import (
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+
 	"reflect"
 	"strings"
 	"testing"
@@ -90,7 +92,7 @@ func TestCopyKeyCopiesNothingWhereItIsATextKeyOrNothingIsMarked(t *testing.T) {
 
 	m = frameModel(t, 100, 30)
 	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", keys: "y yes · n/{back} no"}
+	m.ask = &question{title: "Sure?", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
 	if _, ok := pressCopy(m); ok {
 		t.Error("c copied while a question is open")
 	}
@@ -148,14 +150,18 @@ func TestCopyRedactsASecretInTheNameOfTheRow(t *testing.T) {
 }
 
 func TestWithCopyKeyPutsTheGroupAheadOfHelpAndCommands(t *testing.T) {
-	for in, want := range map[string]string{
-		"↑/↓ move · {help} help":                    "↑/↓ move · {copy} copy · {help} help",
-		"enter open · {command} cmds · {help} help": "enter open · {copy} copy · {command} cmds · {help} help",
-		"↑/↓ move":                      "↑/↓ move · {copy} copy",
-		"x · {copy} copy · {help} help": "x · {copy} copy · {help} help",
+	m := frameModel(t, 80, 24)
+	for _, c := range []struct {
+		in   []kittui.Hint
+		want string
+	}{
+		{keyLine(navHint(tHintMove, actUp, actDown), hint(tHintHelp, actHelp)), "↑/↓ move · c copy · ? help"},
+		{keyLine(hint(tHintOpen, actEnter), hint(tHintCmds, actCommand), hint(tHintHelp, actHelp)), "enter open · c copy · : cmds · ? help"},
+		{navHint(tHintMove, actUp, actDown), "↑/↓ move · c copy"},
+		{keyLine(hint(tHintOpen, actEnter), hint(tHintCopy, actCopy), hint(tHintHelp, actHelp)), "enter open · c copy · ? help"},
 	} {
-		if got := withCopyKey(in); got != want {
-			t.Errorf("withCopyKey(%q) = %q, want %q", in, got, want)
+		if got := m.hintText(withCopyKey(c.in)); got != c.want {
+			t.Errorf("withCopyKey(%q) = %q, want %q", m.hintText(c.in), got, c.want)
 		}
 	}
 }

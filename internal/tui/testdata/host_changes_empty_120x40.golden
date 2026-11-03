@@ -1,40 +1,40 @@
 qsysmin                                                                                    [esc] back  [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings 
-   Users   Groups   Folders  [Changes]
+   1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
+   Users   Groups   Folders  [Changes]                                                                                  
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Changes (0)
+Changes (0)                                                                                                             
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║ Press ctrl+r to read the latest changes as root. sudo asks for your password.                                        ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
 enter undo  ctrl+r read as root  / filter  esc back  i info  ? help  : cmds  q quit                             ↑/↓ move

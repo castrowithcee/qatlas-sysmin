@@ -26,7 +26,9 @@ const (
 // actKey is the English name of an Activity page, the one commands are given by.
 func actKey(sub int) string { return [...]string{"log"}[sub] }
 
-func actTitle(ui *uiContext, sub int) string { return ui.tr([...]textID{tSubLog}[sub]) }
+func actTitle(ui *uiContext, sub int) string { return ui.tr(actTitleID(sub)) }
+
+func actTitleID(sub int) textID { return [...]textID{tSubLog}[sub] }
 
 // logPageSize is how many entries one request asks for.
 const logPageSize = 100
@@ -416,11 +418,17 @@ func (m *Model) activityBody() string {
 	return strings.Join(lines, "\n") + "\n" + m.dataBody(&m.act.page, m.logSpec(), top+len(lines))
 }
 
-func (m *Model) activityKeys() []string {
+func (m *Model) activityKeys() []kittui.Hint {
 	if m.detailFocus(&m.act.page) {
-		return []string{"←/→ tab", "↑/↓ scroll", "{back} back"}
+		return detailKeys()
 	}
-	return []string{"↑/↓ move", "enter details", "f filter", "t verify", "ctrl+r reload", "/ search"}
+	return keyLine(navHint(tHintMove, actUp, actDown), hint(tHintDetails, actEnter), hint(tHintFilter, actFilter),
+		hint(tHintVerify, actTest), hint(tHintReload, actReload), hint(tHintSearch, actSearch))
+}
+
+// detailKeys are the keys of the detail of a row.
+func detailKeys() []kittui.Hint {
+	return keyLine(navHint(tHintTab, actLeft, actRight), navHint(tHintScroll, actUp, actDown), hint(tHintBack, actBack))
 }
 
 // activityKey handles the keys of Activity that the table does not.
@@ -439,7 +447,7 @@ func (m *Model) activityKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 // openLogFilter opens the form of the filter.
 func (m *Model) openLogFilter() {
 	a := &m.act
-	f := &formDlg{title: m.tr(tLogFilterTitle), saveText: "{save} apply", submit: submitLogFilter}
+	f := &formDlg{title: m.tr(tLogFilterTitle), saveText: answer(tHintApply, actSave), submit: submitLogFilter}
 	periods := make([]string, periodCount)
 	values := make([]string, periodCount)
 	for i := range periods {

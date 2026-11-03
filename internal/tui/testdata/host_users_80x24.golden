@@ -1,6 +1,6 @@
 qsysmin                                            [esc] back  [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings 
-  [Users]  Groups   Folders   Changes 
+   1 Overview  [2 Host]  3 Activity   4 Settings                                
+  [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    1/2
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -10,15 +10,15 @@ Users (3)                                                                    1/2
 ║   demo-user   yes · not enabled  no      demo-user, sudo, demo-team          ║
 ║   ▸ System accounts (1)                                                      ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-
-
-
-
-
-
-
-
-
-
-
-enter details  n new  e edit  d delete  esc back  ? help  : cmds  q quit
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+enter details  n new  e edit  d delete  esc back  ? help  : cmds  q quit        

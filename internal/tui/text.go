@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"maps"
-	"strings"
 
 	"github.com/castrowithcee/qatlas-kit/i18n"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
@@ -18,7 +17,6 @@ import (
 type textID = kittui.TextID
 
 // Keys that are built from a name instead of being declared as constants.
-func footerID(group string) textID { return textID("footer." + group) }
 func wordID(english string) textID { return textID("word." + english) }
 
 // catalog is the editor's catalog in English and German: the texts of the frame and those of each screen
@@ -26,7 +24,7 @@ func wordID(english string) textID { return textID("word." + english) }
 func catalog() i18n.Catalogs[textID] {
 	en, de := textEN(), textDE()
 	for _, part := range []func() (en, de map[textID]string){
-		pickTexts, hostChangeTexts, hostFolderChangeTexts, hostGroupTexts, hostTexts, hostUserTexts,
+		hintTexts, pickTexts, hostChangeTexts, hostFolderChangeTexts, hostGroupTexts, hostTexts, hostUserTexts,
 	} {
 		partEN, partDE := part()
 		maps.Copy(en, partEN)
@@ -54,29 +52,6 @@ func (u *uiContext) trOr(id textID, fallback string) string {
 		return u.text.Lookup(id)
 	}
 	return fallback
-}
-
-// footerText translates the groups of a key line, separated by " · ", and puts the keys in force in place of
-// their placeholders. A group without an entry keeps its words; the keys inside a translated group stay the
-// keys.
-func (u *uiContext) footerText(text string) string {
-	groups := strings.Split(text, " · ")
-	for i, group := range groups {
-		groups[i] = u.trOr(footerID(group), u.keyPlaceholders(group))
-	}
-	return strings.Join(groups, " · ")
-}
-
-// keyPlaceholders puts the keys in force in place of the placeholders of a text the catalog does not hold,
-// such as "{save} save"; the translator does so for every text it holds.
-func (u *uiContext) keyPlaceholders(text string) string {
-	if !strings.Contains(text, "{") {
-		return text
-	}
-	for _, a := range u.keys.Actions() {
-		text = strings.ReplaceAll(text, "{"+string(a.ID)+"}", u.keys.Label(a.ID))
-	}
-	return text
 }
 
 // wordText is how a word or short phrase is drawn that the editor takes from its own tables, such as the

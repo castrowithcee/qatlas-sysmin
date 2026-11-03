@@ -20,7 +20,7 @@ const (
 // questionScreen reports whether the current screen is a question the modal shows.
 func (m *Model) questionScreen() bool { return m.screen == screenConfirm && m.ask != nil }
 
-// questionView is the text of the current question, without the notes that follow a full screen.
+// questionView is the text of the current question.
 func (m *Model) questionView() string { return m.questionText(*m.ask) }
 
 // screenBeneath is the screen a dialog stands over, and false for a screen that is none.
@@ -157,11 +157,11 @@ type question struct {
 	danger bool
 	// calm draws the heading of a modal without the warning mark: a message that reports success.
 	calm bool
-	// labels name buttons by their key where the key line's words do not fit a button.
-	labels map[string]string
+	// labels name buttons by their action where the key line's words do not fit a button.
+	labels map[action]string
 	// details are finished lines (they may span several rows) between the consequence and the keys.
 	details []string
-	keys    string
+	keys    []kittui.Hint
 }
 
 // questionHeading is the question of a modal with the warning mark at its left.

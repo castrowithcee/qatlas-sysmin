@@ -367,7 +367,8 @@ func TestOverviewFooterNamesTheKeyOfTheFocusedEntry(t *testing.T) {
 	fb.down = errDropped
 	m = overviewModel(t, fb, 120, 40)
 	send(m, "1")
-	if foot := lastRow(m); !strings.Contains(foot, "enter retry") {
+	// The retry of the step and of ctrl+r read the same and so share one group.
+	if foot := lastRow(m); !strings.Contains(foot, "enter/ctrl+r retry") {
 		t.Errorf("footer on the retry step: %q", foot)
 	}
 }

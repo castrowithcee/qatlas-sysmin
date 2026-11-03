@@ -26,7 +26,7 @@ func promptModel(t *testing.T, w, h int) *Model {
 	m := frameModel(t, w, h)
 	m.screen = screenPrompt
 	m.dialog = &promptDialog{title: "Name the entry", notice: "Names are shown in the list.", input: "name: example",
-		hint: "Letters only.", keys: "enter save · {back} cancel", field: true}
+		hint: "Letters only.", keys: keyLine(answer(tHintSave, actEnter), answer(tHintCancel, actBack)), field: true}
 	return m
 }
 

@@ -79,6 +79,6 @@ func TestGoldenModal(t *testing.T) {
 	m := goldenFrame(t)
 	m.screen = screenConfirm
 	m.ask = &question{title: "Stop the example service?", consequence: "The demo service stops serving requests.",
-		keys: "y stop · n/{back} cancel"}
+		keys: keyLine(answer("stop", actYes), answer(tHintCancel, actNo, actBack))}
 	assertGolden(t, "modal_80x24", m.render())
 }

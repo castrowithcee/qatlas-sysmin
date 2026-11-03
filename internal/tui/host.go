@@ -25,8 +25,10 @@ const (
 	hostCount
 )
 
-func hostTitle(ui *uiContext, sub int) string {
-	return ui.tr([...]textID{tSubUsers, tSubGroups, tSubFolders, tSubChanges}[sub])
+func hostTitle(ui *uiContext, sub int) string { return ui.tr(hostTitleID(sub)) }
+
+func hostTitleID(sub int) textID {
+	return [...]textID{tSubUsers, tSubGroups, tSubFolders, tSubChanges}[sub]
 }
 
 // hostKey is the English name of a Host page, the one commands are given by.
@@ -418,45 +420,46 @@ func (m *Model) hostBody() string {
 }
 
 // hostKeys is the key line of Host.
-func (m *Model) hostKeys() []string {
+func (m *Model) hostKeys() []kittui.Hint {
 	if m.hst.sub == hostFolders {
-		keys := []string{"enter edit path"}
+		keys := hint(tHintEditPath, actEnter)
 		if _, ok := m.changeableFolder(); ok {
-			keys = append(keys, "e change")
+			keys = append(keys, hint(tHintChange, actEdit)...)
 		}
 		return keys
 	}
 	if p := m.currentPage(); p != nil && m.detailFocus(p) {
-		keys := []string{"←/→ tab", "↑/↓ scroll", "{back} back"}
+		keys := detailKeys()
 		if m.hst.sub == hostUsers {
-			keys = append(keys, "ctrl+r read as root")
+			keys = append(keys, hint(tHintReadAsRoot, actReload)...)
 		}
 		return keys
 	}
 	if m.hst.sub == hostChanges {
-		return []string{"↑/↓ move", "enter undo", "ctrl+r read as root", "/ filter"}
+		return keyLine(navHint(tHintMove, actUp, actDown), hint(tHintUndo, actEnter), hint(tHintReadAsRoot, actReload),
+			hint(tHintFilter, actSearch))
 	}
-	enter := "enter details"
+	enter := tHintDetails
 	if p := m.currentPage(); p != nil && p.onHeading() {
-		enter = "enter collapse"
+		enter = tHintCollapse
 		if p.headingFolded() {
-			enter = "enter expand"
+			enter = tHintExpand
 		}
 	}
-	keys := []string{"↑/↓ move", enter}
+	keys := keyLine(navHint(tHintMove, actUp, actDown), hint(enter, actEnter))
 	if m.hst.sub == hostUsers {
-		keys = append(keys, "n new")
+		keys = append(keys, hint(tHintNew, actNew)...)
 		if m.canEditCurrent() {
-			keys = append(keys, "e edit", "d delete")
+			keys = keyLine(keys, hint(tHintEdit, actEdit), hint(tHintDelete, actDelete))
 		}
 	}
 	if m.hst.sub == hostGroups {
-		keys = append(keys, "n new")
+		keys = append(keys, hint(tHintNew, actNew)...)
 		if _, ok := m.currentGroup(); ok {
-			keys = append(keys, "e members", "r rename", "d delete")
+			keys = keyLine(keys, hint(tHintMembers, actEdit), hint(tHintRename, actRename), hint(tHintDelete, actDelete))
 		}
 	}
-	return append(keys, "/ filter")
+	return append(keys, hint(tHintFilter, actSearch)...)
 }
 
 // hostKey handles the keys of Host that the page does not.

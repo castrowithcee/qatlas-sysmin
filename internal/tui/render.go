@@ -221,49 +221,46 @@ func (m *Model) listRowIn(room int, active bool, text string) string {
 // being cut off at its right edge.
 func (m *Model) hint(text string) string { return "\n" + m.wrapped(m.ui.st(kittui.StyleHint), text) }
 
-// keyHint is the key line of a screen: groups of keys separated by " · ". It hands the line to the footer of
-// the frame (see footerLine) and returns nothing for the workspace; only while a modal dialog is drawn does
-// it return the line itself (see dialogKeyHint).
-func (m *Model) keyHint(text string) string {
+// keyHint hands the key line of a screen to the footer of the frame and returns nothing for the workspace;
+// only while a modal dialog is drawn does it return the line itself (see dialogKeyHint).
+func (m *Model) keyHint(keys []kittui.Hint) string {
 	if m.footerLog == nil {
-		// A screen's keys stand in the footer of the frame, not in the workspace. A dialog under a backdrop
-		// leaves the footer as it was.
+		// A dialog under a backdrop leaves the footer as it was.
 		if !m.backdrop {
 			if m.copyKeyShown() {
-				text = withCopyKey(text)
+				keys = withCopyKey(keys)
 			}
-			m.screenKeys = text
+			m.screenKeys = keys
 		}
 		return ""
 	}
-	return m.dialogKeyHint(text)
+	return m.dialogKeyHint(keys)
 }
 
 // dialogKeyHint is the key line of a modal dialog: groups never split across a wrap, only between groups,
-// and within a group the key (its first word) is bold while the action after it keeps the plain hint style.
-// A single group too wide for the terminal is cut with "...". It stands in the dialog itself, where its
-// keys are buttons.
-func (m *Model) dialogKeyHint(text string) string {
-	return "\n" + strings.Join(m.keyHintLines(text), "\n")
+// and within a group the keys are bold while the label keeps the plain hint style. A single group too wide
+// for the terminal is cut with "...". It stands in the dialog itself, where its keys are buttons.
+func (m *Model) dialogKeyHint(keys []kittui.Hint) string {
+	return "\n" + strings.Join(m.keyHintLines(keys), "\n")
 }
 
-// keyHintLines is the footer text broken into lines of whole groups.
-func (m *Model) keyHintLines(text string) []string {
-	return m.keyHintLinesWith(text, func(g string) string { return keyHintGroup(m.ui, g) })
+// keyHintLines is a key line broken into lines of whole groups.
+func (m *Model) keyHintLines(keys []kittui.Hint) []string {
+	return m.keyHintLinesWith(keys, kittui.StyleKey)
 }
 
-// keyHintLinesWith is keyHintLines with each group drawn by style.
-func (m *Model) keyHintLinesWith(text string, style func(group string) string) []string {
-	text = m.footerKeys(text)
+// keyHintLinesWith is keyHintLines with the keys of each group in keyStyle. A dialog names the keys of its
+// own line, so every key of it counts.
+func (m *Model) keyHintLinesWith(keys []kittui.Hint, keyStyle kittui.TextStyle) []string {
 	width := m.usable(0)
 	var lines []string
 	var line string
 	lineWidth := 0
 	var current []footerSpan
 	var spanned [][]footerSpan
-	for _, group := range strings.Split(text, " · ") {
-		group = truncateCells(group, width)
-		gw := lipgloss.Width(group)
+	for _, g := range m.hintGroups(keys, kittui.InputNavigation) {
+		text := truncateCells(g.Text(), width)
+		gw := lipgloss.Width(text)
 		if lineWidth > 0 && lineWidth+lipgloss.Width(" · ")+gw > width {
 			lines, spanned = append(lines, line), append(spanned, current)
 			line, lineWidth, current = "", 0, nil
@@ -272,8 +269,12 @@ func (m *Model) keyHintLinesWith(text string, style func(group string) string) [
 			line += m.ui.st(kittui.StyleHint).Render(" · ")
 			lineWidth += lipgloss.Width(" · ")
 		}
-		current = append(current, footerSpan{lineWidth, lineWidth + gw, m.footerKey(group)})
-		line += style(group)
+		var act action
+		if len(g.Keys) > 0 {
+			act = g.Keys[0].Action
+		}
+		current = append(current, footerSpan{lineWidth, lineWidth + gw, act})
+		line += keyHintGroup(m.ui, text, len(g.Keys) > 0, keyStyle)
 		lineWidth += gw
 	}
 	if lineWidth > 0 || len(lines) == 0 {
@@ -287,11 +288,15 @@ func (m *Model) keyHintLinesWith(text string, style func(group string) string) [
 	return lines
 }
 
-// keyHintGroup styles one "key action" hint: the key (its first word) bold, the action after it faint.
-func keyHintGroup(ui *uiContext, group string) string {
-	key, action, ok := strings.Cut(group, " ")
-	if !ok {
-		return ui.st(kittui.StyleKey).Render(key)
+// keyHintGroup styles one drawn group: its keys, the first word, in keyStyle and the label after them faint.
+// A group without keys is faint as a whole.
+func keyHintGroup(ui *uiContext, text string, keyed bool, keyStyle kittui.TextStyle) string {
+	key, label, ok := strings.Cut(text, " ")
+	switch {
+	case !keyed:
+		return ui.st(kittui.StyleHint).Render(text)
+	case !ok:
+		return ui.st(keyStyle).Render(key)
 	}
-	return ui.st(kittui.StyleKey).Render(key) + ui.st(kittui.StyleHint).Render(" "+action)
+	return ui.st(keyStyle).Render(key) + ui.st(kittui.StyleHint).Render(" "+label)
 }

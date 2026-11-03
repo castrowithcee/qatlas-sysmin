@@ -115,42 +115,13 @@ func TestRefusedPreferenceKeysFallBackToTheStandard(t *testing.T) {
 	}
 }
 
-// Every key a footer names for a global action comes from the keymap: no screen file spells one as a
-// literal in a footer text.
-func TestFooterTextsNameGlobalKeysOnlyByPlaceholder(t *testing.T) {
-	files, err := filepath.Glob("*.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	banned := []string{"? help", ": cmds", "F2 save", "F2 next", "F2 write", "F2 or enter", "esc back", "esc cancel", "esc close", "esc leave", "n/esc"}
-	for _, f := range files {
-		if strings.HasSuffix(f, "_test.go") || f == "keymap.go" {
-			continue
-		}
-		src, err := os.ReadFile(f)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for i, line := range strings.Split(string(src), "\n") {
-			if strings.HasPrefix(strings.TrimSpace(line), "//") || !strings.Contains(line, `"`) {
-				continue
-			}
-			for _, b := range banned {
-				if strings.Contains(line, b) && strings.Contains(line, " · ") {
-					t.Errorf("%s:%d spells %q in a footer text; use the key placeholder", f, i+1, b)
-				}
-			}
-		}
-	}
-}
-
 // keyLiteral finds the lines that spell a key value: a case item that is a string literal, or a comparison
 // of a String() with one.
 var keyLiteral = regexp.MustCompile(`^\s*case\s+(?:(?:"[^"]*"|[\w.]+\([^()]*\)|[\w.]+)\s*,\s*)*"[^"]*"\s*[,:]|\.String\(\)\s*[!=]=\s*"`)
 
-// nonKeySwitches are files whose string cases are no keys (names, colour codes, footer groups, filter
-// states). TestTableKeysAreNeverLiterals still covers them for every key of the table.
-var nonKeySwitches = []string{"canvas.go", "footer.go", "logs.go", "mouse.go", "tui.go"}
+// nonKeySwitches are files whose string cases are no keys (names, colour codes, filter states).
+// TestTableKeysAreNeverLiterals still covers them for every key of the table.
+var nonKeySwitches = []string{"canvas.go", "logs.go", "mouse.go", "tui.go"}
 
 // tableKeys are the key names the keymap owns: every default key of every action. No file but keymap.go
 // spells one as a key value.

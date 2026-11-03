@@ -1,6 +1,6 @@
 qsysmin                                            [esc] back  [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings 
-   Users  [Groups]  Folders   Changes 
+   1 Overview  [2 Host]  3 Activity   4 Settings                                
+   Users  [Groups]  Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Groups (4)                                                                   2/4
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -12,13 +12,13 @@ Groups (4)                                                                   2/4
 ║   docker           1  system                                                 ║
 ║   qsysmin          1  system                                                 ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-
-
-
-
-
-
-
-
-
-enter details  n new  e members  d delete  esc back  ? help  : cmds  q quit
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+enter details  n new  e members  d delete  esc back  ? help  : cmds  q quit     

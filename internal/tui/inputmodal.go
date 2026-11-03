@@ -18,7 +18,7 @@ type promptDialog struct {
 	input string
 	// hint is the explanation under the input.
 	hint string
-	keys string
+	keys []kittui.Hint
 	// field says the first input row is a text field, which a modal draws as a surface.
 	field bool
 }
@@ -66,10 +66,8 @@ func (m *Model) surfaced(input string) string {
 	return first
 }
 
-// promptView is a dialog as a whole screen, with the notes every editor screen ends in.
-func (m *Model) promptView(d promptDialog) string {
-	return m.promptScreenText(d) + m.notes()
-}
+// promptView is a dialog as a whole screen.
+func (m *Model) promptView(d promptDialog) string { return m.promptScreenText(d) }
 
 // promptScreenText is a dialog as a whole screen: in a panel under its title where the workspace has the room
 // for one, and as the title above the text elsewhere.

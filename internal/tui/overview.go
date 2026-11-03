@@ -107,10 +107,12 @@ func (m *Model) takeOverview(msg overviewMsg) {
 // ovItem is a card or a next step. act is what enter does there and key how the footer names it; both are
 // empty for a step that only informs.
 type ovItem struct {
-	label, value, key string
-	kind              statusKind
-	info              textID
-	act               func() tea.Cmd
+	label, value string
+	// key is the label of the hint of enter on the entry; empty where enter does nothing.
+	key  textID
+	kind statusKind
+	info textID
+	act  func() tea.Cmd
 }
 
 // noData is the dimmed word a card shows without figures.
@@ -134,7 +136,7 @@ func (m *Model) overviewCards() []ovItem {
 	o := &m.ovr
 	users := func() tea.Cmd { return m.show(areaHost, hostUsers) }
 	figure := func(label, value string, have bool, warn bool, info textID, act func() tea.Cmd) ovItem {
-		c := ovItem{label: label, kind: statusDim, value: m.noData(), key: "enter open", info: info, act: act}
+		c := ovItem{label: label, kind: statusDim, value: m.noData(), key: tHintOpen, info: info, act: act}
 		if have {
 			c.kind, c.value = statusOK, value
 			if warn {
@@ -152,7 +154,7 @@ func (m *Model) overviewCards() []ovItem {
 	service := ovItem{label: m.tr(tOvService), kind: statusOK, value: m.tr(tOvReachable), info: tInfoOvService}
 	if !m.serviceUp() {
 		service.kind, service.value = statusFail, m.tr(tOvUnreachable)
-		service.key, service.act = "enter retry", m.statusCmd
+		service.key, service.act = tHintRetry, m.statusCmd
 	}
 	return []ovItem{
 		figure(m.tr(tOvAdmins), fmt.Sprint(admins), haveUsers, false, tInfoOvAdmins, users),
@@ -168,14 +170,14 @@ func (m *Model) overviewSteps() []ovItem {
 	if !m.svc.known {
 		return nil
 	}
-	step := func(kind statusKind, label, key string, act func() tea.Cmd) ovItem {
+	step := func(kind statusKind, label string, key textID, act func() tea.Cmd) ovItem {
 		return ovItem{label: label, kind: kind, key: key, act: act, info: tInfoOvSteps}
 	}
 	if !m.serviceUp() {
 		if m.svc.noGroup {
-			return []ovItem{step(statusFail, m.tr(tOvRegroup), "enter restart", m.regroup)}
+			return []ovItem{step(statusFail, m.tr(tOvRegroup), tHintRestart, m.regroup)}
 		}
-		retry := step(statusFail, m.tr(tOvRetry), "enter retry", m.statusCmd)
+		retry := step(statusFail, m.tr(tOvRetry), tHintRetry, m.statusCmd)
 		if m.svc.foreign {
 			// The error carries the way out; it must stay readable.
 			retry.label += " · " + oneLine(m.svc.fail)
@@ -184,10 +186,10 @@ func (m *Model) overviewSteps() []ovItem {
 	}
 	var steps []ovItem
 	if latest := m.updateAvailable(); latest != "" {
-		steps = append(steps, step(statusWarn, m.tr(tOvInstall, latest), "enter update", m.selfUpdate))
+		steps = append(steps, step(statusWarn, m.tr(tOvInstall, latest), tHintUpdate, m.selfUpdate))
 	}
 	if _, notEnabled := m.hostUserFigures(); m.hst.users.have && notEnabled > 0 {
-		steps = append(steps, step(statusWarn, m.tr(tOvStepEnable, notEnabled), "enter open",
+		steps = append(steps, step(statusWarn, m.tr(tOvStepEnable, notEnabled), tHintOpen,
 			func() tea.Cmd { return m.show(areaHost, hostUsers) }))
 	}
 	if len(steps) == 0 {
@@ -429,7 +431,7 @@ func (m *Model) overviewBody() string {
 		})
 	}
 
-	lines = append(lines, titleLine(m.ui, m.area.title(m.ui), ovDate(m.ui, m.timeNow()), width))
+	lines = append(lines, m.ui.styles.TitleLine(m.area.title(m.ui), ovDate(m.ui, m.timeNow()), width))
 	if p.blank {
 		lines = append(lines, "")
 	}

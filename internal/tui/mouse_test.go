@@ -41,16 +41,8 @@ func wheel(m *Model, x, y int, button tea.MouseButton) {
 	m.Update(tea.MouseWheelMsg{X: x, Y: y, Button: button})
 }
 
-func TestFooterKeyNamesMapToKeysOnlyForKeysAButtonCanPress(t *testing.T) {
+func TestKeyNamesMapToKeysOnlyForKeysAClickCanPress(t *testing.T) {
 	m := testModel(defaultPrefs(), nil)
-	for group, want := range map[string]string{
-		"y delete": "y", "n/esc cancel": "n", "enter save": "enter", "esc back": "esc", "tab next": "tab",
-		"F2 save": "F2", "1-4 area": "", "type to filter": "", "↑/↓ move": "", "": "",
-	} {
-		if got := m.footerKey(group); got != want {
-			t.Errorf("m.footerKey(%q) = %q, want %q", group, got, want)
-		}
-	}
 	for name, code := range map[string]rune{"enter": tea.KeyEnter, "esc": tea.KeyEscape, "tab": tea.KeyTab, "F2": tea.KeyF2, "f9": tea.KeyF9} {
 		if key, ok := m.keyByName(name); !ok || key.Code != code {
 			t.Errorf("m.keyByName(%q) = %v, %v", name, key, ok)
@@ -59,7 +51,7 @@ func TestFooterKeyNamesMapToKeysOnlyForKeysAButtonCanPress(t *testing.T) {
 	if key, ok := m.keyByName("y"); !ok || key.Text != "y" {
 		t.Errorf("a letter has no text key: %v", key)
 	}
-	for _, name := range []string{"7", "xy", "", " ", "F5"} {
+	for _, name := range []string{"7", "xy", "", " ", "F5", "↑"} {
 		if _, ok := m.keyByName(name); ok {
 			t.Errorf("m.keyByName(%q) names a key", name)
 		}
@@ -188,7 +180,7 @@ func TestTheWheelDoesNothingOnADialogOrWhileFiltering(t *testing.T) {
 	}
 	press(t, m, "esc")
 	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: "y yes · n/{back} no"}
+	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
 	*now = now.Add(time.Second)
 	wheel(m, 5, 10, tea.MouseWheelDown)
 	if m.list.cursor != 0 {
@@ -242,16 +234,16 @@ func TestMouseEventsAfterQuitDoNothing(t *testing.T) {
 func TestLetterButtonsAreNotTypedIntoAFilter(t *testing.T) {
 	m := frameModel(t, 80, 24)
 	press(t, m, "/")
-	m.pressName("y")
-	m.pressName("d")
+	m.pressAction(actYes)
+	m.pressAction(actDelete)
 	if m.list.query() != "" {
 		t.Errorf("a letter button reached the filter: %q", m.list.query())
 	}
-	if cmd := m.pressName("enter"); cmd != nil || m.list.editing {
+	if cmd := m.pressAction(actEnter); cmd != nil || m.list.editing {
 		t.Errorf("the enter button did not end the filter: editing %v", m.list.editing)
 	}
-	if cmd := m.pressName("nonsense"); cmd != nil {
-		t.Error("an unknown key name returned a command")
+	if cmd := m.pressAction("nonsense"); cmd != nil {
+		t.Error("an unknown action returned a command")
 	}
 }
 
@@ -274,7 +266,7 @@ func TestBackIsShownWhereEscLeadsOneLevelBack(t *testing.T) {
 		t.Errorf("the back button did not clear the filter: query %q, shown %d", m.list.query(), len(m.list.matches))
 	}
 	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: "y yes · n/{back} no"}
+	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
 	if !m.backShown() {
 		t.Error("a question shows no back button")
 	}
@@ -288,7 +280,7 @@ func TestBackIsShownWhereEscLeadsOneLevelBack(t *testing.T) {
 func TestFooterKeysOfAFullScreenDialogAreClickable(t *testing.T) {
 	m := frameModel(t, 50, 16)
 	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", consequence: "Nothing happens.", keys: "y yes · n/{back} no"}
+	m.ask = &question{title: "Sure?", consequence: "Nothing happens.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
 	plain(m)
 	foot := strings.Split(plain(m), "\n")[m.termHeight-1]
 	at := strings.Index(foot, "no")
@@ -298,16 +290,6 @@ func TestFooterKeysOfAFullScreenDialogAreClickable(t *testing.T) {
 	clickAt(m, ansi.StringWidth(foot[:at]), m.termHeight-1)
 	if m.screen != screenList {
 		t.Errorf("a click on the answer no left screen %v", m.screen)
-	}
-}
-
-func TestSpanItemsPlacesItemsAndCutsThemAtTheWidth(t *testing.T) {
-	spans := spanItems([]string{"ab", "cde", "f"}, 2, " | ", 12)
-	want := []navSpan{{2, 4}, {7, 10}, {12, 12}}
-	for i, s := range spans {
-		if s != want[i] {
-			t.Errorf("span %d = %+v, want %+v", i, s, want[i])
-		}
 	}
 }
 

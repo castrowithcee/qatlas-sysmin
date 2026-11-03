@@ -322,12 +322,9 @@ func TestEveryFooterGroupOfThePagesIsTranslated(t *testing.T) {
 	m := appModel(t, activityFake(), 120, 40)
 	useLanguage(t, m, "de")
 	send(m, "3")
-	for _, group := range strings.Split(m.areaKeys(), " · ") {
-		if strings.HasPrefix(group, "{") || group == "1-4 area" {
-			continue
-		}
-		if _, ok := catalog()[i18n.German][footerID(group)]; !ok {
-			t.Errorf("footer group %q has no German text", group)
+	for _, h := range m.areaKeys() {
+		if _, ok := catalog()[i18n.German][h.Label]; h.Label != "" && !ok {
+			t.Errorf("footer label %q has no German text", h.Label)
 		}
 	}
 }

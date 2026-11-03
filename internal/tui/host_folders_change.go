@@ -96,7 +96,7 @@ func (m *Model) openFolderChange() tea.Cmd {
 	users, groups := m.hostAccountNames()
 	owners, ownerSel := accountChoices(users, folder.Owner)
 	groupNames, groupSel := accountChoices(groups, folder.Group)
-	f := &formDlg{title: m.tr(tHostFolderChangeTitle, m.diffText(path)), saveText: "{save} save"}
+	f := &formDlg{title: m.tr(tHostFolderChangeTitle, m.diffText(path)), saveText: answer(tHintSave, actSave)}
 	f.rows = []formRow{
 		choiceRow("owner", m.tr(tHostFolderOwner), owners, nil, ownerSel),
 		choiceRow("group", m.tr(tHostFolderGroup), groupNames, nil, groupSel),

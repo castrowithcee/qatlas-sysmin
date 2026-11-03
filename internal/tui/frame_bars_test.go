@@ -5,9 +5,38 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/castrowithcee/qatlas-kit/i18n"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 func rowsOf(m *Model) []string { return strings.Split(plain(m), "\n") }
+
+// The areas are what the tab line can draw, in the order of the area constants, and every title has its text.
+func TestAreasAreWhatTheTabLineDraws(t *testing.T) {
+	areas := frameAreas()
+	if err := kittui.CheckAreas(areas); err != nil {
+		t.Fatal(err)
+	}
+	for a := area(0); a < areaCount; a++ {
+		if got, ok := areaOf(areas[a].ID); !ok || got != a {
+			t.Errorf("area %d has the ID %q, which names %d", a, areas[a].ID, got)
+		}
+	}
+	for _, a := range areas {
+		titles := []textID{a.Title}
+		for _, tab := range a.Tabs {
+			titles = append(titles, tab.Title)
+		}
+		for _, id := range titles {
+			for _, lang := range []i18n.Lang{i18n.English, i18n.German} {
+				if _, ok := catalog()[lang][id]; !ok {
+					t.Errorf("area %q: %s has no %s text", a.ID, id, lang)
+				}
+			}
+		}
+	}
+}
 
 // The frame reads from the top: header, tab line, page strip where the area has pages, rule, workspace.
 func TestFrameOrderIsHeaderTabsPageStripRule(t *testing.T) {
@@ -64,21 +93,22 @@ func TestNarrowTabLineClosesGapsThenShrinksInactiveTabs(t *testing.T) {
 	}
 }
 
-// Under lack of space the key hints drop before the back button.
+// Under lack of space the key hints drop before the back button; the German words are the longer ones.
 func TestHeaderDropsKeyHintsBeforeTheBackButton(t *testing.T) {
 	m := appModel(t, overviewFake(), 80, 24)
+	useLanguage(t, m, i18n.German)
 	send(m, "2", "down")
 	if m.zoneNow() == zoneTabs {
 		t.Fatal("expected focus below the tab line")
 	}
-	if row := ansi.Strip(m.headerLines()[0]); !strings.Contains(row, "[esc] back") || !strings.Contains(row, "[?] help  [:] cmd") {
+	if row := headerOf(m); !strings.Contains(row, "[esc] Zurück") || !strings.Contains(row, "[?] Hilfe  [:] Befehl") {
 		t.Fatalf("wide header = %q", row)
 	}
 	seen := false
-	for w := 80; w >= 20; w-- {
+	for w := 80; w >= minimumWidth; w-- {
 		sizedModel(m, w, 24)
-		row := ansi.Strip(m.headerLines()[0])
-		hints, back := strings.Contains(row, "[?]"), strings.Contains(row, "[esc] back")
+		row := headerOf(m)
+		hints, back := strings.Contains(row, "[?]"), strings.Contains(row, "[esc] Zurück")
 		if back && !hints {
 			seen = true
 		}

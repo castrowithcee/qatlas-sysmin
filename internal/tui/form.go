@@ -47,8 +47,8 @@ type formDlg struct {
 	// submit runs on the save key with the form already left; changed runs after a choice took another value.
 	submit  func(m *Model, f *formDlg) tea.Cmd
 	changed func(m *Model, f *formDlg, row int)
-	// saveText is the footer text of the save key, such as "{save} save".
-	saveText string
+	// saveText is the hint of the save key, such as save or continue.
+	saveText []kittui.Hint
 	// enter, when set, runs first on the enter key; true says it took the key.
 	enter func(m *Model, f *formDlg, row int) bool
 	// pick is the list a pick row opened over the form; hits are the click targets of what was drawn last.
@@ -324,13 +324,14 @@ func (m *Model) formDialog() promptDialog {
 			rows = append(rows, "    "+m.ui.st(kittui.StyleFail).Render(truncateCells(warnMark+" "+r.problem, max(width-5, 1))))
 		}
 	}
-	keys := "enter next · tab next · " + f.saveText + " · {back} cancel"
+	tail := keyLine(navHint(tHintNext, actNext), f.saveText, answer(tHintCancel, actBack))
+	keys := keyLine(answer(tHintNext, actEnter), tail)
 	if f.rows[f.focus].pick {
-		keys = "enter choose · tab next · " + f.saveText + " · {back} cancel"
+		keys = keyLine(answer(tHintChoose, actEnter), tail)
 	} else if f.rows[f.focus].multi {
-		keys = "←/→ choose · space tick · tab next · " + f.saveText + " · {back} cancel"
+		keys = keyLine(navHint(tHintChoose, actLeft, actRight), hint(tHintTick, actSpace), tail)
 	} else if f.rows[f.focus].choice {
-		keys = "←/→ choose · tab next · " + f.saveText + " · {back} cancel"
+		keys = keyLine(navHint(tHintChoose, actLeft, actRight), tail)
 	}
 	d := promptDialog{title: f.title, input: strings.Join(rows, "\n"), hint: f.hint, keys: keys}
 	if f.notice != "" {

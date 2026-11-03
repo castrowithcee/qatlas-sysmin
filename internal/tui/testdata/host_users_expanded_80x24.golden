@@ -1,6 +1,6 @@
 qsysmin                                            [esc] back  [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings 
-  [Users]  Groups   Folders   Changes 
+   1 Overview  [2 Host]  3 Activity   4 Settings                                
+  [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    3/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -11,14 +11,14 @@ Users (3)                                                                    3/3
 ║   ▾ System accounts (1)                                                      ║
 ║ > svc-demo    no                 no      svc-demo                     system ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-
-
-
-
-
-
-
-
-
-
-enter details  n new  e edit  d delete  esc back  ? help  : cmds  q quit
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+enter details  n new  e edit  d delete  esc back  ? help  : cmds  q quit        
