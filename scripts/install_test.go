@@ -18,8 +18,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/castrowithcee/qatlas-kit/release/releasetest"
 	"github.com/castrowithcee/qatlas-sysmin/internal/release"
-	"github.com/castrowithcee/qatlas-sysmin/internal/release/releasetest"
 )
 
 var signerLine = regexp.MustCompile(`(?m)^signer_line='([^']*)'$`)

@@ -14,8 +14,8 @@ import (
 
 	kitcli "github.com/castrowithcee/qatlas-kit/cli"
 	"github.com/castrowithcee/qatlas-kit/output"
+	"github.com/castrowithcee/qatlas-kit/selfupdate"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate"
 	"github.com/castrowithcee/qatlas-sysmin/internal/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )

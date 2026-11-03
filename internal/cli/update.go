@@ -1,17 +1,82 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"runtime"
+	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/castrowithcee/qatlas-kit/cobracli"
 	"github.com/castrowithcee/qatlas-kit/output"
-	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate"
+	"github.com/castrowithcee/qatlas-kit/selfupdate"
+	"github.com/castrowithcee/qatlas-sysmin/internal/release"
 )
+
+const (
+	// releaseAPI is the GitHub API base of the public repository the releases come from.
+	releaseAPI = "https://api.github.com/repos/castrowithcee/qatlas-sysmin"
+	// minimumVersion is the oldest release that can be listed or installed.
+	minimumVersion = "v0.7.0"
+	// unitEntry is the systemd unit inside the release archive.
+	unitEntry = "lib/systemd/system/qsysmin.service"
+)
+
+// errDevelopmentBuild reports an update attempt by a build without a release version.
+var errDevelopmentBuild = errors.New("self-update is unavailable in a dev build; install a tagged release first")
+
+// archiveNamer returns the archive name of a release version for arch, or "" when no release is published
+// for arch.
+func archiveNamer(arch string) func(version string) string {
+	return func(version string) string {
+		if arch != "amd64" && arch != "arm64" {
+			return ""
+		}
+		return fmt.Sprintf("qsysmin_%s_linux_%s.tar.gz", version, arch)
+	}
+}
+
+// newUpdateClient returns the release client for the running program. apiURL replaces the GitHub API base;
+// it never changes which keys are trusted.
+func newUpdateClient(version, apiURL string) *selfupdate.Client {
+	api := strings.TrimRight(apiURL, "/")
+	if api == "" {
+		api = releaseAPI
+	}
+	return &selfupdate.Client{
+		RepositoryAPI:    api,
+		CurrentVersion:   version,
+		MinimumVersion:   minimumVersion,
+		ArchiveName:      archiveNamer(runtime.GOARCH),
+		UserAgent:        "qsysmin/" + version,
+		Namespace:        release.Namespace,
+		TrustedKeys:      release.TrustedKeys(),
+		ProgramName:      "qsysmin",
+		ValidateRollback: validateRollback,
+	}
+}
+
+// validateRollback lets an older release in only if its program starts on this host. qsysmin reads no
+// configuration file, so the release's own run, isolated from the host's files and environment, is the whole
+// check; data an older release cannot read is kept out by minimumVersion.
+func validateRollback(ctx context.Context, p *selfupdate.Prepared) error {
+	ok, err := p.ReadsConfig(ctx, selfupdate.ConfigCheck{
+		FileName: "check.conf",
+		Args:     func(string) []string { return []string{"--help"} },
+	})
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("the older program does not start on this host")
+	}
+	return nil
+}
 
 func newUpdateCommand(opts *Options) *cobra.Command {
 	var to, apiURL string
@@ -53,8 +118,11 @@ func runUpdate(c *cobra.Command, opts *Options, gate *cobracli.Gate, req updateR
 	}
 	s := opts.system()
 	updater := s.updater(version, req.apiURL)
-	updater.Target = s.binaryPath
-	updater.UnitTarget = s.unitPath
+	updater.Executable = s.binaryPath
+	updater.Companions = []selfupdate.Companion{{Entry: unitEntry, Path: s.unitPath}}
+	if updater.ArchiveName("v0.0.0") == "" {
+		return updateError(fmt.Errorf("no release is published for architecture %s", runtime.GOARCH))
+	}
 	ctx := c.Context()
 
 	if req.list {
@@ -73,13 +141,25 @@ func runUpdate(c *cobra.Command, opts *Options, gate *cobracli.Gate, req updateR
 		return err
 	}
 	if version == "" || version == "dev" {
-		return updateError(selfupdate.ErrDevelopmentBuild)
+		return updateError(errDevelopmentBuild)
 	}
 	// A request without --confirm fails before the release server is asked.
 	if err := gate.Run(cobracli.Request{Changes: true}, func() error { return nil }); err != nil {
 		return err
 	}
-	target, err := updater.Resolve(ctx, req.to)
+	tag := req.to
+	if tag == "" {
+		// Without --to the newest stable release never replaces a newer running build.
+		check, err := updater.Check(ctx)
+		if err != nil {
+			return updateError(err)
+		}
+		if !check.UpdateAvailable {
+			return emitUpdate(c, opts, version, version, false, false, false)
+		}
+		tag = check.Latest
+	}
+	target, err := updater.Target(ctx, tag)
 	if err != nil {
 		var te *selfupdate.TargetError
 		if errors.As(err, &te) && req.to != "" {
@@ -87,8 +167,7 @@ func runUpdate(c *cobra.Command, opts *Options, gate *cobracli.Gate, req updateR
 		}
 		return updateError(err)
 	}
-	// Without --to the newest stable release never replaces a newer running build.
-	if target.Current || (req.to == "" && target.Older) {
+	if target.Current {
 		return emitUpdate(c, opts, version, version, false, false, false)
 	}
 
@@ -107,25 +186,25 @@ func install(c *cobra.Command, opts *Options, s system, updater *selfupdate.Clie
 	if f, ok := c.ErrOrStderr().(*os.File); ok && isTerminal(f) {
 		updater.Progress = progressPrinter(c.ErrOrStderr())
 	}
-	result, err := updater.Install(ctx, target)
+	prepared, err := updater.Prepare(ctx, target)
 	if err != nil {
-		if result.UnitUpdated {
-			// The unit is already new; let the service manager know even though the program is not.
-			_ = s.command(ctx, "systemctl", "daemon-reload")
-			return updateError(fmt.Errorf("the unit was replaced, but installing the program failed: %w", err))
-		}
+		return updateError(err)
+	}
+	result, err := updater.InstallPrepared(ctx, prepared)
+	if err != nil {
 		return updateError(err)
 	}
 	// The service manager reads a replaced unit before the restart, which happens once the program is in place.
-	if result.UnitUpdated {
+	unitUpdated := slices.Contains(result.Companions, s.unitPath)
+	if unitUpdated {
 		if err := s.command(ctx, "systemctl", "daemon-reload"); err != nil {
-			return updateError(fmt.Errorf("qsysmin %s is installed, but reloading the service manager failed: %w", result.Version, err))
+			return updateError(fmt.Errorf("qsysmin %s is installed, but reloading the service manager failed: %w", result.Latest, err))
 		}
 	}
 	if err := s.command(ctx, "systemctl", "restart", serviceName); err != nil {
-		return updateError(fmt.Errorf("qsysmin %s is installed, but restarting the service failed: %w", result.Version, err))
+		return updateError(fmt.Errorf("qsysmin %s is installed, but restarting the service failed: %w", result.Latest, err))
 	}
-	return emitUpdate(c, opts, result.Previous, result.Version, true, true, result.UnitUpdated)
+	return emitUpdate(c, opts, result.Current, result.Latest, true, true, unitUpdated)
 }
 
 // updateError is a failed update or release lookup; the message says whether the installation changed.

@@ -8,13 +8,14 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate"
+	"github.com/castrowithcee/qatlas-kit/selfupdate"
 )
 
 // Installation layout. The release archive and the installer put the files here.
 const (
 	serviceName  = "qsysmin"
 	unitPath     = "/etc/systemd/system/qsysmin.service"
+	binaryPath   = "/usr/local/bin/qsysmin"
 	stateDataDir = "/var/lib/qsysmin"
 )
 
@@ -45,8 +46,8 @@ func defaultSystem() system {
 			}
 			return err
 		},
-		updater:    func(version, apiURL string) *selfupdate.Client { return selfupdate.New(version, apiURL) },
-		binaryPath: selfupdate.DefaultTarget,
+		updater:    newUpdateClient,
+		binaryPath: binaryPath,
 		unitPath:   unitPath,
 		dataDirs:   []string{stateDataDir},
 	}
