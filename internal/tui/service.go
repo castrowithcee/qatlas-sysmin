@@ -11,9 +11,8 @@ import (
 )
 
 // The intervals of the header. The service is asked every pollEvery at most, which stays below the idle limit
-// of its connections and keeps its log short, because every request is a log entry there. They are variables
-// only so a test can change them.
-var (
+// of its connections and keeps its log short, because every request is a log entry there.
+const (
 	tickEvery = 10 * time.Second
 	pollEvery = 60 * time.Second
 )
@@ -45,7 +44,9 @@ type statusMsg struct {
 // tickMsg drives the periodic Status.
 type tickMsg struct{}
 
-func tickCmd() tea.Cmd { return tea.Tick(tickEvery, func(time.Time) tea.Msg { return tickMsg{} }) }
+func (m *Model) tickCmd() tea.Cmd {
+	return tea.Tick(m.tickEvery, func(time.Time) tea.Msg { return tickMsg{} })
+}
 
 // statusCmd asks the service for its state. While a call is out, the next is deferred until it answered, so
 // an answer older than an action is never the last word.
@@ -99,9 +100,9 @@ func (m *Model) takeTick() tea.Cmd {
 		return nil
 	}
 	if m.timeNow().Sub(m.svc.checked) >= pollEvery {
-		return tea.Batch(tickCmd(), m.statusCmd())
+		return tea.Batch(m.tickCmd(), m.statusCmd())
 	}
-	return tickCmd()
+	return m.tickCmd()
 }
 
 // serviceUp reports whether the last Status was answered.

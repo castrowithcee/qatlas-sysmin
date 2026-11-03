@@ -241,7 +241,7 @@ func TestActivityDrawsNoControlSequenceOfAnEntry(t *testing.T) {
 }
 
 func TestActivityKnowsOnlyActionsTheServiceLogs(t *testing.T) {
-	for _, a := range logActions {
+	for _, a := range logActions() {
 		if !auditlog.KnownOperation(a) {
 			t.Errorf("%q is no action of the log", a)
 		}
@@ -290,7 +290,7 @@ func TestActivityShowsAHostChangeWithItsLabel(t *testing.T) {
 }
 
 func TestEveryLogActionHasALabelInBothLanguages(t *testing.T) {
-	for _, a := range logActions {
+	for _, a := range logActions() {
 		for _, cat := range catalog() {
 			if strings.TrimSpace(cat[actionID(a)]) == "" {
 				t.Errorf("action %q has no label", a)
@@ -311,7 +311,7 @@ func TestActivityTextsAreTranslated(t *testing.T) {
 			assertViewFits(t, plain(m2), 120, 40)
 		}
 		send(m, "?", "left")
-		for range helpTopics {
+		for range helpTopics() {
 			send(m, "left")
 		}
 	})

@@ -116,7 +116,7 @@ func (m *Model) hitRows(top, width, start, end int, row func(i int) string, act 
 }
 
 // mouseEnabled reports whether the editor takes mouse input.
-func (m *Model) mouseEnabled() bool { return m.prefs.MouseEnabled() }
+func (m *Model) mouseEnabled() bool { return m.prefs.MouseEnabled }
 
 // mouseMode is the mouse mode the view asks the terminal for: cell motion while the editor takes the mouse.
 func (m *Model) mouseMode() tea.MouseMode {

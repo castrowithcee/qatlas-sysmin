@@ -27,7 +27,7 @@ func helpModels(t *testing.T, w, h int) map[string]*Model {
 	for name, m := range map[string]*Model{"list": list, "area": area} {
 		// Only the areas bind the keys of the panels, so the simple list gets the panel directly.
 		m.openPopup(popHelp)
-		for i := range helpTopics {
+		for i := range helpTopics() {
 			m.pop.topic = i
 			if plain(m); m.pop.last > wheelText {
 				break

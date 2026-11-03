@@ -3,7 +3,6 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -18,9 +17,6 @@ import (
 // Users are created, changed and deleted from Host > Users with n, e and d. Each form collects one change, checks what it
 // can before anything leaves the form, and ends in the confirmation of hostchange; the root command checks it
 // all again and stays the authority.
-
-// hostUID is the user running the interface, for the early message about taking admin from oneself.
-var hostUID = os.Getuid
 
 // Limits the root actions enforce too; checking them here only saves a round through sudo.
 const (
@@ -487,7 +483,7 @@ func (m *Model) guardRevoke(u hostadmin.User) string { return m.guardAdmin(u, tH
 
 // guardLock gives the early message of the rules the root action enforces for locking.
 func (m *Model) guardLock(u hostadmin.User) string {
-	if uid := hostUID(); uid != 0 && uid == u.UID {
+	if uid := m.hostUID(); uid != 0 && uid == u.UID {
 		return m.tr(tHostSelfLock)
 	}
 	return m.guardAdmin(u, tHostSelfAdmin)
@@ -495,7 +491,7 @@ func (m *Model) guardLock(u hostadmin.User) string {
 
 // guardDelete gives the early message of the rules the root action enforces for deleting.
 func (m *Model) guardDelete(u hostadmin.User) string {
-	if uid := hostUID(); uid != 0 && uid == u.UID {
+	if uid := m.hostUID(); uid != 0 && uid == u.UID {
 		return m.tr(tHostSelfDelete)
 	}
 	return m.guardAdmin(u, tHostSelfDelete)
@@ -506,7 +502,7 @@ func (m *Model) guardAdmin(u hostadmin.User, self textID) string {
 	if !u.Admin {
 		return ""
 	}
-	if uid := hostUID(); uid != 0 && uid == u.UID {
+	if uid := m.hostUID(); uid != 0 && uid == u.UID {
 		return m.tr(self)
 	}
 	for _, o := range m.hst.users.all {

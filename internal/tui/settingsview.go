@@ -85,7 +85,7 @@ func (m *Model) generalPage(p *pageDraw) {
 	g := &m.set.gen
 	labels := []string{m.tr(tLblLanguage), m.tr(tLblTheme), m.tr(tLblMouse), m.tr(tLblKeySave), m.tr(tLblKeyHelp), m.tr(tLblKeyCommand),
 		m.tr(tLblKeyInfo)}
-	// The actions come in the order of uiprefs.Actions: save, help, command, info.
+	// The actions come in the order of rebindable: save, help, command, info.
 	lw := labelWidth(labels)
 	values := []string{g.language, g.theme, g.mouse}
 	ids := []string{"language", "theme", "mouse"}

@@ -379,7 +379,7 @@ func TestHostInfoExplainsAdminDockerAndEnabled(t *testing.T) {
 func TestHostHelpTopicExists(t *testing.T) {
 	m := hostModel(t, 120, 40)
 	send(m, "?")
-	for range helpTopics {
+	for range helpTopics() {
 		if strings.Contains(plain(m), "Host shows the users") {
 			return
 		}

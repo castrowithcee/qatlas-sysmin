@@ -363,7 +363,7 @@ func TestGoldenAreas(t *testing.T) {
 		{"host_help", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "2", "?")
-			for range helpTopics {
+			for range helpTopics() {
 				if strings.Contains(plain(m), "Host shows the users") {
 					break
 				}
@@ -393,9 +393,7 @@ func goldenHostUsers(t *testing.T, w, h int) (*Model, *fakeSudo) {
 	t.Helper()
 	m, f := goldenHostChange(t, w, h)
 	m.hostReg = nil
-	old := hostUID
-	hostUID = func() int { return 4242 }
-	t.Cleanup(func() { hostUID = old })
+	m.hostUID = func() int { return 4242 }
 	return m, f
 }
 

@@ -36,15 +36,16 @@ type popup struct {
 	cursor int
 }
 
-// helpTopics are the topics of the help by their stable identifiers, which name the technical terms and so are
+// helpTopics() are the topics of the help by their stable identifiers, which name the technical terms and so are
 // the same in every language. keys is built from the screen the help was opened from.
-var helpTopics = []struct {
+func helpTopics() []helpTopic {
+	return []helpTopic{{"keys", ""}, {"audit-log", tHelpAuditLog}, {"host", tHelpHost}}
+}
+
+// helpTopic is one topic of the help: its identifier and its text, none for the keys of the screen.
+type helpTopic struct {
 	id   string
 	text textID
-}{
-	{"keys", ""},
-	{"audit-log", tHelpAuditLog},
-	{"host", tHelpHost},
 }
 
 // openPopup shows a panel over the area screen.
@@ -75,9 +76,9 @@ func (m *Model) updatePopup(key tea.KeyPressMsg) tea.Cmd {
 		case m.keyIs(key, actBack), m.keyIs(key, actHelp):
 			m.closePopup()
 		case m.keyIs(key, actRight), m.keyIs(key, actNext):
-			p.topic, p.scroll = (p.topic+1)%len(helpTopics), 0
+			p.topic, p.scroll = (p.topic+1)%len(helpTopics()), 0
 		case m.keyIs(key, actLeft), m.keyIs(key, actPrev):
-			p.topic, p.scroll = (p.topic+len(helpTopics)-1)%len(helpTopics), 0
+			p.topic, p.scroll = (p.topic+len(helpTopics())-1)%len(helpTopics()), 0
 		case m.keyIs(key, actUp):
 			p.scroll = max(p.scroll-1, 0)
 		case m.keyIs(key, actDown):
@@ -130,7 +131,7 @@ func (m *Model) infoOf() (string, string) {
 
 // helpBody is the text of the help topic shown, wrapped into width cells.
 func (m *Model) helpBody(width int) []string {
-	topic := helpTopics[m.pop.topic]
+	topic := helpTopics()[m.pop.topic]
 	var lines []string
 	if topic.id == "keys" {
 		everywhere := []string{"{help} help", "{command} cmds", "{info} info", "{save} save", "{back} back", "q quit"}
@@ -166,7 +167,7 @@ func (m *Model) popupContent(inner int) (title string, body []string) {
 	switch m.pop.kind {
 	case popHelp:
 		var ids []string
-		for _, t := range helpTopics {
+		for _, t := range helpTopics() {
 			ids = append(ids, t.id)
 		}
 		// Topics before the first one that fits are left out, so the strip always shows the topic open.

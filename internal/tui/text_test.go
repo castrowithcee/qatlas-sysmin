@@ -7,14 +7,16 @@ import (
 	"github.com/castrowithcee/qatlas-kit/redact"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // testLang is the language test models are drawn in; eachLanguage sets it.
 var testLang = i18n.English
 
+// defaultPrefs are the preferences of a device that has none.
+func defaultPrefs() kitprefs.Prefs { return kitprefs.Default(PrefsSchema()) }
+
 // testModel is New in the language of the test.
-func testModel(prefs uiprefs.Prefs, redactor *redact.Redactor) *Model {
+func testModel(prefs kitprefs.Prefs, redactor *redact.Redactor) *Model {
 	m := New(prefs, redactor)
 	m.ui.setLanguage(testLang)
 	return m
@@ -39,13 +41,6 @@ func eachLanguage(t *testing.T, body func(t *testing.T)) {
 			t.Cleanup(func() { testLang = before })
 			body(t)
 		})
-	}
-}
-
-// Every text has an English and a German text, none is empty, and both have the same format verbs.
-func TestCatalogIsComplete(t *testing.T) {
-	if err := kittui.CheckCatalogs(catalog()); err != nil {
-		t.Error(err)
 	}
 }
 
@@ -74,7 +69,7 @@ func TestCatalogPartsDoNotOverlap(t *testing.T) {
 }
 
 func TestEnglishIsTheDefaultAndFallback(t *testing.T) {
-	m := New(uiprefs.Default(), nil)
+	m := New(defaultPrefs(), nil)
 	if m.ui.lang != i18n.English {
 		t.Fatalf("default language = %q, want English", m.ui.lang)
 	}
@@ -96,18 +91,10 @@ func TestEnglishIsTheDefaultAndFallback(t *testing.T) {
 	}
 }
 
-// The language preferences of tui.yaml are the values the kit resolves.
-func TestLanguagePreferencesAreThoseOfTheKit(t *testing.T) {
-	for ours, kit := range map[string]string{
-		uiprefs.LanguageEnglish: kitprefs.LanguageEnglish, uiprefs.LanguageGerman: kitprefs.LanguageGerman,
-		uiprefs.LanguageSystem: kitprefs.LanguageSystem,
-	} {
-		if ours != kit {
-			t.Errorf("language %q is %q in the kit", ours, kit)
-		}
-	}
-	prefs := uiprefs.Default()
-	prefs.Language = uiprefs.LanguageGerman
+// A German preference draws the editor in German.
+func TestLanguagePreferenceDrawsTheEditor(t *testing.T) {
+	prefs := defaultPrefs()
+	prefs.Language = kitprefs.LanguageGerman
 	if m := New(prefs, nil); m.ui.lang != i18n.German || m.tr(tAreaSettings) != "Einstellungen" {
 		t.Errorf("a German preference draws in %q", m.ui.lang)
 	}

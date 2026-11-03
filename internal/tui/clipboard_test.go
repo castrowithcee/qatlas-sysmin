@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // clipboardOf is the text a command hands to the terminal, and whether it is a clipboard command at all.
@@ -55,7 +54,7 @@ func TestCopyHandsOverTheNameOfTheMarkedRow(t *testing.T) {
 }
 
 func TestCopyStatusIsAHandOverInBothLanguages(t *testing.T) {
-	for lang, want := range map[string]string{uiprefs.LanguageEnglish: "Handed to the terminal", uiprefs.LanguageGerman: "An das Terminal"} {
+	for lang, want := range map[string]string{kitprefs.LanguageEnglish: "Handed to the terminal", kitprefs.LanguageGerman: "An das Terminal"} {
 		m := frameModel(t, 100, 30)
 		m.ui.setLanguage(kitprefs.Language(lang))
 		if _, ok := pressCopy(m); !ok {

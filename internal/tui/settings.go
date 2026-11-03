@@ -9,7 +9,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // Settings has two pages. General is device-local and needs no service; Update only looks at the releases.
@@ -37,8 +36,8 @@ type ReleaseInfo struct {
 // ReleaseCheck looks the releases up. It may block and must stop with ctx.
 type ReleaseCheck func(ctx context.Context) (ReleaseInfo, error)
 
-// updateTimeout bounds one release lookup. It is a variable only so a test can shorten it.
-var updateTimeout = 20 * time.Second
+// updateTimeout bounds one release lookup.
+const updateTimeout = 20 * time.Second
 
 // settingsState holds the pages of Settings. The forms are loaded when Settings is shown and dropped when it
 // is left, so a page always starts from what is saved.
@@ -51,7 +50,13 @@ type settingsState struct {
 	upd     updateState
 }
 
-// General rows: three choices, then one key line per rebindable action in the order of uiprefs.Actions.
+// The values the mouse row offers.
+const (
+	choiceMouseOn  = "on"
+	choiceMouseOff = "off"
+)
+
+// General rows: three choices, then one key line per rebindable action in the order of rebindable.
 const (
 	genLanguage = iota
 	genTheme
@@ -105,18 +110,19 @@ func (m *Model) loadForms() {
 	}
 	m.set.loaded, m.set.editing = true, false
 	g := &m.set.gen
-	*g = generalForm{language: m.prefs.Language, mouse: uiprefs.ChoiceMouseOn}
-	if g.language == "" {
-		g.language = uiprefs.LanguageEnglish
-	}
+	*g = generalForm{language: m.prefs.Language, mouse: mouseChoice(m.prefs)}
 	g.theme, _ = m.ui.knownTheme(m.prefs.Theme)
-	if !m.prefs.MouseEnabled() {
-		g.mouse = uiprefs.ChoiceMouseOff
+	for i, a := range rebindable() {
+		g.keys[i] = keyInput(m.prefKey(m.prefs.Keys, a))
 	}
-	keys := m.prefs.Keys.WithDefaults()
-	for i, a := range uiprefs.Actions {
-		g.keys[i] = keyInput(keys.Get(a))
+}
+
+// mouseChoice is the value of the mouse row for prefs.
+func mouseChoice(prefs kitprefs.Prefs) string {
+	if prefs.MouseEnabled {
+		return choiceMouseOn
 	}
+	return choiceMouseOff
 }
 
 // resetForms drops the forms; the next visit loads them anew.
@@ -125,21 +131,12 @@ func (m *Model) resetForms() { m.set.loaded, m.set.editing, m.set.sub = false, f
 func (m *Model) generalDirty() bool {
 	g := &m.set.gen
 	prefs := m.prefs
-	language := prefs.Language
-	if language == "" {
-		language = uiprefs.LanguageEnglish
-	}
 	theme, _ := m.ui.knownTheme(prefs.Theme)
-	mouse := uiprefs.ChoiceMouseOn
-	if !prefs.MouseEnabled() {
-		mouse = uiprefs.ChoiceMouseOff
-	}
-	if g.language != language || g.theme != theme || g.mouse != mouse {
+	if g.language != prefs.Language || g.theme != theme || g.mouse != mouseChoice(prefs) {
 		return true
 	}
-	keys := prefs.Keys.WithDefaults()
-	for i, a := range uiprefs.Actions {
-		if strings.TrimSpace(g.keys[i].Value()) != keys.Get(a) {
+	for i, a := range rebindable() {
+		if strings.TrimSpace(g.keys[i].Value()) != m.prefKey(prefs.Keys, a) {
 			return true
 		}
 	}
@@ -173,9 +170,9 @@ func (m *Model) checkUpdate(force bool) tea.Cmd {
 		return nil
 	}
 	u.phase, u.seq = updChecking, u.seq+1
-	seq, check := u.seq, m.releases
+	seq, check, timeout := u.seq, m.releases, m.updateTimeout
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), updateTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 		info, err := check(ctx)
 		return updateMsg{seq, info, err}
@@ -265,12 +262,12 @@ func (m *Model) generalKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	switch g.focus {
 	case genLanguage:
-		pick("language", []string{uiprefs.LanguageEnglish, uiprefs.LanguageGerman, uiprefs.LanguageSystem}, g.language,
+		pick("language", []string{kitprefs.LanguageEnglish, kitprefs.LanguageGerman, kitprefs.LanguageSystem}, g.language,
 			func(v string) { g.language = v })
 	case genTheme:
 		pick("theme", m.ui.themes.Names(), g.theme, func(v string) { g.theme = v })
 	case genMouse:
-		pick("mouse", []string{uiprefs.ChoiceMouseOn, uiprefs.ChoiceMouseOff}, g.mouse, func(v string) { g.mouse = v })
+		pick("mouse", []string{choiceMouseOn, choiceMouseOff}, g.mouse, func(v string) { g.mouse = v })
 	default:
 		m.startEditing()
 	}
@@ -345,24 +342,24 @@ func (m *Model) saveCurrent() tea.Cmd {
 func (m *Model) saveGeneral() tea.Cmd {
 	g := &m.set.gen
 	typed := map[action]string{}
-	for i, a := range uiprefs.Actions {
-		typed[action(a)] = g.keys[i].Value()
+	for i, a := range rebindable() {
+		typed[a] = g.keys[i].Value()
 	}
-	keys, ok := uiprefs.Keys{}, true
-	for i, a := range uiprefs.Actions {
+	keys, ok := map[action]string{}, true
+	for i, a := range rebindable() {
 		others := map[action]string{}
 		for id, key := range typed {
-			if id != action(a) {
+			if id != a {
 				others[id] = key
 			}
 		}
-		norm, err := m.ui.keys.CheckBinding(action(a), typed[action(a)], others)
+		norm, err := m.ui.keys.CheckBinding(a, typed[a], others)
 		g.problems[i] = ""
 		if err != nil {
 			g.problems[i], ok = err.Error(), false
 			continue
 		}
-		keys = keys.With(a, norm)
+		keys[a] = norm
 	}
 	if !ok {
 		return nil
@@ -371,9 +368,10 @@ func (m *Model) saveGeneral() tea.Cmd {
 		m.fail = m.tr(tPrefsNoPath)
 		return nil
 	}
+	usable, _ := m.ui.keys.Resolve(keys)
 	next := m.prefs
-	next.Language, next.Theme, next.MouseOff, next.Keys = g.language, g.theme, g.mouse == uiprefs.ChoiceMouseOff, keys
-	if err := uiprefs.Save(m.prefsPath, next); err != nil {
+	next.Language, next.Theme, next.MouseEnabled, next.Keys = g.language, g.theme, g.mouse == choiceMouseOn, usable
+	if err := kitprefs.Save(m.prefsPath, next, m.ui.prefsSchema()); err != nil {
 		m.fail = m.tr(tPrefsSaveFailed)
 		return nil
 	}

@@ -9,15 +9,15 @@ import (
 
 	"github.com/castrowithcee/qatlas-kit/redact"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // Options is what Run needs to start the editor on a terminal.
 type Options struct {
 	// Prefs are the device-local preferences; the zero value is read as the defaults.
-	Prefs uiprefs.Prefs
+	Prefs kitprefs.Prefs
 	// PrefsWarnings are problems found while loading Prefs; the editor shows the first one at start.
 	PrefsWarnings []string
 	// Redactor holds the secrets that must never reach the screen or the clipboard; nil knows none.
@@ -60,9 +60,6 @@ func Run(opts Options) error {
 		}
 	}
 	prefs := opts.Prefs
-	if prefs == (uiprefs.Prefs{}) {
-		prefs = uiprefs.Default()
-	}
 	profile := kittui.DetectColorProfile(opts.Out, os.Environ())
 	model := newModel(prefs, opts.Redactor, profile, kittui.DetectCharsetMode(os.Environ()))
 	warnings := opts.PrefsWarnings

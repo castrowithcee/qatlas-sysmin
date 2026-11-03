@@ -112,7 +112,7 @@ func (m *Model) guardMembers(g hostadmin.Group, added, removed []string) string 
 	if (g.Name != hostadmin.GroupAdmin && g.Name != hostadmin.GroupQsysmin) || len(removed) == 0 {
 		return ""
 	}
-	uid := hostUID()
+	uid := m.hostUID()
 	for _, u := range m.hostUserList() {
 		if uid != 0 && u.UID == uid && slices.Contains(removed, u.Name) {
 			return m.tr(tHostSelfAdmin)

@@ -7,8 +7,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // cellOf finds the first place text stands in the drawn frame, as its column and row. It reads the frame, never
@@ -44,7 +42,7 @@ func wheel(m *Model, x, y int, button tea.MouseButton) {
 }
 
 func TestFooterKeyNamesMapToKeysOnlyForKeysAButtonCanPress(t *testing.T) {
-	m := testModel(uiprefs.Default(), nil)
+	m := testModel(defaultPrefs(), nil)
 	for group, want := range map[string]string{
 		"y delete": "y", "n/esc cancel": "n", "enter save": "enter", "esc back": "esc", "tab next": "tab",
 		"F2 save": "F2", "1-4 area": "", "type to filter": "", "↑/↓ move": "", "": "",
@@ -221,7 +219,7 @@ func TestSwitchedOffMouseAsksForNoMouseModeAndTakesNoWheel(t *testing.T) {
 	if mode := m.View().MouseMode; mode != tea.MouseModeCellMotion {
 		t.Errorf("mouse mode = %v with the mouse on, want cell motion", mode)
 	}
-	m.prefs.MouseOff = true
+	m.prefs.MouseEnabled = false
 	*now = now.Add(time.Second)
 	wheel(m, 5, 10, tea.MouseWheelDown)
 	if m.list.cursor != 0 {

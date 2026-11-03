@@ -11,7 +11,7 @@ import (
 
 	"github.com/castrowithcee/qatlas-kit/i18n"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 )
 
 // uiContext is what the screens of one editor read keys with and draw their texts and colours in. The model
@@ -50,9 +50,24 @@ func newUIContext(profile kittui.ColorProfile, charset kittui.CharsetMode) *uiCo
 	return u
 }
 
+// The names of the themes of qsysmin, as tui.yaml stores them.
+const (
+	themeQsysminDark  = "qsysmin dark"
+	themeQsysminLight = "qsysmin light"
+)
+
 // ownThemes are the themes of qsysmin beside the terminal theme and the built-in schemes.
 func ownThemes() []kittui.Theme {
-	return []kittui.Theme{kittui.DarkTheme(uiprefs.ThemeQsysminDark), kittui.LightTheme(uiprefs.ThemeQsysminLight)}
+	return []kittui.Theme{kittui.DarkTheme(themeQsysminDark), kittui.LightTheme(themeQsysminLight)}
+}
+
+// PrefsSchema is what the preferences of the editor may hold: its themes, its areas and its key table.
+func PrefsSchema() kitprefs.Schema {
+	return newUIContext(kittui.ProfileNone, kittui.CharsetUnicode).prefsSchema()
+}
+
+func (u *uiContext) prefsSchema() kitprefs.Schema {
+	return kitprefs.Schema{Themes: u.themes.Names(), Areas: areaIDs(), DefaultArea: areaOverview.id(), Keys: u.keys}
 }
 
 // setTheme draws the theme of a name from now on and reports whether the set holds it; a name it does not

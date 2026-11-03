@@ -12,20 +12,22 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 	"github.com/castrowithcee/qatlas-sysmin/internal/selfupdate"
 	"github.com/castrowithcee/qatlas-sysmin/internal/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
-// loadPrefs resolves ~/.qatlas/qsysmin/tui.yaml and loads it.
-func loadPrefs() (prefs uiprefs.Prefs, path string, warnings []string) {
+// loadPrefs resolves ~/.qatlas/qsysmin/tui.yaml and loads it under the schema of the editor.
+func loadPrefs() (prefs kitprefs.Prefs, path string, warnings []string) {
+	schema := tui.PrefsSchema()
 	dir, err := uiprefs.UserDir()
 	if err != nil {
-		return uiprefs.Default(), "", []string{fmt.Sprintf("no home directory, using the defaults: %v", err)}
+		return kitprefs.Default(schema), "", []string{fmt.Sprintf("no home directory, using the defaults: %v", err)}
 	}
-	path = uiprefs.Path(dir)
-	prefs, warnings = uiprefs.Load(path)
+	path = kitprefs.Path(dir)
+	prefs, warnings = kitprefs.Load(path, schema)
 	return prefs, path, warnings
 }
 

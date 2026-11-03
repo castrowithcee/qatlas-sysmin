@@ -27,6 +27,18 @@ func (a area) key() string {
 	return [...]string{"Overview", "Host", "Activity", "Settings"}[a]
 }
 
+// id is the name of the area in the preferences.
+func (a area) id() string { return strings.ToLower(a.key()) }
+
+// areaIDs are the names of every area in the preferences, in the order of the tab line.
+func areaIDs() []string {
+	ids := make([]string, areaCount)
+	for a := area(0); a < areaCount; a++ {
+		ids[a] = a.id()
+	}
+	return ids
+}
+
 // title is the name of the area as drawn.
 func (a area) title(ui *uiContext) string {
 	return ui.tr([...]textID{tAreaOverview, tAreaHost, tAreaActivity, tAreaSettings}[a])

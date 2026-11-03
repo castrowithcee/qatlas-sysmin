@@ -12,7 +12,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // withTableKeys gives m a key table in which the action a has keys as its default keys, for a test of a table
@@ -55,7 +54,7 @@ func TestDefaultKeymapKeepsTheKnownKeys(t *testing.T) {
 			t.Errorf("action %q is bound to %q, want %q", a.ID, a.DefaultKeys, want[a.ID])
 		}
 	}
-	m := New(uiprefs.Default(), nil)
+	m := New(defaultPrefs(), nil)
 	if !m.keyIs(tea.KeyPressMsg{Code: 'i', Text: "i"}, actInfo) || m.keyIs(tea.KeyPressMsg{}, actInfo) {
 		t.Error("the info action does not match exactly its key")
 	}
@@ -64,7 +63,7 @@ func TestDefaultKeymapKeepsTheKnownKeys(t *testing.T) {
 	}
 }
 
-// The rebindable actions keep the names tui.yaml stores their keys under.
+// The rebindable actions keep the names tui.yaml stores their keys under, and Settings shows each of them.
 func TestRebindableActionsAreThoseOfThePreferences(t *testing.T) {
 	var got []string
 	for _, a := range testKeys().Actions() {
@@ -73,16 +72,20 @@ func TestRebindableActionsAreThoseOfThePreferences(t *testing.T) {
 		}
 	}
 	slices.Sort(got)
-	want := slices.Sorted(slices.Values(uiprefs.Actions))
-	if !slices.Equal(got, want) {
-		t.Errorf("rebindable actions = %v, want %v", got, want)
+	want := []string{"command", "help", "info", "save"}
+	shown := []string{}
+	for _, a := range rebindable() {
+		shown = append(shown, string(a))
+	}
+	if slices.Sort(shown); !slices.Equal(got, want) || !slices.Equal(shown, want) {
+		t.Errorf("rebindable actions = %v, Settings shows %v, want %v", got, shown, want)
 	}
 }
 
 // The keys of the preferences act, and the extra info key works on text lines too.
 func TestPreferenceKeysAreBound(t *testing.T) {
-	prefs := uiprefs.Default()
-	prefs.Keys = uiprefs.Keys{Save: "f3", Help: "ctrl+l", Command: ":", Info: "f4"}
+	prefs := defaultPrefs()
+	prefs.Keys = map[action]string{actSave: "f3", actHelp: "ctrl+l", actInfo: "f4"}
 	m := New(prefs, nil)
 	if !m.keyIs(keyMsg("f3"), actSave) || m.keyIs(keyMsg("f2"), actSave) {
 		t.Error("save is not on f3 alone")
@@ -98,17 +101,16 @@ func TestPreferenceKeysAreBound(t *testing.T) {
 	}
 }
 
-// A key the table refuses keeps the standard key of its action, with a warning, and the preferences name the
-// key that acts.
+// A key the table refuses keeps the standard key of its action, with a warning, and leaves the preferences.
 func TestRefusedPreferenceKeysFallBackToTheStandard(t *testing.T) {
-	prefs := uiprefs.Default()
-	prefs.Keys = uiprefs.Keys{Save: "f3", Help: "ctrl+g", Command: ":"}
+	prefs := defaultPrefs()
+	prefs.Keys = map[action]string{actSave: "f3", actHelp: "ctrl+g"}
 	m := newModel(prefs, nil, kittui.ProfileNone, kittui.CharsetUnicode)
 	warnings := m.bindKeys()
 	if len(warnings) != 1 || !strings.Contains(warnings[0], "keys.help ctrl+g") || !strings.Contains(warnings[0], "using ?") {
 		t.Fatalf("warnings = %v, want one for help", warnings)
 	}
-	if m.keyLabel(actHelp) != "?" || m.keyLabel(actSave) != "F3" || m.prefs.Keys.Help != "?" {
+	if m.keyLabel(actHelp) != "?" || m.keyLabel(actSave) != "F3" || m.prefs.Keys[actHelp] != "" {
 		t.Errorf("help %q, save %q, preferences %+v", m.keyLabel(actHelp), m.keyLabel(actSave), m.prefs.Keys)
 	}
 }

@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // The General page offers the terminal theme first, then the qsysmin themes, then the built-in schemes, and
@@ -25,16 +24,16 @@ func TestThemesOnOffer(t *testing.T) {
 		}
 	}
 	got, warning := ui.knownTheme("purple")
-	if got != uiprefs.ThemeTerminal || !strings.Contains(warning, `theme "purple"`) {
+	if got != kittui.ThemeTerminal || !strings.Contains(warning, `theme "purple"`) {
 		t.Errorf("knownTheme(purple) = %q, %q; want terminal and a warning", got, warning)
 	}
 }
 
 // A preference that names no theme of this version draws the terminal theme.
 func TestUnknownThemeDrawsTheTerminalTheme(t *testing.T) {
-	prefs := uiprefs.Default()
+	prefs := defaultPrefs()
 	prefs.Theme = "purple"
-	if m := New(prefs, nil); m.ui.theme != uiprefs.ThemeTerminal {
+	if m := New(prefs, nil); m.ui.theme != kittui.ThemeTerminal {
 		t.Errorf("theme = %q, want the terminal theme", m.ui.theme)
 	}
 }
@@ -42,8 +41,8 @@ func TestUnknownThemeDrawsTheTerminalTheme(t *testing.T) {
 // Each qsysmin theme paints the screen in its palette, the terminal theme never does.
 func TestThemesPaintOnlyWhereTheyOwnTheBackground(t *testing.T) {
 	for name, want := range map[string]kittui.Theme{
-		uiprefs.ThemeQsysminDark:  kittui.DarkTheme(uiprefs.ThemeQsysminDark),
-		uiprefs.ThemeQsysminLight: kittui.LightTheme(uiprefs.ThemeQsysminLight),
+		themeQsysminDark:  kittui.DarkTheme(themeQsysminDark),
+		themeQsysminLight: kittui.LightTheme(themeQsysminLight),
 	} {
 		ui := lookUI(kittui.ProfileTrueColor, name)
 		if !ui.styles.Paints() || ui.palette() != want.Profiles[kittui.ProfileTrueColor] {
@@ -53,7 +52,7 @@ func TestThemesPaintOnlyWhereTheyOwnTheBackground(t *testing.T) {
 			t.Errorf("%s: the screen is not painted: %q", name, painted)
 		}
 	}
-	if ui := lookUI(kittui.ProfileTrueColor, uiprefs.ThemeTerminal); ui.styles.Paints() {
+	if ui := lookUI(kittui.ProfileTrueColor, kittui.ThemeTerminal); ui.styles.Paints() {
 		t.Error("the terminal theme paints the screen")
 	}
 }
@@ -66,17 +65,17 @@ func TestTerminalThemeAsksForTheColoursAndTakesThem(t *testing.T) {
 		theme   string
 		asks    bool
 	}{
-		{kittui.ProfileTrueColor, uiprefs.ThemeTerminal, true},
-		{kittui.ProfileANSI256, uiprefs.ThemeTerminal, true},
-		{kittui.ProfileANSI16, uiprefs.ThemeTerminal, false},
-		{kittui.ProfileMono, uiprefs.ThemeTerminal, false},
-		{kittui.ProfileTrueColor, uiprefs.ThemeQsysminDark, false},
+		{kittui.ProfileTrueColor, kittui.ThemeTerminal, true},
+		{kittui.ProfileANSI256, kittui.ThemeTerminal, true},
+		{kittui.ProfileANSI16, kittui.ThemeTerminal, false},
+		{kittui.ProfileMono, kittui.ThemeTerminal, false},
+		{kittui.ProfileTrueColor, themeQsysminDark, false},
 	} {
 		if got := lookUI(tc.profile, tc.theme).terminalColorQuery() != nil; got != tc.asks {
 			t.Errorf("profile %d, theme %s: asks %v, want %v", tc.profile, tc.theme, got, tc.asks)
 		}
 	}
-	ui := lookUI(kittui.ProfileTrueColor, uiprefs.ThemeTerminal)
+	ui := lookUI(kittui.ProfileTrueColor, kittui.ThemeTerminal)
 	if ui.palette().Panel != "" {
 		t.Fatal("the terminal theme has fills before the terminal answered")
 	}
@@ -90,7 +89,7 @@ func TestTerminalThemeAsksForTheColoursAndTakesThem(t *testing.T) {
 // Without colour every theme draws without colour, and the focus and the selection keep their marks.
 func TestColourlessTerminalKeepsTheMarks(t *testing.T) {
 	for _, profile := range []kittui.ColorProfile{kittui.ProfileNone, kittui.ProfileMono} {
-		ui := lookUI(profile, uiprefs.ThemeQsysminDark)
+		ui := lookUI(profile, themeQsysminDark)
 		if ui.palette() != (kittui.Palette{}) || ui.styles.Paints() {
 			t.Errorf("profile %d: the theme still names colours", profile)
 		}
@@ -103,11 +102,11 @@ func TestColourlessTerminalKeepsTheMarks(t *testing.T) {
 // What render returns is what a terminal of the profile is sent: plain text without a terminal, the
 // attributes but no colour under NO_COLOR.
 func TestShownFollowsTheColourProfile(t *testing.T) {
-	styled := lookUI(kittui.ProfileTrueColor, uiprefs.ThemeQsysminDark).st(kittui.StyleOK).Render("ok")
-	if got := lookUI(kittui.ProfileNone, uiprefs.ThemeTerminal).shown(styled); got != "ok" {
+	styled := lookUI(kittui.ProfileTrueColor, themeQsysminDark).st(kittui.StyleOK).Render("ok")
+	if got := lookUI(kittui.ProfileNone, kittui.ThemeTerminal).shown(styled); got != "ok" {
 		t.Errorf("without a terminal: %q", got)
 	}
-	if got := lookUI(kittui.ProfileMono, uiprefs.ThemeTerminal).shown(styled); colourSGR.MatchString(got) || !strings.Contains(got, "\x1b[1") {
+	if got := lookUI(kittui.ProfileMono, kittui.ThemeTerminal).shown(styled); colourSGR.MatchString(got) || !strings.Contains(got, "\x1b[1") {
 		t.Errorf("under NO_COLOR: %q, want bold without colour", got)
 	}
 }

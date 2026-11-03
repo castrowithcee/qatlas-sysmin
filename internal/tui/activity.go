@@ -41,11 +41,13 @@ const (
 	periodCount
 )
 
-// logActions are the actions of the log the filter offers, in the order of the service's own list.
-var logActions = []string{
-	"config.apply", "config.read",
-	"control.request", "control.refuse", "control.status",
-	"host.change",
+// logActions() are the actions of the log the filter offers, in the order of the service's own list.
+func logActions() []string {
+	return []string{
+		"config.apply", "config.read",
+		"control.request", "control.refuse", "control.status",
+		"host.change",
+	}
 }
 
 // actionID is the key of the readable label of a log action.
@@ -463,7 +465,7 @@ func (m *Model) openLogFilter() {
 // the current one.
 func setActionChoice(ui *uiContext, r *formRow, current string) {
 	r.values, r.shown = []string{""}, []string{ui.tr(tFilterAll)}
-	for _, action := range logActions {
+	for _, action := range logActions() {
 		r.values, r.shown = append(r.values, action), append(r.shown, ui.trOr(actionID(action), action))
 	}
 	r.sel = slices.Index(r.values, current)

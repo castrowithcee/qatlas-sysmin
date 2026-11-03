@@ -6,7 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
@@ -135,7 +135,7 @@ const headerLogo = ""
 // headerStatus are the left parts of the header: the name.
 func (m *Model) headerStatus() []string {
 	name := m.ui.st(kittui.StyleTitle).Render(m.tr(tHeaderTitle))
-	if m.prefs.Icons == uiprefs.IconsNerdFont {
+	if m.prefs.Icons == kitprefs.IconsNerdFont {
 		name = m.ui.st(kittui.StyleActive).Render(headerLogo) + " " + name
 	}
 	return []string{name}

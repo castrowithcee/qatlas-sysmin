@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 )
 
 // settingsModel is the interface on the page of Settings, with a preferences file in a temporary directory.
@@ -60,15 +60,15 @@ func TestGeneralSavesToTheFileWithoutTheServiceAndActsAtOnce(t *testing.T) {
 	calls := len(fb.log())
 	choose(t, m, 1) // language: deutsch
 	send(m, "down", "down", "enter", "down", "enter")
-	if m.prefs.Language != uiprefs.LanguageEnglish {
+	if m.prefs.Language != kitprefs.LanguageEnglish {
 		t.Fatal("a choice acts before it is saved")
 	}
 	send(m, "f2")
-	prefs, warnings := uiprefs.Load(path)
-	if len(warnings) > 0 || prefs.Language != uiprefs.LanguageGerman || !prefs.MouseOff {
+	prefs, warnings := kitprefs.Load(path, PrefsSchema())
+	if len(warnings) > 0 || prefs.Language != kitprefs.LanguageGerman || prefs.MouseEnabled {
 		t.Errorf("saved %+v, warnings %v; want German with the mouse off", prefs, warnings)
 	}
-	if m.prefs.Language != uiprefs.LanguageGerman || !m.prefs.MouseOff {
+	if m.prefs.Language != kitprefs.LanguageGerman || m.prefs.MouseEnabled {
 		t.Errorf("the saved choices do not act: %+v", m.prefs)
 	}
 	if view := plain(m); !strings.Contains(view, "Hilfe") || !strings.Contains(view, "Auf diesem Gerät gespeichert.") {
@@ -90,7 +90,7 @@ func TestGeneralPicksTheThemeFromAList(t *testing.T) {
 		t.Fatalf("theme = %q, want %q", m.set.gen.theme, want)
 	}
 	send(m, "f2")
-	if prefs, _ := uiprefs.Load(path); prefs.Theme != want || m.prefs.Theme != want || m.ui.theme != want {
+	if prefs, _ := kitprefs.Load(path, PrefsSchema()); prefs.Theme != want || m.prefs.Theme != want || m.ui.theme != want {
 		t.Errorf("saved theme %q, model %q", prefs.Theme, m.prefs.Theme)
 	}
 }
@@ -105,7 +105,7 @@ func TestGeneralRebindsAKeyAndRefusesAnInvalidOne(t *testing.T) {
 	m.set.gen.keys[0].SetValue("")
 	typed(m, "f1")
 	send(m, "f2")
-	if _, err := uiprefs.Load(path); err != nil {
+	if _, err := kitprefs.Load(path, PrefsSchema()); err != nil {
 		t.Fatal(err)
 	}
 	if view := plain(m); !strings.Contains(view, "terminals take F1") {
@@ -123,9 +123,9 @@ func TestGeneralRebindsAKeyAndRefusesAnInvalidOne(t *testing.T) {
 	if m.keyLabel(actSave) != "F3" {
 		t.Errorf("the save key = %q, want F3", m.keyLabel(actSave))
 	}
-	prefs, _ := uiprefs.Load(path)
-	if prefs.Keys.Save != "f3" {
-		t.Errorf("saved key = %q", prefs.Keys.Save)
+	prefs, _ := kitprefs.Load(path, PrefsSchema())
+	if prefs.Keys[actSave] != "f3" {
+		t.Errorf("saved key = %q", prefs.Keys[actSave])
 	}
 }
 
@@ -213,7 +213,7 @@ func TestLeavingUnsavedInputAsksFirst(t *testing.T) {
 		t.Errorf("the question lacks its answers:\n%s", view)
 	}
 	send(m, "esc")
-	if m.screen != screenArea || m.area != areaSettings || m.set.gen.language != uiprefs.LanguageGerman {
+	if m.screen != screenArea || m.area != areaSettings || m.set.gen.language != kitprefs.LanguageGerman {
 		t.Error("esc does not keep editing")
 	}
 	send(m, "1", "d")
@@ -221,12 +221,12 @@ func TestLeavingUnsavedInputAsksFirst(t *testing.T) {
 		t.Error("d does not discard and leave")
 	}
 	send(m, "4")
-	if m.set.gen.language != uiprefs.LanguageEnglish {
+	if m.set.gen.language != kitprefs.LanguageEnglish {
 		t.Error("the discarded choice came back")
 	}
 	choose(t, m, 1)
 	send(m, "q", "f2")
-	if prefs, _ := uiprefs.Load(path); prefs.Language != uiprefs.LanguageGerman || m.quitting {
+	if prefs, _ := kitprefs.Load(path, PrefsSchema()); prefs.Language != kitprefs.LanguageGerman || m.quitting {
 		t.Errorf("save in the question: saved %q, quitting %v", prefs.Language, m.quitting)
 	}
 	if m.screen != screenArea || m.area != areaSettings {

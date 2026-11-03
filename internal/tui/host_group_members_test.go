@@ -142,9 +142,7 @@ func TestGroupMembersAreRefusedEarlyForSelfAndTheLastAdmin(t *testing.T) {
 	if m.form == nil || !strings.Contains(m.form.notice, "last admin") || m.ask != nil || len(f.reqs) != 0 {
 		t.Fatalf("notice %q ask %+v", m.form.notice, m.ask)
 	}
-	old := hostUID
-	hostUID = func() int { return 1001 }
-	t.Cleanup(func() { hostUID = old })
+	m.hostUID = func() int { return 1001 }
 	m.form.row("remove").ticked = make([]bool, len(m.form.row("remove").values))
 	m.form.row("remove").ticked[1] = true
 	save(m)

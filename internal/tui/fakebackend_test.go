@@ -11,7 +11,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // fakeBackend is a service in memory.
@@ -76,10 +75,8 @@ func drain(m *Model, cmd tea.Cmd) {
 // appModel is the service interface of the given size over fb, past its first status.
 func appModel(t *testing.T, fb *fakeBackend, w, h int) *Model {
 	t.Helper()
-	every := tickEvery
-	tickEvery = time.Millisecond
-	t.Cleanup(func() { tickEvery = every })
-	m := testModel(uiprefs.Default(), nil)
+	m := testModel(defaultPrefs(), nil)
+	m.tickEvery = time.Millisecond
 	m.enableAreas(fb)
 	m.hostSrc = newFixtureHost()
 	sizedModel(m, w, h)

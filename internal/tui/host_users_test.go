@@ -41,9 +41,7 @@ func userModel(t *testing.T, w, h int) (*Model, *fakeSudo, *countingHost, string
 	m, f, host := hostChangeModel(t, w, h)
 	m.hostReg = nil
 	host.groups = append(host.groups, hostadmin.Group{Name: "demo-ops", GID: 1003})
-	old := hostUID
-	hostUID = func() int { return 4242 }
-	t.Cleanup(func() { hostUID = old })
+	m.hostUID = func() int { return 4242 }
 	_, fp := demoKey(t, "x")
 	for i := range m.hst.users.all {
 		if m.hst.users.all[i].Name == "demo-user" {
@@ -521,7 +519,7 @@ func TestEveryAccountOffersTheChangeForm(t *testing.T) {
 
 func TestTakingAdminAwayFromYourselfOrTheLastAdminIsRefusedEarly(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
-	hostUID = func() int { return 1000 }
+	m.hostUID = func() int { return 1000 }
 	selectUser(m, "demo-admin")
 	send(m, "e")
 	for m.form.row("what").value() != chgAdminOff {
@@ -533,7 +531,7 @@ func TestTakingAdminAwayFromYourselfOrTheLastAdminIsRefusedEarly(t *testing.T) {
 	}
 	send(m, "esc")
 
-	hostUID = func() int { return 4242 }
+	m.hostUID = func() int { return 4242 }
 	selectUser(m, "demo-admin")
 	send(m, "e")
 	for m.form.row("what").value() != chgAdminOff {
@@ -665,14 +663,14 @@ func TestLockStateDecidesWhichOfLockAndUnlockIsOffered(t *testing.T) {
 
 func TestLockIsRefusedEarlyForYourselfAndTheLastAdmin(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
-	hostUID = func() int { return 1000 }
+	m.hostUID = func() int { return 1000 }
 	chooseChange(t, m, "demo-admin", chgLock)
 	save(m)
 	if m.form == nil || !strings.Contains(flat(m), "lock yourself") || len(f.reqs) != 0 {
 		t.Errorf("own lock:\n%s", plain(m))
 	}
 	send(m, "esc")
-	hostUID = func() int { return 4242 }
+	m.hostUID = func() int { return 4242 }
 	chooseChange(t, m, "demo-admin", chgLock)
 	save(m)
 	if m.form == nil || !strings.Contains(flat(m), "last admin") || len(f.reqs) != 0 {
@@ -776,7 +774,7 @@ func TestCancellingTheDeleteRunsNothing(t *testing.T) {
 
 func TestDeleteIsRefusedEarlyForYourselfAndTheLastAdmin(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
-	hostUID = func() int { return 1000 }
+	m.hostUID = func() int { return 1000 }
 	selectUser(m, "demo-admin")
 	send(m, "d")
 	save(m)
@@ -784,7 +782,7 @@ func TestDeleteIsRefusedEarlyForYourselfAndTheLastAdmin(t *testing.T) {
 		t.Errorf("own account:\n%s", plain(m))
 	}
 	send(m, "esc")
-	hostUID = func() int { return 4242 }
+	m.hostUID = func() int { return 4242 }
 	selectUser(m, "demo-admin")
 	send(m, "d", "right")
 	save(m)

@@ -7,14 +7,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // frameModel is a frame of the given size over a short list of invented entries, drawn without colour.
 func frameModel(t *testing.T, w, h int) *Model {
 	t.Helper()
-	m := testModel(uiprefs.Default(), nil)
+	m := testModel(defaultPrefs(), nil)
 	m.title = "Entries"
 	m.table = table{
 		columns: []column{{title: "Name"}, {title: "Note", flex: true}},
@@ -184,7 +182,7 @@ func TestClickMarksARowAndASecondClickPressesEnter(t *testing.T) {
 
 func TestSwitchedOffMouseDoesNothing(t *testing.T) {
 	m := frameModel(t, 80, 24)
-	m.prefs.MouseOff = true
+	m.prefs.MouseEnabled = false
 	m.render()
 	m.Update(tea.MouseClickMsg{X: 5, Y: 8, Button: tea.MouseLeft})
 	if name, _ := m.selected(); name != "alpha" {

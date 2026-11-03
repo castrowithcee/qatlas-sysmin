@@ -7,7 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // action names a key-bound action of the editor. Dispatch and footers refer to the action, never to the
@@ -16,10 +15,10 @@ import (
 type action = kittui.ActionID
 
 const (
-	actInfo      action = uiprefs.ActionInfo
-	actSave      action = uiprefs.ActionSave
-	actHelp      action = uiprefs.ActionHelp
-	actCommand   action = uiprefs.ActionCommand
+	actInfo      action = "info"
+	actSave      action = "save"
+	actHelp      action = "help"
+	actCommand   action = "command"
 	actBack      action = "back"
 	actDelete    action = "delete"
 	actForceQuit action = "forcequit"
@@ -128,30 +127,46 @@ func keyTable() []kittui.Action {
 	}
 }
 
+// rebindable are the actions whose keys the preferences hold, in the order Settings shows them.
+func rebindable() []action { return []action{actSave, actHelp, actCommand, actInfo} }
+
 // bindKeys makes the keys of the preferences the keys in force. An entry the key table refuses keeps the
-// standard key of its action with a warning, and the preferences then name that key, so Settings shows the
-// key that acts.
+// standard key of its action with a warning and leaves the preferences, so Settings shows the key that acts.
 func (m *Model) bindKeys() []string {
-	keys := m.prefs.Keys.WithDefaults()
-	overrides := map[action]string{}
-	for _, name := range uiprefs.Actions {
-		overrides[action(name)] = keys.Get(name)
-	}
-	usable, refused := m.ui.keys.Resolve(overrides)
+	usable, refused := m.ui.keys.Resolve(m.prefs.Keys)
 	var warnings []string
 	for _, err := range refused {
-		name := string(err.Action)
-		standard := uiprefs.DefaultKeys().Get(name)
-		m.prefs.Keys = m.prefs.Keys.With(name, standard)
-		if standard == "" {
-			standard = "no extra key"
-		}
-		warnings = append(warnings, fmt.Sprintf("keys.%s %v, using %s", name, err, standard))
+		warnings = append(warnings, fmt.Sprintf("keys.%s %v, using %s", err.Action, err, m.standardKey(err.Action)))
 	}
 	if err := m.ui.keys.Bind(usable); err != nil {
 		warnings = append(warnings, fmt.Sprintf("keys: %v, using the standard keys", err))
+		usable = nil
 	}
+	m.prefs.Keys = usable
 	return warnings
+}
+
+// standardKey names the key an action of the preferences has by default: its own key, or no extra key for
+// the info action, which keeps its letter.
+func (m *Model) standardKey(a action) string {
+	if key := m.prefKey(nil, a); key != "" {
+		return key
+	}
+	return "no extra key"
+}
+
+// prefKey is the key of a rebindable action under the bindings keys: the binding, or else the default key of
+// an action whose key a binding replaces, and none for the extra info key.
+func (m *Model) prefKey(keys map[action]string, a action) string {
+	if key, ok := keys[a]; ok {
+		return key
+	}
+	for _, t := range m.ui.keys.Actions() {
+		if t.ID == a && t.Rebind == kittui.RebindReplace {
+			return t.DefaultKeys[0]
+		}
+	}
+	return ""
 }
 
 // inputFocus is what the screen shown does with a key press: where text is typed, a key that types a

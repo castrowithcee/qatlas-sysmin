@@ -14,8 +14,10 @@ import (
 // host and the three levels per position, never free text; a recursive change is counted first, and a system
 // path is confirmed in red before the acknowledgement the root action demands is passed.
 
-// folderLevels are the levels a position can get.
-var folderLevels = []hostadmin.Access{hostadmin.AccessNothing, hostadmin.AccessRead, hostadmin.AccessReadWrite}
+// folderLevels() are the levels a position can get.
+func folderLevels() []hostadmin.Access {
+	return []hostadmin.Access{hostadmin.AccessNothing, hostadmin.AccessRead, hostadmin.AccessReadWrite}
+}
 
 // countEntries counts what a change of path touches; a test stands in for the file system.
 func (m *Model) countEntries(path string, recursive bool) (int, error) {
@@ -71,10 +73,10 @@ func (m *Model) hostAccountNames() (users, groups []string) {
 }
 
 func levelRow(ui *uiContext, key, label string, current hostadmin.Access) formRow {
-	values := make([]string, len(folderLevels))
-	shown := make([]string, len(folderLevels))
+	values := make([]string, len(folderLevels()))
+	shown := make([]string, len(folderLevels()))
 	sel := 0
-	for i, l := range folderLevels {
+	for i, l := range folderLevels() {
 		values[i], shown[i] = string(l), hostAccessText(ui, l)
 		if l == current {
 			sel = i

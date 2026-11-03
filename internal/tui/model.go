@@ -12,7 +12,6 @@ import (
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // The defaults bridge the first frame until the terminal reports its real size, which it does before a
@@ -52,7 +51,7 @@ const (
 // Model is the state of the editor frame: the list in the workspace and the dialog over it. Areas of the
 // editor put their rows into list and their dialogs into ask or dialog.
 type Model struct {
-	prefs    uiprefs.Prefs
+	prefs    kitprefs.Prefs
 	redactor *redact.Redactor
 	// ui holds the keys the screens read.
 	ui *uiContext
@@ -147,11 +146,16 @@ type Model struct {
 	wheelSeen wheelSeen
 	// now is the clock of the wheel filter; nil means time.Now.
 	now func() time.Time
+	// hostUID is the user running the interface, for the early message about taking admin from oneself.
+	hostUID func() int
+	// tickEvery is how often the header looks at the service, updateTimeout how long a release lookup may
+	// take; tests shorten them.
+	tickEvery, updateTimeout time.Duration
 }
 
-// New returns the frame with an empty list and the keys of prefs in force. A nil redactor is read as one that
-// knows no secret.
-func New(prefs uiprefs.Prefs, redactor *redact.Redactor) *Model {
+// New returns the frame with an empty list and the keys of prefs in force. Preferences without a theme, such
+// as the zero value, are read as the defaults; a nil redactor as one that knows no secret.
+func New(prefs kitprefs.Prefs, redactor *redact.Redactor) *Model {
 	m := newModel(prefs, redactor, kittui.ProfileNone, kittui.CharsetUnicode)
 	m.bindKeys()
 	return m
@@ -159,15 +163,16 @@ func New(prefs uiprefs.Prefs, redactor *redact.Redactor) *Model {
 
 // newModel is New with the default keys, in the language and the theme of prefs, for a terminal of the given
 // colour profile and character set. A theme this version does not have draws the terminal theme.
-func newModel(prefs uiprefs.Prefs, redactor *redact.Redactor, profile kittui.ColorProfile, charset kittui.CharsetMode) *Model {
-	if prefs == (uiprefs.Prefs{}) {
-		prefs = uiprefs.Default()
-	}
+func newModel(prefs kitprefs.Prefs, redactor *redact.Redactor, profile kittui.ColorProfile, charset kittui.CharsetMode) *Model {
 	if redactor == nil {
 		redactor = &redact.Redactor{}
 	}
-	m := &Model{prefs: prefs, redactor: redactor, ui: newUIContext(profile, charset),
-		list: newFilterList(func(name string) string { return name })}
+	ui := newUIContext(profile, charset)
+	if prefs.Theme == "" {
+		prefs = kitprefs.Default(ui.prefsSchema())
+	}
+	m := &Model{prefs: prefs, redactor: redactor, ui: ui, hostUID: os.Getuid, tickEvery: tickEvery,
+		updateTimeout: updateTimeout, list: newFilterList(func(name string) string { return name })}
 	m.ui.setLanguage(kitprefs.Language(prefs.Language))
 	m.ui.setTheme(prefs.Theme)
 	m.ovr.reset()
@@ -179,7 +184,7 @@ func (m *Model) Init() tea.Cmd {
 	if m.backend == nil {
 		return m.ui.terminalColorQuery()
 	}
-	return tea.Batch(m.ui.terminalColorQuery(), m.statusCmd(), tickCmd(), m.checkUpdate(false))
+	return tea.Batch(m.ui.terminalColorQuery(), m.statusCmd(), m.tickCmd(), m.checkUpdate(false))
 }
 
 // Update handles one message.

@@ -9,15 +9,14 @@ import (
 	"charm.land/lipgloss/v2"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 var sgr = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
 // darkUI and plainUI draw the qsysmin dark theme in true colour and in a terminal that keeps only the
 // attributes.
-func darkUI() *uiContext  { return lookUI(kittui.ProfileTrueColor, uiprefs.ThemeQsysminDark) }
-func plainUI() *uiContext { return lookUI(kittui.ProfileMono, uiprefs.ThemeQsysminDark) }
+func darkUI() *uiContext  { return lookUI(kittui.ProfileTrueColor, themeQsysminDark) }
+func plainUI() *uiContext { return lookUI(kittui.ProfileMono, themeQsysminDark) }
 
 func TestWidgetsCloseTheirFrameAtEveryWidth(t *testing.T) {
 	for _, noColor := range []bool{false, true} {

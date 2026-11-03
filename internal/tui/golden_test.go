@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
-
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
@@ -26,7 +24,7 @@ func goldenFrame(t *testing.T) *Model {
 	if !kittui.DetectColorProfile(os.Stdout, os.Environ()).Colorless() {
 		t.Fatal("NO_COLOR does not switch the colour profile off")
 	}
-	m := testModel(uiprefs.Default(), nil)
+	m := testModel(defaultPrefs(), nil)
 	m.title = "Services"
 	m.table = table{
 		columns: []column{{title: "Name"}, {title: "State"}, {title: "Note", flex: true}},
