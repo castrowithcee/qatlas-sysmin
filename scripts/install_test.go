@@ -156,6 +156,7 @@ func (e *env) publish(tag, program string, opts releaseOptions) {
 		"bin/qsysmin":                        program,
 		"lib/systemd/system/qsysmin.service": "[Unit]\nDescription=" + tag + "\n",
 		"share/doc/qsysmin/LICENSE":          "license " + tag + "\n",
+		"share/man/man1/qsysmin.1":           ".TH QSYSMIN 1 " + tag + "\n",
 	})
 	sum := sha256.Sum256(archive)
 	hash := hex.EncodeToString(sum[:])
@@ -300,8 +301,12 @@ func TestInstallAndReinstall(t *testing.T) {
 	if got := readFile(t, unit); !strings.Contains(got, "v1.0.0") {
 		t.Errorf("unit = %q", got)
 	}
+	man := filepath.Join(e.root, "usr/local/share/man/man1/qsysmin.1")
+	if got := readFile(t, man); !strings.Contains(got, "v1.0.0") {
+		t.Errorf("manpage = %q", got)
+	}
 	for path, want := range map[string]os.FileMode{
-		binary: 0o755, unit: 0o644,
+		binary: 0o755, unit: 0o644, man: 0o644,
 		filepath.Join(e.root, "var/lib/qsysmin"): 0o700,
 	} {
 		info, err := os.Stat(path)
@@ -340,7 +345,10 @@ func TestInstallAndReinstall(t *testing.T) {
 	if !strings.Contains(calls, "systemctl restart qsysmin") || strings.Contains(calls, "enable --now") {
 		t.Errorf("reinstall calls:\n%s", calls)
 	}
-	for _, dir := range []string{"usr/local/bin", "etc/systemd/system"} {
+	if got := readFile(t, man); !strings.Contains(got, "v1.0.1") {
+		t.Errorf("manpage after reinstall = %q", got)
+	}
+	for _, dir := range []string{"usr/local/bin", "etc/systemd/system", "usr/local/share/man/man1"} {
 		entries, _ := os.ReadDir(filepath.Join(e.root, dir))
 		for _, entry := range entries {
 			if strings.HasPrefix(entry.Name(), ".") {
@@ -514,7 +522,7 @@ func TestReleaseIsReproducible(t *testing.T) {
 			t.Errorf("%s: owner %d:%d mtime %v", h.Name, h.Uid, h.Gid, h.ModTime)
 		}
 	}
-	for _, want := range []string{"bin/qsysmin", "share/doc/qsysmin/LICENSE", "lib/systemd/system/qsysmin.service"} {
+	for _, want := range []string{"bin/qsysmin", "share/doc/qsysmin/LICENSE", "share/man/man1/qsysmin.1", "lib/systemd/system/qsysmin.service"} {
 		if !seen[want] {
 			t.Errorf("archive lacks %s: %v", want, seen)
 		}

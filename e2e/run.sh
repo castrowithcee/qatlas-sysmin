@@ -165,15 +165,16 @@ build_releases() {
 	for v in $versions; do
 		stage=$work/stage-$v
 		out=$rel/$v
-		mkdir -p "$stage/bin" "$stage/share/doc/qsysmin" "$stage/lib/systemd/system" "$out"
+		mkdir -p "$stage/bin" "$stage/share/doc/qsysmin" "$stage/share/man/man1" "$stage/lib/systemd/system" "$out"
 		log "building qsysmin $v (linux/$goarch)"
 		(cd "$root" && CGO_ENABLED=0 GOOS=linux GOARCH=$goarch go build -trimpath -buildvcs=false \
 			-ldflags "-s -w -X $module/internal/cli.version=$v -X '$module/internal/release.extraKeyLines=$pub'" \
 			-o "$stage/bin/qsysmin" .)
+		(cd "$root" && SOURCE_DATE_EPOCH=$epoch go run -ldflags "-X $module/internal/cli.version=$v" scripts/gen_man.go "$stage/share/man/man1")
 		cp "$root/LICENSE" "$stage/share/doc/qsysmin/LICENSE"
 		cp "$root/packaging/qsysmin.service" "$stage/lib/systemd/system/qsysmin.service"
 		chmod 755 "$stage/bin/qsysmin"
-		chmod 644 "$stage/share/doc/qsysmin/LICENSE" "$stage/lib/systemd/system/qsysmin.service"
+		chmod 644 "$stage/share/doc/qsysmin/LICENSE" "$stage/share/man/man1/qsysmin.1" "$stage/lib/systemd/system/qsysmin.service"
 		(cd "$stage" && LC_ALL=C tar --sort=name --owner=0 --group=0 --numeric-owner \
 			--mtime="@$epoch" --format=gnu -cf - .) | gzip -n -9 >"$out/qsysmin_${v}_linux_${goarch}.tar.gz"
 		cp "$rel/install.sh" "$out/install.sh"

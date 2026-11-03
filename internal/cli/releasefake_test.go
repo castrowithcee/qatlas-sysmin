@@ -27,6 +27,10 @@ type fakeRelease struct {
 	Unit string
 	// NoUnit leaves the unit out of the archive.
 	NoUnit bool
+	// Manpage is the content of share/man/man1/qsysmin.1; empty means a page naming the tag.
+	Manpage string
+	// NoManpage leaves the manpage out of the archive.
+	NoManpage bool
 	// Files replaces the archive content when set.
 	Files []releasetest.File
 	// Signer signs checksums.txt; nil means the server's signer.
@@ -90,6 +94,13 @@ func (s *fakeServer) publish(t testing.TB, arch string, r fakeRelease) {
 		files = []releasetest.File{{Name: "bin/qsysmin", Body: []byte(r.Program)}, {Name: "share/doc/qsysmin/LICENSE", Body: []byte("license")}}
 		if !r.NoUnit {
 			files = append(files, releasetest.File{Name: unitEntry, Body: []byte(unit)})
+		}
+		if !r.NoManpage {
+			page := r.Manpage
+			if page == "" {
+				page = ".TH QSYSMIN 1 \"" + r.Tag + "\"\n"
+			}
+			files = append(files, releasetest.File{Name: manEntry, Body: []byte(page)})
 		}
 	}
 	archive := releasetest.Archive(t, name, files...)

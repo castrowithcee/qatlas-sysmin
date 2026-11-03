@@ -25,6 +25,8 @@ const (
 	minimumVersion = "v0.7.0"
 	// unitEntry is the systemd unit inside the release archive.
 	unitEntry = "lib/systemd/system/qsysmin.service"
+	// manEntry is the manpage inside the release archive.
+	manEntry = "share/man/man1/qsysmin.1"
 )
 
 // errDevelopmentBuild reports an update attempt by a build without a release version.
@@ -85,7 +87,7 @@ func newUpdateCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update qsysmin to the latest stable release or to a chosen one",
-		Long: "update replaces the installed program and its systemd unit with those of a signed release and\n" +
+		Long: "update replaces the installed program, its systemd unit and its manpage with those of a signed release and\n" +
 			"restarts the service; drop-ins of the unit stay as they are. Without arguments it installs the\n" +
 			"newest stable release; --to installs exactly the given version, an older one included; --list\n" +
 			"shows the signed releases that can be chosen, prereleases included.\n" +
@@ -119,7 +121,7 @@ func runUpdate(c *cobra.Command, opts *Options, gate *cobracli.Gate, req updateR
 	s := opts.system()
 	updater := s.updater(version, req.apiURL)
 	updater.Executable = s.binaryPath
-	updater.Companions = []selfupdate.Companion{{Entry: unitEntry, Path: s.unitPath}}
+	updater.Companions = []selfupdate.Companion{{Entry: unitEntry, Path: s.unitPath}, {Entry: manEntry, Path: s.manPath}}
 	if updater.ArchiveName("v0.0.0") == "" {
 		return updateError(fmt.Errorf("no release is published for architecture %s", runtime.GOARCH))
 	}

@@ -142,13 +142,18 @@ s00_installation() {
 		echo "unit: $(systemctl show -p LoadState --value qsysmin), service: $(systemctl is-active qsysmin)"
 		echo "user: $(id qsysmin)"
 		echo "group: $(getent group qsysmin)"
-		ls -l /usr/local/bin/qsysmin /etc/systemd/system/qsysmin.service' 2>&1)
+		ls -l /usr/local/bin/qsysmin /etc/systemd/system/qsysmin.service /usr/local/share/man/man1/qsysmin.1' 2>&1)
 	evidence "installation:
 $out"
 	printf '%s\n' "$out" | grep -q 'unit: loaded, service: active' || failed 'qsysmin.service is not loaded and active'
 	printf '%s\n' "$out" | grep -q '^user: uid=' || failed 'the user qsysmin does not exist'
 	printf '%s\n' "$out" | grep -q '^group: qsysmin:' || failed 'the group qsysmin does not exist'
 	printf '%s\n' "$out" | grep -q '/usr/local/bin/qsysmin$' || failed '/usr/local/bin/qsysmin is missing'
+	printf '%s\n' "$out" | grep -q '/usr/local/share/man/man1/qsysmin.1$' || failed 'the manpage /usr/local/share/man/man1/qsysmin.1 is missing'
+	out=$(hrun sh -c 'man -P cat qsysmin 2>&1 | head -n 12') && rc=0 || rc=$?
+	evidence "man qsysmin:
+$out"
+	printf '%s\n' "$out" | grep -q '^QSYSMIN(1)' || failed 'man qsysmin does not show the manpage'
 	sock=$(docker exec "$host" sh -c 'ls -l /run/qsysmin/qsysmin.sock' 2>&1)
 	evidence "socket: $sock"
 	case $sock in s*/run/qsysmin/qsysmin.sock) ;; *) failed 'the socket /run/qsysmin/qsysmin.sock does not exist' ;; esac
@@ -263,11 +268,36 @@ $out"
 	ver=$(hrun qsysmin version --output compact 2>&1 | sed 's/^version=//')
 	evidence "qsysmin version: $ver; qsysmin.service $(docker exec "$host" systemctl is-active qsysmin)"
 	[ "$ver" = v0.8.0 ] || failed 'qsysmin version does not show v0.8.0'
+	out=$(hrun sh -c 'man -P cat qsysmin 2>&1 | grep "qsysmin v[0-9]"') || true
+	evidence "man qsysmin after the update:
+$out"
+	printf '%s\n' "$out" | grep -q 'qsysmin v0.8.0' || failed 'the manpage was not updated to v0.8.0'
 	[ "$(docker exec "$host" systemctl is-active qsysmin)" = active ] || failed 'qsysmin.service is not active after the update'
 	out=$(cli log verify --output compact 2>&1) && rc=0 || rc=$?
 	evidence "log verify after the update: exit $rc"
 	[ "$rc" = 0 ] || failed 'the action log does not verify after the update'
 	demo_healthy || failed 'the demo container is not healthy after the update'
+
+	out=$(cli update --api-url "$api" --to v0.7.0 --yes --confirm --output compact 2>&1) && rc=0 || rc=$?
+	evidence "rollback: update --to v0.7.0: exit $rc: previous=$(kv "$out" previous) version=$(kv "$out" version) updated=$(kv "$out" updated)"
+	if [ "$rc" != 0 ]; then
+		failed "rollback: $out"
+		return 1
+	fi
+	poll 60 cliq status || true
+	ver=$(hrun qsysmin version --output compact 2>&1 | sed 's/^version=//')
+	evidence "qsysmin version after the rollback: $ver; qsysmin.service $(docker exec "$host" systemctl is-active qsysmin)"
+	[ "$ver" = v0.7.0 ] || failed 'qsysmin version does not show v0.7.0 after the rollback'
+	[ "$(docker exec "$host" systemctl is-active qsysmin)" = active ] || failed 'qsysmin.service is not active after the rollback'
+	out=$(hrun sh -c 'man -P cat qsysmin 2>&1 | grep "qsysmin v[0-9]"') || true
+	printf '%s\n' "$out" | grep -q 'qsysmin v0.7.0' || failed 'the manpage was not rolled back to v0.7.0'
+
+	# Later steps expect the newer release.
+	out=$(cli update --api-url "$api" --yes --confirm --output compact 2>&1) && rc=0 || rc=$?
+	poll 60 cliq status || true
+	ver=$(hrun qsysmin version --output compact 2>&1 | sed 's/^version=//')
+	evidence "update after the rollback: exit $rc; qsysmin version: $ver"
+	[ "$rc" = 0 ] && [ "$ver" = v0.8.0 ] || failed "update back to v0.8.0: $out"
 }
 
 s06_uninstall() {
@@ -280,15 +310,15 @@ s06_uninstall() {
 	evidence "uninstall --yes --confirm: exit $rc: uninstalled=$(kv "$out" uninstalled) purged=$(kv "$out" purged)"
 	[ "$rc" = 0 ] || failed "uninstall: $out"
 	gone=$(docker exec "$host" sh -c '
-		for f in /usr/local/bin/qsysmin /etc/systemd/system/qsysmin.service; do
+		for f in /usr/local/bin/qsysmin /etc/systemd/system/qsysmin.service /usr/local/share/man/man1/qsysmin.1; do
 			[ -e "$f" ] && echo "$f present" || echo "$f absent"
 		done
 		echo "unit: $(systemctl show -p LoadState --value qsysmin), service: $(systemctl is-active qsysmin)"
 		id qsysmin >/dev/null 2>&1 && echo "user qsysmin present" || echo "user qsysmin absent"')
 	evidence "after uninstall:
 $gone"
-	printf '%s\n' "$gone" | grep -qE 'bin/qsysmin present|service present|LoadState|unit: loaded|service: active|user qsysmin present' &&
-		failed 'program, unit, service or user remain'
+	printf '%s\n' "$gone" | grep -qE 'bin/qsysmin present|service present|qsysmin.1 present|LoadState|unit: loaded|service: active|user qsysmin present' &&
+		failed 'program, manpage, unit, service or user remain'
 	kept=$(docker exec "$host" sh -c 'ls -d /var/lib/qsysmin 2>&1')
 	evidence "kept:
 $kept"
@@ -318,7 +348,7 @@ $out"
 	[ "$rc" != 0 ] || failed 'the installer succeeded on a host with an old installation'
 	printf '%s\n' "$out" | grep -qF 'sudo sysmin uninstall --purge' || failed 'the installer did not point to sudo sysmin uninstall --purge'
 	found=$(docker exec "$host" sh -c '
-		for f in /usr/local/bin/qsysmin /etc/systemd/system/qsysmin.service /var/lib/qsysmin; do
+		for f in /usr/local/bin/qsysmin /etc/systemd/system/qsysmin.service /usr/local/share/man/man1/qsysmin.1 /var/lib/qsysmin; do
 			[ -e "$f" ] && echo "$f present" || echo "$f absent"
 		done
 		id qsysmin >/dev/null 2>&1 && echo "user qsysmin present" || echo "user qsysmin absent"
