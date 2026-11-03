@@ -62,7 +62,7 @@ func TestGroupMembersFormOffersTheRightUsersAndSendsOneActionForAllChanges(t *te
 	}
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
-	want := []string{"apply", "--yes", "--output", "json", "--", "group.set-members", "demo-team", "+demo-admin", "+svc-demo", "-demo-user"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "group.set-members", "demo-team", "+demo-admin", "+svc-demo", "-demo-user"}
 	if !slices.Equal(lastArgs(f), want) {
 		t.Errorf("calls %+v, want %q", f.reqs, want)
 	}
@@ -127,7 +127,7 @@ func TestGroupMembersOfSudoFollowTheAdminSwitch(t *testing.T) {
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
 	// demo-admin is in qsysmin and demo-user is not: the second is taken out of sudo only.
-	want := []string{"apply", "--yes", "--output", "json", "--", "group.set-members", "sudo", "+svc-demo", "-demo-admin", "-demo-user:without-qsysmin"}
+	want := []string{"apply", "--confirm", "--output", "json", "--", "group.set-members", "sudo", "+svc-demo", "-demo-admin", "-demo-user:without-qsysmin"}
 	if !slices.Equal(lastArgs(f), want) {
 		t.Errorf("calls %+v, want %q", f.reqs, want)
 	}

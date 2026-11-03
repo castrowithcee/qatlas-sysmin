@@ -107,7 +107,7 @@ func TestLogVerifyBrokenChain(t *testing.T) {
 	}
 
 	code, rows, stderr := verifyJSON(t, "--dir", dir)
-	if code != exitRuntime || !strings.Contains(stderr, "chain is broken") {
+	if code != exitRuntime || !strings.HasPrefix(stderr, "qsysmin: chain-broken: the action log chain is broken\n") {
 		t.Fatalf("code = %d, stderr = %q, want a runtime error", code, stderr)
 	}
 	if len(rows) != 1 || rows[0].Chain != "broken" || !strings.Contains(rows[0].Detail, "sequence 3") {

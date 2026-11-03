@@ -7,25 +7,23 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-kit/cobracli"
 	"github.com/castrowithcee/qatlas-kit/output"
 )
 
 func newUninstallCommand(opts *Options) *cobra.Command {
-	var purge, yes bool
+	var purge bool
+	var gate *cobracli.Gate
 	cmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: "Remove the qsysmin installation from this host",
 		Long: "uninstall stops and disables the service and removes its unit, the program, and the user and\n" +
 			"group qsysmin. The state directory stays in place unless\n" +
-			"--purge is given. Parts that are already gone are skipped. It needs root and asks for\n" +
-			"confirmation on a terminal; --yes confirms.",
-		Args: noArgs,
+			"--purge is given. Parts that are already gone are skipped. It needs root and --confirm, and asks\n" +
+			"for confirmation on a terminal; --yes answers the question.",
 		RunE: func(c *cobra.Command, _ []string) error {
 			s := opts.system()
 			if err := requireRoot(s, "uninstall"); err != nil {
-				return err
-			}
-			if err := requireConfirmation(s, c.InOrStdin(), yes, "uninstall"); err != nil {
 				return err
 			}
 			question := "Remove qsysmin: the service, its unit, the program, and the user and group qsysmin. Its state stays in place."
@@ -33,24 +31,21 @@ func newUninstallCommand(opts *Options) *cobra.Command {
 				question = "Remove qsysmin including its data: the service, its unit, the program, the user and group qsysmin, and " +
 					"ALL of its state. This cannot be undone."
 			}
-			ok, err := confirm(c, yes, question)
-			if err != nil {
-				return err
-			}
-			if !ok {
-				return errors.New("uninstall cancelled; nothing was changed")
-			}
-			if err := uninstall(c, s, purge); err != nil {
-				return fmt.Errorf("uninstall: %w", err)
-			}
-			return emit(c, opts, output.Object{Fields: []output.Field{
-				{Name: "uninstalled", Value: true},
-				{Name: "purged", Value: purge},
-			}})
+			return gate.Run(cobracli.Request{Question: question, Changes: true}, func() error {
+				if err := uninstall(c, s, purge); err != nil {
+					return failure(codeUninstallFail, fmt.Errorf("uninstall: %w", err),
+						"Read the message: the parts not yet removed stay in place. Fix the cause, then repeat the uninstall.",
+						askUserReport)
+				}
+				return emit(c, opts, output.Object{Fields: []output.Field{
+					{Name: "uninstalled", Value: true},
+					{Name: "purged", Value: purge},
+				}})
+			})
 		},
 	}
+	gate = opts.prog.AddGate(cmd, cobracli.Gates{Question: true, Change: true})
 	cmd.Flags().BoolVar(&purge, "purge", false, "also remove the state directory")
-	cmd.Flags().BoolVar(&yes, "yes", false, "confirm without asking")
 	return cmd
 }
 

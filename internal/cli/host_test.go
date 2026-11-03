@@ -56,7 +56,7 @@ func hostFixture(t *testing.T, uid int) (env *hostEnv, keyBlob string) {
 func runHost(env *hostEnv, args ...string) (int, string, string) {
 	opts := &Options{Redactor: &redact.Redactor{}, host: env}
 	var out, errOut bytes.Buffer
-	code := run(newRootCommand(opts), opts, args, &out, &errOut)
+	code := run(opts, nil, args, &out, &errOut)
 	return code, out.String(), errOut.String()
 }
 
@@ -64,17 +64,21 @@ func TestHostRefusesCallersWithoutAdminRights(t *testing.T) {
 	env, _ := hostFixture(t, 1001)
 	for _, args := range [][]string{
 		{"host", "users"}, {"host", "user", "demo-user"}, {"host", "groups"}, {"host", "group", "sudo"},
-		{"host", "folder", "/"}, {"host"}, {"host", "users", "extra"},
+		{"host", "folder", "/"}, {"host"}, {"host", "apply", "demo.set", "--confirm"}, {"host", "journal"},
 	} {
 		code, out, errOut := runHost(env, args...)
-		if code != 1 || out != "" || errOut != "qsysmin is reserved for administrators (sudo)\n" {
+		if code != 1 || out != "" || errOut != reservedLines {
 			t.Errorf("%v: code %d, stdout %q, stderr %q", args, code, out, errOut)
 		}
 	}
 	// A caller the database does not know is no administrator either.
 	unknown, _ := hostFixture(t, 4242)
-	if code, _, errOut := runHost(unknown, "host", "users"); code != 1 || !strings.HasPrefix(errOut, "qsysmin is reserved") {
+	if code, _, errOut := runHost(unknown, "host", "users"); code != 1 || errOut != reservedLines {
 		t.Errorf("unknown caller: code %d, stderr %q", code, errOut)
+	}
+	// The command line is checked first, so a mistyped one shows its usage.
+	if code, _, errOut := runHost(env, "host", "users", "extra"); code != 2 || !strings.HasPrefix(errOut, "qsysmin: usage: unexpected argument") {
+		t.Errorf("extra argument: code %d, stderr %q", code, errOut)
 	}
 }
 
@@ -181,7 +185,7 @@ func TestHostUnknownTargets(t *testing.T) {
 		{"host", "user", "nobody-here"}, {"host", "group", "nobody-here"}, {"host", "folder", "/srv/demo-missing-path"},
 	} {
 		code, out, errOut := runHost(env, args...)
-		if code != 1 || out != "" || !strings.HasPrefix(errOut, "qsysmin: runtime: host ") || !strings.Contains(errOut, "not found") {
+		if code != 1 || out != "" || !strings.HasPrefix(errOut, "qsysmin: host-read-failed: host ") || !strings.Contains(errOut, "not found") {
 			t.Errorf("%v: code %d, stdout %q, stderr %q", args, code, out, errOut)
 		}
 	}

@@ -17,7 +17,6 @@ func newLogCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "log",
 		Short: "Work with the tamper-evident action log",
-		Args:  noLogArgs,
 		RunE:  func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
 	cmd.AddCommand(newLogVerifyCommand(opts))
@@ -34,15 +33,15 @@ func newLogVerifyCommand(opts *Options) *cobra.Command {
 			"by a crash, that a marker entry right after it documents leaves the chain intact and is counted as\n" +
 			"damaged. A signature that an earlier version wrote on an entry is not checked; the day reports it as\n" +
 			"not checked.",
-		Args: noLogArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			fromDay, toDay, err := parseLogRange(from, to)
 			if err != nil {
-				return newSyntaxError(err)
+				return syntaxFailure(err)
 			}
 			report, err := auditlog.Verify(dir)
 			if err != nil {
-				return fmt.Errorf("verify the action log: %w", err)
+				return failure(output.CodeRuntime, fmt.Errorf("verify the action log: %w", err),
+					"Check that the directory exists and is readable, then repeat the command.", askUserReport)
 			}
 			result := output.Collection{Columns: []string{"day", "entries", "chain", "damaged", "signatures", "detail"}}
 			broken := false
@@ -67,7 +66,9 @@ func newLogVerifyCommand(opts *Options) *cobra.Command {
 				return err
 			}
 			if broken {
-				return errors.New("the action log chain is broken")
+				return failure(codeChainBroken, errors.New("the action log chain is broken"),
+					"Read the report above for the broken day; keep the log files as they are and restore them from a backup.",
+					"Tell the user which day is broken; do not repair or delete log files.")
 			}
 			return nil
 		},
@@ -76,13 +77,6 @@ func newLogVerifyCommand(opts *Options) *cobra.Command {
 	cmd.Flags().StringVar(&from, "from", "", "first day to report, as YYYY-MM-DD")
 	cmd.Flags().StringVar(&to, "to", "", "last day to report, as YYYY-MM-DD")
 	return cmd
-}
-
-func noLogArgs(_ *cobra.Command, args []string) error {
-	if len(args) > 0 {
-		return newSyntaxError(fmt.Errorf("unexpected argument %q", args[0]))
-	}
-	return nil
 }
 
 // parseLogRange validates the --from and --to days; an empty value leaves that end open.

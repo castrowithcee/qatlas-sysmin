@@ -9,17 +9,27 @@ import (
 	"strings"
 	"testing"
 
+	kitcli "github.com/castrowithcee/qatlas-kit/cli"
+	"github.com/castrowithcee/qatlas-kit/output"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/tui"
 )
 
-func TestDialErrorNamesSudoForASessionWithoutTheGroup(t *testing.T) {
+func TestDialErrorHasACodeAndANextStep(t *testing.T) {
+	var f *kitcli.Failure
 	err := dialError(fmt.Errorf("cannot reach the service: %w", client.ErrSessionGroup))
-	if !errors.Is(err, client.ErrSessionGroup) || !strings.Contains(err.Error(), `"sudo -g qsysmin" in front of the command`) {
+	if !errors.Is(err, client.ErrSessionGroup) || !errors.As(err, &f) || f.Code != codeSessionGroup ||
+		!strings.Contains(f.NextStep, `"sudo -g qsysmin" in front of the command`) {
 		t.Errorf("session error: %v", err)
 	}
-	if err := dialError(errors.New("cannot reach the service: refused")); !strings.Contains(err.Error(), "is the service running") {
+	err = dialError(errors.New("cannot reach the service: refused"))
+	if !errors.As(err, &f) || f.Code != output.CodeUnreachable || !strings.Contains(f.NextStep, "service is running") ||
+		f.AgentNextStep == "" {
 		t.Errorf("other error: %v", err)
+	}
+	err = dialError(fmt.Errorf("x: %w", &client.PeerError{PID: 4242, UID: 1000}))
+	if !errors.As(err, &f) || f.Code != codePeerMismatch {
+		t.Errorf("peer error: %v", err)
 	}
 }
 
@@ -59,7 +69,7 @@ func TestUpdateAndRestartInstallsThenStartsTheInterfaceAgain(t *testing.T) {
 	if err := updateAndRestart("v0.1.3", []string{"qsysmin", "tui"}); err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"/usr/bin/sudo", "/usr/local/bin/qsysmin", "update", "--to", "v0.1.3", "--yes"}; !slices.Equal(ran, want) {
+	if want := []string{"/usr/bin/sudo", "/usr/local/bin/qsysmin", "update", "--to", "v0.1.3", "--yes", "--confirm"}; !slices.Equal(ran, want) {
 		t.Errorf("update ran %q", ran)
 	}
 	if want := []string{"/usr/local/bin/qsysmin", "qsysmin", "tui"}; !slices.Equal(restarted, want) {
@@ -95,11 +105,11 @@ func TestHostRunnerBuildsTheSudoCallWithoutPassingASecret(t *testing.T) {
 		t.Errorf("validate: %v %v", validate, err)
 	}
 	marker := "invented-input-marker"
-	secret, err := hostRunner(tui.HostRequest{Args: []string{"apply", "--yes", "--", "demo.login"}, Secret: []byte(marker)})
+	secret, err := hostRunner(tui.HostRequest{Args: []string{"apply", "--confirm", "--", "demo.login"}, Secret: []byte(marker)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantSecret := []string{"/usr/bin/sudo", "-n", "/usr/local/bin/qsysmin", "host", "apply", "--yes", "--", "demo.login"}
+	wantSecret := []string{"/usr/bin/sudo", "-n", "/usr/local/bin/qsysmin", "host", "apply", "--confirm", "--", "demo.login"}
 	if !slices.Equal(secret.Args, wantSecret) {
 		t.Errorf("secret args %q", secret.Args)
 	}

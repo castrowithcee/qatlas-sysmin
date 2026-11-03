@@ -22,7 +22,6 @@ func newRunCommand(opts *Options) *cobra.Command {
 		Short: "Run the qsysmin service",
 		Long: "run is what the service unit starts: it serves the control socket to administrators until it\n" +
 			"receives SIGTERM or SIGINT.",
-		Args: noArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			// Keeps other processes of the service user from attaching to or dumping this process.
 			if err := unix.Prctl(unix.PR_SET_DUMPABLE, 0, 0, 0, 0); err != nil {

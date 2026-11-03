@@ -12,7 +12,10 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/service"
 )
 
-const reservedLine = "qsysmin is reserved for administrators (sudo)\n"
+var (
+	reservedLines   = "qsysmin: admin-required: " + client.ReservedMessage + "\n" + client.ErrReserved.NextStep + "\n"
+	notEnabledLines = "qsysmin: not-enabled: " + client.NotEnabledMessage + "\n" + client.ErrNotEnabled.NextStep + "\n"
+)
 
 func TestCommandsSayReservedOnANotAdminAnswer(t *testing.T) {
 	if os.Geteuid() == 0 {
@@ -20,7 +23,7 @@ func TestCommandsSayReservedOnANotAdminAnswer(t *testing.T) {
 	}
 	sock := startServiceCfg(t, func(c *service.Config) { c.IsAdmin = func(uint32) (bool, error) { return false, nil } })
 	code, stdout, stderr := runCLIArgs("status", "--socket", sock)
-	if code != exitRuntime || stdout != "" || stderr != reservedLine {
+	if code != exitRuntime || stdout != "" || stderr != reservedLines {
 		t.Errorf("code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
 	}
 }
@@ -62,8 +65,8 @@ func TestCommandsNameTheStandingOnARefusedAnswer(t *testing.T) {
 		admin, enabled bool
 		want           string
 	}{
-		{"not an administrator", false, false, reservedLine},
-		{"administrator, not enabled", true, false, client.NotEnabledMessage + "\n"},
+		{"not an administrator", false, false, reservedLines},
+		{"administrator, not enabled", true, false, notEnabledLines},
 	} {
 		restore := client.SetStandingForTests(tc.admin, tc.enabled)
 		code, stdout, stderr := runCLIArgs("status", "--socket", sock)
@@ -97,8 +100,8 @@ func TestCommandsNameTheStandingOnSocketPermission(t *testing.T) {
 		admin, enabled bool
 		want           string
 	}{
-		{"not an administrator", false, false, reservedLine},
-		{"administrator, not enabled", true, false, client.NotEnabledMessage + "\n"},
+		{"not an administrator", false, false, reservedLines},
+		{"administrator, not enabled", true, false, notEnabledLines},
 	} {
 		restore := client.SetStandingForTests(tc.admin, tc.enabled)
 		code, stdout, stderr := runCLIArgs("status", "--socket", sock)

@@ -143,7 +143,7 @@ docker run -d --name $demo_container --user $demo_uid:$demo_uid -v $demo_dir:/da
 
 # apply_folder runs the folder change with the given levels (user, group, other) on the demo folder.
 apply_folder() {
-	cli host apply folder.set-permissions "$demo_dir" demo-user demo-user "$1" "$2" "$3" --yes --output compact 2>&1
+	cli host apply folder.set-permissions "$demo_dir" demo-user demo-user "$1" "$2" "$3" --confirm --output compact 2>&1
 }
 
 # --- steps ------------------------------------------------------------------------------------------------
@@ -308,7 +308,7 @@ s04_folder_undo() {
 	out=$(cli host journal --output compact 2>&1) || true
 	evidence "host journal:
 $out"
-	out=$(cli host undo "$journal_kept" --yes --output compact 2>&1) && rc=0 || rc=$?
+	out=$(cli host undo "$journal_kept" --confirm --output compact 2>&1) && rc=0 || rc=$?
 	evidence "host undo $journal_kept: exit $rc: result=$(kv "$out" result) check=$(kv "$out" check)"
 	[ "$rc" = 0 ] && [ "$(kv "$out" result)" = applied ] || failed "undo: $out"
 	after=$(stat_of)
@@ -337,13 +337,13 @@ $out"
 	[ "$ns_ok" = yes ] && [ "$ns_old" = rejected ] || failed 'the release signature does not use the namespace qsysmin-release'
 	sc_note '# on the release server: v0.8.0/checksums.txt.sig replaced by the signature of v0.7.0'
 	docker exec "$prefix-releases" sh -c 'cd /srv/releases && cp v0.8.0/checksums.txt.sig /tmp/v0.8.0.sig && cp v0.7.0/checksums.txt.sig v0.8.0/checksums.txt.sig'
-	out=$(cli update --api-url "$api" --to v0.8.0 --yes --output compact 2>&1) && rc=0 || rc=$?
+	out=$(cli update --api-url "$api" --to v0.8.0 --yes --confirm --output compact 2>&1) && rc=0 || rc=$?
 	ver=$(docker exec "$host" qsysmin version --output compact | sed 's/^version=//')
 	evidence "with the signature of another release: exit $rc: $out; installed: $ver"
 	[ "$rc" != 0 ] && [ "$ver" = v0.7.0 ] || failed 'a release with a wrong signature was installed'
 	sc_note '# on the release server: the signature of v0.8.0 restored'
 	docker exec "$prefix-releases" sh -c 'cp /tmp/v0.8.0.sig /srv/releases/v0.8.0/checksums.txt.sig'
-	out=$(cli update --api-url "$api" --yes --output compact 2>&1) && rc=0 || rc=$?
+	out=$(cli update --api-url "$api" --yes --confirm --output compact 2>&1) && rc=0 || rc=$?
 	evidence "update: previous=$(kv "$out" previous) version=$(kv "$out" version) updated=$(kv "$out" updated) restarted=$(kv "$out" restarted)"
 	if [ "$rc" != 0 ]; then
 		failed "update: $out"
@@ -363,11 +363,11 @@ $out"
 s06_uninstall() {
 	before=$(containers)
 	out=$(cli uninstall --output compact 2>&1) && rc=0 || rc=$?
-	evidence "uninstall without --yes and without a terminal: exit $rc: $out"
+	evidence "uninstall without --confirm: exit $rc: $out"
 	[ "$rc" != 0 ] || failed 'uninstall ran without a confirmation'
 	hroot 'cp /usr/local/bin/qsysmin /root/qsysmin-kept'
-	out=$(cli uninstall --yes --output compact 2>&1) && rc=0 || rc=$?
-	evidence "uninstall --yes: exit $rc: uninstalled=$(kv "$out" uninstalled) purged=$(kv "$out" purged)"
+	out=$(cli uninstall --yes --confirm --output compact 2>&1) && rc=0 || rc=$?
+	evidence "uninstall --yes --confirm: exit $rc: uninstalled=$(kv "$out" uninstalled) purged=$(kv "$out" purged)"
 	[ "$rc" = 0 ] || failed "uninstall: $out"
 	gone=$(docker exec "$host" sh -c '
 		for f in /usr/local/bin/qsysmin /etc/systemd/system/qsysmin.service; do
@@ -387,7 +387,7 @@ $kept"
 	evidence "running containers unchanged (name, id, start): $([ "$before" = "$after" ] && echo yes || echo no)"
 	[ "$before" = "$after" ] || failed "the containers changed:
 $after"
-	out=$(hroot '/root/qsysmin-kept uninstall --purge --yes --output compact; rm -f /root/qsysmin-kept' 2>&1) || true
+	out=$(hroot '/root/qsysmin-kept uninstall --purge --yes --confirm --output compact; rm -f /root/qsysmin-kept' 2>&1) || true
 	left=$(docker exec "$host" sh -c 'ls -d /var/lib/qsysmin 2>&1')
 	evidence "uninstall --purge with a copy of the program kept before: purged=$(kv "$out" purged); what is left:
 $left"

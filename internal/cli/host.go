@@ -36,7 +36,7 @@ func (e *hostEnv) requireAdmin() error {
 	if admin, err := e.Host.IsAdmin(e.UID); err == nil && admin {
 		return nil
 	}
-	return &plainError{client.ReservedMessage}
+	return client.ErrReserved
 }
 
 func newHostCommand(opts *Options) *cobra.Command {
@@ -48,14 +48,9 @@ func newHostCommand(opts *Options) *cobra.Command {
 			"locked or expired and which SSH keys it has are shown only to root; otherwise they are unknown.\n" +
 			"The commands apply, undo and journal change the host and need root; the TUI runs them via sudo.\n" +
 			"See 'qsysmin help host-admin'.",
-		Args: gated(opts, noArgs),
-		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			if err := opts.hostEnv().requireAdmin(); err != nil {
-				return err
-			}
-			return c.Root().PersistentPreRunE(c, args)
-		},
-		RunE: func(c *cobra.Command, _ []string) error { return c.Help() },
+		// The caller is checked after the command line is, so a mistyped command line shows its usage first.
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error { return opts.hostEnv().requireAdmin() },
+		RunE:              func(c *cobra.Command, _ []string) error { return c.Help() },
 	}
 	cmd.AddCommand(newHostUsersCommand(opts), newHostUserCommand(opts), newHostGroupsCommand(opts),
 		newHostGroupCommand(opts), newHostFolderCommand(opts), newHostApplyCommand(opts), newHostUndoCommand(opts),
@@ -63,32 +58,25 @@ func newHostCommand(opts *Options) *cobra.Command {
 	return cmd
 }
 
-// gated checks the caller before the arguments, so a caller without access learns nothing else.
-func gated(opts *Options, check cobra.PositionalArgs) cobra.PositionalArgs {
-	return func(c *cobra.Command, args []string) error {
-		if err := opts.hostEnv().requireAdmin(); err != nil {
-			return err
+func exactlyOne(what string) cobra.PositionalArgs {
+	return func(_ *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return fmt.Errorf("exactly one %s is needed, got %d arguments", what, len(args))
 		}
-		return check(c, args)
+		return nil
 	}
 }
 
-func exactlyOne(opts *Options, what string) cobra.PositionalArgs {
-	return gated(opts, func(_ *cobra.Command, args []string) error {
-		if len(args) != 1 {
-			return newSyntaxError(fmt.Errorf("exactly one %s is needed, got %d arguments", what, len(args)))
-		}
-		return nil
-	})
+// hostError is a failed read of the host's accounts or folders.
+func hostError(what string, err error) error {
+	return failure(codeHostRead, fmt.Errorf("%s: %w", what, err),
+		"Check the name or path in the message, then repeat the command.", askUserReport)
 }
-
-func hostError(what string, err error) error { return fmt.Errorf("%s: %w", what, err) }
 
 func newHostUsersCommand(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "users",
 		Short: "List the local users",
-		Args:  gated(opts, noArgs),
 		RunE: func(c *cobra.Command, _ []string) error {
 			users, err := opts.hostEnv().Host.Users()
 			if err != nil {
@@ -112,7 +100,7 @@ func newHostUserCommand(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "user <name>",
 		Short: "Show one local user",
-		Args:  exactlyOne(opts, "user name"),
+		Args:  exactlyOne("user name"),
 		RunE: func(c *cobra.Command, args []string) error {
 			u, err := opts.hostEnv().Host.User(args[0])
 			if err != nil {
@@ -140,7 +128,6 @@ func newHostGroupsCommand(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "groups",
 		Short: "List the local groups",
-		Args:  gated(opts, noArgs),
 		RunE: func(c *cobra.Command, _ []string) error {
 			groups, err := opts.hostEnv().Host.Groups()
 			if err != nil {
@@ -161,7 +148,7 @@ func newHostGroupCommand(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "group <name>",
 		Short: "Show one local group",
-		Args:  exactlyOne(opts, "group name"),
+		Args:  exactlyOne("group name"),
 		RunE: func(c *cobra.Command, args []string) error {
 			g, err := opts.hostEnv().Host.Group(args[0])
 			if err != nil {
@@ -181,7 +168,7 @@ func newHostFolderCommand(opts *Options) *cobra.Command {
 	return &cobra.Command{
 		Use:   "folder <path>",
 		Short: "Show owner, group and permissions of a folder or file",
-		Args:  exactlyOne(opts, "path"),
+		Args:  exactlyOne("path"),
 		RunE: func(c *cobra.Command, args []string) error {
 			f, err := opts.hostEnv().Host.Folder(args[0])
 			if err != nil {
@@ -212,7 +199,7 @@ func triState(opts *Options, v *bool) any {
 	switch {
 	case v != nil:
 		return *v
-	case opts.Format == output.FormatJSON:
+	case opts.prog.Format() == output.FormatJSON:
 		return nil
 	}
 	return "unknown"
@@ -221,7 +208,7 @@ func triState(opts *Options, v *bool) any {
 // keysValue renders the keys of a user: a list of objects in JSON, one text elsewhere. Unknown is absent in
 // JSON and "unknown" elsewhere.
 func keysValue(opts *Options, keys []hostadmin.SSHKey) any {
-	if opts.Format == output.FormatJSON {
+	if opts.prog.Format() == output.FormatJSON {
 		if keys == nil {
 			return nil
 		}
