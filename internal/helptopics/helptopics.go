@@ -77,9 +77,15 @@ func wrapLine(line string, width int) []string {
 	return append(lines, current)
 }
 
-const sysmin = `sysmin is a Go tool that runs as a service on a Linux host. It takes over the setup and operation of a server through guided, repeatable scenarios.
+const sysmin = `sysmin is a Go tool that runs as a service on a Linux host and helps look after that host. It has the areas Overview, Host, Activity and Settings.
 
-'sysmin --help' lists the commands; 'sysmin tui' opens the terminal interface.`
+Host reads the local users, groups and folder permissions. Changes run through 'sudo sysmin host ...' after a confirmation, are recorded in a journal with the previous state, and can be undone. After a change to folder permissions, the containers it affects are watched. Activity shows a log kept as a hash chain without a signature.
+
+Admins, members of the group sudo, reach the running service through its socket. The installation requires the group docker.
+
+A further area, Containers, is a possible direction; nothing is promised for it.
+
+'sysmin --help' lists the commands; 'sysmin tui' opens the terminal interface; 'sysmin host-admin' covers the host commands.`
 
 const hostAdmin = `The host commands read the local users, groups and folder permissions. Changes (host apply, host undo) run through sudo after a confirmation, are recorded in a root-only journal with the previous state, and can be undone.
 

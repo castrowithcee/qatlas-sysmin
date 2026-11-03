@@ -74,9 +74,9 @@ func run(cmd *cobra.Command, opts *Options, args []string, stdout, stderr io.Wri
 func newRootCommand(opts *Options) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sysmin",
-		Short: "Set up and operate a Linux server through guided, repeatable scenarios",
-		Long: "sysmin runs as a service on a Linux host and takes over the setup and operation of a server\n" +
-			"through guided, repeatable scenarios. It is at an early stage of development.",
+		Short: "Look after a Linux host: read it, change it with a journal, and undo changes",
+		Long: "sysmin runs as a service on a Linux host. Its area Host reads users, groups and folder permissions\n" +
+			"and changes them with a journal that allows undoing. It is at an early stage of development.",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args: func(_ *cobra.Command, args []string) error {
