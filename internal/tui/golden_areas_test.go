@@ -69,7 +69,7 @@ func TestGoldenAreas(t *testing.T) {
 		{"activity_broken", func(t *testing.T, w, h int) *Model {
 			utcClock(t)
 			fb := activityFake()
-			fb.lib.verify = brokenChain()
+			fb.audit.verify = brokenChain()
 			m := goldenApp(t, fb, w, h)
 			send(m, "2")
 			return m

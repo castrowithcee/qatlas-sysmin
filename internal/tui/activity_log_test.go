@@ -9,6 +9,7 @@ import (
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+	"github.com/castrowithcee/qatlas-sysmin/internal/i18n"
 )
 
 // utcClock makes the log times of a test read the same everywhere.
@@ -21,7 +22,7 @@ func utcClock(t *testing.T) {
 
 // testLogEntries is a log of n entries, newest first, with invented values.
 func testLogEntries(n int) []control.LogEntry {
-	actions := []string{"config.read", "approval.grant", "credential.create", "deploy.run", "session.open"}
+	actions := []string{"config.read", "host.change", "vault.unlock", "control.refuse", "session.open"}
 	start := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
 	var out []control.LogEntry
 	for i := range n {
@@ -32,7 +33,7 @@ func testLogEntries(n int) []control.LogEntry {
 		e := control.LogEntry{Seq: uint64(n - i), Time: start.Add(-time.Duration(i) * time.Minute), ClientUID: &uid,
 			Action: actions[i%len(actions)], Result: control.LogResultSuccess, DurationMS: int64(3 + i*7), Signed: i%4 != 0}
 		if i%2 == 0 {
-			e.Project = "demo-app"
+			e.Project = "demo-app" // an old entry may still carry one; Activity does not show it
 		}
 		if i%5 == 4 {
 			e.Result, e.ErrorCode = control.LogResultFailure, "refused"
@@ -65,12 +66,11 @@ func f2(m *Model) {
 	drain(m, cmd)
 }
 
-// activityFake is a service with a project and a short log.
+// activityFake is a service with a short log.
 func activityFake() *fakeBackend {
 	fb := newFake(control.VaultUnlocked)
-	fb.projects = []control.ProjectSummary{{Name: "demo-app", State: control.StateApproved}}
-	fb.lib.entries = testLogEntries(12)
-	fb.lib.verify = intactChain()
+	fb.audit.entries = testLogEntries(12)
+	fb.audit.verify = intactChain()
 	return fb
 }
 
@@ -81,7 +81,7 @@ func TestActivityLoadsEntriesAndShowsAnIntactChain(t *testing.T) {
 		m := appModel(t, fb, size[0], size[1])
 		send(m, "2")
 		view := plain(m)
-		for _, want := range []string{"Log (12)", "● Chain intact, 52 entries", "signatures checked", "2026-10-28 12:00:00", "config.read", "demo-app"} {
+		for _, want := range []string{"Log (12)", "● Chain intact, 52 entries", "signatures checked", "2026-10-28 12:00:00", "Config read"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("%dx%d: lacks %q:\n%s", size[0], size[1], want, view)
 			}
@@ -97,7 +97,7 @@ func TestActivityLoadsEntriesAndShowsAnIntactChain(t *testing.T) {
 func TestActivityShowsABrokenChainWithSymbolAndText(t *testing.T) {
 	utcClock(t)
 	fb := activityFake()
-	fb.lib.verify = brokenChain()
+	fb.audit.verify = brokenChain()
 	m := appModel(t, fb, 80, 24)
 	send(m, "2")
 	view := plain(m)
@@ -105,7 +105,7 @@ func TestActivityShowsABrokenChainWithSymbolAndText(t *testing.T) {
 		t.Errorf("no break shown:\n%s", view)
 	}
 	assertViewFits(t, view, 80, 24)
-	fb.lib.verify = intactChain()
+	fb.audit.verify = intactChain()
 	send(m, "t")
 	if fb.count("log-verify") != 2 || !strings.Contains(plain(m), "● Chain intact") {
 		t.Errorf("calls %v:\n%s", fb.log(), plain(m))
@@ -115,8 +115,8 @@ func TestActivityShowsABrokenChainWithSymbolAndText(t *testing.T) {
 func TestActivityCountsDocumentedDamage(t *testing.T) {
 	utcClock(t)
 	fb := activityFake()
-	fb.lib.verify = intactChain()
-	fb.lib.verify.Days[1].Damaged = 1
+	fb.audit.verify = intactChain()
+	fb.audit.verify.Days[1].Damaged = 1
 	m := appModel(t, fb, 120, 40)
 	send(m, "2")
 	if view := plain(m); !strings.Contains(view, "● Chain intact, 52 entries · unreadable lines documented: 1 · signatures checked") {
@@ -155,22 +155,22 @@ func TestActivityFilterSetsTheParametersAndReloads(t *testing.T) {
 	if m.form == nil {
 		t.Fatal("no filter form")
 	}
-	// Period: 7 days; project: demo-app; action: the first one; result: failure.
-	send(m, "right", "right", "right", "tab", "right", "tab", "right", "tab", "right", "right")
+	// Period: 7 days; action: the first one; result: failure.
+	send(m, "right", "right", "right", "tab", "right", "tab", "right", "right")
 	f2(m)
-	last := fb.lib.logCalls[len(fb.lib.logCalls)-1]
-	want := control.LogListParams{From: now.AddDate(0, 0, -7).Format(time.RFC3339), Project: "demo-app", Action: "config.apply",
+	last := fb.audit.calls[len(fb.audit.calls)-1]
+	want := control.LogListParams{From: now.AddDate(0, 0, -7).Format(time.RFC3339), Action: "config.apply",
 		Result: control.LogResultFailure, Limit: logPageSize}
 	if last != want {
 		t.Errorf("params = %+v, want %+v", last, want)
 	}
-	if view := plain(m); !strings.Contains(view, "Log · 7 days · demo-app · config.apply · failure") {
+	if view := plain(m); !strings.Contains(view, "Log · 7 days · Config applied · failure") {
 		t.Errorf("the filters are not in the title:\n%s", view)
 	}
 	// The period "today" starts at midnight of the local day.
 	send(m, "f", "left")
 	f2(m)
-	last = fb.lib.logCalls[len(fb.lib.logCalls)-1]
+	last = fb.audit.calls[len(fb.audit.calls)-1]
 	if last.From != "2026-10-28T00:00:00Z" {
 		t.Errorf("today = %q", last.From)
 	}
@@ -179,7 +179,7 @@ func TestActivityFilterSetsTheParametersAndReloads(t *testing.T) {
 func TestActivityLoadsFurtherPagesAtTheEnd(t *testing.T) {
 	utcClock(t)
 	fb := activityFake()
-	fb.lib.entries = testLogEntries(250)
+	fb.audit.entries = testLogEntries(250)
 	m := appModel(t, fb, 80, 24)
 	send(m, "2")
 	if got := len(m.act.order); got != logPageSize || m.act.next == "" {
@@ -189,7 +189,7 @@ func TestActivityLoadsFurtherPagesAtTheEnd(t *testing.T) {
 	if got := len(m.act.order); got != 2*logPageSize {
 		t.Fatalf("second page: %d entries", got)
 	}
-	if last := fb.lib.logCalls[len(fb.lib.logCalls)-1]; last.After != "100" {
+	if last := fb.audit.calls[len(fb.audit.calls)-1]; last.After != "100" {
 		t.Errorf("after = %q", last.After)
 	}
 	send(m, "end", "end")
@@ -206,12 +206,11 @@ func TestActivityLoadsFurtherPagesAtTheEnd(t *testing.T) {
 func TestActivityDrawsNoControlSequenceOfAnEntry(t *testing.T) {
 	utcClock(t)
 	fb := activityFake()
-	fb.lib.entries[0].Action = "config.read\x1b]52;c;ZXZpbA==\x07"
-	fb.lib.entries[0].Project = "demo\x1b[2Japp"
-	fb.lib.entries[0].ErrorCode = "x\x1b[31m"
+	fb.audit.entries[0].Action = "config.read\x1b]52;c;ZXZpbA==\x07"
+	fb.audit.entries[0].ErrorCode = "x\x1b[31m"
 	m := appModel(t, fb, 120, 40)
 	m.redactor.Add(secretValue)
-	fb.lib.entries[1].Project = secretValue
+	fb.audit.entries[1].Action = secretValue
 	send(m, "2")
 	for range 3 {
 		raw := m.render()
@@ -238,11 +237,62 @@ func TestActivityKnowsOnlyActionsTheServiceLogs(t *testing.T) {
 	}
 }
 
+func TestActivityShowsNoProject(t *testing.T) {
+	utcClock(t)
+	fb := activityFake()
+	m := appModel(t, fb, 120, 40)
+	send(m, "2")
+	view := plain(m)
+	if strings.Contains(view, "demo-app") || strings.Contains(view, "Project") {
+		t.Errorf("a project is shown:\n%s", view)
+	}
+	send(m, "enter")
+	if view := plain(m); strings.Contains(view, "demo-app") || strings.Contains(view, "Project") {
+		t.Errorf("the details show a project:\n%s", view)
+	}
+	send(m, "esc", "f")
+	if view := plain(m); strings.Contains(view, "Project") {
+		t.Errorf("the filter offers a project:\n%s", view)
+	}
+}
+
+func TestActivityShowsAHostChangeWithItsLabel(t *testing.T) {
+	utcClock(t)
+	fb := activityFake()
+	uid := uint32(0)
+	fb.audit.entries = []control.LogEntry{{Seq: 7, Time: time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC), ClientUID: &uid,
+		Action: "host.change", Result: control.LogResultSuccess, Signed: true,
+		Host: &control.LogHost{ActionID: "user.lock", JournalID: "demo-journal"}}}
+	for _, tc := range []struct {
+		lang i18n.Lang
+		want string
+	}{{i18n.English, "Host change"}, {i18n.German, "Host-Änderung"}} {
+		t.Run(string(tc.lang), func(t *testing.T) {
+			m := appModel(t, fb, 120, 40)
+			useLanguage(t, tc.lang)
+			send(m, "2")
+			if view := plain(m); !strings.Contains(view, tc.want) || strings.Contains(view, "host.change") {
+				t.Errorf("table lacks %q or shows the raw action:\n%s", tc.want, view)
+			}
+		})
+	}
+}
+
+func TestEveryLogActionHasALabelInBothLanguages(t *testing.T) {
+	for _, a := range logActions {
+		for _, cat := range []map[textID]string{textEN, textDE} {
+			if strings.TrimSpace(cat[actionID(a)]) == "" {
+				t.Errorf("action %q has no label", a)
+			}
+		}
+	}
+}
+
 func TestActivityTextsAreTranslated(t *testing.T) {
 	utcClock(t)
 	eachLanguage(t, func(t *testing.T) {
 		fb := activityFake()
-		fb.lib.verify = brokenChain()
+		fb.audit.verify = brokenChain()
 		m := appModel(t, fb, 120, 40)
 		for _, keys := range [][]string{{"2"}, {"2", "f"}} {
 			m2 := appModel(t, fb, 120, 40)

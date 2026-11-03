@@ -42,11 +42,9 @@ type formDlg struct {
 	focus       int
 	// notice is a problem that belongs to no row.
 	notice string
-	// submit runs on the save key with the form already left; changed runs after a choice took another value;
-	// refresh runs where a list a row offers arrived.
+	// submit runs on the save key with the form already left; changed runs after a choice took another value.
 	submit  func(m *Model, f *formDlg) tea.Cmd
 	changed func(m *Model, f *formDlg, row int)
-	refresh func(m *Model, f *formDlg)
 	// saveText is the footer text of the save key, such as "{save} save".
 	saveText string
 	// enter, when set, runs first on the enter key; true says it took the key.
@@ -113,17 +111,6 @@ func (r *formRow) shownValue() string {
 		return r.shown[r.sel]
 	}
 	return r.value()
-}
-
-// setChoices replaces the values of a choice and keeps the one chosen where it is still offered.
-func (r *formRow) setChoices(values, shown []string) {
-	keep := r.value()
-	r.values, r.shown, r.sel = values, shown, 0
-	for i, v := range values {
-		if v == keep {
-			r.sel = i
-		}
-	}
 }
 
 func (f *formDlg) row(key string) *formRow {

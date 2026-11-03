@@ -319,7 +319,8 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	if m.area == areaActivity && !p.open && keyIs(key, actFilter) {
 		// f is the filter of the log here; the table is searched with /.
-		return m.openLogFilter(), true
+		m.openLogFilter()
+		return nil, true
 	}
 	if cmd, ok := m.pageKey(p, key); ok {
 		return cmd, true

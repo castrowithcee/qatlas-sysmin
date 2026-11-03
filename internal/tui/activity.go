@@ -41,28 +41,31 @@ const (
 
 // logActions are the actions of the log the filter offers, in the order of the service's own list.
 var logActions = []string{
-	"config.apply", "config.migrate", "config.read",
-	"credential.create", "credential.change", "credential.delete", "credential.use",
-	"approval.request", "approval.grant", "approval.deny", "approval.list", "approval.show",
-	"deploy.plan", "deploy.run", "deploy.rollback",
+	"config.apply", "config.read",
 	"vault.unlock", "vault.lock", "vault.rekey", "vault.create", "vault.status",
-	"webhook.receive", "webhook.reject", "notify.send",
 	"control.request", "control.refuse", "control.status", "session.open", "session.end",
+	"host.change",
 }
 
-// logFilter is what narrows the log. An empty project, action or result and the period all mean no limit.
+// actionID is the key of the readable label of a log action.
+func actionID(action string) textID { return textID("action." + action) }
+
+// actionText is the readable label of a log action; an action without one is shown as it is, made safe.
+func (m *Model) actionText(action string) string { return trOr(actionID(action), m.diffText(action)) }
+
+// logFilter is what narrows the log. An empty action or result and the period all mean no limit.
 type logFilter struct {
-	period                  int
-	project, action, result string
+	period         int
+	action, result string
 }
 
 func (f logFilter) active() bool {
-	return f.period != periodAll || f.project != "" || f.action != "" || f.result != ""
+	return f.period != periodAll || f.action != "" || f.result != ""
 }
 
 // params is the request for one page of the log under the filter, at time now.
 func (f logFilter) params(now time.Time, after string) control.LogListParams {
-	p := control.LogListParams{Project: f.project, Action: f.action, Result: f.result, Limit: logPageSize, After: after}
+	p := control.LogListParams{Action: f.action, Result: f.result, Limit: logPageSize, After: after}
 	switch f.period {
 	case periodHour:
 		p.From = now.Add(-time.Hour).Format(time.RFC3339)
@@ -90,17 +93,15 @@ type activityState struct {
 	items map[string]control.LogEntry
 	// next continues the listing; loading says a request is out; stalled says the last request for more
 	// failed, so reaching the end does not ask again until the log is read anew.
-	next         string
-	loading      bool
-	stalled      bool
-	err          string
-	have         bool
-	asked        bool
-	gen          int
-	filter       logFilter
-	chain        chainState
-	projects     []string
-	haveProjects bool
+	next    string
+	loading bool
+	stalled bool
+	err     string
+	have    bool
+	asked   bool
+	gen     int
+	filter  logFilter
+	chain   chainState
 }
 
 // chainState is the result of the last check of the hash chain.
@@ -121,11 +122,6 @@ type logMsg struct {
 type verifyMsg struct {
 	res control.LogVerifyResult
 	err error
-}
-
-type projectsMsg struct {
-	list []control.ProjectSummary
-	err  error
 }
 
 // logCmd reads the first page of the log under the filter, or, with after, the page behind it.
@@ -210,22 +206,6 @@ func (m *Model) takeVerify(msg verifyMsg) {
 	c.res = msg.res
 }
 
-func (m *Model) takeProjects(msg projectsMsg) {
-	a := &m.act
-	a.haveProjects = msg.err == nil
-	if msg.err != nil {
-		return
-	}
-	a.projects = nil
-	for _, p := range msg.list {
-		a.projects = append(a.projects, p.Name)
-	}
-	slices.Sort(a.projects)
-	if f := m.form; f != nil && f.refresh != nil {
-		f.refresh(m, f)
-	}
-}
-
 // rebuild makes the rows of the table from the entries.
 func (a *activityState) rebuild(m *Model) {
 	rows := map[string][]string{}
@@ -239,11 +219,7 @@ func (a *activityState) rebuild(m *Model) {
 		if e.Signed {
 			signed = "✓"
 		}
-		project := m.diffText(e.Project)
-		if project == "" {
-			project = "-"
-		}
-		rows[id] = []string{e.Time.Local().Format("2006-01-02 15:04:05"), m.diffText(e.Action), project,
+		rows[id] = []string{e.Time.Local().Format("2006-01-02 15:04:05"), m.actionText(e.Action),
 			m.diffText(e.Result), durationText(e.DurationMS), uid, signed}
 	}
 	a.page.cols = logColumns()
@@ -261,8 +237,7 @@ func logColumns() []column {
 	return []column{
 		{title: tr(tColTime)},
 		{title: tr(tColAction)},
-		{title: tr(tColProject), flex: true},
-		{title: tr(tColResult), tone: func(cell string) lipgloss.Style {
+		{title: tr(tColResult), flex: true, tone: func(cell string) lipgloss.Style {
 			if cell == control.LogResultFailure {
 				return styles.warning
 			}
@@ -290,10 +265,11 @@ func (a *activityState) titleText() string {
 	if f.period != periodAll {
 		parts = append(parts, periodText(f.period))
 	}
-	for _, v := range []string{f.project, f.action, f.result} {
-		if v != "" {
-			parts = append(parts, v)
-		}
+	if f.action != "" {
+		parts = append(parts, trOr(actionID(f.action), f.action))
+	}
+	if f.result != "" {
+		parts = append(parts, f.result)
 	}
 	return strings.Join(parts, " · ")
 }
@@ -336,8 +312,7 @@ func (m *Model) logLines(id string, tab, width int) []string {
 	case tabOverview:
 		return factLines([][2]string{
 			{tr(tColTime), when},
-			{tr(tColAction), m.diffText(e.Action)},
-			{tr(tColProject), orDash(m.diffText(e.Project))},
+			{tr(tColAction), m.actionText(e.Action)},
 			{tr(tColResult), result},
 		}, width)
 	case tabDetails:
@@ -349,15 +324,8 @@ func (m *Model) logLines(id string, tab, width int) []string {
 		}, width)
 	}
 	return []string{"seq: " + id, "time: " + e.Time.UTC().Format(time.RFC3339), "action: " + m.diffText(e.Action),
-		"project: " + m.diffText(e.Project), "result: " + m.diffText(e.Result), "error_code: " + m.diffText(e.ErrorCode),
+		"result: " + m.diffText(e.Result), "error_code: " + m.diffText(e.ErrorCode),
 		"client_uid: " + uid, "duration_ms: " + strconv.FormatInt(e.DurationMS, 10), "signed: " + strconv.FormatBool(e.Signed)}
-}
-
-func orDash(s string) string {
-	if s == "" {
-		return "-"
-	}
-	return s
 }
 
 // chainLines is the result of the chain check: a dot and the word for an intact chain on one line; for a
@@ -455,32 +423,8 @@ func (m *Model) activityKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// projectsCmd reads the project names the filter offers.
-func (m *Model) projectsCmd() tea.Cmd {
-	if m.backend == nil || !m.serviceUp() {
-		return nil
-	}
-	b := m.backend
-	return func() tea.Msg {
-		list, err := b.Projects()
-		return projectsMsg{list, err}
-	}
-}
-
-// choices are the values of a filter row with "all" in front, the current value kept in even where the list
-// no longer holds it.
-func allChoices(values []string, current string) (vals, shown []string) {
-	vals = append([]string{""}, values...)
-	if current != "" && !slices.Contains(values, current) {
-		vals = append(vals, current)
-	}
-	shown = []string{tr(tFilterAll)}
-	return vals, append(shown, vals[1:]...)
-}
-
-// openLogFilter opens the form of the filter. The names of the projects are read when the form opens; the
-// list arrives into it.
-func (m *Model) openLogFilter() tea.Cmd {
+// openLogFilter opens the form of the filter.
+func (m *Model) openLogFilter() {
 	a := &m.act
 	f := &formDlg{title: tr(tLogFilterTitle), saveText: "{save} apply", submit: submitLogFilter}
 	periods := make([]string, periodCount)
@@ -490,17 +434,11 @@ func (m *Model) openLogFilter() tea.Cmd {
 	}
 	f.rows = []formRow{
 		choiceRow("period", tr(tColPeriod), values, periods, a.filter.period),
-		choiceRow("project", tr(tColProject), nil, nil, 0),
 		choiceRow("action", tr(tColAction), nil, nil, 0),
 		choiceRow("result", tr(tColResult), []string{"", control.LogResultSuccess, control.LogResultFailure},
 			[]string{tr(tFilterAll), control.LogResultSuccess, control.LogResultFailure}, 0),
 	}
-	f.refresh = func(m *Model, f *formDlg) {
-		v, s := allChoices(m.act.projects, f.row("project").value())
-		f.row("project").setChoices(v, s)
-	}
-	setChoice(f.row("project"), a.projects, a.filter.project)
-	setChoice(f.row("action"), logActions, a.filter.action)
+	setActionChoice(f.row("action"), a.filter.action)
 	switch a.filter.result {
 	case control.LogResultSuccess:
 		f.row("result").sel = 1
@@ -508,15 +446,15 @@ func (m *Model) openLogFilter() tea.Cmd {
 		f.row("result").sel = 2
 	}
 	m.openForm(f)
-	if !a.haveProjects {
-		return m.projectsCmd()
-	}
-	return nil
 }
 
-// setChoice offers all and the values to a choice row and selects the current one.
-func setChoice(r *formRow, values []string, current string) {
-	r.values, r.shown = allChoices(values, current)
+// setActionChoice offers all and the logged actions to the action row, each by its readable label, and selects
+// the current one.
+func setActionChoice(r *formRow, current string) {
+	r.values, r.shown = []string{""}, []string{tr(tFilterAll)}
+	for _, action := range logActions {
+		r.values, r.shown = append(r.values, action), append(r.shown, trOr(actionID(action), action))
+	}
 	r.sel = slices.Index(r.values, current)
 	if r.sel < 0 {
 		r.sel = 0
@@ -526,7 +464,7 @@ func setChoice(r *formRow, values []string, current string) {
 // submitLogFilter takes the choices as the filter and reads the log anew.
 func submitLogFilter(m *Model, f *formDlg) tea.Cmd {
 	period, _ := strconv.Atoi(f.row("period").value())
-	m.act.filter = logFilter{period: period, project: f.row("project").value(), action: f.row("action").value(),
+	m.act.filter = logFilter{period: period, action: f.row("action").value(),
 		result: f.row("result").value()}
 	m.closeForm()
 	return m.logCmd("")

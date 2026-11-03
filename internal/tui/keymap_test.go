@@ -102,7 +102,7 @@ var keyLiteral = regexp.MustCompile(`^\s*case\s+(?:(?:"[^"]*"|[\w.]+\([^()]*\)|[
 
 // nonKeySwitches are files whose string cases are no keys (names, colour codes, footer groups, filter
 // states). TestTableKeysAreNeverLiterals still covers them for every key of the table.
-var nonKeySwitches = []string{"canvas.go", "footer.go", "logs.go", "mouse.go", "template.go", "tui.go"}
+var nonKeySwitches = []string{"canvas.go", "footer.go", "logs.go", "mouse.go", "tui.go"}
 
 // tableKeys are the key names the keymap owns: every default key of every action. No file but keymap.go
 // spells one as a key value.
