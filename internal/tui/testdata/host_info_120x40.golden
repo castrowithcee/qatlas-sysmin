@@ -10,11 +10,11 @@ Users (3)                                                         1/2 ╭─ dem
 ║   demo-user   yes · not enabled  no      demo-user, sudo…         ║ │ Admin              yes                         │
 ║   ▸ System accounts (1)                                           ║ │ Docker             yes                         │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
-                            ╔══════════════════════════════════════════════════════════════╗emo-admin, sudo, docker,   │
-                            ║ Info                                                         ║sysmin                     │
-                            ║                                                              ║home/demo-admin            │
-                            ║ Users                                                        ║nknown                     │
-                            ║                                                              ║                           │
+                                                                      │ Groups             demo-admin, sudo, docker,   │
+                                                                      │                    qsysmin                     │
+                                                                      │ Home               /home/demo-admin            │
+                                                                      │ Locked             unknown                     │
+                            ╔═ Users ══════════════════════════════════════════════════════╗                           │
                             ║ Admin: the user may become root with sudo. Docker: the user  ║ the fields only root can  │
                             ║ may use Docker, which is practically root on this host.      ║                           │
                             ║ Enabled: the user is a member of the group qsysmin; an admin ║───────────────────────────╯
@@ -23,7 +23,7 @@ Users (3)                                                         1/2 ╭─ dem
                             ║ first, runs through sudo and can be undone under Changes,    ║                            
                             ║ except deleting a home.                                      ║                            
                             ║                                                              ║                            
-                            ║ esc close                                                    ║                            
+                            ║ c copy  esc/i close                                          ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
                                                                                                                         
                                                                                                                         

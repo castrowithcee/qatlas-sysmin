@@ -30,6 +30,8 @@ func catalog() i18n.Catalogs[textID] {
 		maps.Copy(en, partEN)
 		maps.Copy(de, partDE)
 	}
+	commandTexts(en)
+	commandTexts(de)
 	return i18n.Catalogs[textID]{i18n.English: en, i18n.German: de}
 }
 

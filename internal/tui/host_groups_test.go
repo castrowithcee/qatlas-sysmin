@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	kithelp "github.com/castrowithcee/qatlas-kit/helptopics"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
@@ -233,8 +236,8 @@ func TestGroupsHelpAndInfoNoLongerCallSystemGroupsReadOnly(t *testing.T) {
 	eachLanguage(t, func(t *testing.T) {
 		ui := testUI()
 		ui.setLanguage(testLang)
-		for _, id := range []textID{tInfoHostGroups, tHelpHost} {
-			text := ui.tr(id)
+		host, _ := kithelp.Lookup(helptopics.Topics(testLang), "host-tui")
+		for id, text := range map[string]string{string(tInfoHostGroups): ui.tr(tInfoHostGroups), host.Name: host.Text} {
 			if strings.Contains(text, "read-only") || strings.Contains(text, "nur lesbar") || !strings.Contains(text, "sudo") {
 				t.Errorf("%s: %q", id, text)
 			}

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
@@ -363,7 +364,7 @@ func TestGoldenAreas(t *testing.T) {
 		{"host_help", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
 			send(m, "2", "?")
-			for range helpTopics() {
+			for range helptopics.Topics(testLang) {
 				if strings.Contains(plain(m), "Host shows the users") {
 					break
 				}

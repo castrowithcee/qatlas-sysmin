@@ -10,6 +10,7 @@ import (
 	"github.com/castrowithcee/qatlas-kit/i18n"
 	"github.com/castrowithcee/qatlas-sysmin/internal/auditlog"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
+	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 )
 
 // utcClock makes the log times of a test read the same everywhere.
@@ -311,7 +312,7 @@ func TestActivityTextsAreTranslated(t *testing.T) {
 			assertViewFits(t, plain(m2), 120, 40)
 		}
 		send(m, "?", "left")
-		for range helpTopics() {
+		for range helptopics.Topics(testLang) {
 			send(m, "left")
 		}
 	})

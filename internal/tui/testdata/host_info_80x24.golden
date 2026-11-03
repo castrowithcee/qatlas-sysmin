@@ -2,11 +2,11 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Users (3╔══════════════════════════════════════════════════════════════╗     1/2
-╔═══════║ Info                                                         ║═══════╗
-║   Name║                                                              ║System ║
-║   ▾ Us║ Users                                                        ║       ║
-║ > demo║                                                              ║       ║
+Users (3)                                                                    1/2
+╔══════════════════════════════════════════════════════════════════════════════╗
+║   Name        Admin              Docker  Groups                       System ║
+║   ▾ Users (2)                                                                ║
+║ > demo╔═ Users ══════════════════════════════════════════════════════╗       ║
 ║   demo║ Admin: the user may become root with sudo. Docker: the user  ║       ║
 ║   ▸ Sy║ may use Docker, which is practically root on this host.      ║       ║
 ╚═══════║ Enabled: the user is a member of the group qsysmin; an admin ║═══════╝
@@ -15,7 +15,7 @@ Users (3╔═══════════════════════
         ║ first, runs through sudo and can be undone under Changes,    ║        
         ║ except deleting a home.                                      ║        
         ║                                                              ║        
-        ║ esc close                                                    ║        
+        ║ c copy  esc/i close                                          ║        
         ╚══════════════════════════════════════════════════════════════╝        
                                                                                 
                                                                                 

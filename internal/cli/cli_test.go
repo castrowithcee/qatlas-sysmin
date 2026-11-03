@@ -10,7 +10,11 @@ import (
 	"github.com/spf13/cobra"
 
 	kitcli "github.com/castrowithcee/qatlas-kit/cli"
+	kithelp "github.com/castrowithcee/qatlas-kit/helptopics"
+	"github.com/castrowithcee/qatlas-kit/i18n"
 	"github.com/castrowithcee/qatlas-kit/output"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 )
 
 const (
@@ -228,6 +232,20 @@ func TestOutputUnknownValueIsUsageError(t *testing.T) {
 	code, _, _ := runCLI(t, "version", "--output", "yaml")
 	if code != exitUsage {
 		t.Errorf("code = %d, want %d", code, exitUsage)
+	}
+}
+
+// The command line serves the topics of the shared list, the one the help of the terminal interface shows.
+func TestHelpTopicsAreTheSharedList(t *testing.T) {
+	shared := helptopics.Topics(i18n.English)
+	if !slices.Equal(helpTopics, shared) {
+		t.Fatalf("the command line has topics %v, the shared list %v", helpTopics, shared)
+	}
+	for _, topic := range shared {
+		code, out, _ := runCLI(t, topic.Name)
+		if code != exitOK || !strings.Contains(out, kithelp.CLIText(topic)) {
+			t.Errorf("qsysmin %s: code %d, output does not hold the topic:\n%s", topic.Name, code, out)
+		}
 	}
 }
 

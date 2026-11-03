@@ -4,37 +4,38 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
-func commandNames(list []command) []string {
+// openCommands opens the command line and types text into it.
+func openCommands(t *testing.T, m *Model, text string) *kittui.CommandLine {
+	t.Helper()
+	send(m, ":")
+	if m.pop == nil || m.pop.cmd == nil {
+		t.Fatalf("no command line is open:\n%s", plain(m))
+	}
+	typed(m, text)
+	return m.pop.cmd
+}
+
+func commandNames(list []kittui.Command) []string {
 	var names []string
 	for _, c := range list {
-		names = append(names, c.name)
+		names = append(names, c.Name)
 	}
 	return names
 }
 
-func commandByName(t *testing.T, m *Model, name string) command {
-	t.Helper()
-	for _, c := range m.commands() {
-		if c.name == name {
-			return c
-		}
-	}
-	t.Fatalf("no command %q", name)
-	return command{}
-}
-
-// paletteRows are the commands the palette shows now, found by the name that opens each row.
+// paletteRows are the commands the command line shows now, found by the name that opens each row.
 func paletteRows(m *Model) []string {
 	var got []string
 	for _, line := range strings.Split(plain(m), "\n") {
-		// The palette stands over the page, so a row may start behind the borders of what lies under it.
 		for _, cell := range strings.FieldsFunc(line, func(r rune) bool { return r == '│' || r == '║' }) {
-			cell = strings.TrimLeft(cell, " >")
+			cell = strings.TrimLeft(cell, " >▌")
 			for _, c := range m.commands() {
-				if strings.HasPrefix(cell, c.name+"  ") {
-					got = append(got, c.name)
+				if strings.HasPrefix(cell, c.Name+"  ") {
+					got = append(got, c.Name)
 					break
 				}
 			}
@@ -53,8 +54,6 @@ func TestColonStaysTextWhereTextIsTyped(t *testing.T) {
 }
 
 func TestCommandSuggestionsMatchPrefixWordAliasAndCase(t *testing.T) {
-	m := appModel(t, overviewFake(), 100, 30)
-	list := m.commands()
 	cases := []struct{ query, first string }{
 		{"", "go overview"},
 		{"QU", "quit"},
@@ -67,36 +66,24 @@ func TestCommandSuggestionsMatchPrefixWordAliasAndCase(t *testing.T) {
 		{"host groups", "go host groups"},
 	}
 	for _, c := range cases {
-		got := commandNames(matchCommands(list, c.query))
+		m := appModel(t, overviewFake(), 100, 30)
+		got := commandNames(openCommands(t, m, c.query).Matches())
 		if len(got) == 0 || got[0] != c.first {
 			t.Errorf("%q matches %v, want %q first", c.query, got, c.first)
 		}
 	}
-	if got := matchCommands(list, "zzz"); len(got) != 0 {
+	m := appModel(t, overviewFake(), 100, 30)
+	if got := openCommands(t, m, "zzz").Matches(); len(got) != 0 {
 		t.Errorf("zzz matches %v, want none", commandNames(got))
-	}
-}
-
-func TestMatchRanksExactBeforePrefixBeforeWordBeforeMidWord(t *testing.T) {
-	list := []command{{name: "xpause"}, {name: "do not pause"}, {name: "pause later"}, {name: "pau"}, {name: "pause"}}
-	got := commandNames(matchCommands(list, "pau"))
-	want := []string{"pau", "pause later", "pause", "do not pause", "xpause"}
-	if !slices.Equal(got, want) {
-		t.Errorf("ranked %v, want %v", got, want)
-	}
-	if got := commandNames(matchCommands(list, "pause")); got[0] != "pause" {
-		t.Errorf("the exact name is not first: %v", got)
 	}
 }
 
 func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
-	send(m, ":")
+	all := openCommands(t, m, "").Matches()
 	view := plain(m)
-	rows := paletteRows(m)
-	all := matchCommands(m.commands(), "")
-	if want := min(len(all), paletteMaxRows); len(rows) != want {
-		t.Fatalf("the palette shows %d commands, want %d:\n%s", len(rows), want, view)
+	if rows := paletteRows(m); len(rows) != min(len(all), 12) {
+		t.Fatalf("the command line shows %d commands, want %d:\n%s", len(rows), min(len(all), 12), view)
 	}
 	for _, line := range strings.Split(view, "\n") {
 		switch {
@@ -113,71 +100,76 @@ func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
 
 func TestEmptyLineKeysFollowTheBindingAndDescriptionsNameNoKey(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
-	keys := map[string]string{"go overview": "1", "go settings": "4",
-		"reload": m.keyLabel(actReload),
+	keys := map[string]string{"go overview": "1", "go settings": "4", "reload": m.keyLabel(actReload),
 		"update": m.keyLabel(actSelfUpdate), "help": m.keyLabel(actHelp), "info": m.keyLabel(actInfo), "quit": m.keyLabel(actQuit)}
-	for _, c := range matchCommands(m.commands(), "") {
-		want, has := keys[c.name]
-		got := ""
-		if c.shortcut != nil {
-			got = c.shortcut()
+	openCommands(t, m, "")
+	view := plain(m)
+	for name, key := range keys {
+		found := false
+		for _, line := range strings.Split(view, "\n") {
+			cells := strings.FieldsFunc(line, func(r rune) bool { return r == '│' || r == '║' })
+			for _, cell := range cells {
+				if fields := strings.Fields(strings.TrimLeft(cell, " >▌")); len(fields) > 1 &&
+					strings.HasPrefix(strings.TrimLeft(cell, " >▌"), name+"  ") {
+					found = true
+					if fields[len(fields)-1] != key {
+						t.Errorf("%s: row %q ends in %q, want the key %q", name, cell, fields[len(fields)-1], key)
+					}
+				}
+			}
 		}
-		if has && got != want {
-			t.Errorf("%s: key %q, want %q", c.name, got, want)
+		if !found {
+			t.Errorf("%s: no row:\n%s", name, view)
 		}
-		if !has && got != "" && !strings.HasPrefix(c.name, "go ") {
-			t.Errorf("%s: unexpected key %q", c.name, got)
-		}
-		for _, word := range strings.Fields(strings.ToLower(c.desc)) {
-			if len(word) > 1 && (word == "esc" || word == "enter" || word == "tab" || strings.HasPrefix(word, "ctrl+")) {
-				t.Errorf("%s: the description names a key: %q", c.name, c.desc)
+	}
+	for _, c := range m.commands() {
+		desc := m.tr(c.Description)
+		for _, word := range strings.Fields(strings.ToLower(desc)) {
+			if word == "esc" || word == "enter" || word == "tab" || strings.HasPrefix(word, "ctrl+") {
+				t.Errorf("%s: the description names a key: %q", c.Name, desc)
 			}
 		}
 	}
 }
 
+func TestCommandDescriptionsAreTranslated(t *testing.T) {
+	eachLanguage(t, func(t *testing.T) {
+		m := appModel(t, overviewFake(), 120, 40)
+		for _, c := range m.commands() {
+			if text := m.tr(c.Description); text == "" || text == string(c.Description) {
+				t.Errorf("%s: no text for %q", c.Name, c.Description)
+			}
+		}
+	})
+}
+
 func TestPaletteScrollKeepsTheChoiceVisible(t *testing.T) {
 	m := appModel(t, overviewFake(), 60, 14)
-	send(m, ":")
-	all := matchCommands(m.commands(), "")
+	all := openCommands(t, m, "").Matches()
 	if len(paletteRows(m)) >= len(all) {
 		t.Fatalf("all %d commands are shown: nothing to scroll", len(all))
 	}
 	for range len(all) - 1 {
 		send(m, "down")
 	}
-	last := all[len(all)-1].name
-	found := false
-	for _, line := range strings.Split(plain(m), "\n") {
-		found = found || (strings.Contains(line, "> "+last+"  "))
-	}
-	if !found || len(paletteRows(m)) > paletteMaxRows {
-		t.Errorf("the last command is not the visible choice (rows %v):\n%s", paletteRows(m), plain(m))
+	last := all[len(all)-1].Name
+	if !slices.Contains(paletteRows(m), last) {
+		t.Errorf("the last command is not visible (rows %v):\n%s", paletteRows(m), plain(m))
 	}
 	send(m, "down")
-	if m.pop.cursor != 0 {
-		t.Errorf("down from the last does not wrap, cursor %d", m.pop.cursor)
-	}
-	send(m, "shift+tab")
-	if m.pop.cursor != len(all)-1 {
-		t.Errorf("shift+tab from the first does not wrap, cursor %d", m.pop.cursor)
-	}
-	send(m, "tab")
-	if m.pop.cursor != 0 {
-		t.Errorf("tab from the last does not wrap, cursor %d", m.pop.cursor)
+	if rows := paletteRows(m); len(rows) == 0 || rows[0] != all[0].Name {
+		t.Errorf("down from the last does not wrap to the first:\n%s", plain(m))
 	}
 }
 
 func TestEnterRunsTheChosenMatchAndEscClosesWithoutEffect(t *testing.T) {
 	m := appModel(t, overviewFake(), 100, 30)
-	send(m, ":")
-	typed(m, "go")
+	openCommands(t, m, "go")
 	send(m, "down", "enter")
 	if m.pop != nil || m.area != areaHost {
 		t.Errorf("the second match did not run: area %v", m.area)
 	}
-	send(m, ":")
-	typed(m, "go access")
+	openCommands(t, m, "go access")
 	send(m, "esc")
 	if m.pop != nil || m.area != areaHost {
 		t.Errorf("esc had an effect: area %v", m.area)
@@ -188,9 +180,7 @@ func TestAreaCommandsActLikeTheDigits(t *testing.T) {
 	for a := area(0); a < areaCount; a++ {
 		x, y := appModel(t, overviewFake(), 100, 30), appModel(t, overviewFake(), 100, 30)
 		send(x, string(rune('1'+a)))
-		send(y, ":")
-		typed(y, "go "+strings.ToLower(a.key()))
-		send(y, "enter")
+		runCommand(y, "go "+strings.ToLower(a.key()))
 		if y.area != x.area || y.zone != x.zone || y.pop != nil {
 			t.Errorf("%v: command area %v zone %v, key area %v zone %v", a, y.area, y.zone, x.area, x.zone)
 		}
@@ -215,44 +205,28 @@ func TestPageAliasesKeepTheOldNamesValid(t *testing.T) {
 }
 
 func TestUnknownCommandNamesTheInputAndTheNextStep(t *testing.T) {
-	m := appModel(t, overviewFake(), 100, 30)
-	send(m, ":")
-	typed(m, "Frob   nicate")
-	send(m, "enter")
-	view := plain(m)
-	if m.pop == nil || !strings.Contains(view, `No command "Frob nicate".`) || !strings.Contains(view, "Clear the line") {
-		t.Errorf("unknown command:\n%s", view)
-	}
-	send(m, "backspace")
-	if strings.Contains(plain(m), "No command \"") && strings.Contains(plain(m), "Clear the line") {
-		t.Error("the note stays after the input changed")
-	}
-	useLanguage(t, m, "de")
-	typed(m, "x")
-	send(m, "enter")
-	if view := plain(m); !strings.Contains(view, `Kein Befehl "`) || !strings.Contains(view, "Leere die Zeile") {
-		t.Errorf("German note:\n%s", view)
-	}
+	eachLanguage(t, func(t *testing.T) {
+		m := appModel(t, overviewFake(), 120, 30)
+		openCommands(t, m, "Frob   nicate")
+		send(m, "enter")
+		view := flatText(strings.NewReplacer("│", " ", "║", " ").Replace(plain(m)))
+		if want := flatText(m.tr(kittui.TextCommandUnknown, "frob nicate")); m.pop == nil || !strings.Contains(view, want) {
+			t.Errorf("unknown command lacks %q:\n%s", want, plain(m))
+		}
+		send(m, "backspace")
+		if strings.Contains(plain(m), `"frob nicate"`) {
+			t.Error("the note stays after the input changed")
+		}
+	})
 }
 
 func TestCommandsActOnlyWhereTheirKeyActs(t *testing.T) {
-	overview := appModel(t, overviewFake(), 100, 30)
-	activity := appModel(t, overviewFake(), 100, 30)
-	send(activity, "3")
-
-	cases := []struct {
-		name   string
-		model  *Model
-		reason string
-	}{
-		{"info", activity, ""}, {"help", activity, ""},
-		{"go overview", overview, ""}, {"reload", overview, ""}, {"regroup", overview, ""}, {"quit", overview, ""},
-	}
-	for _, c := range cases {
-		got := commandByName(t, c.model, c.name).reason(c.model)
-		if (c.reason == "") != (got == "") || !strings.Contains(got, c.reason) {
-			t.Errorf("%s: reason %q, want %q", c.name, got, c.reason)
-		}
+	m := appModel(t, overviewFake(), 120, 40)
+	withTableKeys(t, m, actReload, "x")
+	openCommands(t, m, "reload")
+	send(m, "enter")
+	if m.pop == nil || !strings.Contains(plain(m), "reload: No key is bound to reload.") {
+		t.Errorf("an unavailable command did not keep the line with its reason:\n%s", plain(m))
 	}
 }
 
@@ -268,7 +242,7 @@ func TestCommandsRunTheFunctionOfTheirKey(t *testing.T) {
 	x, y = appModel(t, overviewFake(), 100, 30), appModel(t, overviewFake(), 100, 30)
 	send(x, "i")
 	runCommand(y, "info")
-	if x.pop == nil || y.pop == nil || y.pop.kind != popInfo || x.pop.kind != y.pop.kind {
+	if x.pop == nil || y.pop == nil || y.pop.kind() != popInfo || x.pop.kind() != y.pop.kind() {
 		t.Errorf("info: %v, key: %v", y.pop, x.pop)
 	}
 
@@ -290,30 +264,27 @@ func TestPaletteClickRunsTheRow(t *testing.T) {
 	}
 	// A click on a command that cannot run keeps the line and names the reason.
 	m := appModel(t, overviewFake(), 120, 40)
-	send(m, ":")
 	withTableKeys(t, m, actReload, "x")
+	send(m, ":")
 	clickOn(t, m, "reload")
 	if m.pop == nil || !strings.Contains(plain(m), "reload: No key is bound to reload.") {
 		t.Errorf("click on an unavailable row:\n%s", plain(m))
 	}
 }
 
-func TestPaletteIsAnOverlayAndTakesTheWorkspaceWhereTheTerminalIsSmall(t *testing.T) {
+func TestPaletteFillsTheWorkspaceAtEverySize(t *testing.T) {
 	eachLanguage(t, func(t *testing.T) {
 		for _, size := range [][2]int{{120, 40}, {80, 24}, {60, 20}, {59, 19}, {40, 14}} {
 			m := appModel(t, overviewFake(), size[0], size[1])
 			send(m, ":")
 			view := plain(m)
 			assertViewFits(t, view, size[0], size[1])
-			if modal := framed(view); modal != (size[0] >= modalMinWidth && size[1] >= modalMinHeight) {
-				t.Errorf("%dx%d: overlay = %v", size[0], size[1], modal)
-			}
 			if len(paletteRows(m)) == 0 {
 				t.Errorf("%dx%d: no command row:\n%s", size[0], size[1], view)
 			}
 			typed(m, "help")
 			send(m, "enter")
-			if m.pop == nil || m.pop.kind != popHelp {
+			if m.pop == nil || m.pop.kind() != popHelp {
 				t.Errorf("%dx%d: enter did not run help", size[0], size[1])
 			}
 		}

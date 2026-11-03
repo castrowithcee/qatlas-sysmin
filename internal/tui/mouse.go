@@ -40,6 +40,13 @@ func (m *Model) addTarget(t kittui.Target) {
 	}
 }
 
+// addTargets adds targets of the kit, such as those a part over the screen drew.
+func (m *Model) addTargets(targets []kittui.Target) {
+	for _, t := range targets {
+		m.addTarget(t)
+	}
+}
+
 // addHit adds a click target of the cells [x0, x1) by [y0, y1): an item whose click runs act.
 func (m *Model) addHit(x0, y0, x1, y1 int, act func() tea.Cmd) {
 	if !m.takesTargets(x0, y0, x1, y1) {
@@ -157,6 +164,14 @@ func (m *Model) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			m.dd = nil
 		}
 		return nil
+	}
+	if res.Handled && m.screen == screenPopup && m.pop != nil {
+		// The part over the screen takes every click and notch; the screen behind it takes none.
+		if res.WheelSteps != 0 {
+			m.wheelPopup(res.WheelSteps)
+			return nil
+		}
+		return m.clickPopup(res)
 	}
 	switch {
 	case !res.Handled:

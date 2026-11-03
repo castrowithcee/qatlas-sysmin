@@ -36,6 +36,7 @@ const (
 	actEnter    action = "enter"
 	actSpace    action = "space"
 	actSearch   action = "search"
+	actArea     action = "area"
 	actQuit     action = "quit"
 
 	actVimUp    action = "vimup"
@@ -112,6 +113,8 @@ func keyTable() []kittui.Action {
 		act(actEnter, kittui.LevelMove, tKeyHelpEnter, "enter"),
 		act(actSpace, kittui.LevelMove, tKeyHelpSpace, "space"),
 		act(actSearch, kittui.LevelMove, tKeyHelpSearch, "/"),
+		// One digit per area, in the order of the tab line.
+		act(actArea, kittui.LevelMove, tKeyHelpArea, "1", "2", "3", "4"),
 
 		act(actVimUp, kittui.LevelVim, tKeyHelpUp, "k"),
 		act(actVimDown, kittui.LevelVim, tKeyHelpDown, "j"),

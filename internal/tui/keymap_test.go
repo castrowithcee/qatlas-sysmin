@@ -43,14 +43,14 @@ func TestDefaultKeymapKeepsTheKnownKeys(t *testing.T) {
 		actFilter: "f",
 		actTest:   "t", actSelfUpdate: "U",
 		actSuggestPrev: "ctrl+p", actSuggestNext: "ctrl+n",
-		actReload: "ctrl+r",
+		actReload: "ctrl+r", actArea: "1 2 3 4",
 	}
 	table := testKeys().Actions()
 	if len(table) != len(want) {
 		t.Fatalf("the key table has %d actions, want %d", len(table), len(want))
 	}
 	for _, a := range table {
-		if len(a.DefaultKeys) != 1 || a.DefaultKeys[0] != want[a.ID] {
+		if strings.Join(a.DefaultKeys, " ") != want[a.ID] {
 			t.Errorf("action %q is bound to %q, want %q", a.ID, a.DefaultKeys, want[a.ID])
 		}
 	}

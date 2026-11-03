@@ -7,6 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 )
 
 func hostModel(t *testing.T, w, h int) *Model {
@@ -371,6 +373,7 @@ func TestHostInfoExplainsAdminDockerAndEnabled(t *testing.T) {
 		}
 	}
 	useLanguage(t, m, "de")
+	send(m, "esc", "i")
 	if view := plain(m); !strings.Contains(view, "Freigeschaltet:") {
 		t.Errorf("German Host info lacks Freigeschaltet:\n%s", view)
 	}
@@ -379,7 +382,7 @@ func TestHostInfoExplainsAdminDockerAndEnabled(t *testing.T) {
 func TestHostHelpTopicExists(t *testing.T) {
 	m := hostModel(t, 120, 40)
 	send(m, "?")
-	for range helpTopics() {
+	for range helptopics.Topics(testLang) {
 		if strings.Contains(plain(m), "Host shows the users") {
 			return
 		}

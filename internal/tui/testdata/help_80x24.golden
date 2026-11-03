@@ -1,24 +1,24 @@
 qsysmin                                                        [?] help  [:] cmd
 > [1 Overview]  2 Host   3 Activity   4 Settings                                
-────────╔══════════════════════════════════════════════════════════════╗────────
-Overview║ Help                                                         ║Oct 2026
-        ║                                                              ║        
-╭─ Admin║ [keys]  audit-log   host                                     ║───────╮
-│ 2     ║                                                              ║       │
-╰───────║ This screen                                                  ║───────╯
-qsysmin ║   ←/→ area                                                   ║        
-╭─ Next ║   ↓ open                                                     ║───────╮
-│   ⚠ Ad║                                                              ║       │
-╰───────║ Everywhere                                                   ║───────╯
-╭─ Last ║   ? help                                                     ║───────╮
-│ 2026-1║   : cmds                                                     ║       │
-│ 2026-1║   i info                                                     ║       │
-╰───────║   F2 save                                                    ║───────╯
-        ║   esc back                                                   ║        
-        ║   q quit                                                     ║        
-        ║                                                              ║        
-        ║ ↑/↓ scroll · ←/→ topic · esc close                           ║        
-        ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
+────────────────────────────────────────────────────────────────────────────────
+Overview                                                        Wed, 28 Oct 2026
+  ╔═ Help ═══════════════════════════════════════════════════════════════════╗  
+╭─║ [qsysmin]  host-admin   host-tui                                         ║─╮
+│ ║                                                                          ║ │
+╰─║ qsysmin is a Go tool that runs as a service on a Linux host and helps    ║─╯
+qs║ look after that host. It has the areas Overview, Host, Activity and      ║  
+╭─║ Settings.                                                                ║─╮
+│ ║                                                                          ║ │
+╰─║ Host reads the local users, groups and folder permissions. Changes run   ║─╯
+╭─║ through 'sudo qsysmin host ...' after a confirmation, are recorded in a  ║─╮
+│ ║ journal with the previous state, and can be undone. After a change to    ║ │
+│ ║ folder permissions, the containers it affects are watched. Activity      ║ │
+╰─║ shows a log kept as a hash chain without a signature.                    ║─╯
+  ║                                                                          ║  
+  ║ Admins, members of the group sudo, reach the running service through its ║  
+  ║ lines 1-11 of 30                                                         ║  
+  ║                                                                          ║  
+  ║ ←/→/tab/shift+tab topic  ↑/↓ scroll  pgup/pgdown page  esc/? close       ║  
+  ╚══════════════════════════════════════════════════════════════════════════╝  
                                                                                 
 ? help                                                                          

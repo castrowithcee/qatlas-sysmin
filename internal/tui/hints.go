@@ -187,7 +187,6 @@ const (
 	tHintSuggestion   textID = "hint.suggestion"
 	tHintTab          textID = "hint.tab"
 	tHintTick         textID = "hint.tick"
-	tHintTopic        textID = "hint.topic"
 	tHintTypeToFilter textID = "hint.typetofilter"
 	tHintTypeToSearch textID = "hint.typetosearch"
 	tHintUndo         textID = "hint.undo"
@@ -247,7 +246,6 @@ func hintTexts() (en, de map[textID]string) {
 		tHintSuggestion:   "suggestion",
 		tHintTab:          "tab",
 		tHintTick:         "tick",
-		tHintTopic:        "topic",
 		tHintTypeToFilter: "type to filter",
 		tHintTypeToSearch: "type to search",
 		tHintUndo:         "undo",
@@ -304,7 +302,6 @@ func hintTexts() (en, de map[textID]string) {
 		tHintSuggestion:   "Vorschlag",
 		tHintTab:          "Reiter",
 		tHintTick:         "wählen",
-		tHintTopic:        "Thema",
 		tHintTypeToFilter: "tippen zum Filtern",
 		tHintTypeToSearch: "tippen zum Suchen",
 		tHintUndo:         "rückgängig",

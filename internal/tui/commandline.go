@@ -2,292 +2,106 @@ package tui
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // The command line (':') runs the interface's actions by name. It is a register, not a second set of keys:
-// every command calls the function its key already calls and acts only where that key acts; anywhere else it
-// names the reason and leaves the line open. A further command is one more entry of commands().
+// every command names the action, area or page its key or tab click already opens, runs through the same
+// function and acts only where that key acts; anywhere else the kit names the reason and leaves the line open.
 
-// command is one entry of the register.
-type command struct {
-	name    string
-	desc    string
-	aliases []string
-	// hidden keeps the command out of the empty line; it still matches what is typed.
-	hidden bool
-	// shortcut returns the key that does the same now, or "" for a command without one.
-	shortcut func() string
-	// unavailable returns the reason the command cannot act in the present state, or "" where it can.
-	unavailable func(m *Model) string
-	run         func(m *Model) tea.Cmd
-}
+// actRegroup is the action of the command that restarts the interface under the group qsysmin. No key carries
+// it; the next step of the overview leads there too.
+const actRegroup action = "regroup"
 
-// reason is why c cannot run now, or "".
-func (c command) reason(m *Model) string {
-	if c.unavailable == nil {
-		return ""
-	}
-	return c.unavailable(m)
-}
-
-// availability checks
-
-// inContent is the check for a command whose key acts in the content only, not on the tab line or the page
-// strip.
-func inContent(m *Model) string {
-	if z := m.zoneNow(); z != zoneContent && z != zoneDetail {
-		return m.tr(tCmdFocusContent)
-	}
-	return ""
-}
-
-// commands is the register, in the order an empty line lists it.
-func (m *Model) commands() []command {
-	var list []command
-	digits := func(a area) func() string { return func() string { return strconv.Itoa(int(a) + 1) } }
-	for a := area(0); a < areaCount; a++ {
-		title := strings.ToLower(a.key())
-		list = append(list, command{
-			name: "go " + title, desc: m.tr(tCmdGoArea, a.title(m.ui)), aliases: []string{title},
-			shortcut: digits(a),
-			run:      func(m *Model) tea.Cmd { return m.show(a, 0) },
-		})
-		for _, p := range areaPages(m.ui, a) {
-			list = append(list, command{
-				name: "go " + title + " " + p.key, desc: m.tr(tCmdGoPage, p.title, a.title(m.ui)),
-				aliases: []string{title + " " + p.key}, hidden: true,
-				run: func(m *Model) tea.Cmd { return m.show(a, p.sub) },
-			})
+// commands is the register, in the order an empty line lists it: every area by its digit, the pages of the
+// areas, which only typing finds, and the actions.
+func (m *Model) commands() []kittui.Command {
+	var list []kittui.Command
+	for i, a := range frameAreas() {
+		id := string(a.ID)
+		list = append(list, kittui.Command{Name: "go " + id, Aliases: []string{id}, Description: cmdGoID(a.ID, ""),
+			Action: actArea, Key: i + 1, Area: a.ID, Available: kittui.Always})
+		for _, t := range a.Tabs {
+			list = append(list, kittui.Command{Name: "go " + id + " " + string(t.ID), Aliases: []string{id + " " + string(t.ID)},
+				Description: cmdGoID(a.ID, t.ID), Area: a.ID, Tab: t.ID, Hidden: true, Available: kittui.Always})
 		}
 	}
-	list = append(list,
-		command{name: "reload", desc: m.tr(tCmdReload), aliases: []string{"refresh"},
-			shortcut: func() string { return m.keyLabel(actReload) },
-			unavailable: func(m *Model) string {
+	return append(list,
+		kittui.Command{Name: "reload", Aliases: []string{"refresh"}, Description: tCmdReload, Action: actReload,
+			Available: func(kittui.Context) (bool, string) {
 				if _, ok := m.ui.reloadPress(); !ok {
-					return m.tr(tCmdNoReloadKey)
+					return false, m.tr(tCmdNoReloadKey)
 				}
-				return ""
-			},
-			run: func(m *Model) tea.Cmd {
-				press, _ := m.ui.reloadPress()
-				return m.updateArea(press)
+				return true, ""
 			}},
-		command{name: "regroup", desc: m.tr(tCmdRegroup),
-			run: func(m *Model) tea.Cmd { return m.regroup() }},
-		command{name: "update", desc: m.tr(tCmdUpdate), aliases: []string{"upgrade"},
-			shortcut: func() string { return m.keyLabel(actSelfUpdate) },
-			run:      func(m *Model) tea.Cmd { return m.selfUpdate() }},
-		command{name: "help", desc: m.tr(tCmdHelp),
-			shortcut: func() string { return m.keyLabel(actHelp) },
-			run:      func(m *Model) tea.Cmd { m.openPopup(popHelp); return nil }},
-		command{name: "info", desc: m.tr(tCmdInfo),
-			shortcut: func() string { return m.keyLabel(actInfo) },
-			run:      func(m *Model) tea.Cmd { m.openPopup(popInfo); return nil }},
-		command{name: "quit", desc: m.tr(tCmdQuit), aliases: []string{"exit"},
-			shortcut: func() string { return m.keyLabel(actQuit) },
-			run:      func(m *Model) tea.Cmd { return m.guarded(m.quit) }},
+		kittui.Command{Name: "regroup", Description: tCmdRegroup, Action: actRegroup, Available: kittui.Always},
+		kittui.Command{Name: "update", Aliases: []string{"upgrade"}, Description: tCmdUpdate, Action: actSelfUpdate,
+			Available: kittui.Always},
+		kittui.Command{Name: "help", Description: tCmdHelp, Action: actHelp, Available: kittui.Always},
+		kittui.Command{Name: "info", Description: tCmdInfo, Action: actInfo, Available: kittui.Always},
+		kittui.Command{Name: "quit", Aliases: []string{"exit"}, Description: tCmdQuit, Action: actQuit,
+			Available: kittui.Always},
 	)
-	return list
 }
 
-// areaPage is one page of an area with its stable name and its title as drawn.
-type areaPage struct {
-	sub        int
-	key, title string
-}
-
-// areaPages are the pages of an area; an area without a page strip has none.
-func areaPages(ui *uiContext, a area) []areaPage {
-	var out []areaPage
-	switch a {
-	case areaSettings:
-		for sub := 0; sub < subCount; sub++ {
-			out = append(out, areaPage{sub, subKey(sub), subTitle(ui, sub)})
-		}
-	case areaActivity:
-		for sub := 0; sub < actPages; sub++ {
-			out = append(out, areaPage{sub, actKey(sub), actTitle(ui, sub)})
-		}
-	case areaHost:
-		for sub := 0; sub < hostCount; sub++ {
-			out = append(out, areaPage{sub, hostKey(sub), hostTitle(ui, sub)})
-		}
+// commandDone runs the command the command line closed with; the zero command closes it without effect.
+func (m *Model) commandDone(c kittui.Command, done bool) tea.Cmd {
+	if !done {
+		return nil
 	}
-	return out
-}
-
-// normalizeCommand is typed text in the form names are given: lower case, words separated by one space.
-func normalizeCommand(text string) string {
-	return strings.ToLower(strings.Join(strings.Fields(text), " "))
-}
-
-// matchCommands returns the commands matching query by name or alias: an exact name or alias first, then
-// those that begin with it, then those with a word that does, then those with it in the middle of a word. Each
-// group keeps the order of the register. An empty query lists the commands that are not hidden.
-func matchCommands(list []command, query string) []command {
-	query = normalizeCommand(query)
-	if query == "" {
-		var shown []command
-		for _, c := range list {
-			if !c.hidden {
-				shown = append(shown, c)
+	m.closePopup()
+	if c.Area != "" {
+		a, _ := areaOf(c.Area)
+		sub := 0
+		for i, t := range frameAreas()[a].Tabs {
+			if t.ID == c.Tab {
+				sub = i
 			}
 		}
-		return shown
+		return m.show(a, sub)
 	}
-	var groups [4][]command
-	for _, c := range list {
-		rank := 4
-		for _, n := range append([]string{c.name}, c.aliases...) {
-			switch {
-			case n == query:
-				rank = min(rank, 0)
-			case strings.HasPrefix(n, query):
-				rank = min(rank, 1)
-			case strings.Contains(n, " "+query):
-				rank = min(rank, 2)
-			case strings.Contains(n, query):
-				rank = min(rank, 3)
-			}
-		}
-		if rank < 4 {
-			groups[rank] = append(groups[rank], c)
-		}
+	switch c.Action {
+	case actReload:
+		press, _ := m.ui.reloadPress()
+		return m.updateArea(press)
+	case actRegroup:
+		return m.regroup()
+	case actSelfUpdate:
+		return m.selfUpdate()
+	case actHelp:
+		m.openPopup(popHelp)
+	case actInfo:
+		m.openPopup(popInfo)
+	case actQuit:
+		return m.guarded(m.quit)
 	}
-	return append(append(append(groups[0], groups[1]...), groups[2]...), groups[3]...)
+	return nil
 }
 
-// commandKey handles a key of the open command line.
-func (m *Model) commandKey(key tea.KeyPressMsg) tea.Cmd {
-	p := m.pop
-	matches := matchCommands(m.commands(), p.in.Value())
-	switch {
-	case m.keyIs(key, actBack):
-		m.closePopup()
-		return nil
-	case m.keyIs(key, actUp) || m.keyIs(key, actPrev):
-		p.cursor, p.msg = wrap(p.cursor-1, max(len(matches), 1)), ""
-		return nil
-	case m.keyIs(key, actDown) || m.keyIs(key, actNext):
-		p.cursor, p.msg = wrap(p.cursor+1, max(len(matches), 1)), ""
-		return nil
-	case m.keyIs(key, actEnter):
-		if len(matches) == 0 {
-			p.msg = m.tr(tCmdUnknown, strings.Join(strings.Fields(p.in.Value()), " "))
-			return nil
-		}
-		c := matches[min(p.cursor, len(matches)-1)]
-		if reason := c.reason(m); reason != "" {
-			p.msg = c.name + ": " + reason
-			return nil
-		}
-		m.closePopup()
-		return c.run(m)
+// cmdGoID is the catalog key of the description of the command that shows an area, or a page of it.
+func cmdGoID(a kittui.AreaID, t kittui.TabID) textID {
+	if t == "" {
+		return textID("cmd.go." + string(a))
 	}
-	before := p.in.Value()
-	var cmd tea.Cmd
-	p.in, cmd = p.in.Update(inputMsg(key))
-	if p.in.Value() != before {
-		p.cursor, p.msg = 0, ""
-	}
-	return cmd
+	return textID("cmd.go." + string(a) + "." + string(t))
 }
 
-// pickCommand is a click on the i-th match: it chooses the entry and runs it as enter does.
-func (m *Model) pickCommand(i int) tea.Cmd {
-	if m.pop == nil || m.pop.kind != popCommand {
-		return nil
+// commandTexts adds the descriptions of the commands that show an area or a page to a catalog of one
+// language, built from the titles it holds, so they follow every title.
+func commandTexts(texts map[textID]string) {
+	for _, a := range frameAreas() {
+		texts[cmdGoID(a.ID, "")] = fmt.Sprintf(texts[tCmdGoArea], texts[a.Title])
+		for _, t := range a.Tabs {
+			texts[cmdGoID(a.ID, t.ID)] = fmt.Sprintf(texts[tCmdGoPage], texts[t.Title], texts[a.Title])
+		}
 	}
-	m.pop.cursor = i
-	return m.commandKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 }
 
 // paletteKeys is the key line of the command line.
 func paletteKeys() []kittui.Hint {
 	return keyLine(hint(tHintTypeToSearch), navHint(tHintChoose, actUp, actDown, actNext), hint(tHintRun, actEnter),
 		hint(tHintClose, actBack))
-}
-
-// paletteMaxRows caps the entries shown at once; the list scrolls with the choice.
-const paletteMaxRows = 12
-
-// paletteBody is the command line as lines inner cells wide, at most room lines, and for each line the index
-// of the match it shows (-1 for the other lines).
-func (m *Model) paletteBody(inner, room int) ([]string, []int) {
-	p := m.pop
-	matches := matchCommands(m.commands(), p.in.Value())
-	field := fitInput(p.in, inner-3)
-	lines := []string{surfaceRow(m.ui, " "+inputView(field), inner), ""}
-	index := []int{-1, -1}
-	var msg []string
-	if p.msg != "" {
-		msg = strings.Split(render(m.ui.st(kittui.StyleFail), inner, m.tr(tNoteError, p.msg)), "\n")
-	}
-	switch {
-	case len(matches) == 0 && p.msg != "":
-	case len(matches) == 0:
-		lines, index = append(lines, m.ui.st(kittui.StyleHint).Render(truncateCells(m.tr(tCmdNoMatch), inner))), append(index, -1)
-	default:
-		avail := max(room-len(lines)-len(msg), 1)
-		rows := min(avail, paletteMaxRows, len(matches))
-		if len(matches) > rows && rows == avail && rows > 1 {
-			// A list that goes on shows its position in a line of its own.
-			rows--
-		}
-		cursor := min(p.cursor, len(matches)-1)
-		start := max(min(cursor-rows/2, len(matches)-rows), 0)
-		end := min(start+rows, len(matches))
-		keyW, nameW := 0, 0
-		for _, c := range matches[start:end] {
-			if c.shortcut != nil {
-				keyW = max(keyW, lipgloss.Width(c.shortcut()))
-			}
-			nameW = max(nameW, lipgloss.Width(c.name))
-		}
-		for i := start; i < end; i++ {
-			lines, index = append(lines, m.paletteRow(matches[i], i == cursor, nameW, keyW, inner)), append(index, i)
-		}
-		if len(matches) > end-start {
-			lines, index = append(lines, m.ui.st(kittui.StyleHint).Render(truncateCells(m.tr(tCmdPosition, start+1, end, len(matches)), inner))), append(index, -1)
-		}
-	}
-	for _, l := range msg {
-		lines, index = append(lines, l), append(index, -1)
-	}
-	return lines, index
-}
-
-// paletteRow is one entry: marker, name and description at the left, the key at the right. A command that
-// cannot run now is faint.
-func (m *Model) paletteRow(c command, chosen bool, nameW, keyW, width int) string {
-	right := ""
-	if c.shortcut != nil {
-		right = c.shortcut()
-	}
-	right = strings.Repeat(" ", max(keyW-lipgloss.Width(right), 0)) + right
-	prefix := "  "
-	if chosen {
-		prefix = "> "
-	}
-	avail := max(width-lipgloss.Width(prefix)-keyW-1, 1)
-	left := padLine(truncateCells(fmt.Sprintf("%-*s  %s", nameW, c.name, c.desc), avail), avail)
-	switch {
-	case c.reason(m) != "":
-		left = m.ui.st(kittui.StyleHint).Render(left)
-	case chosen:
-		left = m.ui.st(kittui.StyleActive).Render(left)
-	}
-	row := prefix + left + " " + m.ui.st(kittui.StyleHint).Render(right)
-	if chosen {
-		return surfaceRow(m.ui, row, width)
-	}
-	return row
 }
