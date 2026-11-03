@@ -92,9 +92,9 @@ func (m *Model) pickKey(f *formDlg, key tea.KeyPressMsg) tea.Cmd {
 	pk := f.pick
 	l := &pk.list
 	switch {
-	case keyIs(key, actBack):
+	case m.keyIs(key, actBack):
 		f.pick = nil
-	case keyIs(key, actEnter):
+	case m.keyIs(key, actEnter):
 		r := &f.rows[pk.row]
 		for i, v := range r.values {
 			r.ticked[i] = pk.ticked[v]
@@ -104,14 +104,14 @@ func (m *Model) pickKey(f *formDlg, key tea.KeyPressMsg) tea.Cmd {
 		if f.changed != nil {
 			f.changed(m, f, pk.row)
 		}
-	case keyIs(key, actSpace):
+	case m.keyIs(key, actSpace):
 		pk.toggle()
-	case keyIs(key, actUp):
+	case m.keyIs(key, actUp):
 		l.move(-1)
-	case keyIs(key, actDown):
+	case m.keyIs(key, actDown):
 		l.move(1)
-	case keyIs(key, actPageUp), keyIs(key, actPageDown):
-		l.page(key, 0, pickerRows)
+	case m.keyIs(key, actPageUp), m.keyIs(key, actPageDown):
+		l.page(m.ui.keys, key, 0, pickerRows)
 	default:
 		return l.updateFilter(key)
 	}

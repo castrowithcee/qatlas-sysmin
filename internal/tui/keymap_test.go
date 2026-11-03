@@ -10,14 +10,26 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
-// rebind replaces the key of an action for one test.
-func rebind(t *testing.T, a action, key string) {
+// withTableKeys gives m a key table in which the action a has keys as its default keys, for a test of a table
+// the code does not hold.
+func withTableKeys(t *testing.T, m *Model, a action, keys ...string) {
 	t.Helper()
-	old := keymap[a]
-	setKeys(a, key)
-	t.Cleanup(func() { keymap[a] = old })
+	table := keyTable()
+	for i := range table {
+		if table[i].ID == a {
+			table[i].DefaultKeys = keys
+		}
+	}
+	km, err := kittui.NewKeymap(table, kittui.CharsetUnicode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.ui.keys = km
 }
 
 func TestDefaultKeymapKeepsTheKnownKeys(t *testing.T) {
@@ -34,19 +46,70 @@ func TestDefaultKeymapKeepsTheKnownKeys(t *testing.T) {
 		actSuggestPrev: "ctrl+p", actSuggestNext: "ctrl+n",
 		actReload: "ctrl+r",
 	}
-	if len(keymap) != len(want) {
-		t.Fatalf("keymap has %d actions, want %d", len(keymap), len(want))
+	table := testKeys().Actions()
+	if len(table) != len(want) {
+		t.Fatalf("the key table has %d actions, want %d", len(table), len(want))
 	}
-	for a, key := range want {
-		if keyOf(a) != key {
-			t.Errorf("action %q is bound to %q, want %q", a, keyOf(a), key)
+	for _, a := range table {
+		if len(a.DefaultKeys) != 1 || a.DefaultKeys[0] != want[a.ID] {
+			t.Errorf("action %q is bound to %q, want %q", a.ID, a.DefaultKeys, want[a.ID])
 		}
 	}
-	if !keyIs(tea.KeyPressMsg{Code: 'i', Text: "i"}, actInfo) || keyIs(tea.KeyPressMsg{}, actInfo) {
+	m := New(uiprefs.Default(), nil)
+	if !m.keyIs(tea.KeyPressMsg{Code: 'i', Text: "i"}, actInfo) || m.keyIs(tea.KeyPressMsg{}, actInfo) {
 		t.Error("the info action does not match exactly its key")
 	}
-	if keyLabel(actSave) != "F2" || keyLabel(actHelp) != "?" {
-		t.Errorf("labels = %q, %q", keyLabel(actSave), keyLabel(actHelp))
+	if m.keyLabel(actSave) != "F2" || m.keyLabel(actHelp) != "?" {
+		t.Errorf("labels = %q, %q", m.keyLabel(actSave), m.keyLabel(actHelp))
+	}
+}
+
+// The rebindable actions keep the names tui.yaml stores their keys under.
+func TestRebindableActionsAreThoseOfThePreferences(t *testing.T) {
+	var got []string
+	for _, a := range testKeys().Actions() {
+		if a.Rebind != kittui.RebindNone {
+			got = append(got, string(a.ID))
+		}
+	}
+	slices.Sort(got)
+	want := slices.Sorted(slices.Values(uiprefs.Actions))
+	if !slices.Equal(got, want) {
+		t.Errorf("rebindable actions = %v, want %v", got, want)
+	}
+}
+
+// The keys of the preferences act, and the extra info key works on text lines too.
+func TestPreferenceKeysAreBound(t *testing.T) {
+	prefs := uiprefs.Default()
+	prefs.Keys = uiprefs.Keys{Save: "f3", Help: "ctrl+l", Command: ":", Info: "f4"}
+	m := New(prefs, nil)
+	if !m.keyIs(keyMsg("f3"), actSave) || m.keyIs(keyMsg("f2"), actSave) {
+		t.Error("save is not on f3 alone")
+	}
+	if !m.keyIs(tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl}, actHelp) {
+		t.Error("help is not on ctrl+l")
+	}
+	if !m.keyIsTyped(tea.KeyPressMsg{Code: tea.KeyF4}, actInfo) || m.keyIsTyped(tea.KeyPressMsg{Code: 'i', Text: "i"}, actInfo) {
+		t.Error("on a text line only the extra key asks for the info")
+	}
+	if m.keyLabel(actInfo) != "i/F4" || m.firstKeyLabel(actInfo) != "i" {
+		t.Errorf("info label = %q, first %q", m.keyLabel(actInfo), m.firstKeyLabel(actInfo))
+	}
+}
+
+// A key the table refuses keeps the standard key of its action, with a warning, and the preferences name the
+// key that acts.
+func TestRefusedPreferenceKeysFallBackToTheStandard(t *testing.T) {
+	prefs := uiprefs.Default()
+	prefs.Keys = uiprefs.Keys{Save: "f3", Help: "ctrl+g", Command: ":"}
+	m := newModel(prefs, nil, kittui.CharsetUnicode)
+	warnings := m.bindKeys()
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "keys.help ctrl+g") || !strings.Contains(warnings[0], "using ?") {
+		t.Fatalf("warnings = %v, want one for help", warnings)
+	}
+	if m.keyLabel(actHelp) != "?" || m.keyLabel(actSave) != "F3" || m.prefs.Keys.Help != "?" {
+		t.Errorf("help %q, save %q, preferences %+v", m.keyLabel(actHelp), m.keyLabel(actSave), m.prefs.Keys)
 	}
 }
 
@@ -79,23 +142,6 @@ func TestFooterTextsNameGlobalKeysOnlyByPlaceholder(t *testing.T) {
 	}
 }
 
-// assertNoCollisions fails when two actions of one level share a key.
-func assertNoCollisions(t *testing.T) {
-	t.Helper()
-	seen := map[keyLevel]map[string]action{}
-	for _, d := range keyDefs {
-		if seen[d.level] == nil {
-			seen[d.level] = map[string]action{}
-		}
-		for _, k := range keymap[d.act].Keys() {
-			if other, ok := seen[d.level][k]; ok {
-				t.Errorf("%s and %s share %q on level %s", other, d.act, k, d.level)
-			}
-			seen[d.level][k] = d.act
-		}
-	}
-}
-
 // keyLiteral finds the lines that spell a key value: a case item that is a string literal, or a comparison
 // of a String() with one.
 var keyLiteral = regexp.MustCompile(`^\s*case\s+(?:(?:"[^"]*"|[\w.]+\([^()]*\)|[\w.]+)\s*,\s*)*"[^"]*"\s*[,:]|\.String\(\)\s*[!=]=\s*"`)
@@ -108,8 +154,8 @@ var nonKeySwitches = []string{"canvas.go", "footer.go", "logs.go", "mouse.go", "
 // spells one as a key value.
 func tableKeys() []string {
 	var keys []string
-	for _, d := range keyDefs {
-		for _, k := range d.keys {
+	for _, a := range keyTable() {
+		for _, k := range a.DefaultKeys {
 			if !slices.Contains(keys, k) {
 				keys = append(keys, k)
 			}

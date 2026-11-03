@@ -29,12 +29,12 @@ const buttonGap = "  "
 // that answer with y or d are drawn as the dangerous kind. The group of enter is the focused one, so the
 // default answer shows without colour too; a question that enter does not answer has none.
 func (m *Model) dialogButtons(keys string, danger bool, labels map[string]string) []dialogButton {
-	text := footerKeys(keys)
+	text := m.footerKeys(keys)
 	var buttons []dialogButton
 	seen := map[string]bool{}
 	for i, group := range strings.Split(text, " · ") {
-		key := footerKey(group)
-		rank, _ := footerGroupRank(group, i)
+		key := m.footerKey(group)
+		rank, _ := m.footerGroupRank(group, i)
 		answers := rank == footerBack || rank == footerPrimary || rank == footerSave ||
 			rank >= footerOthers && rank < footerInfo
 		if key == "" || !answers || seen[key] {
@@ -52,11 +52,11 @@ func (m *Model) dialogButtons(keys string, danger bool, labels map[string]string
 		switch {
 		case rank == footerBack:
 			kind = buttonNormal
-		case danger && (key == keyOf(actYes) || key == keyOf(actDiscard)):
+		case danger && (key == m.keyLabel(actYes) || key == m.keyLabel(actDiscard)):
 			kind = buttonDanger
 		}
 		first, _, _ := strings.Cut(group, " ")
-		focused := first == keyOf(actEnter) || strings.HasPrefix(group, first+" or enter ")
+		focused := first == m.keyLabel(actEnter) || strings.HasPrefix(group, first+" or enter ")
 		buttons = append(buttons, dialogButton{key: key, label: label, kind: kind, focused: focused})
 	}
 	return buttons

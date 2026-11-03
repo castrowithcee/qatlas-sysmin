@@ -114,8 +114,8 @@ func TestEmptyLineListsVisibleCommandsWithDescriptionAndKey(t *testing.T) {
 func TestEmptyLineKeysFollowTheBindingAndDescriptionsNameNoKey(t *testing.T) {
 	m := appModel(t, overviewFake(), 120, 40)
 	keys := map[string]string{"go overview": "1", "go settings": "4",
-		"reload": keyLabel(actReload),
-		"update": keyLabel(actSelfUpdate), "help": keyLabel(actHelp), "info": keyLabel(actInfo), "quit": keyLabel(actQuit)}
+		"reload": m.keyLabel(actReload),
+		"update": m.keyLabel(actSelfUpdate), "help": m.keyLabel(actHelp), "info": m.keyLabel(actInfo), "quit": m.keyLabel(actQuit)}
 	for _, c := range matchCommands(m.commands(), "") {
 		want, has := keys[c.name]
 		got := ""
@@ -291,7 +291,7 @@ func TestPaletteClickRunsTheRow(t *testing.T) {
 	// A click on a command that cannot run keeps the line and names the reason.
 	m := appModel(t, overviewFake(), 120, 40)
 	send(m, ":")
-	rebind(t, actReload, "x")
+	withTableKeys(t, m, actReload, "x")
 	clickOn(t, m, "reload")
 	if m.pop == nil || !strings.Contains(plain(m), "reload: No key is bound to reload.") {
 		t.Errorf("click on an unavailable row:\n%s", plain(m))

@@ -32,7 +32,7 @@ func TestTextScrollMovesByKeysAndStopsAtTheEnds(t *testing.T) {
 		{tea.KeyPressMsg{Code: tea.KeyEnd}, 40}, {tea.KeyPressMsg{Code: tea.KeyDown}, 40},
 		{tea.KeyPressMsg{Code: tea.KeyHome}, 0},
 	} {
-		if !s.scroll(c.key, 10) {
+		if !s.scroll(testKeys(), c.key, 10) {
 			t.Fatalf("%v is not a scroll key", c.key)
 		}
 		s.window(lines, 10, false)
@@ -40,7 +40,7 @@ func TestTextScrollMovesByKeysAndStopsAtTheEnds(t *testing.T) {
 			t.Fatalf("after %v the offset is %d, want %d", c.key, s.offset(), c.want)
 		}
 	}
-	if s.scroll(keyMsg("x"), 10) {
+	if s.scroll(testKeys(), keyMsg("x"), 10) {
 		t.Error("a letter counts as a scroll key")
 	}
 }
@@ -54,7 +54,7 @@ func TestTextScrollKeepsRowsAsTheyWereAndClampsAfterAResize(t *testing.T) {
 	}
 	long := numberedLines(50)
 	s.window(long, 10, false)
-	s.scroll(tea.KeyPressMsg{Code: tea.KeyEnd}, 10)
+	s.scroll(testKeys(), tea.KeyPressMsg{Code: tea.KeyEnd}, 10)
 	s.window(long, 10, false)
 	if rows := s.window(long[:12], 10, false); s.offset() > 2 || len(rows) == 0 {
 		t.Errorf("after the text shrank the offset is %d with %d rows", s.offset(), len(rows))
@@ -87,7 +87,7 @@ func TestTextScrollPositionIsEmptyWhileEverythingFits(t *testing.T) {
 		t.Errorf("position = %q, want none", got)
 	}
 	s.window(numberedLines(50), 10, false)
-	s.scroll(tea.KeyPressMsg{Code: tea.KeyPgDown}, 10)
+	s.scroll(testKeys(), tea.KeyPressMsg{Code: tea.KeyPgDown}, 10)
 	s.window(numberedLines(50), 10, false)
 	if got := s.position(50, 10); got != "lines 11-20 of 50" {
 		t.Errorf("position = %q", got)
@@ -152,11 +152,11 @@ func TestPaneScrollAtReportsOnlyWhereItWasDrawn(t *testing.T) {
 
 func TestPageKeyNamesTheJumpKeysOnly(t *testing.T) {
 	for _, k := range []tea.KeyPressMsg{{Code: tea.KeyPgUp}, {Code: tea.KeyPgDown}, {Code: tea.KeyHome}, {Code: tea.KeyEnd}} {
-		if !pageKey(k) {
+		if !pageKey(testKeys(), k) {
 			t.Errorf("%v is not a page key", k)
 		}
 	}
-	if pageKey(keyMsg("down")) || pageKey(keyMsg("x")) {
+	if pageKey(testKeys(), keyMsg("down")) || pageKey(testKeys(), keyMsg("x")) {
 		t.Error("a line key counts as a page key")
 	}
 }

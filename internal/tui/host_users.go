@@ -597,11 +597,11 @@ func (st *editForm) submit(m *Model, f *formDlg) tea.Cmd {
 // hostUsersKey handles n, e and d on the Users page.
 func (m *Model) hostUsersKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
-	case keyIs(key, actNew):
+	case m.keyIs(key, actNew):
 		return m.openUserCreate(), true
-	case keyIs(key, actEdit):
+	case m.keyIs(key, actEdit):
 		return m.openUserEdit(), true
-	case keyIs(key, actDelete):
+	case m.keyIs(key, actDelete):
 		return m.openUserDelete(), true
 	}
 	return nil, false

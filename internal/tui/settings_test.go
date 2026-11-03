@@ -14,8 +14,6 @@ import (
 func settingsModel(t *testing.T, fb *fakeBackend, page string) (*Model, string) {
 	t.Helper()
 	m := appModel(t, fb, 80, 24)
-	// The keys and the language are process-wide; put them back when the test ends.
-	t.Cleanup(func() { applyKeys(uiprefs.DefaultKeys()) })
 	m.prefsPath = filepath.Join(t.TempDir(), "tui.yaml")
 	send(m, "4")
 	switch page {
@@ -112,8 +110,8 @@ func TestGeneralRebindsAKeyAndRefusesAnInvalidOne(t *testing.T) {
 	if view := plain(m); !strings.Contains(view, "terminals take F1") {
 		t.Errorf("no cause under the field:\n%s", view)
 	}
-	if keyOf(actSave) != "f2" {
-		t.Errorf("an invalid key was applied: %s", keyOf(actSave))
+	if m.keyLabel(actSave) != "F2" {
+		t.Errorf("an invalid key was applied: %s", m.keyLabel(actSave))
 	}
 	if m.set.editing {
 		t.Error("saving leaves the field in editing")
@@ -121,8 +119,8 @@ func TestGeneralRebindsAKeyAndRefusesAnInvalidOne(t *testing.T) {
 	m.set.gen.keys[0].SetValue("f3")
 	send(m, "f3") // the old key no longer saves; the new one is not applied yet
 	send(m, "f2")
-	if keyOf(actSave) != "f3" {
-		t.Errorf("the save key = %q, want f3", keyOf(actSave))
+	if m.keyLabel(actSave) != "F3" {
+		t.Errorf("the save key = %q, want F3", m.keyLabel(actSave))
 	}
 	prefs, _ := uiprefs.Load(path)
 	if prefs.Keys.Save != "f3" {

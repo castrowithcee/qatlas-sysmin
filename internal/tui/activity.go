@@ -422,10 +422,10 @@ func (m *Model) activityKeys() []string {
 // activityKey handles the keys of Activity that the table does not.
 func (m *Model) activityKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
-	case keyIs(key, actTest):
+	case m.keyIs(key, actTest):
 		m.clearMessages()
 		return m.verifyCmd(), true
-	case keyIs(key, actReload):
+	case m.keyIs(key, actReload):
 		m.clearMessages()
 		return tea.Batch(m.statusCmd(), m.activityCmd()), true
 	}

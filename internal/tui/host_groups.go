@@ -71,13 +71,13 @@ func (m *Model) groupRisk(g hostadmin.Group) string {
 // hostGroupsKey handles n, e, r and d on the Groups page.
 func (m *Model) hostGroupsKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
-	case keyIs(key, actNew):
+	case m.keyIs(key, actNew):
 		return m.openGroupCreate(), true
-	case keyIs(key, actEdit):
+	case m.keyIs(key, actEdit):
 		return m.openGroupMembers(), true
-	case keyIs(key, actRename):
+	case m.keyIs(key, actRename):
 		return m.openGroupRename(), true
-	case keyIs(key, actDelete):
+	case m.keyIs(key, actDelete):
 		return m.askGroupDelete(), true
 	}
 	return nil, false

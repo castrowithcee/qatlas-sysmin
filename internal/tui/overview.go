@@ -316,29 +316,29 @@ func (m *Model) overviewKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	zones := p.zones()
 	at := slices.Index(zones, z)
 	switch {
-	case keyIs(key, actUp) && *c <= 0:
+	case m.keyIs(key, actUp) && *c <= 0:
 		m.toBar()
-	case keyIs(key, actUp), keyIs(key, actLeft) && z == ovCards:
+	case m.keyIs(key, actUp), m.keyIs(key, actLeft) && z == ovCards:
 		*c = max(*c-1, 0)
-	case keyIs(key, actDown), keyIs(key, actRight) && z == ovCards:
+	case m.keyIs(key, actDown), m.keyIs(key, actRight) && z == ovCards:
 		*c = max(min(*c+1, n-1), 0)
-	case keyIs(key, actHome):
+	case m.keyIs(key, actHome):
 		*c = 0
-	case keyIs(key, actEnd):
+	case m.keyIs(key, actEnd):
 		*c = max(n-1, 0)
-	case keyIs(key, actNext):
+	case m.keyIs(key, actNext):
 		if at+1 >= len(zones) {
 			m.toBar()
 		} else {
 			m.ovr.zone = zones[at+1]
 		}
-	case keyIs(key, actPrev):
+	case m.keyIs(key, actPrev):
 		if at == 0 {
 			m.toBar()
 		} else {
 			m.ovr.zone = zones[at-1]
 		}
-	case keyIs(key, actEnter):
+	case m.keyIs(key, actEnter):
 		if act := m.overviewCurrent().act; act != nil {
 			return act(), true
 		}

@@ -204,16 +204,16 @@ func (m *Model) settingsKeys() []string {
 // settingsKey handles a key of Settings while no field takes the text. It reports false for a key the area
 // screen handles itself.
 func (m *Model) settingsKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
-	if keyIs(key, actSave) {
+	if m.keyIs(key, actSave) {
 		return m.saveCurrent(), true
 	}
 	if m.set.sub == subGeneral {
 		return m.generalKey(key)
 	}
 	switch {
-	case keyIs(key, actTest):
+	case m.keyIs(key, actTest):
 		return m.checkUpdate(true), true
-	case keyIs(key, actUp):
+	case m.keyIs(key, actUp):
 		m.toBar()
 		return nil, true
 	}
@@ -225,19 +225,19 @@ func (m *Model) settingsKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 // while a field is edited.
 func (m *Model) formMove(focus *int, n int, key tea.KeyPressMsg) bool {
 	switch {
-	case keyIs(key, actUp) && *focus <= 0:
+	case m.keyIs(key, actUp) && *focus <= 0:
 		m.toBar()
-	case keyIs(key, actUp):
+	case m.keyIs(key, actUp):
 		*focus--
-	case keyIs(key, actDown):
+	case m.keyIs(key, actDown):
 		*focus = min(*focus+1, n-1)
-	case keyIs(key, actNext):
+	case m.keyIs(key, actNext):
 		*focus = wrap(*focus+1, n)
-	case keyIs(key, actPrev):
+	case m.keyIs(key, actPrev):
 		*focus = wrap(*focus-1, n)
-	case keyIs(key, actHome):
+	case m.keyIs(key, actHome):
 		*focus = 0
-	case keyIs(key, actEnd):
+	case m.keyIs(key, actEnd):
 		*focus = n - 1
 	default:
 		return false
@@ -250,7 +250,7 @@ func (m *Model) generalKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	if m.formMove(&g.focus, genRows, key) {
 		return nil, true
 	}
-	if !keyIs(key, actEnter) {
+	if !m.keyIs(key, actEnter) {
 		return nil, false
 	}
 	pick := func(id string, values []string, current string, set func(string)) {
@@ -309,18 +309,18 @@ func (m *Model) editKey(key tea.KeyPressMsg) tea.Cmd {
 	}
 	rows, focus := genRows, &m.set.gen.focus
 	switch {
-	case keyIs(key, actSave):
+	case m.keyIs(key, actSave):
 		m.stopEditing()
 		return m.saveCurrent()
-	case keyIs(key, actBack):
+	case m.keyIs(key, actBack):
 		m.stopEditing()
-	case keyIs(key, actEnter), keyIs(key, actNext), keyIs(key, actDown):
+	case m.keyIs(key, actEnter), m.keyIs(key, actNext), m.keyIs(key, actDown):
 		m.stopEditing()
 		*focus = wrap(*focus+1, rows)
-	case keyIs(key, actPrev), keyIs(key, actUp):
+	case m.keyIs(key, actPrev), m.keyIs(key, actUp):
 		m.stopEditing()
 		*focus = wrap(*focus-1, rows)
-	case infoExtra != "" && key.String() == infoExtra:
+	case m.keyIsTyped(key, actInfo):
 		m.openPopup(popInfo)
 	default:
 		var cmd tea.Cmd
@@ -343,13 +343,19 @@ func (m *Model) saveCurrent() tea.Cmd {
 // configuration. Every key is checked first and a problem stands under its line.
 func (m *Model) saveGeneral() tea.Cmd {
 	g := &m.set.gen
-	keys := uiprefs.Keys{}
+	typed := map[action]string{}
 	for i, a := range uiprefs.Actions {
-		keys = keys.With(a, uiprefs.Normalize(g.keys[i].Value()))
+		typed[action(a)] = g.keys[i].Value()
 	}
-	ok := true
+	keys, ok := uiprefs.Keys{}, true
 	for i, a := range uiprefs.Actions {
-		norm, err := keys.Check(a, keys.Get(a))
+		others := map[action]string{}
+		for id, key := range typed {
+			if id != action(a) {
+				others[id] = key
+			}
+		}
+		norm, err := m.ui.keys.CheckBinding(action(a), typed[action(a)], others)
 		g.problems[i] = ""
 		if err != nil {
 			g.problems[i], ok = err.Error(), false
@@ -377,8 +383,10 @@ func (m *Model) saveGeneral() tea.Cmd {
 	m.prefs = next
 	applyTheme(next.Theme)
 	setLanguage(next.Language)
-	applyKeys(next.Keys)
 	m.status = tr(tPrefsSaved)
+	if warnings := m.bindKeys(); len(warnings) > 0 {
+		m.status = "warning: " + warnings[0]
+	}
 	focus := g.focus
 	m.set.loaded = false
 	m.loadForms()
@@ -405,16 +413,16 @@ func (m *Model) guarded(next func() tea.Cmd) tea.Cmd {
 // updateLeave handles the answer to the leave question: save keeps the person on the page, discard goes on.
 func (m *Model) updateLeave(key tea.KeyPressMsg) tea.Cmd {
 	switch {
-	case keyIs(key, actSave):
+	case m.keyIs(key, actSave):
 		m.closeDialog()
 		return m.saveCurrent()
-	case keyIs(key, actDiscard):
+	case m.keyIs(key, actDiscard):
 		next := m.leave.next
 		m.closeDialog()
 		m.set.loaded = false
 		m.loadForms()
 		return next()
-	case keyIs(key, actBack), keyIs(key, actNo):
+	case m.keyIs(key, actBack), m.keyIs(key, actNo):
 		m.closeDialog()
 	}
 	return nil

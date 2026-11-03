@@ -19,7 +19,7 @@ const (
 // Actions lists the rebindable actions in the order they are shown, saved, and checked.
 var Actions = []string{ActionSave, ActionHelp, ActionCommand, ActionInfo}
 
-// Keys are the keys of the global actions, named as the terminal library reports them ("f3", "ctrl+g",
+// Keys are the keys of the global actions, named as the terminal library reports them ("f3", "ctrl+l",
 // "?"). Info is the exception: it always keeps its letter and Info is a second key beside it, empty by
 // default; every other action has exactly one key, which a change replaces.
 type Keys struct {
@@ -28,10 +28,6 @@ type Keys struct {
 	Help    string
 	Command string
 }
-
-// Reserved, when set, names the action that owns a key no binding may take, or "" when the key is free. The
-// editor sets it to its key table, so a key it gives to any other action cannot be bound here.
-var Reserved func(key string) string
 
 // Fixed keys of other actions and of the editor that no binding may take.
 const (
@@ -108,10 +104,11 @@ var (
 // interceptedF are the function keys terminals and window systems take for themselves.
 var interceptedF = map[int]bool{1: true, 5: true, 10: true, 11: true, 12: true}
 
-// freeCtrl are the control keys no text line, terminal, or screen needs: the others edit text (ctrl+a, e, k,
-// u, w, d), stand for enter, tab, or backspace (ctrl+m, i, h), control the terminal (ctrl+s, q, z), or belong to
-// a screen's own action (ctrl+n, p in text lines, ctrl+r in the target picker).
-var freeCtrl = map[string]bool{"ctrl+g": true, "ctrl+l": true, "ctrl+o": true, "ctrl+x": true}
+// freeCtrl are the control keys no text line, terminal, multiplexer, or screen needs: the others edit text
+// (ctrl+a, e, k, u, w, d), stand for enter, tab, or backspace (ctrl+m, i, h), control the terminal (ctrl+s, q,
+// z), switch a multiplexer mode (ctrl+b, g, n, o, p, t), or belong to a screen's own action (ctrl+r in the
+// target picker). They are the free control keys of the editor's key table.
+var freeCtrl = map[string]bool{"ctrl+l": true, "ctrl+x": true}
 
 // Normalize returns the spelling the terminal library reports for key: trimmed, and lower case for names
 // such as F3 or Ctrl+G; a single character keeps its case.
@@ -161,21 +158,11 @@ func (k Keys) Check(action, key string) (string, error) {
 			return "", fmt.Errorf("%s: terminals take F1, F5, F10, F11, and F12 for themselves", key)
 		}
 	case ctrlKey.MatchString(key):
-		if Reserved != nil {
-			if owner := Reserved(key); owner != "" {
-				return "", fmt.Errorf("%s: already the key of %s", key, owner)
-			}
-		}
 		if !freeCtrl[key] {
-			return "", fmt.Errorf("%s: text lines, the terminal, or a screen use it; free are ctrl+g, l, o, and x", key)
+			return "", fmt.Errorf("%s: text lines, the terminal, a multiplexer, or a screen use it; free are ctrl+l and ctrl+x", key)
 		}
 	default:
 		return "", fmt.Errorf("%s: not a single key; use a character, F2 to F20, or ctrl with a letter", key)
-	}
-	if Reserved != nil {
-		if owner := Reserved(key); owner != "" {
-			return "", fmt.Errorf("%s: already the key of %s", key, owner)
-		}
 	}
 	return key, nil
 }
@@ -240,7 +227,7 @@ func (k Keys) file() *keysFile {
 
 // loadKeys applies the keys of a file. Every key is first checked against the rules of its action alone,
 // then the final assignment is checked for two actions on one key, so a swap such as save on ctrl+l and
-// help on ctrl+o is valid as a whole. A key that breaks a rule, or collides, keeps the default of its
+// help on ctrl+x is valid as a whole. A key that breaks a rule, or collides, keeps the default of its
 // action and adds a warning that names the reason; the result is always free of collisions.
 func loadKeys(path string, given map[string]*string, warnings []string) (Keys, []string) {
 	keys, fromFile := DefaultKeys(), map[string]bool{}

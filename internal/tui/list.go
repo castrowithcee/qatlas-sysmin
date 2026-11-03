@@ -7,6 +7,8 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // filterList is a selection over a list of names that a typed filter can narrow and that scrolls inside
@@ -108,16 +110,17 @@ func (l *filterList) jump(by int) {
 
 // page handles pgup/pgdown, which move by one screen of the entries the window [start, end) shows, and
 // home/end, which move to either end.
-func (l *filterList) page(key tea.KeyPressMsg, start, end int) {
+func (l *filterList) page(keys *kittui.Keymap, key tea.KeyPressMsg, start, end int) {
 	page := max(end-start-1, 1)
+	is := func(a action) bool { return keys.Is(key, a, kittui.InputNavigation) }
 	switch {
-	case keyIs(key, actPageUp):
+	case is(actPageUp):
 		l.jump(-page)
-	case keyIs(key, actPageDown):
+	case is(actPageDown):
 		l.jump(page)
-	case keyIs(key, actHome):
+	case is(actHome):
 		l.jump(-len(l.matches))
-	case keyIs(key, actEnd):
+	case is(actEnd):
 		l.jump(len(l.matches))
 	}
 }

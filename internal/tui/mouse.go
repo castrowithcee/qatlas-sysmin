@@ -280,7 +280,7 @@ func (m *Model) contentPress(name string) tea.Cmd {
 
 // pressName is press for a key named as a footer names it.
 func (m *Model) pressName(name string) tea.Cmd {
-	key, ok := keyByName(name)
+	key, ok := m.keyByName(name)
 	if !ok {
 		return nil
 	}
@@ -288,16 +288,16 @@ func (m *Model) pressName(name string) tea.Cmd {
 }
 
 // keyByName is the key press a footer's key name stands for, for the keys a dialog's buttons use.
-func keyByName(name string) (tea.KeyPressMsg, bool) {
+func (m *Model) keyByName(name string) (tea.KeyPressMsg, bool) {
 	switch name {
-	case keyOf(actEnter):
+	case m.keyLabel(actEnter):
 		return tea.KeyPressMsg{Code: tea.KeyEnter}, true
-	case keyOf(actBack):
+	case m.keyLabel(actBack):
 		return tea.KeyPressMsg{Code: tea.KeyEscape}, true
-	case keyOf(actNext):
+	case m.keyLabel(actNext):
 		return tea.KeyPressMsg{Code: tea.KeyTab}, true
 	}
-	if key, ok := functionKeys[strings.ToUpper(name)]; ok {
+	if key, ok := functionKeyCode(strings.ToUpper(name)); ok {
 		return tea.KeyPressMsg{Code: key}, true
 	}
 	if runes := []rune(name); len(runes) == 1 && runes[0] > ' ' && !isArrowGlyph(name) && !(runes[0] >= '0' && runes[0] <= '9') {
@@ -308,18 +308,28 @@ func keyByName(name string) (tea.KeyPressMsg, bool) {
 
 // isArrowGlyph reports whether name is the footer glyph of an arrow key, which a click cannot press.
 func isArrowGlyph(name string) bool {
-	for _, g := range arrowNames {
-		if g == name {
-			return true
-		}
-	}
-	return false
+	return len([]rune(name)) == 1 && strings.Contains("↑↓←→", name)
 }
 
-// functionKeys are the function keys a dialog may name.
-var functionKeys = map[string]rune{
-	"F2": tea.KeyF2, "F3": tea.KeyF3, "F4": tea.KeyF4, "F6": tea.KeyF6, "F7": tea.KeyF7, "F8": tea.KeyF8,
-	"F9": tea.KeyF9,
+// functionKeyCode is the code of a function key a dialog may name, spelled as a footer spells it ("F3").
+func functionKeyCode(name string) (rune, bool) {
+	switch name {
+	case "F2":
+		return tea.KeyF2, true
+	case "F3":
+		return tea.KeyF3, true
+	case "F4":
+		return tea.KeyF4, true
+	case "F6":
+		return tea.KeyF6, true
+	case "F7":
+		return tea.KeyF7, true
+	case "F8":
+		return tea.KeyF8, true
+	case "F9":
+		return tea.KeyF9, true
+	}
+	return 0, false
 }
 
 // footerSpan is one key group of a footer line: the cells it stands in and the key it names.
@@ -336,10 +346,10 @@ type footerLine struct {
 
 // footerKey is the key a footer group opens with ("y delete" names y). Of alternatives ("n/esc") the first
 // stands for the group. A group that opens with anything else, such as "1-4" or "type to filter", has none.
-func footerKey(group string) string {
+func (m *Model) footerKey(group string) string {
 	word, _, _ := strings.Cut(group, " ")
 	word, _, _ = strings.Cut(word, "/")
-	if _, ok := keyByName(word); ok {
+	if _, ok := m.keyByName(word); ok {
 		return word
 	}
 	return ""
@@ -405,7 +415,7 @@ func (m *Model) backShown() bool {
 	if m.backdrop || m.dd != nil {
 		return false
 	}
-	if _, ok := keyByName(keyOf(actBack)); !ok {
+	if _, ok := m.keyByName(m.keyLabel(actBack)); !ok {
 		return false
 	}
 	if m.home == screenArea {
@@ -417,7 +427,7 @@ func (m *Model) backShown() bool {
 // pressBack is a press of the key bound to esc; the click on the back button uses it so it meets every rule
 // the key meets.
 func (m *Model) pressBack() tea.Cmd {
-	key, ok := keyByName(keyOf(actBack))
+	key, ok := m.keyByName(m.keyLabel(actBack))
 	if !ok {
 		return nil
 	}

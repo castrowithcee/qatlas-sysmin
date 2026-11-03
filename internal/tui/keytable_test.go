@@ -1,55 +1,25 @@
 package tui
 
 import (
-	"slices"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
-// takenKeys are the keys a terminal, a multiplexer or a shell owns: no tool gives them an action of its own.
-var takenKeys = []string{
-	"ctrl+s", "ctrl+q", "ctrl+z", "ctrl+b", "ctrl+a", "ctrl+g", "ctrl+n", "ctrl+o", "ctrl+p", "ctrl+t",
-	"ctrl+f", "ctrl+i", "ctrl+m", "ctrl+h",
-	"f1", "f5", "f10", "f11", "f12",
-	"alt+n", "alt+p", "alt+h", "alt+j", "alt+k", "alt+l", "alt+f", "alt+i", "alt+o", "alt+left", "alt+right",
-	"alt+up", "alt+down", "alt+[", "alt+]", "alt+=", "alt+-", "alt++",
-	"alt+0", "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9",
-}
-
-// secondWays are the taken keys an action may hold next to a first way without a collision.
-var secondWays = map[action][]string{
-	actSuggestPrev: {"ctrl+p"},
-	actSuggestNext: {"ctrl+n"},
-}
-
-// takenKeyUses lists the actions of the table bound to a taken key that is no allowed second way.
-func takenKeyUses() []string {
-	var uses []string
-	for _, d := range keyDefs {
-		for _, k := range keymap[d.act].Keys() {
-			if slices.Contains(takenKeys, k) && !slices.Contains(secondWays[d.act], k) {
-				uses = append(uses, string(d.act)+" on "+k)
-			}
+// The kit checks the key table; the table holds, and a key a multiplexer takes is refused.
+func TestKeyTableHoldsAndRefusesATakenKey(t *testing.T) {
+	newUIContext(kittui.CharsetUnicode)
+	table := keyTable()
+	for i := range table {
+		if table[i].ID == actReload {
+			table[i].DefaultKeys = []string{"ctrl+t"}
 		}
 	}
-	return uses
-}
-
-func TestNoActionTakesAKeyAnotherToolOwns(t *testing.T) {
-	for _, use := range takenKeyUses() {
-		t.Errorf("%s, which a terminal or multiplexer owns", use)
-	}
-}
-
-// The check has teeth: an action moved onto ctrl+t is found.
-func TestTakenKeyCheckFindsCtrlT(t *testing.T) {
-	old := keymap[actReload]
-	t.Cleanup(func() { keymap[actReload] = old })
-	setKeys(actReload, "ctrl+t")
-	if uses := takenKeyUses(); len(uses) != 1 || uses[0] != "reload on ctrl+t" {
-		t.Errorf("uses = %v", uses)
+	if _, err := kittui.NewKeymap(table, kittui.CharsetUnicode); err == nil || !strings.Contains(err.Error(), "ctrl+t") {
+		t.Errorf("reload on ctrl+t: %v, want it refused", err)
 	}
 }
 
@@ -64,10 +34,11 @@ func TestNoTextNamesArrowsInWords(t *testing.T) {
 	}
 }
 
-func TestKeyNameSpellsArrowsAsGlyphs(t *testing.T) {
-	for k, want := range map[string]string{"up": "↑", "down": "↓", "left": "←", "right": "→", "f8": "F8", "A": "A"} {
-		if got := keyName(k); got != want {
-			t.Errorf("keyName(%q) = %q, want %q", k, got, want)
+func TestKeyLabelsSpellArrowsAsGlyphs(t *testing.T) {
+	keys := testKeys()
+	for a, want := range map[action]string{actUp: "↑", actDown: "↓", actLeft: "←", actRight: "→", actSave: "F2", actSelfUpdate: "U"} {
+		if got := keys.Label(a); got != want {
+			t.Errorf("label of %s = %q, want %q", a, got, want)
 		}
 	}
 }
@@ -91,5 +62,26 @@ func TestVDoesNothingInTheHostUsers(t *testing.T) {
 	send(m, "2", "v")
 	if m.status != "" || m.fail != "" {
 		t.Errorf("v answers: status %q fail %q", m.status, m.fail)
+	}
+}
+
+// The arrows move the suggestion of the path line, and ctrl+n and ctrl+p are their second way.
+func TestArrowsAndTheirSecondWayMoveTheSuggestionOfThePathLine(t *testing.T) {
+	m := hostModel(t, 120, 40)
+	runCommand(m, "go host folders")
+	send(m, "enter")
+	in := &m.hst.fold.in
+	in.matches, in.mark, in.marked = []string{"/srv/demo-a", "/srv/demo-b", "/srv/demo-c"}, 0, false
+	for _, step := range []struct {
+		key  tea.KeyPressMsg
+		mark int
+	}{
+		{keyMsg("down"), 1}, {tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl}, 2}, {keyMsg("up"), 1},
+		{tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl}, 0},
+	} {
+		m.Update(step.key)
+		if in.mark != step.mark || !in.marked {
+			t.Fatalf("after %v the mark is %d (marked %v), want %d", step.key, in.mark, in.marked, step.mark)
+		}
 	}
 }

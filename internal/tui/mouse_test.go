@@ -7,6 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
 
 // cellOf finds the first place text stands in the drawn frame, as its column and row. It reads the frame, never
@@ -42,25 +44,26 @@ func wheel(m *Model, x, y int, button tea.MouseButton) {
 }
 
 func TestFooterKeyNamesMapToKeysOnlyForKeysAButtonCanPress(t *testing.T) {
+	m := New(uiprefs.Default(), nil)
 	for group, want := range map[string]string{
 		"y delete": "y", "n/esc cancel": "n", "enter save": "enter", "esc back": "esc", "tab next": "tab",
 		"F2 save": "F2", "1-4 area": "", "type to filter": "", "↑/↓ move": "", "": "",
 	} {
-		if got := footerKey(group); got != want {
-			t.Errorf("footerKey(%q) = %q, want %q", group, got, want)
+		if got := m.footerKey(group); got != want {
+			t.Errorf("m.footerKey(%q) = %q, want %q", group, got, want)
 		}
 	}
 	for name, code := range map[string]rune{"enter": tea.KeyEnter, "esc": tea.KeyEscape, "tab": tea.KeyTab, "F2": tea.KeyF2, "f9": tea.KeyF9} {
-		if key, ok := keyByName(name); !ok || key.Code != code {
-			t.Errorf("keyByName(%q) = %v, %v", name, key, ok)
+		if key, ok := m.keyByName(name); !ok || key.Code != code {
+			t.Errorf("m.keyByName(%q) = %v, %v", name, key, ok)
 		}
 	}
-	if key, ok := keyByName("y"); !ok || key.Text != "y" {
+	if key, ok := m.keyByName("y"); !ok || key.Text != "y" {
 		t.Errorf("a letter has no text key: %v", key)
 	}
 	for _, name := range []string{"7", "xy", "", " ", "F5"} {
-		if _, ok := keyByName(name); ok {
-			t.Errorf("keyByName(%q) names a key", name)
+		if _, ok := m.keyByName(name); ok {
+			t.Errorf("m.keyByName(%q) names a key", name)
 		}
 	}
 }

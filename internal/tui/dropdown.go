@@ -112,17 +112,17 @@ func (m *Model) noteField(id string, x, y int) {
 func (m *Model) updateDropdown(key tea.KeyPressMsg) tea.Cmd {
 	d := m.dd
 	switch {
-	case keyIs(key, actUp):
+	case m.keyIs(key, actUp):
 		d.cursor = max(d.cursor-1, 0)
-	case keyIs(key, actDown):
+	case m.keyIs(key, actDown):
 		d.cursor = min(d.cursor+1, len(d.values)-1)
-	case keyIs(key, actHome):
+	case m.keyIs(key, actHome):
 		d.cursor = 0
-	case keyIs(key, actEnd):
+	case m.keyIs(key, actEnd):
 		d.cursor = len(d.values) - 1
-	case keyIs(key, actEnter):
+	case m.keyIs(key, actEnter):
 		return m.chooseDropdown(d.cursor)
-	case keyIs(key, actBack):
+	case m.keyIs(key, actBack):
 		m.dd = nil
 	}
 	return nil

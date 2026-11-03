@@ -119,20 +119,20 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 		return m.editKey(key)
 	}
 	switch {
-	case keyIs(key, actHelp):
+	case m.keyIs(key, actHelp):
 		m.openPopup(popHelp)
 		return nil
-	case keyIs(key, actCommand):
+	case m.keyIs(key, actCommand):
 		m.openPopup(popCommand)
 		return nil
 	case m.infoKey(key):
 		m.openPopup(popInfo)
 		return nil
-	case keyIs(key, actQuit):
+	case m.keyIs(key, actQuit):
 		return m.guarded(m.quit)
-	case keyIs(key, actSelfUpdate):
+	case m.keyIs(key, actSelfUpdate):
 		return m.selfUpdate()
-	case keyIs(key, actCopy) && m.copySource() != nil:
+	case m.keyIs(key, actCopy) && m.copySource() != nil:
 		return m.copyCurrent()
 	}
 	if z := m.zoneNow(); z != zoneContent && z != zoneDetail {
@@ -140,10 +140,10 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.zoneNow() == zoneDetail {
 		switch {
-		case keyIs(key, actNext):
+		case m.keyIs(key, actNext):
 			m.zone = zoneTabs
 			return nil
-		case keyIs(key, actPrev), keyIs(key, actBack):
+		case m.keyIs(key, actPrev), m.keyIs(key, actBack):
 			m.zone = zoneContent
 			return nil
 		}
@@ -164,14 +164,14 @@ func (m *Model) updateArea(key tea.KeyPressMsg) tea.Cmd {
 	// A key an inner level (a log, an update, a detail) leaves unhandled does not leave it: only esc does.
 	inner := m.innerLevel()
 	switch {
-	case keyIs(key, actNext) && !inner:
+	case m.keyIs(key, actNext) && !inner:
 		m.zone = zoneTabs
 		if m.detailZoneAvailable() {
 			m.zone = zoneDetail
 		}
-	case (keyIs(key, actPrev) || keyIs(key, actBack)) && !inner:
+	case (m.keyIs(key, actPrev) || m.keyIs(key, actBack)) && !inner:
 		m.toBar()
-	case keyIs(key, actReload):
+	case m.keyIs(key, actReload):
 		return tea.Batch(m.statusCmd(), m.overviewCmd())
 	}
 	return m.digitKey(key)
@@ -248,27 +248,27 @@ func (m *Model) barKey(key tea.KeyPressMsg) tea.Cmd {
 	subs := m.zoneNow() == zoneSubs
 	step := 0
 	switch {
-	case keyIs(key, actLeft):
+	case m.keyIs(key, actLeft):
 		step = -1
-	case keyIs(key, actRight):
+	case m.keyIs(key, actRight):
 		step = 1
-	case keyIs(key, actHome) && !subs:
+	case m.keyIs(key, actHome) && !subs:
 		return m.showIn(0, 0, zoneTabs)
-	case keyIs(key, actEnd) && !subs:
+	case m.keyIs(key, actEnd) && !subs:
 		return m.showIn(areaCount-1, 0, zoneTabs)
-	case keyIs(key, actUp), keyIs(key, actBack), keyIs(key, actPrev) && subs:
+	case m.keyIs(key, actUp), m.keyIs(key, actBack), m.keyIs(key, actPrev) && subs:
 		m.zone = zoneTabs
-	case keyIs(key, actPrev):
+	case m.keyIs(key, actPrev):
 		m.zone = zoneContent
 		if m.detailZoneAvailable() {
 			m.zone = zoneDetail
 		}
-	case keyIs(key, actDown), keyIs(key, actEnter), keyIs(key, actNext):
+	case m.keyIs(key, actDown), m.keyIs(key, actEnter), m.keyIs(key, actNext):
 		m.zone = zoneContent
 		if !subs && m.hasSubs() {
 			m.zone = zoneSubs
 		}
-	case keyIs(key, actReload):
+	case m.keyIs(key, actReload):
 		return tea.Batch(m.statusCmd(), m.overviewCmd())
 	default:
 		return m.digitKey(key)
@@ -312,7 +312,7 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 			return cmd, true
 		}
 	}
-	if m.area == areaActivity && !p.open && keyIs(key, actFilter) {
+	if m.area == areaActivity && !p.open && m.keyIs(key, actFilter) {
 		// f is the filter of the log here; the table is searched with /.
 		m.openLogFilter()
 		return nil, true
@@ -329,11 +329,9 @@ func (m *Model) dataKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// infoKey reports whether key asks for the info: the letter, or the second key of the preferences, which also
+// infoKey reports whether key asks for the info: the letter, or the extra key of the preferences, which also
 // works where text is typed.
-func (m *Model) infoKey(key tea.KeyPressMsg) bool {
-	return keyIs(key, actInfo) || (infoExtra != "" && key.String() == infoExtra)
-}
+func (m *Model) infoKey(key tea.KeyPressMsg) bool { return m.keyIs(key, actInfo) }
 
 // areaView is the workspace of the area screen: the area under the bars of the frame.
 func (m *Model) areaView() string {

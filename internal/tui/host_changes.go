@@ -158,9 +158,9 @@ func boolText(b bool) string {
 // changesKey handles the keys of the Changes page that the table does not.
 func (m *Model) changesKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
-	case keyIs(key, actReload):
+	case m.keyIs(key, actReload):
 		return m.readChanges(), true
-	case keyIs(key, actEnter):
+	case m.keyIs(key, actEnter):
 		return m.askUndo(), true
 	}
 	return nil, false

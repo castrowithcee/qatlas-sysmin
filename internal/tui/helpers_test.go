@@ -6,7 +6,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
+
+// testKeys is the key table with its default keys.
+func testKeys() *kittui.Keymap { return newUIContext(kittui.CharsetUnicode).keys }
 
 // keyMsg is the key press a test names the way the footers do.
 func keyMsg(k string) tea.KeyPressMsg {

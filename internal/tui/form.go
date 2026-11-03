@@ -209,21 +209,21 @@ func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 	}
 	r := &f.rows[f.focus]
 	switch {
-	case keyIs(key, actBack):
+	case m.keyIs(key, actBack):
 		m.closeForm()
 		m.status = tr(tCancelled)
 		return nil
-	case keyIs(key, actSave):
+	case m.keyIs(key, actSave):
 		return f.submit(m, f)
-	case keyIs(key, actEnter) && f.enter != nil && f.enter(m, f, f.focus):
+	case m.keyIs(key, actEnter) && f.enter != nil && f.enter(m, f, f.focus):
 		return nil
-	case keyIs(key, actEnter) && r.pick && len(r.values) > 0:
+	case m.keyIs(key, actEnter) && r.pick && len(r.values) > 0:
 		m.openPick(f, f.focus)
 		return nil
-	case keyIs(key, actEnter), keyIs(key, actNext), keyIs(key, actDown):
+	case m.keyIs(key, actEnter), m.keyIs(key, actNext), m.keyIs(key, actDown):
 		f.step(1)
 		return nil
-	case keyIs(key, actPrev), keyIs(key, actUp):
+	case m.keyIs(key, actPrev), m.keyIs(key, actUp):
 		f.step(-1)
 		return nil
 	}
@@ -232,11 +232,11 @@ func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 	}
 	if r.multi {
 		switch {
-		case keyIs(key, actSpace) && len(r.values) > 0:
+		case m.keyIs(key, actSpace) && len(r.values) > 0:
 			r.ticked[r.sel] = !r.ticked[r.sel]
-		case keyIs(key, actRight) && len(r.values) > 0:
+		case m.keyIs(key, actRight) && len(r.values) > 0:
 			r.sel = (r.sel + 1) % len(r.values)
-		case keyIs(key, actLeft) && len(r.values) > 0:
+		case m.keyIs(key, actLeft) && len(r.values) > 0:
 			r.sel = (r.sel + len(r.values) - 1) % len(r.values)
 		default:
 			return nil
@@ -250,9 +250,9 @@ func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 	if r.choice {
 		by := 0
 		switch {
-		case keyIs(key, actRight), keyIs(key, actSpace):
+		case m.keyIs(key, actRight), m.keyIs(key, actSpace):
 			by = 1
-		case keyIs(key, actLeft):
+		case m.keyIs(key, actLeft):
 			by = -1
 		}
 		if by != 0 && len(r.values) > 0 {

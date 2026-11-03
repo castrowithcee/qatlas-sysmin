@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/castrowithcee/qatlas-kit/redact"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
@@ -71,12 +72,8 @@ func Run(opts Options) error {
 	if themeWarning != "" {
 		warnings = append(warnings, themeWarning)
 	}
-	if err := prefs.Keys.WithDefaults().Validate(); err != nil {
-		warnings = append(warnings, "keys: "+err.Error()+", using the standard keys")
-		prefs.Keys = uiprefs.DefaultKeys()
-	}
-	applyKeys(prefs.Keys)
-	model := New(prefs, opts.Redactor)
+	model := newModel(prefs, opts.Redactor, kittui.DetectCharsetMode(os.Environ()))
+	warnings = append(warnings, model.bindKeys()...)
 	model.prefsPath, model.version, model.releases = opts.PrefsPath, opts.Version, opts.Releases
 	model.hostSrc = opts.Host
 	model.hostRun, model.hostReg = opts.HostRun, opts.HostActions
@@ -91,7 +88,7 @@ func Run(opts Options) error {
 		model.status = "warning: " + warnings[0]
 	}
 	fragments := newFragmentFilter(time.Now)
-	program := tea.NewProgram(model, tea.WithInput(opts.In), tea.WithOutput(legacyKeys{opts.Out}),
+	program := tea.NewProgram(model, tea.WithInput(opts.In), tea.WithOutput(newLegacyKeys(opts.Out)),
 		tea.WithFilter(fragments.filter), tea.WithColorProfile(toColorprofile(currentProfile())))
 	fragments.send = program.Send
 	final, err := program.Run()

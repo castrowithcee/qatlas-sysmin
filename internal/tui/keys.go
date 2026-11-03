@@ -29,17 +29,15 @@ func (m *Model) typing() bool {
 // nothing is typed.
 func (m *Model) helpReachable() bool { return !m.typing() }
 
-// moveKey turns the vim keys into the arrow keys on a screen that reads no text, so
-// every screen moves the same way and no handler needs to know the letters.
+// moveKey turns the vim keys into the arrow keys on a screen that reads no text (where text is typed they are
+// text), so every screen moves the same way and no handler needs to know the letters.
 func (m *Model) moveKey(key tea.KeyPressMsg) tea.KeyPressMsg {
-	if m.typing() {
-		return key
-	}
+	focus := m.inputFocus()
 	for _, d := range []struct {
 		act  action
 		code rune
 	}{{actVimLeft, tea.KeyLeft}, {actVimDown, tea.KeyDown}, {actVimUp, tea.KeyUp}, {actVimRight, tea.KeyRight}} {
-		if keyIs(key, d.act) {
+		if m.ui.keys.Is(key, d.act, focus) {
 			return tea.KeyPressMsg{Code: d.code}
 		}
 	}
@@ -106,19 +104,24 @@ func textKey(text string) tea.KeyPressMsg {
 	return tea.KeyPressMsg{Code: code, Text: text}
 }
 
-// keyboardModes removes what Bubble Tea writes to switch the keyboard enhancements of the terminal on, off, or
-// to ask about them: modifyOtherKeys and the Kitty keyboard protocol. With them a terminal reports keys such as
-// ctrl+i, shift+enter or the keypad's enter under names of their own; without them every key keeps the name
-// the legacy encoding gives it, the name every key binding, stored ones included, was taken under.
-var keyboardModes = strings.NewReplacer(ansi.SetModifyOtherKeys2, "", ansi.ResetModifyOtherKeys, "",
-	ansi.PushKittyKeyboard(1), "", ansi.PopKittyKeyboard(1), "", ansi.RequestKittyKeyboard, "")
-
 // legacyKeys is the terminal output of the editor without the keyboard enhancements. Bubble Tea writes each
 // frame, and each set of terminal modes, in one write, so no sequence is split between two.
-type legacyKeys struct{ f *os.File }
+type legacyKeys struct {
+	f *os.File
+	// modes removes what Bubble Tea writes to switch the keyboard enhancements of the terminal on, off, or to
+	// ask about them: modifyOtherKeys and the Kitty keyboard protocol. With them a terminal reports keys such
+	// as ctrl+i, shift+enter or the keypad's enter under names of their own; without them every key keeps the
+	// name the legacy encoding gives it, the name every key binding, stored ones included, was taken under.
+	modes *strings.Replacer
+}
+
+func newLegacyKeys(f *os.File) legacyKeys {
+	return legacyKeys{f, strings.NewReplacer(ansi.SetModifyOtherKeys2, "", ansi.ResetModifyOtherKeys, "",
+		ansi.PushKittyKeyboard(1), "", ansi.PopKittyKeyboard(1), "", ansi.RequestKittyKeyboard, "")}
+}
 
 func (o legacyKeys) Write(p []byte) (int, error) {
-	if _, err := o.f.WriteString(keyboardModes.Replace(string(p))); err != nil {
+	if _, err := o.f.WriteString(o.modes.Replace(string(p))); err != nil {
 		return 0, err
 	}
 	return len(p), nil

@@ -40,28 +40,28 @@ const (
 )
 
 // footerGroupRank is the rank of a group. Order of the rules is the order of importance.
-func footerGroupRank(group string, index int) (rank int, right bool) {
+func (m *Model) footerGroupRank(group string, index int) (rank int, right bool) {
 	key, _, _ := strings.Cut(group, " ")
 	switch {
-	case key == keyLabel(actHelp) && key != "":
+	case key == m.keyLabel(actHelp) && key != "":
 		return footerHelp, false
 	case group == "←/→ page" || group == "←/→ area":
 		return footerPrimary, false
-	case isNavigation(key):
+	case m.isNavigation(key):
 		return footerNavigate + index, true
-	case slices.Contains(strings.Split(key, "/"), keyName(keyOf(actBack))):
+	case slices.Contains(strings.Split(key, "/"), m.keyLabel(actBack)):
 		return footerBack, false
-	case key == keyName(keyOf(actSave)) || key == keyLabel(actSave):
+	case key == m.keyLabel(actSave):
 		return footerSave, false
-	case key == keyOf(actQuit):
+	case key == m.keyLabel(actQuit):
 		return footerQuit, false
-	case slices.Contains(strings.Split(key, "/"), keyOf(actEnter)) || key == keyOf(actYes) || key == keyOf(actNo) || key == keyOf(actFilter) || key == keyName(keyOf(actDelete)) || isSectionRange(key):
+	case slices.Contains(strings.Split(key, "/"), m.keyLabel(actEnter)) || key == m.keyLabel(actYes) || key == m.keyLabel(actNo) || key == m.keyLabel(actFilter) || key == m.keyLabel(actDelete) || isSectionRange(key):
 		return footerPrimary, false
-	case key == keyName(keyOf(actCommand)):
+	case key == m.keyLabel(actCommand):
 		return footerCommand, false
-	case key == keyLabel(actInfo) || key == keyName(keyOf(actInfo)):
+	case key == m.keyLabel(actInfo) || key == m.firstKeyLabel(actInfo):
 		return footerInfo, false
-	case key == keyLabel(actCopy):
+	case key == m.keyLabel(actCopy):
 		return footerCopy, false
 	}
 	return footerOthers + index, false
@@ -74,9 +74,9 @@ func isSectionRange(key string) bool {
 
 // isNavigation reports whether the first word of a group names moving through the screen rather than
 // acting on it.
-func isNavigation(key string) bool {
+func (m *Model) isNavigation(key string) bool {
 	switch key {
-	case "↑/↓", "←/→", keyOf(actNext), "pgup/pgdown", "home/end":
+	case "↑/↓", "←/→", m.keyLabel(actNext), "pgup/pgdown", "home/end":
 		return true
 	}
 	return false
@@ -85,7 +85,7 @@ func isNavigation(key string) bool {
 // footerItems splits the key text of a screen into its groups and ranks them. A screen that names no keys
 // at all gets the help key.
 func (m *Model) footerItems(text string) []footerItem {
-	text = footerKeys(text)
+	text = m.footerKeys(text)
 	var items []footerItem
 	hasHelp := false
 	answering := m.questionScreen() || m.promptScreen()
@@ -95,15 +95,15 @@ func (m *Model) footerItems(text string) []footerItem {
 			continue
 		}
 		seen[group] = true
-		rank, right := footerGroupRank(group, i)
+		rank, right := m.footerGroupRank(group, i)
 		// Every answer of a question stays, cut short if need be; only the keys of the editor around it give way.
 		keep := answering && !right && rank != footerHelp && rank != footerCommand && rank != footerQuit && rank != footerInfo
 		hasHelp = hasHelp || rank == footerHelp
 		items = append(items, footerItem{text: group, rank: rank, right: right, keep: keep})
 	}
 	// A screen that names its keys without help does so on purpose: help is not reachable where text is typed.
-	if !hasHelp && len(items) == 0 && keyLabel(actHelp) != "" {
-		items = append(items, footerItem{text: keyLabel(actHelp) + " " + tr(tHeaderHelp), rank: footerHelp})
+	if !hasHelp && len(items) == 0 && m.keyLabel(actHelp) != "" {
+		items = append(items, footerItem{text: m.keyLabel(actHelp) + " " + tr(tHeaderHelp), rank: footerHelp})
 	}
 	if m.screenPos != "" {
 		items = append(items, footerItem{text: m.screenPos, rank: footerPosition, right: true, plain: true})
@@ -189,7 +189,7 @@ func (m *Model) footerLine() string {
 				x += len(footerGap)
 			}
 			w := lipgloss.Width(item.text)
-			m.footerSpans = append(m.footerSpans, footerSpan{x, min(x+w, width), footerKey(item.text)})
+			m.footerSpans = append(m.footerSpans, footerSpan{x, min(x+w, width), m.footerKey(item.text)})
 			if item.plain {
 				b.WriteString(styles.hint.Render(item.text))
 			} else {

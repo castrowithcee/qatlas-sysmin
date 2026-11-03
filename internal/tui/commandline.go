@@ -67,30 +67,30 @@ func (m *Model) commands() []command {
 	}
 	list = append(list,
 		command{name: "reload", desc: tr(tCmdReload), aliases: []string{"refresh"},
-			shortcut: func() string { return keyLabel(actReload) },
+			shortcut: func() string { return m.keyLabel(actReload) },
 			unavailable: func(m *Model) string {
-				if _, ok := reloadPress(); !ok {
+				if _, ok := m.ui.reloadPress(); !ok {
 					return tr(tCmdNoReloadKey)
 				}
 				return ""
 			},
 			run: func(m *Model) tea.Cmd {
-				press, _ := reloadPress()
+				press, _ := m.ui.reloadPress()
 				return m.updateArea(press)
 			}},
 		command{name: "regroup", desc: tr(tCmdRegroup),
 			run: func(m *Model) tea.Cmd { return m.regroup() }},
 		command{name: "update", desc: tr(tCmdUpdate), aliases: []string{"upgrade"},
-			shortcut: func() string { return keyLabel(actSelfUpdate) },
+			shortcut: func() string { return m.keyLabel(actSelfUpdate) },
 			run:      func(m *Model) tea.Cmd { return m.selfUpdate() }},
 		command{name: "help", desc: tr(tCmdHelp),
-			shortcut: func() string { return keyLabel(actHelp) },
+			shortcut: func() string { return m.keyLabel(actHelp) },
 			run:      func(m *Model) tea.Cmd { m.openPopup(popHelp); return nil }},
 		command{name: "info", desc: tr(tCmdInfo),
-			shortcut: func() string { return keyLabel(actInfo) },
+			shortcut: func() string { return m.keyLabel(actInfo) },
 			run:      func(m *Model) tea.Cmd { m.openPopup(popInfo); return nil }},
 		command{name: "quit", desc: tr(tCmdQuit), aliases: []string{"exit"},
-			shortcut: func() string { return keyLabel(actQuit) },
+			shortcut: func() string { return m.keyLabel(actQuit) },
 			run:      func(m *Model) tea.Cmd { return m.guarded(m.quit) }},
 	)
 	return list
@@ -120,22 +120,6 @@ func areaPages(a area) []areaPage {
 		}
 	}
 	return out
-}
-
-// reloadPress is the key press of the first key bound to reload, so the command runs exactly what the key runs
-// in the area shown.
-func reloadPress() (tea.KeyPressMsg, bool) {
-	for _, k := range keymap[actReload].Keys() {
-		if name, ok := strings.CutPrefix(k, "ctrl+"); ok && len([]rune(name)) == 1 {
-			return tea.KeyPressMsg{Code: []rune(name)[0], Mod: tea.ModCtrl}, true
-		}
-		if n, ok := strings.CutPrefix(k, "f"); ok {
-			if i, err := strconv.Atoi(n); err == nil && i >= 1 && i <= 12 {
-				return tea.KeyPressMsg{Code: tea.KeyF1 + rune(i-1)}, true
-			}
-		}
-	}
-	return tea.KeyPressMsg{}, false
 }
 
 // normalizeCommand is typed text in the form names are given: lower case, words separated by one space.
@@ -184,16 +168,16 @@ func (m *Model) commandKey(key tea.KeyPressMsg) tea.Cmd {
 	p := m.pop
 	matches := matchCommands(m.commands(), p.in.Value())
 	switch {
-	case keyIs(key, actBack):
+	case m.keyIs(key, actBack):
 		m.closePopup()
 		return nil
-	case keyIs(key, actUp) || keyIs(key, actPrev):
+	case m.keyIs(key, actUp) || m.keyIs(key, actPrev):
 		p.cursor, p.msg = wrap(p.cursor-1, max(len(matches), 1)), ""
 		return nil
-	case keyIs(key, actDown) || keyIs(key, actNext):
+	case m.keyIs(key, actDown) || m.keyIs(key, actNext):
 		p.cursor, p.msg = wrap(p.cursor+1, max(len(matches), 1)), ""
 		return nil
-	case keyIs(key, actEnter):
+	case m.keyIs(key, actEnter):
 		if len(matches) == 0 {
 			p.msg = tr(tCmdUnknown, strings.Join(strings.Fields(p.in.Value()), " "))
 			return nil

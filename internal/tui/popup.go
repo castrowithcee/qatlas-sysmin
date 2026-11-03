@@ -70,25 +70,25 @@ func (m *Model) updatePopup(key tea.KeyPressMsg) tea.Cmd {
 	switch p.kind {
 	case popHelp:
 		switch {
-		case keyIs(key, actBack), keyIs(key, actHelp):
+		case m.keyIs(key, actBack), m.keyIs(key, actHelp):
 			m.closePopup()
-		case keyIs(key, actRight), keyIs(key, actNext):
+		case m.keyIs(key, actRight), m.keyIs(key, actNext):
 			p.topic, p.scroll = (p.topic+1)%len(helpTopics), 0
-		case keyIs(key, actLeft), keyIs(key, actPrev):
+		case m.keyIs(key, actLeft), m.keyIs(key, actPrev):
 			p.topic, p.scroll = (p.topic+len(helpTopics)-1)%len(helpTopics), 0
-		case keyIs(key, actUp):
+		case m.keyIs(key, actUp):
 			p.scroll = max(p.scroll-1, 0)
-		case keyIs(key, actDown):
+		case m.keyIs(key, actDown):
 			p.scroll++
-		case keyIs(key, actPageUp):
+		case m.keyIs(key, actPageUp):
 			p.scroll = max(p.scroll-5, 0)
-		case keyIs(key, actPageDown):
+		case m.keyIs(key, actPageDown):
 			p.scroll += 5
-		case keyIs(key, actHome):
+		case m.keyIs(key, actHome):
 			p.scroll = 0
 		}
 	case popInfo:
-		if keyIs(key, actBack) || keyIs(key, actEnter) || m.infoKey(key) {
+		if m.keyIs(key, actBack) || m.keyIs(key, actEnter) || m.infoKey(key) {
 			m.closePopup()
 		}
 	case popCommand:
@@ -135,12 +135,12 @@ func (m *Model) helpBody(width int) []string {
 		lines = append(lines, styles.title.Render(tr(tHelpKeysScreen)))
 		for _, g := range strings.Split(m.areaKeys(), " · ") {
 			if !slices.Contains(everywhere, g) {
-				lines = append(lines, "  "+truncateCells(footerKeys(g), width-2))
+				lines = append(lines, "  "+truncateCells(m.footerKeys(g), width-2))
 			}
 		}
 		lines = append(lines, "", styles.title.Render(tr(tHelpKeysEverywhere)))
 		for _, g := range everywhere {
-			lines = append(lines, "  "+truncateCells(footerKeys(g), width-2))
+			lines = append(lines, "  "+truncateCells(m.footerKeys(g), width-2))
 		}
 		return lines
 	}

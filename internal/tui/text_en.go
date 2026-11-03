@@ -177,7 +177,7 @@ var textEN = map[textID]string{
 	tInfoSetLanguage:                "Language of this interface. Saved on this device only.",
 	tInfoSetTheme:                   "Colors of this interface. Saved on this device only.",
 	tInfoSetMouse:                   "Turns mouse input on or off. Saved on this device only.",
-	tInfoSetKey:                     "Key of one action. Type a key name such as f3 or ctrl+g.",
+	tInfoSetKey:                     "Key of one action. Type a key name such as f3 or ctrl+l.",
 	tInfoSetUpdate:                  "Looks up the newest signed release. Installing happens on the host.",
 	footerID("enter open"):          "enter open",
 	footerID("←/→ page"):            "←/→ page",

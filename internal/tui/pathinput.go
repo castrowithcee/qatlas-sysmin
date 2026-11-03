@@ -11,8 +11,8 @@ import (
 )
 
 // pathInput is a text line: a plain text input, or for a path a text input with what completes the typed
-// path on the local file system. Only an absolute path is completed. tab takes the suggestion marked, ctrl+n
-// and ctrl+p move the mark; every other key goes to the text.
+// path on the local file system. Only an absolute path is completed. tab takes the suggestion marked, the
+// arrows and ctrl+n and ctrl+p move the mark; every other key goes to the text.
 type pathInput struct {
 	textinput.Model
 	mode pathMode

@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/castrowithcee/qatlas-kit/redact"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 	"github.com/castrowithcee/qatlas-sysmin/internal/uiprefs"
 )
@@ -52,6 +53,8 @@ const (
 type Model struct {
 	prefs    uiprefs.Prefs
 	redactor *redact.Redactor
+	// ui holds the keys the screens read.
+	ui *uiContext
 
 	screen screen
 	// title heads the list; table lays its entries out as columns.
@@ -145,15 +148,24 @@ type Model struct {
 	now func() time.Time
 }
 
-// New returns the frame with an empty list. A nil redactor is read as one that knows no secret.
+// New returns the frame with an empty list and the keys of prefs in force. A nil redactor is read as one that
+// knows no secret.
 func New(prefs uiprefs.Prefs, redactor *redact.Redactor) *Model {
+	m := newModel(prefs, redactor, kittui.CharsetUnicode)
+	m.bindKeys()
+	return m
+}
+
+// newModel is New with the default keys, labelled for charset.
+func newModel(prefs uiprefs.Prefs, redactor *redact.Redactor, charset kittui.CharsetMode) *Model {
 	if prefs == (uiprefs.Prefs{}) {
 		prefs = uiprefs.Default()
 	}
 	if redactor == nil {
 		redactor = &redact.Redactor{}
 	}
-	m := &Model{prefs: prefs, redactor: redactor, list: newFilterList(func(name string) string { return name })}
+	m := &Model{prefs: prefs, redactor: redactor, ui: newUIContext(charset),
+		list: newFilterList(func(name string) string { return name })}
 	m.ovr.reset()
 	return m
 }
@@ -226,7 +238,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // updateKey handles one key press: first the open dropdown and dialogs, then the list.
 func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
-	if keyIs(key, actForceQuit) {
+	if m.keyIs(key, actForceQuit) {
 		if m.screen == screenArea && m.dd == nil {
 			return m.guarded(m.quit)
 		}
@@ -252,20 +264,20 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	}
 	switch m.screen {
 	case screenConfirm, screenPrompt:
-		if keyIs(key, actBack) || keyIs(key, actNo) {
+		if m.keyIs(key, actBack) || m.keyIs(key, actNo) {
 			m.closeDialog()
 		}
 		return nil
 	}
 	if m.list.editing {
 		switch {
-		case keyIs(key, actEnter):
+		case m.keyIs(key, actEnter):
 			m.list.stopFilter()
-		case keyIs(key, actBack):
+		case m.keyIs(key, actBack):
 			m.list.clearFilter()
-		case keyIs(key, actUp):
+		case m.keyIs(key, actUp):
 			m.list.move(-1)
-		case keyIs(key, actDown):
+		case m.keyIs(key, actDown):
 			m.list.move(1)
 		default:
 			return m.list.updateFilter(key)
@@ -273,24 +285,24 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	switch {
-	case keyIs(key, actQuit):
+	case m.keyIs(key, actQuit):
 		return m.quit()
-	case keyIs(key, actSearch) || keyIs(key, actFilter):
+	case m.keyIs(key, actSearch) || m.keyIs(key, actFilter):
 		m.list.startFilter()
-	case keyIs(key, actBack):
+	case m.keyIs(key, actBack):
 		m.list.clearFilter()
-	case keyIs(key, actUp):
+	case m.keyIs(key, actUp):
 		m.list.move(-1)
-	case keyIs(key, actDown):
+	case m.keyIs(key, actDown):
 		m.list.move(1)
-	case keyIs(key, actPageUp), keyIs(key, actPageDown):
+	case m.keyIs(key, actPageUp), m.keyIs(key, actPageDown):
 		start, end := m.listWindow()
-		m.list.page(key, start, end)
-	case keyIs(key, actHome):
+		m.list.page(m.ui.keys, key, start, end)
+	case m.keyIs(key, actHome):
 		m.list.jump(-len(m.list.matches))
-	case keyIs(key, actEnd):
+	case m.keyIs(key, actEnd):
 		m.list.jump(len(m.list.matches))
-	case keyIs(key, actCopy):
+	case m.keyIs(key, actCopy):
 		return m.copyCurrent()
 	default:
 		m.foldKey(key)
@@ -413,7 +425,7 @@ func (m *Model) resizeView() string {
 	}
 	// The way out comes first, so it is the last thing a terminal of a single row loses.
 	lines := []string{
-		styles.key.Render(footerKeys(way)),
+		styles.key.Render(m.footerKeys(way)),
 		styles.warning.Render(warnMark + " " + tr(tResizeTitle)),
 		styles.hint.Render("  " + tr(tResizeNeed, minimumWidth, minimumHeight)),
 		styles.hint.Render("  " + tr(tResizeNow, m.termWidth, m.termHeight)),

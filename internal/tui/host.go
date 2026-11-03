@@ -462,7 +462,7 @@ func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 	if m.hst.sub == hostChanges {
 		return nil, false
 	}
-	if m.hst.sub == hostUsers && keyIs(key, actReload) {
+	if m.hst.sub == hostUsers && m.keyIs(key, actReload) {
 		if p := m.currentPage(); p != nil && m.detailSeen() {
 			if _, ok := p.current(); ok {
 				return m.askReadUser(), true
@@ -478,13 +478,13 @@ func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.hostGroupsKey(key)
 	}
 	if m.hst.sub == hostFolders {
-		if keyIs(key, actEnter) || keyIs(key, actSearch) || keyIs(key, actFilter) {
+		if m.keyIs(key, actEnter) || m.keyIs(key, actSearch) || m.keyIs(key, actFilter) {
 			f := m.foldersReady()
 			f.editing = true
 			f.in.Focus()
 			return nil, true
 		}
-		if keyIs(key, actEdit) {
+		if m.keyIs(key, actEdit) {
 			return m.openFolderChange(), true
 		}
 		return nil, false

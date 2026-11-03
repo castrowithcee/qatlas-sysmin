@@ -105,7 +105,7 @@ func (m *Model) backButton() string {
 	if !m.backShown() {
 		return ""
 	}
-	return styles.hint.Render("[" + keyLabel(actBack) + "] " + tr(tHeaderBack))
+	return styles.hint.Render("[" + m.keyLabel(actBack) + "] " + tr(tHeaderBack))
 }
 
 // fitParts lays styled parts out in one row of at most width cells, separated by headerSep, and returns the
@@ -161,13 +161,13 @@ type headerCombo struct {
 }
 
 // keyHints are the keys of help and of the command line as they are bound now, dimmed like the back button.
-func keyHints() string {
+func (m *Model) keyHints() string {
 	var parts []string
 	for _, h := range []struct {
 		act  action
 		text textID
 	}{{actHelp, tHeaderHelp}, {actCommand, tHeaderCmd}} {
-		if key := keyLabel(h.act); key != "" {
+		if key := m.keyLabel(h.act); key != "" {
 			parts = append(parts, styles.hint.Render("["+key+"] "+tr(h.text)))
 		}
 	}
@@ -177,7 +177,7 @@ func keyHints() string {
 // headerCombos are the layouts to try, richest first: the marks give way before the key hints, the key hints
 // before the back button.
 func (m *Model) headerCombos(back string) []headerCombo {
-	hints := keyHints()
+	hints := m.keyHints()
 	var combos []headerCombo
 	if back != "" && hints != "" {
 		right := headerRight{text: back + headerSep + hints, back: navSpan{0, lipgloss.Width(back)}}

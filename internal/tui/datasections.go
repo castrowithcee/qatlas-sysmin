@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // A data page may split its rows into titled sections that fold. A section is drawn as a heading row, which is
@@ -189,8 +191,8 @@ func (p *dataPage) headingLine(row string) string {
 }
 
 // headingKey handles the keys that act on a marked heading.
-func (p *dataPage) headingKey(key tea.KeyPressMsg) bool {
-	if p.onHeading() && (keyIs(key, actEnter) || keyIs(key, actSpace)) {
+func (p *dataPage) headingKey(keys *kittui.Keymap, key tea.KeyPressMsg) bool {
+	if p.onHeading() && (keys.Is(key, actEnter, kittui.InputNavigation) || keys.Is(key, actSpace, kittui.InputNavigation)) {
 		p.toggleHeading()
 		return true
 	}

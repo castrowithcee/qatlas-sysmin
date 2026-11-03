@@ -175,7 +175,7 @@ var textDE = map[textID]string{
 	tInfoSetLanguage:                "Sprache dieser Oberfläche. Gilt nur für dieses Gerät.",
 	tInfoSetTheme:                   "Farben dieser Oberfläche. Gilt nur für dieses Gerät.",
 	tInfoSetMouse:                   "Schaltet die Maus ein oder aus. Gilt nur für dieses Gerät.",
-	tInfoSetKey:                     "Taste einer Aktion. Einen Tastennamen wie f3 oder ctrl+g eingeben.",
+	tInfoSetKey:                     "Taste einer Aktion. Einen Tastennamen wie f3 oder ctrl+l eingeben.",
 	tInfoSetUpdate:                  "Sucht das neueste signierte Release. Installiert wird auf dem Host.",
 	footerID("enter open"):          "enter öffnen",
 	footerID("←/→ page"):            "←/→ Seite",

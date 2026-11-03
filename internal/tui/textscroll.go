@@ -7,6 +7,8 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
 // textScroll is the scroll position of a plain text area. The viewport keeps the position and its limits; the
@@ -25,19 +27,20 @@ func (t *textScroll) reset() { t.vp = viewport.Model{} }
 
 // scroll moves by one of the scroll keys of the table, a page being page lines, and reports whether key was
 // one of them.
-func (t *textScroll) scroll(key tea.KeyPressMsg, page int) bool {
+func (t *textScroll) scroll(keys *kittui.Keymap, key tea.KeyPressMsg, page int) bool {
+	is := func(a action) bool { return keys.Is(key, a, kittui.InputNavigation) }
 	switch {
-	case keyIs(key, actDown):
+	case is(actDown):
 		t.vp.ScrollDown(1)
-	case keyIs(key, actUp):
+	case is(actUp):
 		t.vp.ScrollUp(1)
-	case keyIs(key, actPageDown):
+	case is(actPageDown):
 		t.vp.ScrollDown(max(page, 1))
-	case keyIs(key, actPageUp):
+	case is(actPageUp):
 		t.vp.ScrollUp(max(page, 1))
-	case keyIs(key, actHome):
+	case is(actHome):
 		t.vp.GotoTop()
-	case keyIs(key, actEnd):
+	case is(actEnd):
 		t.vp.GotoBottom()
 	default:
 		return false
@@ -47,12 +50,12 @@ func (t *textScroll) scroll(key tea.KeyPressMsg, page int) bool {
 
 // wheel moves the area by the notches of the wheel.
 func (t *textScroll) wheel(up bool) tea.Cmd {
-	code := tea.KeyDown
-	if up {
-		code = tea.KeyUp
-	}
 	for range wheelText {
-		t.scroll(tea.KeyPressMsg{Code: code}, 1)
+		if up {
+			t.vp.ScrollUp(1)
+		} else {
+			t.vp.ScrollDown(1)
+		}
 	}
 	return nil
 }
@@ -139,6 +142,11 @@ func (p *paneScroll) at(x, y int) bool {
 func (p *paneScroll) wheel(up bool) tea.Cmd { return p.view.wheel(up) }
 
 // pageKey reports whether key is one of the keys that jump within a text: the page keys, home and end.
-func pageKey(key tea.KeyPressMsg) bool {
-	return keyIs(key, actPageUp) || keyIs(key, actPageDown) || keyIs(key, actHome) || keyIs(key, actEnd)
+func pageKey(keys *kittui.Keymap, key tea.KeyPressMsg) bool {
+	for _, a := range []action{actPageUp, actPageDown, actHome, actEnd} {
+		if keys.Is(key, a, kittui.InputNavigation) {
+			return true
+		}
+	}
+	return false
 }

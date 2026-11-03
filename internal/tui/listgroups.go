@@ -224,11 +224,11 @@ func (m *Model) foldKey(key tea.KeyPressMsg) bool {
 	}
 	var target string
 	switch {
-	case keyIs(key, actEnter) && isGroupRow(row):
+	case m.keyIs(key, actEnter) && isGroupRow(row):
 		m.groups.toggle(row)
 		target = row
-	case keyIs(key, actLeft) || keyIs(key, actRight):
-		target = m.groups.fold(row, keyIs(key, actLeft))
+	case m.keyIs(key, actLeft) || m.keyIs(key, actRight):
+		target = m.groups.fold(row, m.keyIs(key, actLeft))
 	default:
 		return false
 	}

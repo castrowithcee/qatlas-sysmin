@@ -282,23 +282,23 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 	if p.open {
 		switch {
-		case keyIs(key, actBack):
+		case m.keyIs(key, actBack):
 			p.open = false
-		case keyIs(key, actLeft), keyIs(key, actPrev):
+		case m.keyIs(key, actLeft), m.keyIs(key, actPrev):
 			p.tab, p.scroll = (p.tab+tabCount-1)%tabCount, 0
-		case keyIs(key, actRight), keyIs(key, actNext), keyIs(key, actEnter):
+		case m.keyIs(key, actRight), m.keyIs(key, actNext), m.keyIs(key, actEnter):
 			p.tab, p.scroll = (p.tab+1)%tabCount, 0
-		case keyIs(key, actUp):
+		case m.keyIs(key, actUp):
 			p.scroll = max(p.scroll-1, 0)
-		case keyIs(key, actDown):
+		case m.keyIs(key, actDown):
 			p.scroll++
-		case keyIs(key, actPageUp):
+		case m.keyIs(key, actPageUp):
 			p.scroll = max(p.scroll-5, 0)
-		case keyIs(key, actPageDown):
+		case m.keyIs(key, actPageDown):
 			p.scroll += 5
-		case keyIs(key, actHome):
+		case m.keyIs(key, actHome):
 			p.scroll = 0
-		case keyIs(key, actEnd):
+		case m.keyIs(key, actEnd):
 			p.scroll = 1 << 30
 		default:
 			return nil, false
@@ -307,21 +307,21 @@ func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	if m.zoneNow() == zoneDetail {
 		switch {
-		case keyIs(key, actLeft):
+		case m.keyIs(key, actLeft):
 			p.tab, p.scroll = (p.tab+tabCount-1)%tabCount, 0
-		case keyIs(key, actRight):
+		case m.keyIs(key, actRight):
 			p.tab, p.scroll = (p.tab+1)%tabCount, 0
-		case keyIs(key, actUp):
+		case m.keyIs(key, actUp):
 			p.scroll = max(p.scroll-1, 0)
-		case keyIs(key, actDown):
+		case m.keyIs(key, actDown):
 			p.scroll++
-		case keyIs(key, actPageUp):
+		case m.keyIs(key, actPageUp):
 			p.scroll = max(p.scroll-5, 0)
-		case keyIs(key, actPageDown):
+		case m.keyIs(key, actPageDown):
 			p.scroll += 5
-		case keyIs(key, actHome):
+		case m.keyIs(key, actHome):
 			p.scroll = 0
-		case keyIs(key, actEnd):
+		case m.keyIs(key, actEnd):
 			p.scroll = 1 << 30
 		default:
 			return nil, false
@@ -335,17 +335,17 @@ func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 	}()
 	switch {
-	case keyIs(key, actUp) && p.list.cursor <= 0:
+	case m.keyIs(key, actUp) && p.list.cursor <= 0:
 		m.toBar()
 		return nil, true
-	case keyIs(key, actUp):
+	case m.keyIs(key, actUp):
 		p.list.move(-1)
-	case keyIs(key, actDown):
+	case m.keyIs(key, actDown):
 		p.list.move(1)
-	case keyIs(key, actPageUp), keyIs(key, actPageDown), keyIs(key, actHome), keyIs(key, actEnd):
-		p.list.page(key, 0, 10)
-	case p.headingKey(key):
-	case keyIs(key, actEnter):
+	case m.keyIs(key, actPageUp), m.keyIs(key, actPageDown), m.keyIs(key, actHome), m.keyIs(key, actEnd):
+		p.list.page(m.ui.keys, key, 0, 10)
+	case p.headingKey(m.ui.keys, key):
+	case m.keyIs(key, actEnter):
 		if _, ok := p.current(); ok {
 			p.scroll = 0
 			if m.detailZoneAvailable() {
@@ -354,10 +354,10 @@ func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 				p.open = true
 			}
 		}
-	case keyIs(key, actSearch), keyIs(key, actFilter):
+	case m.keyIs(key, actSearch), m.keyIs(key, actFilter):
 		p.list.startFilter()
 		return nil, true
-	case keyIs(key, actBack):
+	case m.keyIs(key, actBack):
 		if p.list.query() == "" {
 			return nil, false
 		}
@@ -371,13 +371,13 @@ func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 // filterKey handles a key while the filter is typed.
 func (m *Model) filterKey(p *dataPage, key tea.KeyPressMsg) tea.Cmd {
 	switch {
-	case keyIs(key, actEnter):
+	case m.keyIs(key, actEnter):
 		p.list.stopFilter()
-	case keyIs(key, actBack):
+	case m.keyIs(key, actBack):
 		p.list.clearFilter()
-	case keyIs(key, actUp):
+	case m.keyIs(key, actUp):
 		p.list.move(-1)
-	case keyIs(key, actDown):
+	case m.keyIs(key, actDown):
 		p.list.move(1)
 	default:
 		return tea.Batch(p.list.updateFilter(key), m.dataWant())

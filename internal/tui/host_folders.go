@@ -83,29 +83,29 @@ func (m *Model) takeHostFolder(msg hostFolderMsg) {
 	}
 }
 
-// foldersKey handles a key while the path line takes the letters. tab completes, ctrl+n and ctrl+p move the
-// suggestion, enter takes a marked suggestion first and reads the path otherwise.
+// foldersKey handles a key while the path line takes the letters. tab completes, the arrows and ctrl+n and
+// ctrl+p move the suggestion, enter takes a marked suggestion first and reads the path otherwise.
 func (m *Model) foldersKey(key tea.KeyPressMsg) tea.Cmd {
 	f := m.foldersReady()
 	in := &f.in
 	switch {
-	case keyIs(key, actBack):
+	case m.keyIs(key, actBack):
 		f.editing = false
 		in.Blur()
-	case keyIs(key, actNext):
+	case m.keyIs(key, actNext):
 		in.complete()
-	case keyIs(key, actEnter):
+	case m.keyIs(key, actEnter):
 		if in.marked && in.complete() {
 			return nil
 		}
 		f.asked = strings.TrimSpace(in.Value())
 		f.folder, f.err = nil, ""
 		return m.folderCmd(f.asked)
-	case keyIs(key, actSuggestNext):
+	case m.keyIs(key, actSuggestNext), m.keyIs(key, actDown):
 		in.move(1)
-	case keyIs(key, actSuggestPrev):
+	case m.keyIs(key, actSuggestPrev), m.keyIs(key, actUp):
 		in.move(-1)
-	case infoExtra != "" && key.String() == infoExtra:
+	case m.keyIsTyped(key, actInfo):
 		m.openPopup(popInfo)
 	default:
 		cmd, _ := in.edit(key)
