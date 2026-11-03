@@ -142,7 +142,7 @@ func (m *Model) pickKey(f *formDlg, key tea.KeyPressMsg) tea.Cmd {
 	case m.keyIs(key, actPageUp), m.keyIs(key, actPageDown):
 		l.page(m.ui.keys, key, 0, pickerRows)
 	default:
-		return l.updateFilter(key)
+		l.updateFilter(key)
 	}
 	return nil
 }
@@ -159,8 +159,7 @@ func (m *Model) pickDialog(f *formDlg) promptDialog {
 	pk := f.pick
 	l := &pk.list
 	pk.hits = nil
-	l.input.Placeholder = m.tr(tLogSearchPlaceholder)
-	lines := []string{"  / " + inputView(fitInput(l.input, pickerField))}
+	lines := []string{"  / " + l.input.view(m.ui, pickerField, l.editing, m.tr(tLogSearchPlaceholder))}
 	start, end := l.window(pickerRows, func(int) int { return 1 })
 	for i := start; i < end; i++ {
 		name := l.matches[i]

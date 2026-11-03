@@ -48,7 +48,7 @@ func (m *Model) moveKey(key tea.KeyPressMsg) tea.KeyPressMsg {
 const pasteCode rune = -1
 
 // pasteKey is a paste as the key it travels as through the key handlers of the screens. It is named after the
-// pasted text in brackets, so no key binding matches it, and inputMsg hands it to a text field as a paste.
+// pasted text in brackets, so no key binding matches it, and a text field takes it as a paste.
 func pasteKey(content string) tea.KeyPressMsg {
 	return tea.KeyPressMsg{Code: pasteCode, Text: "[" + content + "]"}
 }
@@ -61,19 +61,28 @@ func pasted(key tea.KeyPressMsg) (string, bool) {
 	return key.Text[1 : len(key.Text)-1], true
 }
 
-// inputMsg is what a text field is handed for key: a paste key as the paste it stands for, and alt with a
-// character the field binds nothing to as that character, which a field has always typed.
-func inputMsg(key tea.KeyPressMsg) tea.Msg {
+// typedKey is key as a filter of the kit reads it: a paste key as the text it stands for, and alt with a
+// character a text line binds nothing to as that character, which a text field has always typed.
+func typedKey(key tea.KeyPressMsg) tea.KeyPressMsg {
 	if content, ok := pasted(key); ok {
-		return tea.PasteMsg{Content: content}
+		return textKey(content)
 	}
-	if key.Text != "" || key.Mod&^tea.ModShift != tea.ModAlt || !unicode.IsPrint(key.Code) || inputBinds(key) {
-		return key
+	if r, ok := altCharacter(key); ok {
+		return textKey(string(r))
+	}
+	return key
+}
+
+// altCharacter is the character of alt with a printable key that no text line binds, and false for any other
+// key.
+func altCharacter(key tea.KeyPressMsg) (rune, bool) {
+	if key.Text != "" || key.Mod&^tea.ModShift != tea.ModAlt || !unicode.IsPrint(key.Code) || altWordKey(key.Code) {
+		return 0, false
 	}
 	if key.Mod.Contains(tea.ModShift) {
-		return textKey(string(unicode.ToUpper(key.Code)))
+		return unicode.ToUpper(key.Code), true
 	}
-	return textKey(string(key.Code))
+	return key.Code, true
 }
 
 // legacyKey names a key as the terminal library always named it where its input reader now names it

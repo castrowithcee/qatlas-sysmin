@@ -3,7 +3,6 @@ package tui
 import (
 	"strings"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
@@ -23,25 +22,21 @@ type filterList struct {
 	text    func(name string) string
 	cursor  int
 	offset  int
-	input   textinput.Model
+	input   textLine
 	editing bool
 }
 
-func newFilterList(text func(string) string) filterList {
-	in := newTextInput()
-	in.Prompt = ""
-	return filterList{text: text, input: in}
-}
+func newFilterList(text func(string) string) filterList { return filterList{text: text} }
 
 // reset replaces the entries and forgets the filter, the selection and the scroll position.
 func (l *filterList) reset(names []string) {
 	l.stopFilter()
-	l.input.SetValue("")
+	l.input.set("")
 	l.all, l.matches, l.cursor, l.offset = names, nil, 0, 0
 	l.refilter()
 }
 
-func (l *filterList) query() string { return strings.TrimSpace(l.input.Value()) }
+func (l *filterList) query() string { return strings.TrimSpace(l.input.value()) }
 
 // refilter recomputes the shown entries. Matching ignores case, so a filter finds what it reads like.
 func (l *filterList) refilter() {
@@ -104,25 +99,19 @@ func (l *filterList) page(keys *kittui.Keymap, key tea.KeyPressMsg, start, end i
 
 func (l *filterList) startFilter() {
 	l.editing = true
-	l.input.CursorEnd()
-	l.input.Focus()
+	l.input.cursor = len(l.input.runes)
 }
 
 // stopFilter ends typing and keeps the filter.
-func (l *filterList) stopFilter() {
-	l.editing = false
-	l.input.Blur()
-}
+func (l *filterList) stopFilter() { l.editing = false }
 
 // updateFilter hands one key to the filter being typed and applies the result at once.
-func (l *filterList) updateFilter(key tea.KeyPressMsg) tea.Cmd {
-	before := l.input.Value()
-	var cmd tea.Cmd
-	l.input, cmd = l.input.Update(inputMsg(key))
-	if l.input.Value() != before {
+func (l *filterList) updateFilter(key tea.KeyPressMsg) {
+	before := l.input.value()
+	l.input.edit(key)
+	if l.input.value() != before {
 		l.refilter()
 	}
-	return cmd
 }
 
 // window is the part of the shown entries that fits into room lines, as the range [start, end). lines

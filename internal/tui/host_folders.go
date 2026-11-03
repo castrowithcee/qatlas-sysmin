@@ -34,7 +34,7 @@ type hostFolderMsg struct {
 func (m *Model) foldersReady() *hostFoldersState {
 	f := &m.hst.fold
 	if !f.ready {
-		f.in, f.ready = newPathInput(), true
+		f.in, f.ready = pathInput{}, true
 		f.in.open("", pathFile, "/")
 	}
 	return f
@@ -44,7 +44,7 @@ func (m *Model) foldersReady() *hostFoldersState {
 func (m *Model) enterFolders() tea.Cmd {
 	f := m.foldersReady()
 	f.editing = false
-	f.in.open(f.in.Value(), pathFile, "/")
+	f.in.open(f.in.value(), pathFile, "/")
 	return m.folderCmd(f.asked)
 }
 
@@ -93,14 +93,13 @@ func (m *Model) foldersKey(key tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case m.keyIs(key, actBack):
 		f.editing = false
-		in.Blur()
 	case m.keyIs(key, actNext):
 		in.complete()
 	case m.keyIs(key, actEnter):
 		if in.marked && in.complete() {
 			return nil
 		}
-		f.asked = strings.TrimSpace(in.Value())
+		f.asked = strings.TrimSpace(in.value())
 		f.folder, f.err = nil, ""
 		return m.folderCmd(f.asked)
 	case m.keyIs(key, actSuggestNext), m.keyIs(key, actDown):
@@ -110,8 +109,7 @@ func (m *Model) foldersKey(key tea.KeyPressMsg) tea.Cmd {
 	case m.keyIsTyped(key, actInfo):
 		m.openPopup(popInfo)
 	default:
-		cmd, _ := in.edit(key)
-		return cmd
+		in.edit(key)
 	}
 	return nil
 }
@@ -183,12 +181,8 @@ func (m *Model) hostFoldersBody() string {
 	width := m.usable(0)
 	prefix := m.tr(tHostPathLabel) + ": "
 	room := max(width-len([]rune(prefix))-1, 1)
-	in := f.in.Model
-	in.Placeholder = m.tr(tHostPathPlaceholder)
-	if !f.editing {
-		in.Blur()
-	}
-	lines := []string{m.ui.st(kittui.StyleTitle).Render(m.tr(tSubFolders)), "", prefix + inputView(fitInput(in, room))}
+	lines := []string{m.ui.st(kittui.StyleTitle).Render(m.tr(tSubFolders)), "",
+		prefix + f.in.line.view(m.ui, room, f.editing, m.tr(tHostPathPlaceholder))}
 	if f.editing {
 		suggestions, mark := f.in.shown()
 		for j, s := range suggestions {

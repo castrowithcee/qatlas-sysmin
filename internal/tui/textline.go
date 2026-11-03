@@ -6,9 +6,31 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
+
+// cursorMark is a zero-width escape sequence that a focused text line leaves in the cell where the terminal
+// cursor belongs. Every layer that places a line (prefixes, panels, dialogs, the dimmed backdrop) keeps or drops
+// it like any escape sequence, so the position found in the finished frame is the drawn one with no offset of
+// its own to keep in step.
+const cursorMark = "\x1b_qsysmin-cursor\x1b\\"
+
+// takeCursor removes the cursor marks from frame and returns the cell of the first one, or nil without a mark.
+func takeCursor(frame string) (string, *tea.Cursor) {
+	if !strings.Contains(frame, cursorMark) {
+		return frame, nil
+	}
+	var found *tea.Cursor
+	for y, line := range strings.Split(frame, "\n") {
+		if before, _, ok := strings.Cut(line, cursorMark); ok {
+			found = tea.NewCursor(ansi.StringWidth(before), y)
+			break
+		}
+	}
+	return strings.ReplaceAll(frame, cursorMark, ""), found
+}
 
 // textLine is a one-line text input of the editor where the kit offers none: the path line, the filter of a
 // pick list and the line of the key editor. It keeps the usual editing keys of a text field. Its view scrolls
@@ -114,15 +136,13 @@ func (t *textLine) edit(key tea.KeyPressMsg) bool {
 		t.cut(0, t.cursor)
 	case key.Text != "" && key.Mod&^tea.ModShift == 0:
 		t.insert(key.Text)
-	case key.Text == "" && key.Mod&^tea.ModShift == tea.ModAlt && unicode.IsPrint(key.Code):
+	default:
 		// A terminal that sends alt with a character the line binds nothing to has always typed it.
-		r := key.Code
-		if key.Mod.Contains(tea.ModShift) {
-			r = unicode.ToUpper(r)
+		r, ok := altCharacter(key)
+		if !ok {
+			return false
 		}
 		t.insert(string(r))
-	default:
-		return false
 	}
 	return true
 }
@@ -163,3 +183,6 @@ func (t *textLine) view(ui *uiContext, width int, focused bool, placeholder stri
 	}
 	return b.String()
 }
+
+// altWordKey reports whether alt with the character r moves or deletes a word in a text line.
+func altWordKey(r rune) bool { return r == 'b' || r == 'f' || r == 'd' }

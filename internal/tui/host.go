@@ -475,7 +475,6 @@ func (m *Model) hostKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		if m.keyIs(key, actEnter) || m.keyIs(key, actSearch) || m.keyIs(key, actFilter) {
 			f := m.foldersReady()
 			f.editing = true
-			f.in.Focus()
 			return nil, true
 		}
 		if m.keyIs(key, actEdit) {

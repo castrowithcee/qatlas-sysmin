@@ -481,12 +481,7 @@ func (m *Model) detailKey(p *dataPage, key tea.KeyPressMsg) bool {
 // filterKey handles a key while the filter is typed. It reaches the filter as it reaches every text field: a
 // paste as its text, and alt with a character as that character.
 func (m *Model) filterKey(p *dataPage, key tea.KeyPressMsg) tea.Cmd {
-	switch msg := inputMsg(key).(type) {
-	case tea.PasteMsg:
-		key = textKey(msg.Content)
-	case tea.KeyPressMsg:
-		key = msg
-	}
+	key = typedKey(key)
 	return m.movedBy(p, func() { p.list.Update(key) })
 }
 

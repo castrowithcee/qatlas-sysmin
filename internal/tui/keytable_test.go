@@ -52,7 +52,7 @@ func TestCtrlDDeletesTheCharacterRightOfTheCursor(t *testing.T) {
 		send(m, "left")
 	}
 	m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
-	if got := m.hst.fold.in.Value(); got != "/srv/demo-pp" {
+	if got := m.hst.fold.in.value(); got != "/srv/demo-pp" {
 		t.Errorf("value = %q, want the character right of the cursor gone", got)
 	}
 }
