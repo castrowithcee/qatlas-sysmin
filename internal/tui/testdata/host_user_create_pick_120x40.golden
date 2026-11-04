@@ -12,18 +12,18 @@ Users (3)                                                         1/3 ╭─ dem
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
                                                                       │ Groups             demo-admin, sudo, docker,   │
                                                                       │                    qsysmin                     │
-                            ╔══════════════════════════════════════════════════════════════╗home/demo-admin            │
-                            ║ Further groups                                               ║nknown                     │
-                            ║                                                              ║                           │
-                            ║   / Type to search                                           ║ the fields only root can  │
-                            ║   > [x] demo-team                                            ║                           │
-                            ║     1/1                                                      ║───────────────────────────╯
+                                                                      │ Home               /home/demo-admin            │
+                                                                      │ Locked             unknown                     │
+                            ╔═ Further groups ═════════════════════════════════════════════╗                           │
+                            ║ Type to search                                               ║ the fields only root can  │
+                            ║       FURTHER GROUPS                                         ║                           │
+                            ║ > [x] demo-team                                              ║───────────────────────────╯
                             ║                                                              ║                            
-                            ║ > Keep <  [ Discard ]                                        ║                            
                             ║                                                              ║                            
-                            ║ ↑/↓ move · space tick · enter keep · esc discard             ║                            
+                            ║ [ enter keep ]  [ esc discard ]                              ║                            
+                            ║                                                              ║                            
+                            ║                                                 ↑ up  ↓ down ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

@@ -4,17 +4,17 @@ qsysmin                                                        [?] help  [:] cmd
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    3/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║     NA╔══════════════════════════════════════════════════════════════╗SYSTEM ║
-║   ▾ ■ ║ Add to groups                                                ║       ║
-║     de║                                                              ║       ║
-║     de║   / Type to search                                           ║       ║
-║   ▾ ■ ║     [ ] demo-sys  system                                     ║       ║
-║ >   sv║   > [x] demo-team                                            ║system ║
-╚═══════║     2/2                                                      ║═══════╝
+║     NAME        ADMIN              DOCKER  GROUPS                     SYSTEM ║
+║   ▾ ■ Users (2)                                                              ║
+║     de╔═ Add to groups ══════════════════════════════════════════════╗       ║
+║     de║ Type to search                                               ║       ║
+║   ▾ ■ ║       ADD TO GROUPS  NOTE                                    ║       ║
+║ >   sv║   [ ] demo-sys       system                                  ║system ║
+╚═══════║ > [x] demo-team                                              ║═══════╝
         ║                                                              ║        
-        ║ > Keep <  [ Discard ]                                        ║        
+        ║ [ enter keep ]  [ esc discard ]                              ║        
         ║                                                              ║        
-        ║ ↑/↓ move · space tick · enter keep · esc discard             ║        
+        ║                                                 ↑ up  ↓ down ║        
         ╚══════════════════════════════════════════════════════════════╝        
                                                                                 
                                                                                 

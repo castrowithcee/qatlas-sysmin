@@ -12,17 +12,17 @@ Users (3)                                                         3/3 ╭─ svc
 ║ >   svc-demo    no                 no      svc-demo        system ║ │ Enabled (qsysmin)  no                          │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Groups             svc-demo                    │
                                                                       │ Home               /var/lib/svc-demo           │
-                            ╔══════════════════════════════════════════════════════════════╗nknown                     │
-                            ║ Add to groups                                                ║                           │
-                            ║                                                              ║ the fields only root can  │
-                            ║   / Type to search                                           ║                           │
-                            ║     [ ] demo-sys  system                                     ║───────────────────────────╯
-                            ║   > [x] demo-team                                            ║                            
-                            ║     2/2                                                      ║                            
+                                                                      │ Locked             unknown                     │
+                                                                      │                                                │
+                            ╔═ Add to groups ══════════════════════════════════════════════╗ the fields only root can  │
+                            ║ Type to search                                               ║                           │
+                            ║       ADD TO GROUPS  NOTE                                    ║───────────────────────────╯
+                            ║   [ ] demo-sys       system                                  ║                            
+                            ║ > [x] demo-team                                              ║                            
                             ║                                                              ║                            
-                            ║ > Keep <  [ Discard ]                                        ║                            
+                            ║ [ enter keep ]  [ esc discard ]                              ║                            
                             ║                                                              ║                            
-                            ║ ↑/↓ move · space tick · enter keep · esc discard             ║                            
+                            ║                                                 ↑ up  ↓ down ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
                                                                                                                         
                                                                                                                         

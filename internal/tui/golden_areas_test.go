@@ -420,3 +420,12 @@ func goldenHostChange(t *testing.T, w, h int) (*Model, *fakeSudo) {
 	send(m, "2")
 	return m, f
 }
+
+// The pick list where the terminal has no room for its modal fills the workspace.
+func TestGoldenPickInTheWorkspace(t *testing.T) {
+	m, _ := goldenHostUsers(t, 40, 14)
+	send(m, "n", "tab", "tab", "tab", "tab", "tab", "tab", "enter", "space")
+	got := m.render()
+	assertViewFits(t, plain(m), 40, 14)
+	assertGolden(t, "host_user_create_pick_40x14", got)
+}

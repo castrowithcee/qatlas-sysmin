@@ -102,9 +102,9 @@ func TestPickListTicksWithAClick(t *testing.T) {
 	for _, w := range []struct{ w, h int }{{120, 40}, {80, 24}} {
 		m := pickModel(t, w.w, w.h)
 		send(m, "enter")
-		clickOn(t, m, "demo-team")
-		clickOn(t, m, "demo-team")
-		clickOn(t, m, "demo-team")
+		clickOn(t, m, "[ ] demo-team")
+		clickOn(t, m, "[x] demo-team")
+		clickOn(t, m, "[ ] demo-team")
 		if got := listLines(m); len(got) != 2 || got[1] != "[x] demo-team" {
 			t.Errorf("list %q at %dx%d", got, w.w, w.h)
 		}
@@ -113,6 +113,12 @@ func TestPickListTicksWithAClick(t *testing.T) {
 			t.Errorf("picked %q", got)
 		}
 	}
+}
+
+// pickMarked is the ID of the row the open pick list has marked.
+func pickMarked(m *Model) string {
+	id, _ := m.form.pick.list.Selected()
+	return string(id)
 }
 
 func TestPickListWheelMovesTheCursorAndStopsAtTheEnds(t *testing.T) {
@@ -124,13 +130,13 @@ func TestPickListWheelMovesTheCursorAndStopsAtTheEnds(t *testing.T) {
 		*now = now.Add(time.Second)
 		wheel(m, x, y, tea.MouseWheelDown)
 	}
-	if m.form.pick.list.cursor != 1 {
-		t.Errorf("cursor %d after wheeling down past the end", m.form.pick.list.cursor)
+	if got := pickMarked(m); got != "1" {
+		t.Errorf("row %s marked after wheeling down past the end", got)
 	}
 	*now = now.Add(time.Second)
 	wheel(m, x, y, tea.MouseWheelUp)
-	if m.form.pick.list.cursor != 0 {
-		t.Errorf("cursor %d after wheeling up", m.form.pick.list.cursor)
+	if got := pickMarked(m); got != "0" {
+		t.Errorf("row %s marked after wheeling up", got)
 	}
 }
 
@@ -149,8 +155,7 @@ func TestPickSummaryNamesTwoAndCountsTheRest(t *testing.T) {
 func TestPickListShowsTheChosenAtTheTop(t *testing.T) {
 	m := pickModel(t, 120, 40, "demo-a", "demo-b")
 	send(m, "enter")
-	m.form.pick.list.cursor = 3
-	send(m, "space", "enter", "enter")
+	send(m, "down", "down", "down", "space", "enter", "enter")
 	if got := listLines(m); len(got) != 4 || got[0] != "[x] demo-team" || got[1] != "[ ] demo-a" {
 		t.Errorf("ticked value is not first: %q", got)
 	}
@@ -195,5 +200,85 @@ func TestListFieldIgnoresArrowsAndSpaceInTheForm(t *testing.T) {
 	send(m, "right", "left", "space")
 	if called || len(m.form.picked(fieldGroups)) != 0 || m.form.pick != nil || formFocus(m) != fieldGroups {
 		t.Errorf("called %v, picked %q, focus %s", called, m.form.picked(fieldGroups), formFocus(m))
+	}
+}
+
+// The list opens as the kit's modal with the field's label as title, an empty search and a tick box per value.
+func TestPickListOpensWithSearchAndTickBoxes(t *testing.T) {
+	m := pickModel(t, 120, 40)
+	send(m, "enter")
+	view := plain(m)
+	if !strings.Contains(view, "═ Further groups") || !strings.Contains(view, "Type to search") {
+		t.Errorf("no titled modal with a search:\n%s", view)
+	}
+	if got := listLines(m); len(got) != 2 || got[0] != "[ ] demo-ops" || got[1] != "[ ] demo-team" {
+		t.Errorf("list %q", got)
+	}
+}
+
+// A tick box takes a click as space takes the key, and neither clicks nor keys put text into the search.
+func TestPickClickTicksAsTheKeyDoesAndTypesNothing(t *testing.T) {
+	byKey := pickModel(t, 120, 40)
+	send(byKey, "enter", "down", "space")
+	byClick := pickModel(t, 120, 40)
+	send(byClick, "enter")
+	clickOn(t, byClick, "[ ] demo-team")
+	if a, b := strings.Join(listLines(byKey), "|"), strings.Join(listLines(byClick), "|"); a != b {
+		t.Errorf("key %q, click %q", a, b)
+	}
+	clickOn(t, byClick, "demo-ops")
+	clickOn(t, byClick, "Type to search")
+	if q := byClick.form.pick.list.Query(); q != "" {
+		t.Errorf("a click typed %q into the search", q)
+	}
+	if got := listLines(byClick); len(got) != 2 || got[0] != "[ ] demo-ops" || got[1] != "[x] demo-team" {
+		t.Errorf("a click on a row changed ticks: %q", got)
+	}
+	if id := pickMarked(byClick); id != "0" {
+		t.Errorf("a click on the row marked %q", id)
+	}
+}
+
+// The buttons act as enter and esc do, also with a filter typed, which esc does not clear first.
+func TestPickButtonsKeepAndDiscard(t *testing.T) {
+	m := pickModel(t, 120, 40)
+	send(m, "enter")
+	typed(m, "ops")
+	send(m, "space")
+	clickOn(t, m, "esc discard")
+	if m.form.pick != nil || len(m.form.picked(fieldGroups)) != 0 {
+		t.Errorf("discard kept %q", m.form.picked(fieldGroups))
+	}
+	send(m, "enter")
+	typed(m, "ops")
+	send(m, "space")
+	clickOn(t, m, "enter keep")
+	if got := m.form.picked(fieldGroups); m.form.pick != nil || len(got) != 1 || got[0] != "demo-ops" {
+		t.Errorf("keep took %q", got)
+	}
+	send(m, "enter", "esc")
+	if m.form == nil || m.form.pick != nil || len(m.form.picked(fieldGroups)) != 1 {
+		t.Error("esc did not restore the earlier choice")
+	}
+}
+
+// Where the modal has no room the list fills the workspace and keeps keys, wheel, boxes and buttons.
+func TestPickListInTheWorkspaceWhereTheModalDoesNotFit(t *testing.T) {
+	m := pickModel(t, 40, 14)
+	send(m, "enter")
+	if view := plain(m); strings.Contains(view, "╔═ Further groups") || m.form.pick == nil {
+		t.Fatalf("not the workspace fallback:\n%s", view)
+	}
+	clickOn(t, m, "[ ] demo-team")
+	if got := listLines(m); len(got) != 2 || got[1] != "[x] demo-team" {
+		t.Errorf("list %q", got)
+	}
+	typed(m, "ops")
+	if q := m.form.pick.list.Query(); q != "ops" {
+		t.Errorf("query %q", q)
+	}
+	clickOn(t, m, "esc discard")
+	if m.form.pick != nil || len(m.form.picked(fieldGroups)) != 0 {
+		t.Errorf("a click on discard kept %q", m.form.picked(fieldGroups))
 	}
 }

@@ -32,8 +32,8 @@ func takeCursor(frame string) (string, *tea.Cursor) {
 	return strings.ReplaceAll(frame, cursorMark, ""), found
 }
 
-// textLine is a one-line text input of the editor where the kit offers none: the path line, the filter of a
-// pick list and the line of the key editor. It keeps the usual editing keys of a text field. Its view scrolls
+// textLine is a one-line text input of the editor where the kit offers none: the path line and the line of the
+// key editor. It keeps the usual editing keys of a text field. Its view scrolls
 // sideways so the cursor stays in view; the text itself is never cut. Only printable characters enter it.
 type textLine struct {
 	runes  []rune

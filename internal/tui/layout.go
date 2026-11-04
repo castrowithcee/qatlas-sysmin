@@ -60,8 +60,8 @@ func (m *Model) frameSpec(workspace string) kittui.FrameSpec {
 	return spec
 }
 
-// frameInput is the input focus the frame names keys for: that of a form, and in a pick list, which types its
-// filter, navigation, so the keys of its key line are named.
+// frameInput is the input focus the frame names keys for: that of a form, of a pick list, which types its filter,
+// and of the key editor.
 func (m *Model) frameInput() kittui.InputFocus {
 	if m.generalFocused() {
 		return m.set.gen.Input()
@@ -69,7 +69,7 @@ func (m *Model) frameInput() kittui.InputFocus {
 	if f := m.form; m.screen == screenPrompt && f != nil {
 		switch {
 		case f.pick != nil:
-			return kittui.InputNavigation
+			return f.pick.list.Input()
 		case f.keyEd != nil:
 			return kittui.InputText
 		}

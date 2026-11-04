@@ -205,25 +205,6 @@ func (f *formDlg) wipe() {
 	}
 }
 
-// hitPickWheel makes the cells of the open pick list take the wheel.
-func (m *Model) hitPickWheel(x0, y0, x1, y1 int) {
-	f := m.form
-	if m.screen != screenPrompt || f == nil || f.pick == nil {
-		return
-	}
-	m.addWheel(x0, y0, x1, y1, kittui.ZoneForm, func(up bool) tea.Cmd {
-		f.pick.wheel(up)
-		return nil
-	})
-}
-
-// hitPick makes the rows of the open pick list clickable.
-func (m *Model) hitPick(lines []string, y0, x0, x1 int) {
-	if m.screen == screenPrompt && m.form != nil && m.form.pick != nil {
-		m.hitPickLines(lines, y0, x0, x1)
-	}
-}
-
 // openForm builds f and shows it over the screen with its first field focused. A form the kit refuses, which
 // only data of the host can cause, is not shown and its reason is.
 func (m *Model) openForm(f *formDlg) {
@@ -346,15 +327,7 @@ func (m *Model) formHints(f *formDlg) []kittui.Hint {
 	return keyLine(keys, answer(f.save, actSave), answer(tHintCancel, actBack))
 }
 
-// formDialog is the editor open over the form as the dialog the modal draws.
-func (m *Model) formDialog() promptDialog {
-	if m.form.pick != nil {
-		return m.pickDialog(m.form)
-	}
-	return m.keyEditDialog(m.form)
-}
-
-// editorOpen reports whether an editor stands over the form, which then is drawn as a dialog of its own.
+// editorOpen reports whether an editor stands over the form, which then is drawn on its own.
 func (f *formDlg) editorOpen() bool { return f.pick != nil || f.keyEd != nil }
 
 // head is the title and the lead of the kit form.
