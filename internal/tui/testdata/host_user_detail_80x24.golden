@@ -19,6 +19,6 @@ Users › demo-user
 ║                                                                              ║
 ║                                                                              ║
 ║                                                                              ║
-║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-esc back  ctrl+r read as root  i info  c copy  ? help  : cmds  q quit        2/3
+esc back  ctrl+r read as root  i info  c copy  ? help  : cmds  q quit           
+                                                        ←/→ tab  ↑/↓ scroll  2/3

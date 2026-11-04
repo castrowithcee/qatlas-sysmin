@@ -123,15 +123,27 @@ func TestSaveInTheLeaveQuestionChecksTheForm(t *testing.T) {
 	}
 }
 
+// showField moves the focus on with tab until the field is in view: a form scrolls where the height runs short.
+func showField(m *Model, label string) {
+	for range 10 {
+		if strings.Contains(plain(m), label) {
+			return
+		}
+		send(m, "tab")
+	}
+}
+
 // A click on a field focuses it and types nothing; a click on a choice opens its values.
 func TestAClickOnAFieldOfAFormFocusesIt(t *testing.T) {
 	for _, size := range [][2]int{{120, 40}, {80, 24}} {
 		m, _, _, _ := userModel(t, size[0], size[1])
 		send(m, "n")
+		showField(m, "Repeat password")
 		clickOn(t, m, "Repeat password")
 		if formFocus(m) != fieldAgain || m.form.raw(fieldAgain) != "" {
 			t.Errorf("%v: focus %s after a click on the password field", size, formFocus(m))
 		}
+		showField(m, "Docker")
 		clickOn(t, m, "Docker")
 		if formFocus(m) != fieldDocker || !m.form.kit.Open() {
 			t.Errorf("%v: focus %s, open %v after a click on a choice", size, formFocus(m), m.form.kit.Open())

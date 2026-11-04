@@ -344,16 +344,33 @@ func (m *Model) renderFrame() string {
 	return view
 }
 
-// drawFrame draws the frame of the screen shown and collects its targets.
+// drawFrame draws the frame of the screen shown and collects its targets. The keys of a screen decide whether
+// the footer wraps onto a second row, and the screen learns them only while it draws into a workspace laid out
+// for the footer before; where they take another number of rows, it is drawn again for the right one.
 func (m *Model) drawFrame() string {
 	m.screenKeys, m.screenPos = nil, ""
 	m.layoutWorkspace()
+	laidOut := m.footerRows()
+	view := m.drawScreen()
+	if m.tooSmall || m.footerRows() == laidOut {
+		return view
+	}
+	m.mt = mouseTargets{}
+	m.layoutWorkspace()
+	return m.drawScreen()
+}
+
+// drawScreen draws the screen into the workspace as it is laid out.
+func (m *Model) drawScreen() string {
 	if m.terminalTooSmall() {
 		m.tooSmall = true
 		return m.resizeView()
 	}
 	if m.screen == screenPopup && m.pop != nil {
 		return m.popupFrame()
+	}
+	if view, ok := m.filterModalFrame(); ok {
+		return view
 	}
 	if view, ok := m.modalView(); ok {
 		return view

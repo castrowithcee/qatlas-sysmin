@@ -1,24 +1,24 @@
 qsysmin                                                        [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings                                
-  [Users╔══════════════════════════════════════════════════════════════╗        
-────────║ New user                                                     ║────────
-Users (3║                                                              ║     1/3
-╔═══════║   Kind            Person                                   ▾ ║═══════╗
-║     NA║   Name            demo-new                                   ║SYSTEM ║
-║   ▾ ■ ║   Password        (entered, hidden)                          ║       ║
-║ >   de║   Repeat password (entered, hidden)                          ║       ║
-║     de║   Admin           yes                                      ▾ ║       ║
-║   ▸ ■ ║   Docker          no                                       ▾ ║       ║
-╚═══════║ > Further groups  demo-team                                  ║═══════╝
-        ║   SSH keys        none                                       ║        
+   1 Ove╔══════════════════════════════════════════════════════════════╗        
+  [Users║ New user                                                     ║        
+────────║                                                              ║────────
+Users (3║   …                                                          ║     1/3
+╔═══════║                   ╭────────────────────────────────────────╮ ║═══════╗
+║     NA║   Docker          │ no                                   ▾ │ ║SYSTEM ║
+║   ▾ ■ ║                   ╰────────────────────────────────────────╯ ║       ║
+║ >   de║                   ╔════════════════════════════════════════╗ ║       ║
+║     de║ > Further groups  ║ demo-team                              ║ ║       ║
+║   ▸ ■ ║                   ╚════════════════════════════════════════╝ ║       ║
+╚═══════║                   ╭────────────────────────────────────────╮ ║═══════╝
+        ║   SSH keys        │ none                                   │ ║        
+        ║                   ╰────────────────────────────────────────╯ ║        
         ║     The user must change the initial password at the first   ║        
         ║     login.                                                   ║        
         ║                                                              ║        
         ║ [ Save ]  [ Cancel ]                                         ║        
         ║                                                              ║        
-        ║ enter edit · tab next zone or field                          ║        
-        ║ shift+tab previous zone or field · F2 save · esc cancel      ║        
+        ║ enter edit · tab next field · shift+tab previous field       ║        
+        ║ F2 save · esc cancel                                         ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
 ? help                                                                          

@@ -18,10 +18,10 @@ func wrap(i, n int) int {
 
 func headerOf(m *Model) string { return strings.Split(plain(m), "\n")[0] }
 
-// footerOf is the last row of the frame.
+// footerOf is the footer of the frame: its last row, or its last two where the keys wrap.
 func footerOf(m *Model) string {
 	rows := strings.Split(plain(m), "\n")
-	return rows[len(rows)-1]
+	return strings.Join(rows[len(rows)-m.footerRows():], "\n")
 }
 
 func TestTheInterfaceStartsOnTheOverviewWithTheTabLineFocused(t *testing.T) {

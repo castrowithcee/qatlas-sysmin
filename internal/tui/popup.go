@@ -206,6 +206,7 @@ func (m *Model) popupFrame() string {
 	room := m.ui.newFrame().Workspace(m.frameSpec(""))
 	if p.cmd != nil {
 		m.keyHint(paletteKeys())
+		room = m.ui.newFrame().Workspace(m.frameSpec(""))
 		view, targets := p.cmd.View(m.ui.styles, room.Width, room.Height)
 		frame := m.frame(view)
 		m.addTargets(kittui.OffsetTargets(targets, room.X, room.Y))
@@ -226,6 +227,8 @@ func (m *Model) popupFrame() string {
 		return view
 	}
 	m.keyHint(part.Hints())
+	// The keys decide whether the footer wraps, so the room is asked again with them in place.
+	room = m.ui.newFrame().Workspace(m.frameSpec(""))
 	view, targets := part.View(m.ui.styles, room.Width, room.Height)
 	frame := m.frame(view)
 	m.addTargets(kittui.OffsetTargets(targets, room.X, room.Y))

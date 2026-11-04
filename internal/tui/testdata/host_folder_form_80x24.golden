@@ -1,24 +1,24 @@
 qsysmin                                                        [?] help  [:] cmd
-   1 Overview  [2 Host]  3 Activity   4 Settings                                
-   Users   Groups  [Folders]  Changes                                           
-────────────────────────────────────────────────────────────────────────────────
-Folders ╔══════════════════════════════════════════════════════════════╗        
-        ║ Change /srv/demo-app                                         ║        
-Path: /s║                                                              ║        
-        ║ > Owner               root                                 ▾ ║        
-Type    ║   Group               qsysmin                              ▾ ║        
-Owner ro║   Owner may           read and write                       ▾ ║        
-Group qs║   Group may           read                                 ▾ ║        
-Others  ║   Others may          nothing                              ▾ ║        
-Mode    ║   Everything below it no                                   ▾ ║        
-ACL     ║                                                              ║ow      
-Special ║ [ Save ]  [ Cancel ]                                         ║        
+   1 Ove╔══════════════════════════════════════════════════════════════╗        
+   Users║ Change /srv/demo-app                                         ║        
+────────║                                                              ║────────
+Folders ║                       ╔════════════════════════════════════╗ ║        
+        ║ > Owner               ║ root                             ▾ ║ ║        
+Path: /s║                       ╚════════════════════════════════════╝ ║        
+        ║                       ╭────────────────────────────────────╮ ║        
+Type    ║   Group               │ qsysmin                          ▾ │ ║        
+Owner ro║                       ╰────────────────────────────────────╯ ║        
+Group qs║                       ╭────────────────────────────────────╮ ║        
+Others  ║   Owner may           │ read and write                   ▾ │ ║        
+Mode    ║                       ╰────────────────────────────────────╯ ║        
+ACL     ║                       ╭────────────────────────────────────╮ ║ow      
+Special ║   Group may           │ read                             ▾ │ ║        
+        ║                       ╰────────────────────────────────────╯ ║        
+        ║   …                                                          ║        
         ║                                                              ║        
-        ║ enter choose · tab next zone or field                        ║        
-        ║ shift+tab previous zone or field · F2 save · esc cancel      ║        
+        ║ [ Save ]  [ Cancel ]                                         ║        
+        ║                                                              ║        
+        ║ enter choose · tab next field · shift+tab previous field     ║        
+        ║ F2 save · esc cancel                                         ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
-                                                                                
-                                                                                
-                                                                                
 ? help                                                                          

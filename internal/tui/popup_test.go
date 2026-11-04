@@ -181,8 +181,7 @@ func TestFooterNamesTheKeysOfTheScreenAndKeepsHelpVisible(t *testing.T) {
 		for _, page := range []string{"1", "2", "4"} {
 			m := appModel(t, overviewFake(), size[0], size[1])
 			send(m, page)
-			rows := strings.Split(plain(m), "\n")
-			foot := rows[len(rows)-1]
+			foot := footerOf(m)
 			if !strings.Contains(foot, "? help") {
 				t.Errorf("%dx%d area %s: footer %q hides the help key", size[0], size[1], page, foot)
 			}

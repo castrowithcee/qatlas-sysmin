@@ -20,5 +20,5 @@ Log (12)                                                                    1/12
 ║   2026-10-28 11:50:00  Config read     success     73 ms  1000  ✓            ║
 ║   2026-10-28 11:49:00  Host change     success     80 ms  1000  ✓            ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
-                                                                                
-enter details  f filter  t verify  esc back  ? help  : cmds  q quit             
+enter details  f filter  t verify  ctrl+r reload  / search  esc back  i info    
+c copy  ? help  : cmds  q quit                                    ↑/↓ move  1/12

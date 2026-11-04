@@ -126,8 +126,9 @@ func (m *Model) frameMessage() *kittui.Message {
 func (m *Model) frameTargets(targets []kittui.Target) {
 	m.footerTargets = nil
 	zoned := map[int]bool{}
+	footerTop := m.termHeight - m.footerRows()
 	for _, t := range targets {
-		if t.Action != "" && t.Rect.Y == m.termHeight-1 {
+		if t.Action != "" && t.Rect.Y >= footerTop {
 			m.footerTargets = append(m.footerTargets, t)
 			continue
 		}
@@ -137,6 +138,15 @@ func (m *Model) frameTargets(targets []kittui.Target) {
 			m.addZone(0, y, m.termWidth, y+t.Rect.Height, t.Zone)
 		}
 	}
+}
+
+// footerRows is the number of rows the footer takes: one, or two where its keys do not fit one. The frame
+// gives the rest of the screen to the workspace, so the footer is what stands under it.
+func (m *Model) footerRows() int {
+	spec := m.frameSpec("")
+	spec.Message = nil
+	room := m.ui.newFrame().Workspace(spec)
+	return max(m.termHeight-room.Y-room.Height, 1)
 }
 
 // footerHits adds the keys of the footer, where the footer holds the answers of a dialog.

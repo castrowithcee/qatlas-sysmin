@@ -67,6 +67,8 @@ func choose(t *testing.T, m *Model, steps int) {
 
 func TestSettingsOpensOnGeneralWithTheThreePages(t *testing.T) {
 	m, _ := settingsModel(t, newFake(), "general")
+	// The framed fields scroll where the height is short, so the nine fields need a tall screen.
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
 	view := plain(m)
 	for _, want := range []string{"[General]", "Update", "Language", "Theme", "Icons", "Start view", "Mouse", "Save key"} {
 		if !strings.Contains(view, want) {
@@ -345,4 +347,27 @@ func TestSettingsPagesFitEverySizeInBothLanguages(t *testing.T) {
 			assertViewFits(t, plain(m), size[0], size[1])
 		}
 	})
+}
+
+// Tab runs round the fields of General and never leaves the form; esc leads one level back, to the page strip.
+func TestGeneralTabWrapsAroundAndEscLeadsBack(t *testing.T) {
+	m, _ := settingsModel(t, newFake(), "general")
+	order := generalOrder()
+	for range len(order) {
+		send(m, "tab")
+		if m.zoneNow() != zoneContent {
+			t.Fatalf("tab left the form for %v", m.zoneNow())
+		}
+	}
+	if genFocus(m) != 0 {
+		t.Errorf("tab round the form ends on field %d, want the first", genFocus(m))
+	}
+	send(m, "shift+tab")
+	if m.zoneNow() != zoneContent || genFocus(m) != len(order)-1 {
+		t.Errorf("shift+tab on the first field reaches field %d in %v, want the last", genFocus(m), m.zoneNow())
+	}
+	send(m, "esc")
+	if m.zoneNow() != zoneSubs {
+		t.Errorf("esc from the form reaches %v, want the page strip", m.zoneNow())
+	}
 }

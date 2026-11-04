@@ -84,6 +84,12 @@ func (m *Model) barOpen() bool {
 	return m.zoneNow() == zoneFilters && m.act.bar != nil && m.act.bar.Open()
 }
 
+// barModal reports whether the modal of the filter bar is open, which the bar shows in place of its fields in a
+// narrow terminal.
+func (m *Model) barModal() bool {
+	return m.barOpen() && len(m.act.bar.Hints()) > 0
+}
+
 // filtersAvailable reports whether the screen shows the filter bar.
 func (m *Model) filtersAvailable() bool { return m.area == areaActivity && m.act.sub == actLog }
 
@@ -111,7 +117,7 @@ func (m *Model) filterBarKey(key tea.KeyPressMsg) tea.Cmd {
 	}
 	changed, handled := b.Update(key)
 	switch {
-	case changed.ID != "":
+	case len(changed) > 0:
 		return m.applyLogBar()
 	case handled:
 	case m.keyIs(key, actNext):
@@ -142,7 +148,7 @@ func (m *Model) clickFilterBar(t kittui.Target) tea.Cmd {
 	}
 	m.zone = zoneFilters
 	changed, _ := m.logBar().Click(kittui.MouseResult{Handled: true, Zone: t.Zone, Action: t.Action, Item: t.Item})
-	if changed.ID != "" {
+	if len(changed) > 0 {
 		return m.applyLogBar()
 	}
 	return nil
@@ -166,11 +172,10 @@ func (m *Model) withFilterBar(above []string, top int, body func(top int) string
 	m.addFilterTargets(targets, 0, y)
 	mark := len(m.mt.targets)
 	lines := append(append(above, bar), strings.Split(body(y+1), "\n")...)
-	if b.Open() {
+	if box, boxTargets := b.ValueList(m.ui.styles); box != "" {
 		m.mt.targets = m.mt.targets[:mark]
 		delete(m.mt.wheels, zoneContent)
 		delete(m.mt.wheels, zoneDetail)
-		box, boxTargets := b.ValueList(m.ui.styles)
 		row := len(above) + 1
 		for i, line := range strings.Split(box, "\n") {
 			for row+i >= len(lines) {
@@ -196,11 +201,44 @@ func (m *Model) addFilterTargets(targets []kittui.Target, x0, y0 int) {
 	}
 }
 
-// filterBarHints is the key line while the filter bar has the focus.
+// filterBarHints is the key line while the filter bar has the focus. While its modal is open, the keys are
+// the kit's.
 func (m *Model) filterBarHints() []kittui.Hint {
+	if m.barModal() {
+		return m.act.bar.Hints()
+	}
 	if m.barOpen() {
 		return keyLine(navHint(tHintMove, actUp, actDown), hint(tHintChoose, actEnter), hint(tHintClose, actBack))
 	}
 	return keyLine(barHint(tHintChoose, actLeft, actRight), hint(tHintOpen, actEnter), navHint(tHintNext, actNext),
 		hint(tHintBack, actBack))
+}
+
+// filterModalFrame draws the modal of the filter bar over the dimmed screen, or, where the screen has no room
+// for it, in the workspace with its keys in the footer, whose keys then act on it. Only the modal takes clicks.
+func (m *Model) filterModalFrame() (string, bool) {
+	if !m.barModal() || m.screen != screenArea {
+		return "", false
+	}
+	b := m.act.bar
+	room := m.ui.newFrame().Workspace(m.frameSpec(""))
+	var background string
+	m.renderAs(m.baseScreen(), 0, func() {
+		m.backdrop = true
+		defer func() { m.backdrop = false }()
+		background = m.frame(m.workspaceView())
+	})
+	if view, targets, ok := b.ModalOverlay(m.ui.styles, background, m.termWidth, m.termHeight, room); ok {
+		m.addFilterTargets(targets, 0, 0)
+		return view, true
+	}
+	m.keyHint(b.Hints())
+	room = m.ui.newFrame().Workspace(m.frameSpec(""))
+	view, targets := b.ModalView(m.ui.styles, room.Width, room.Height)
+	mark := len(m.mt.targets)
+	frame := m.frame(view)
+	m.mt.targets = m.mt.targets[:mark]
+	m.addFilterTargets(targets, room.X, room.Y)
+	m.footerHits()
+	return frame, true
 }
