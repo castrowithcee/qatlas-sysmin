@@ -93,8 +93,8 @@ func TestColourlessTerminalKeepsTheMarks(t *testing.T) {
 		if ui.palette() != (kittui.Palette{}) || ui.styles.Paints() {
 			t.Errorf("profile %d: the theme still names colours", profile)
 		}
-		if h, _, _ := frameChars(ui, true); h != "═" || ui.styles.SelectionMark() != ">" {
-			t.Errorf("profile %d: focus frame %q, selection mark %q", profile, h, ui.styles.SelectionMark())
+		if ui.styles.SelectionMark() != ">" {
+			t.Errorf("profile %d: selection mark %q", profile, ui.styles.SelectionMark())
 		}
 	}
 }

@@ -227,8 +227,7 @@ func TestTheWheelRestsWhileAFilterIsTypedAndBehindAQuestion(t *testing.T) {
 		t.Errorf("the wheel moved the table while filtering: %d", logRow(m))
 	}
 	send(m, "esc")
-	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
+	askSure(t, m)
 	notch(m, now, x, y, false)
 	if logRow(m) != 0 {
 		t.Errorf("the wheel moved the table behind a question: %d", logRow(m))

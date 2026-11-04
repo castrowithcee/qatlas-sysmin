@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/castrowithcee/qatlas-kit/i18n"
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/castrowithcee/qatlas-sysmin/internal/client"
 	"github.com/castrowithcee/qatlas-sysmin/internal/control"
 )
@@ -440,11 +441,10 @@ func TestOverviewHeaderDateFollowsTheLanguage(t *testing.T) {
 
 func TestOverviewDistinguishesStatesWithoutColour(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
-	view := plain(overviewModel(t, overviewFake(), 80, 24))
-	for _, mark := range []string{warnMark} {
-		if !strings.Contains(view, mark) {
-			t.Errorf("the mark %q is missing:\n%s", mark, view)
-		}
+	m := overviewModel(t, overviewFake(), 80, 24)
+	view := plain(m)
+	if mark := m.ui.styles.Glyph(kittui.GlyphWarning); !strings.Contains(view, mark) {
+		t.Errorf("the mark %q is missing:\n%s", mark, view)
 	}
 	if !strings.Contains(plain(calmModel(t, calmFake(), 80, 24)), "○") {
 		t.Error("the mark of a step without action is missing")
@@ -475,7 +475,9 @@ func TestOverviewFocusMarkShowsWithoutColour(t *testing.T) {
 	m := overviewModel(t, overviewFake(), 120, 40)
 	send(m, "1")
 	view := plain(m)
-	if !slices.ContainsFunc(strings.Split(view, "\n"), func(l string) bool { return strings.Contains(l, "> "+warnMark+" Admins to enable: 1") }) {
+	if !slices.ContainsFunc(strings.Split(view, "\n"), func(l string) bool {
+		return strings.Contains(l, "> "+m.ui.styles.Glyph(kittui.GlyphWarning)+" Admins to enable: 1")
+	}) {
 		t.Errorf("the focused step has no mark:\n%s", view)
 	}
 	focusCard(t, m, "Admins")

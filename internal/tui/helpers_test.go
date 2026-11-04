@@ -192,3 +192,20 @@ func baseRow(m *Model) int {
 	name, _ := m.selected()
 	return map[string]int{"alpha": 0, "bravo": 1, "charlie": 2, "delta": 3}[name]
 }
+
+// askSure opens a plain question over the screen, whose yes runs nothing; its details make it as tall as
+// they are many.
+func askSure(t *testing.T, m *Model, details ...string) {
+	t.Helper()
+	spec := kittui.DialogSpec{
+		Title: tDlgConfirm, Question: "Sure?", Consequence: "Nothing happens.", Details: planLines(details),
+		Answers: confirmAnswers(tHintRun), Keys: kittui.DialogKeys{Enter: actEnter},
+	}
+	m.askDialog(spec, func() tea.Cmd { return nil }, nil)
+	if m.screen != screenConfirm {
+		t.Fatalf("the question did not open: %q", m.fail)
+	}
+}
+
+// tallDetails are enough detail lines to leave a question of the smallest terminal no room over the screen.
+var tallDetails = strings.Fields("one two three four five six seven eight nine ten")

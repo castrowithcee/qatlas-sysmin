@@ -107,52 +107,6 @@ func TestGroupsFoldAndTheCursorStaysOnEntries(t *testing.T) {
 	}
 }
 
-func TestQuestionIsAModalWithButtonsOverTheList(t *testing.T) {
-	m := frameModel(t, 80, 24)
-	m.screen = screenConfirm
-	m.ask = &question{title: "Remove the example entry?", consequence: "The entry is gone.", danger: true,
-		keys: keyLine(answer("remove", actYes), answer(tHintCancel, actNo, actBack))}
-	view := plain(m)
-	assertViewFits(t, view, 80, 24)
-	for _, want := range []string{"Remove the example entry?", "The entry is gone.", "Remove", "Cancel", "alpha"} {
-		if !strings.Contains(view, want) {
-			t.Errorf("view lacks %q:\n%s", want, view)
-		}
-	}
-	press(t, m, "n")
-	if m.screen != screenList || m.ask != nil {
-		t.Error("n does not close the question")
-	}
-}
-
-func TestQuestionFillsASmallTerminal(t *testing.T) {
-	m := frameModel(t, 50, 16)
-	m.screen = screenConfirm
-	m.ask = &question{title: "Remove the example entry?", consequence: "The entry is gone.", keys: keyLine(answer("remove", actYes), answer(tHintCancel, actNo, actBack))}
-	view := plain(m)
-	assertViewFits(t, view, 50, 16)
-	if !strings.Contains(view, "Remove the example entry?") || !strings.Contains(view, "y remove") {
-		t.Errorf("the question or its keys are missing:\n%s", view)
-	}
-}
-
-func TestPromptDialogIsAModal(t *testing.T) {
-	m := frameModel(t, 80, 24)
-	m.screen = screenPrompt
-	m.dialog = &promptDialog{title: "Name the entry", input: "name: example", hint: "Letters only.", keys: keyLine(answer(tHintSave, actEnter), answer(tHintCancel, actBack))}
-	view := plain(m)
-	assertViewFits(t, view, 80, 24)
-	for _, want := range []string{"Name the entry", "example", "Letters only.", "Save", "Cancel"} {
-		if !strings.Contains(view, want) {
-			t.Errorf("view lacks %q:\n%s", want, view)
-		}
-	}
-	press(t, m, "esc")
-	if m.screen != screenList {
-		t.Error("esc does not close the dialog")
-	}
-}
-
 func TestTooSmallTerminalShowsTheNoticeAndTheWayOut(t *testing.T) {
 	m := frameModel(t, 30, 8)
 	view := plain(m)
@@ -212,22 +166,31 @@ func TestWheelMovesOneRowAndStopsAtTheEnds(t *testing.T) {
 	}
 }
 
-func TestBackButtonStandsOnDialogsAndPressesEsc(t *testing.T) {
-	// A terminal too small for a modal shows the question as the workspace, under the header.
+func TestBackButtonStandsOnDialogsThatFillTheWorkspace(t *testing.T) {
+	// A question with no room over the screen is the workspace, under the header.
 	m := frameModel(t, 50, 16)
 	if strings.Contains(strings.Split(plain(m), "\n")[0], "back") {
 		t.Error("the bare list shows a back button")
 	}
-	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", consequence: "Nothing happens.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
+	askSure(t, m, tallDetails...)
 	first := strings.Split(plain(m), "\n")[0]
-	at := strings.Index(first, "[esc] back")
-	if at < 0 {
+	if !strings.Contains(first, "[esc] back") {
 		t.Fatalf("header = %q, want a back button", first)
 	}
-	m.Update(tea.MouseClickMsg{X: at + 2, Y: 0, Button: tea.MouseLeft})
+	clickAt(m, strings.Index(first, "[esc] back")+2, 0)
 	if m.screen != screenList {
 		t.Error("a click on the back button did not close the question")
+	}
+}
+
+func TestBackFrameKeepsOnlyTheBackButtonClickable(t *testing.T) {
+	m := frameModel(t, 50, 16)
+	askSure(t, m, tallDetails...)
+	plain(m)
+	for _, tg := range m.mt.targets {
+		if tg.Rect.Y == 0 && tg.Action != actBack {
+			t.Errorf("header target %+v survives in the fallback", tg)
+		}
 	}
 }
 

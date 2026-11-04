@@ -235,9 +235,7 @@ func (m *Model) filterModalFrame() (string, bool) {
 	m.keyHint(b.Hints())
 	room = m.ui.newFrame().Workspace(m.frameSpec(""))
 	view, targets := b.ModalView(m.ui.styles, room.Width, room.Height)
-	mark := len(m.mt.targets)
-	frame := m.frame(view)
-	m.mt.targets = m.mt.targets[:mark]
+	frame := m.backFrame(view)
 	m.addFilterTargets(targets, room.X, room.Y)
 	m.footerHits()
 	return frame, true

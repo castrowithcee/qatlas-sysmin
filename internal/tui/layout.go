@@ -28,6 +28,21 @@ func (m *Model) frame(workspace string) string {
 	return view
 }
 
+// backFrame is the frame around a modal that fills the workspace. Only its back button takes clicks: the
+// modal and the back button are what a click reaches then, not the areas and tabs behind.
+func (m *Model) backFrame(workspace string) string {
+	mark := len(m.mt.targets)
+	view := m.frame(workspace)
+	kept := m.mt.targets[:mark]
+	for _, t := range m.mt.targets[mark:] {
+		if t.Action == actBack {
+			kept = append(kept, t)
+		}
+	}
+	m.mt.targets = kept
+	return view
+}
+
 // frameSpec is the frame of the screen shown around workspace.
 func (m *Model) frameSpec(workspace string) kittui.FrameSpec {
 	spec := kittui.FrameSpec{

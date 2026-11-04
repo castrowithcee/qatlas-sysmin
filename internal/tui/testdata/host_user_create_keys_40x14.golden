@@ -1,0 +1,14 @@
+qsysmin                       [esc] back
+  1 [2 Host] 3 4                        
+  [Users]  Groups   Folders   Changes   
+────────────────────────────────────────
+  Paste one public key line             
+  (authorized_keys format, without      
+  options).                             
+                                        
+  not a key_                            
+                                        
+  Not a public key in authorized_keys   
+  format (one line, without options).   
+                                        
+enter add  esc discard                  

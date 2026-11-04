@@ -47,7 +47,7 @@ func (m *Model) openDialog(spec kittui.DialogSpec) bool {
 		m.fail = err.Error()
 		return false
 	}
-	m.dlg, m.dlgSpec, m.ask, m.screen = d, spec, nil, screenConfirm
+	m.dlg, m.dlgSpec, m.screen = d, spec, screenConfirm
 	return true
 }
 
@@ -133,10 +133,17 @@ func (m *Model) dialogFrame() (string, bool) {
 	m.keyHint(d.Hints())
 	room = m.ui.newFrame().Workspace(m.frameSpec(""))
 	view, targets := d.View(m.ui.styles, room.Width, room.Height)
-	mark := len(m.mt.targets)
-	frame := m.frame(view)
-	m.mt.targets = m.mt.targets[:mark]
+	frame := m.backFrame(view)
 	m.addTargets(kittui.OffsetTargets(targets, room.X, room.Y))
 	m.footerHits()
 	return frame, true
+}
+
+// confirmAsk is what follows the answers of the open dialog.
+type confirmAsk struct {
+	yes func() tea.Cmd
+	// notice makes the dialog a message: enter, esc, y and n all just close it.
+	notice bool
+	// cancel runs when the question is dropped unanswered, such as to overwrite a secret it holds.
+	cancel func()
 }

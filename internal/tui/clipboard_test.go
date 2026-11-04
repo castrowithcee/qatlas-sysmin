@@ -91,8 +91,7 @@ func TestCopyKeyCopiesNothingWhereItIsATextKeyOrNothingIsMarked(t *testing.T) {
 	}
 
 	m = frameModel(t, 100, 30)
-	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
+	askSure(t, m)
 	if _, ok := pressCopy(m); ok {
 		t.Error("c copied while a question is open")
 	}

@@ -394,7 +394,7 @@ func (m *Model) chainLines(width int) []string {
 			text += " · " + m.tr(tLogMoreDays, more)
 		}
 	}
-	lines := []string{m.ui.st(kittui.StyleFail).Render(truncateCells(warnMark+" "+text, width))}
+	lines := []string{m.ui.st(kittui.StyleFail).Render(truncateCells(m.ui.styles.Glyph(kittui.GlyphWarning)+" "+text, width))}
 	if signatures != "" {
 		lines = append(lines, m.ui.st(kittui.StyleFail).Render(truncateCells("  "+signatures, width)))
 	}

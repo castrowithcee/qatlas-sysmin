@@ -188,6 +188,22 @@ func TestGoldenAreas(t *testing.T) {
 			send(m, "n", "tab", "tab", "tab", "tab", "tab", "tab", "enter", "space")
 			return m
 		}},
+		{"host_user_create_keys_problem", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			send(m, "n", "tab", "tab", "tab", "tab", "tab", "tab", "tab", "enter")
+			typed(m, "not a key")
+			send(m, "enter")
+			return m
+		}},
+		{"host_user_create_keys_added", func(t *testing.T, w, h int) *Model {
+			m, _ := goldenHostUsers(t, w, h)
+			line, _ := fixedDemoKey(t, "demo-new@laptop")
+			send(m, "n", "tab", "tab", "tab", "tab", "tab", "tab", "tab", "enter")
+			typed(m, line)
+			send(m, "enter")
+			typed(m, "next")
+			return m
+		}},
 		{"host_user_edit_pick_system", func(t *testing.T, w, h int) *Model {
 			m, _ := goldenHostUsers(t, w, h)
 			src := m.hostSrc.(*fixtureHost)
@@ -428,4 +444,15 @@ func TestGoldenPickInTheWorkspace(t *testing.T) {
 	got := m.render()
 	assertViewFits(t, plain(m), 40, 14)
 	assertGolden(t, "host_user_create_pick_40x14", got)
+}
+
+// The key editor where the terminal has no room for its modal fills the workspace.
+func TestGoldenKeyEditorInTheWorkspace(t *testing.T) {
+	m, _ := goldenHostUsers(t, 40, 14)
+	send(m, "n", "tab", "tab", "tab", "tab", "tab", "tab", "tab", "enter")
+	typed(m, "not a key")
+	send(m, "enter")
+	got := m.render()
+	assertViewFits(t, plain(m), 40, 14)
+	assertGolden(t, "host_user_create_keys_40x14", got)
 }

@@ -226,9 +226,7 @@ func (m *Model) pickFrame() (string, bool) {
 	m.keyHint(pk.list.Hints())
 	room = m.ui.newFrame().Workspace(m.frameSpec(""))
 	view, targets := pk.list.View(m.ui.styles, room.Width, room.Height)
-	mark := len(m.mt.targets)
-	frame := m.frame(view)
-	m.mt.targets = m.mt.targets[:mark]
+	frame := m.backFrame(view)
 	m.addFormTargets(targets, room.X, room.Y, "", click)
 	m.addPickWheel(pk, targets, room.X, room.Y)
 	m.footerHits()

@@ -16,7 +16,6 @@ const (
 	tHostFormFurther      textID = "HostFormFurther"
 	tHostFormKey          textID = "HostFormKey"
 	tHostFormKeyList      textID = "HostFormKeyList"
-	tHostKeyPlaceholder   textID = "HostKeyPlaceholder"
 	tHostFormKeyOf        textID = "HostFormKeyOf"
 	tHostFormWhat         textID = "HostFormWhat"
 	tHostFormAddTo        textID = "HostFormAddTo"
@@ -87,7 +86,6 @@ func hostUserTexts() (en, de map[textID]string) {
 		tHostFormFurther:      "Further groups",
 		tHostFormKey:          "SSH key",
 		tHostFormKeyList:      "SSH keys",
-		tHostKeyPlaceholder:   "Paste a public key",
 		tHostFormKeyOf:        "Key",
 		tHostFormWhat:         "Change",
 		tHostFormAddTo:        "Add to groups",
@@ -155,7 +153,6 @@ func hostUserTexts() (en, de map[textID]string) {
 		tHostFormFurther:      "Weitere Gruppen",
 		tHostFormKey:          "SSH-Schlüssel",
 		tHostFormKeyList:      "SSH-Schlüssel",
-		tHostKeyPlaceholder:   "Öffentlichen Schlüssel einfügen",
 		tHostFormKeyOf:        "Schlüssel",
 		tHostFormWhat:         "Änderung",
 		tHostFormAddTo:        "Zu Gruppen hinzufügen",

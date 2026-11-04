@@ -51,8 +51,8 @@ func TestTheFormDrawsTheCursorOfItsTextFieldItself(t *testing.T) {
 	}
 }
 
-// The key editor of a new person is a line of the editor, with the terminal cursor in it.
-func TestTheCursorStandsInTheLineOfTheKeyEditor(t *testing.T) {
+// The key editor of a new person is a kit dialog, which draws the cursor of its line itself.
+func TestTheKeyEditorDrawsTheCursorOfItsLineItself(t *testing.T) {
 	for name, p := range cursorProfiles {
 		m, _, _, _ := userModel(t, 120, 40)
 		useProfile(m, p)
@@ -62,8 +62,11 @@ func TestTheCursorStandsInTheLineOfTheKeyEditor(t *testing.T) {
 		}
 		send(m, "enter")
 		typed(m, "ssh-demo")
-		if before := cursorBefore(t, m); !strings.HasSuffix(before, "ssh-demo") {
-			t.Errorf("%s: text before the cursor = %q, want it to end with the line", name, before)
+		if c := m.View().Cursor; c != nil {
+			t.Errorf("%s: terminal cursor at %v beside the cursor the dialog draws", name, *c)
+		}
+		if p == kittui.ProfileNone && !strings.Contains(plain(m), "ssh-demo_") {
+			t.Errorf("%s: no cursor after the line:\n%s", name, plain(m))
 		}
 	}
 }

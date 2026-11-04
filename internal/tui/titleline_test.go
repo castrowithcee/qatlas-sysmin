@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // A list screen carries its title line above the frame, with the count and the position; the title is plain
@@ -27,11 +26,11 @@ func TestListTitleStandsAboveThePanelWithItsCountAndPosition(t *testing.T) {
 // title and the footer whole without a frame.
 func TestListTitleIsCompactWhereHeightIsShort(t *testing.T) {
 	m := frameModel(t, 80, 24)
-	if !m.titleBlank() || m.titleRows() != 2 {
-		t.Fatalf("a roomy terminal drops the gap: blank %v rows %d", m.titleBlank(), m.titleRows())
+	if !m.titleBlank() {
+		t.Fatalf("a roomy terminal drops the gap: blank %v", m.titleBlank())
 	}
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: tableFrameMinHeight + 4})
-	if m.titleBlank() || m.titleRows() != 1 {
+	if m.titleBlank() {
 		t.Fatalf("the gap is kept at height %d (workspace %d)", m.termHeight, m.height)
 	}
 	lines := strings.Split(plain(m), "\n")
@@ -41,17 +40,8 @@ func TestListTitleIsCompactWhereHeightIsShort(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: minimumWidth, Height: minimumHeight})
 	view := plain(m)
 	assertViewFits(t, view, minimumWidth, minimumHeight)
-	if m.tableFramed() || !strings.Contains(view, "Entries") || !strings.Contains(view, "q quit") {
+	if !strings.Contains(view, "Entries") || !strings.Contains(view, "q quit") {
 		t.Errorf("the smallest size loses its title or its footer:\n%s", view)
-	}
-}
-
-func TestTitledAndDialogPanelStandUnderTheirTitleLine(t *testing.T) {
-	m := frameModel(t, 80, 24)
-	got := strings.Split(ansi.Strip(m.dialogPanelOf().top("Name the entry", "1/3")), "\n")
-	if !strings.HasPrefix(got[0], "Name the entry") || !strings.HasSuffix(strings.TrimRight(got[0], " "), "1/3") ||
-		!strings.ContainsAny(got[m.titleRows()], "╭╔") || strings.Contains(got[m.titleRows()], "Name") {
-		t.Errorf("dialog title:\n%s", strings.Join(got, "\n"))
 	}
 }
 

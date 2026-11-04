@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
+	"path"
 	"regexp"
 	"slices"
 	"testing"
@@ -106,6 +107,40 @@ var (
 	forbiddenLibraries = archtest.Pattern(regexp.MustCompile(`^(charm\.land|github\.com/charmbracelet)/bubbles(/|$)`))
 )
 
+// ownModalFiles, ownModalFuncs and ownModalTypes are what an own modal or dialog mechanic is made of: the
+// kit's Dialog, Form and List draw every dialog over the screen and in the workspace.
+var (
+	ownModalFiles = []string{"modal.go", "inputmodal.go", "confirm.go", "dialogpanel.go", "dialogbuttons.go", "widgets.go"}
+	ownModalFuncs = []string{
+		"overlay", "dim", "modalView", "questionView", "questionScreen", "questionText", "questionHeading",
+		"promptView", "promptText", "promptScreen", "askConfirm", "updateConfirm", "dialogButtons", "withButtons",
+	}
+	ownModalTypes = []string{"promptDialog", "question", "dialogPanel", "dialogButton", "panelOpts"}
+)
+
+// forbidOwnModal reports a file, function or type of an own modal or dialog mechanic.
+func forbidOwnModal(file *archtest.File) []archtest.Hit {
+	var hits []archtest.Hit
+	if base := path.Base(file.Path); slices.Contains(ownModalFiles, base) {
+		hits = append(hits, archtest.Hit{Node: file.Syntax.Name, Item: base})
+	}
+	for _, decl := range file.Syntax.Decls {
+		switch d := decl.(type) {
+		case *ast.FuncDecl:
+			if slices.Contains(ownModalFuncs, d.Name.Name) {
+				hits = append(hits, archtest.Hit{Node: d, Item: d.Name.Name})
+			}
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				if ts, ok := spec.(*ast.TypeSpec); ok && slices.Contains(ownModalTypes, ts.Name.Name) {
+					hits = append(hits, archtest.Hit{Node: ts, Item: ts.Name.Name})
+				}
+			}
+		}
+	}
+	return hits
+}
+
 // archRules are the rules that keep a copy of a kit building block from coming back. Key names live in the
 // key table, colours in the theme, and no widget library or dropped package returns.
 func archRules() []archtest.Rule {
@@ -121,6 +156,12 @@ func archRules() []archtest.Rule {
 			Files: archtest.Files{Under: []string{"internal/tui", "internal/uiprefs"}},
 			Check: archtest.ForbidSelectors("charm.land/lipgloss/v2", "Color"),
 			Hint:  "colours come from the palette of the theme",
+		},
+		{
+			Name:  "own modal",
+			Files: archtest.Files{Under: []string{"internal/tui"}},
+			Check: forbidOwnModal,
+			Hint:  "the kit's Dialog, Form and List draw dialogs over the screen and in the workspace",
 		},
 		{
 			Name:  "widget libraries",

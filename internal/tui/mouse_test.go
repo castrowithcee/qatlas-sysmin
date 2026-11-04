@@ -198,8 +198,7 @@ func TestTheWheelDoesNothingOnADialogOrWhileFiltering(t *testing.T) {
 		t.Errorf("the wheel moved the list while filtering: %d", baseRow(m))
 	}
 	press(t, m, "esc")
-	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
+	askSure(t, m)
 	*now = now.Add(time.Second)
 	wheel(m, 5, 10, tea.MouseWheelDown)
 	if baseRow(m) != 0 {
@@ -285,7 +284,7 @@ func TestBackIsShownWhereEscLeadsOneLevelBack(t *testing.T) {
 		t.Errorf("the back button did not clear the filter: query %q, position %q", m.base.list.Query(), m.base.list.Position())
 	}
 	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", consequence: "Nothing.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
+	askSure(t, m)
 	if !m.backShown() {
 		t.Error("a question shows no back button")
 	}
@@ -298,26 +297,15 @@ func TestBackIsShownWhereEscLeadsOneLevelBack(t *testing.T) {
 // Where a terminal has no room for a modal, the keys of its footer are the buttons.
 func TestFooterKeysOfAFullScreenDialogAreClickable(t *testing.T) {
 	m := frameModel(t, 50, 16)
-	m.screen = screenConfirm
-	m.ask = &question{title: "Sure?", consequence: "Nothing happens.", keys: keyLine(answer("yes", actYes), answer("no", actNo, actBack))}
+	askSure(t, m, tallDetails...)
 	plain(m)
 	foot := strings.Split(plain(m), "\n")[m.termHeight-1]
-	at := strings.Index(foot, "no")
+	at := strings.Index(foot, "cancel")
 	if at < 0 {
-		t.Fatalf("the footer = %q, want the answer no", foot)
+		t.Fatalf("the footer = %q, want the answer cancel", foot)
 	}
 	clickAt(m, ansi.StringWidth(foot[:at]), m.termHeight-1)
 	if m.screen != screenList {
-		t.Errorf("a click on the answer no left screen %v", m.screen)
-	}
-}
-
-func TestDialogOriginCentresAndNeverGoesNegative(t *testing.T) {
-	dialog := []string{"1234567890", "1234567890", "1234567890", "1234567890"}
-	if top, left := dialogOrigin(dialog, 80, 24); top != 10 || left != 35 {
-		t.Errorf("origin = %d, %d, want 10, 35", top, left)
-	}
-	if top, left := dialogOrigin(dialog, 4, 2); top != 0 || left != 0 {
-		t.Errorf("a dialog larger than the screen starts at %d, %d", top, left)
+		t.Errorf("a click on the answer cancel left screen %v", m.screen)
 	}
 }

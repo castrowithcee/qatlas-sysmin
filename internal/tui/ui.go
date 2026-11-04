@@ -122,11 +122,11 @@ func (u *uiContext) st(role kittui.TextStyle) lipgloss.Style { return u.styles.S
 // palette is the palette of the theme drawn now, the zero value without colour.
 func (u *uiContext) palette() kittui.Palette { return u.styles.Palette() }
 
-// colorless reports whether the terminal shows no colour, so marks and frames carry what colour would.
-func (u *uiContext) colorless() bool { return u.styles.Profile().Colorless() }
-
 // lip is a palette colour as Lip Gloss takes it.
 func lip(c kittui.Color) color.Color { return lipgloss.Color(string(c)) }
+
+// colorless reports whether the terminal shows no colour, so marks and frames carry what colour would.
+func (u *uiContext) colorless() bool { return u.styles.Profile().Colorless() }
 
 // shown is a frame as the terminal of the colour profile is sent it, so what render returns is what the
 // terminal shows. Bubble Tea steps the frame down to the same profile, which leaves it unchanged.

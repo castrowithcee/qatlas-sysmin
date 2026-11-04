@@ -70,11 +70,3 @@ func TestGoldenList(t *testing.T) {
 	}
 	assertGolden(t, "list_80x24", got)
 }
-
-func TestGoldenModal(t *testing.T) {
-	m := goldenFrame(t)
-	m.screen = screenConfirm
-	m.ask = &question{title: "Stop the example service?", consequence: "The demo service stops serving requests.",
-		keys: keyLine(answer("stop", actYes), answer(tHintCancel, actNo, actBack))}
-	assertGolden(t, "modal_80x24", m.render())
-}

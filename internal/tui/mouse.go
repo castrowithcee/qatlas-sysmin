@@ -6,7 +6,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
@@ -294,55 +293,6 @@ func functionKeyCode(name string) (rune, bool) {
 		return tea.KeyF9, true
 	}
 	return 0, false
-}
-
-// footerSpan is one key group of a key line: the cells it stands in and the action of its first key.
-type footerSpan struct {
-	x0, x1 int
-	act    action
-}
-
-// footerLine is a footer line as drawn, and where its key groups stand.
-type footerLine struct {
-	plain string
-	spans []footerSpan
-}
-
-// hitDialog makes the keys of the footer lines of a dialog clickable: they are its buttons. lines are the
-// rows of the dialog text, drawn from column left+2 of row top+1 on, inside its frame.
-func (m *Model) hitDialog(lines []string, log []footerLine, top, left int) {
-	m.hitFooters(lines, log, top+1, left+2)
-}
-
-// hitFooters makes the key groups of the footer lines found among lines clickable. lines are drawn from screen
-// row y0 and column x0 on.
-func (m *Model) hitFooters(lines []string, log []footerLine, y0, x0 int) {
-	used := make([]bool, len(lines))
-	for _, footer := range log {
-		for i, line := range lines {
-			if used[i] || ansi.Strip(line) != footer.plain {
-				continue
-			}
-			used[i] = true
-			for _, span := range footer.spans {
-				if span.act == "" {
-					continue
-				}
-				act := span.act
-				m.addHit(x0+span.x0, y0+i, x0+span.x1, y0+i+1, func() tea.Cmd { return m.pressAction(act) })
-			}
-			break
-		}
-	}
-}
-
-// dialogOrigin is the top row and left column of a dialog centred in a screen of width by height.
-func dialogOrigin(dialog []string, width, height int) (top, left int) {
-	dialogWidth := 0
-	for _, line := range dialog {
-		dialogWidth = max(dialogWidth, ansi.StringWidth(line))
-	}
-	return max((height-len(dialog))/2, 0), max((width-dialogWidth)/2, 0)
 }
 
 // backShown reports whether esc leads one level back from the screen shown now, which is where the back

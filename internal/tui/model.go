@@ -37,9 +37,9 @@ type screen int
 const (
 	// screenList is a filterable list, the base of every other screen.
 	screenList screen = iota
-	// screenConfirm is a yes/no question, drawn as a modal over the list where the terminal has room.
+	// screenConfirm is a question or message of the kit's dialog.
 	screenConfirm
-	// screenPrompt is a short input dialog, drawn like a question.
+	// screenPrompt is a form, drawn by the kit, with the editor open over it.
 	screenPrompt
 	// screenArea is the area screen of the service interface: the tab line with the current area. It is
 	// the base of the dialogs in place of screenList where the interface runs against a service.
@@ -60,9 +60,6 @@ type Model struct {
 	// title heads the list of the bare frame, which base holds.
 	title string
 	base  dataPage
-	// ask is the question of screenConfirm, dialog the input dialog of screenPrompt.
-	ask    *question
-	dialog *promptDialog
 	// dlg is the kit dialog of screenConfirm and dlgSpec what it asks, nil while there is none.
 	dlg     *kittui.Dialog
 	dlgSpec kittui.DialogSpec
@@ -77,7 +74,7 @@ type Model struct {
 	svc     svcState
 	// confirm is the question of screenConfirm that waits for y, nil while there is none.
 	confirm *confirmAsk
-	// form is a short form, drawn as the prompt of screenPrompt, nil while there is none.
+	// form is a short form, the screen of screenPrompt, nil while there is none.
 	form *formDlg
 
 	// The state of the areas: the rows of the overview, the pages of Settings, the popup over the screen, the
@@ -126,12 +123,10 @@ type Model struct {
 	mouse *kittui.MouseMap
 	// footerTargets are the keys of the footer drawn last, clickable where they answer a dialog.
 	footerTargets []kittui.Target
-	// footerLog collects the key lines a dialog draws itself, so its keys can be clicked as buttons.
-	footerLog *[]footerLine
-	// inModal and inPanel say that a dialog is drawn into a modal or a panel; backdrop, that the frame is
-	// drawn only as the dimmed background of a modal; tooSmall, that the size notice replaces the workspace.
-	inModal, inPanel, backdrop, tooSmall bool
-	quitting                             bool
+	// backdrop says the frame is drawn only as the dimmed background of a dialog; tooSmall, that the size
+	// notice replaces the workspace.
+	backdrop, tooSmall bool
+	quitting           bool
 	// regroupAsked says the person quit to restart the interface under sudo -g qsysmin; Run reports it.
 	regroupAsked bool
 	// denied is the error that took the access away while the interface ran; Run returns it after the quit.
@@ -258,9 +253,6 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	if m.screen == screenConfirm && m.confirm != nil && m.dlg != nil {
 		return m.updateDialog(key)
 	}
-	if m.screen == screenConfirm && m.confirm != nil {
-		return m.updateConfirm(key)
-	}
 	if m.screen == screenPrompt && m.form != nil {
 		return m.updateForm(key)
 	}
@@ -305,7 +297,7 @@ func (m *Model) regroup() tea.Cmd {
 
 // closeDialog closes the question or input dialog and returns to the list.
 func (m *Model) closeDialog() {
-	m.screen, m.ask, m.dialog, m.leave, m.confirm = m.home, nil, nil, nil, nil
+	m.screen, m.leave, m.confirm = m.home, nil, nil
 	m.dlg, m.dlgSpec = nil, kittui.DialogSpec{}
 }
 
@@ -388,13 +380,7 @@ func (m *Model) drawScreen() string {
 	if view, ok := m.formFrame(); ok {
 		return view
 	}
-	if view, ok := m.modalView(); ok {
-		return view
-	}
-	if m.questionScreen() || m.promptScreen() {
-		// A dialog that has no room for a modal fills the workspace; its keys stand in the footer, as buttons.
-		view := m.frame(m.workspaceView())
-		m.footerHits()
+	if view, ok := m.keyEditFrame(); ok {
 		return view
 	}
 	return m.frame(m.workspaceView())
@@ -405,11 +391,6 @@ func (m *Model) workspaceView() string {
 	switch {
 	case m.screen == screenArea:
 		return m.boundView(m.areaView())
-	case m.questionScreen():
-		return m.boundKeepingKeys(m.framedQuestion(m.questionView), m.width, m.height)
-	case m.promptScreen():
-		d, _ := m.prompt()
-		return m.boundKeepingKeys(m.promptView(d), m.width, m.height)
 	}
 	return m.boundView(m.listView())
 }
@@ -445,7 +426,7 @@ func (m *Model) resizeView() string {
 	// The way out comes first, so it is the last thing a terminal of a single row loses.
 	lines := []string{
 		m.ui.st(kittui.StyleKey).Render(m.hintText(way)),
-		m.ui.st(kittui.StyleWarn).Render(warnMark + " " + m.tr(tResizeTitle)),
+		m.ui.st(kittui.StyleWarn).Render(m.ui.styles.Glyph(kittui.GlyphWarning) + " " + m.tr(tResizeTitle)),
 		m.ui.st(kittui.StyleHint).Render("  " + m.tr(tResizeNeed, minimumWidth, minimumHeight)),
 		m.ui.st(kittui.StyleHint).Render("  " + m.tr(tResizeNow, m.termWidth, m.termHeight)),
 	}

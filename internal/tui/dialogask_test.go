@@ -88,7 +88,7 @@ func TestASuccessIsACalmMessageAndAFailureHasNoDangerButton(t *testing.T) {
 	drain(m, m.askHostChange("demo.set", []string{"alpha", "new"}))
 	send(m, "y")
 	s := m.dlgSpec
-	if !s.Notice || s.Danger != "" || s.Irreversible || strings.Contains(plain(m), warnMark) {
+	if !s.Notice || s.Danger != "" || s.Irreversible || strings.Contains(plain(m), m.ui.styles.Glyph(kittui.GlyphWarning)) {
 		t.Errorf("a success is a calm message: %+v\n%s", s, plain(m))
 	}
 	send(m, "enter")

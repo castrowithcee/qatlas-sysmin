@@ -363,7 +363,7 @@ func ovDate(ui *uiContext, t time.Time) string {
 func ovMark(ui *uiContext, kind statusKind) string {
 	switch kind {
 	case statusWarn:
-		return ui.st(kittui.StyleWarn).Render(warnMark)
+		return ui.st(kittui.StyleWarn).Render(ui.styles.Glyph(kittui.GlyphWarning))
 	case statusFail:
 		return ui.st(kittui.StyleFail).Render("✗")
 	case statusDim:
@@ -569,3 +569,13 @@ func (m *Model) overviewVersionLine(width int) string {
 func statusRow(ui *uiContext, kind statusKind, text string) string {
 	return ovMark(ui, kind) + " " + text
 }
+
+// statusKind is the kind of a status item, which sets its mark and colour.
+type statusKind int
+
+const (
+	statusOK statusKind = iota
+	statusFail
+	statusWarn
+	statusDim
+)

@@ -16,8 +16,8 @@ import (
 // it is emptied when the form closes. A list field shows a summary; its editor is a pick list or the key
 // editor over the form.
 
-// formDlg is the form over the screen, drawn by the kit as a modal; an editor open over it is drawn as the
-// prompt of screenPrompt.
+// formDlg is the form over the screen, drawn by the kit as a modal; an editor open over it is a kit list or a
+// kit dialog.
 type formDlg struct {
 	title, hint string
 	// fields are every field the form can show, in their order; hidden are those left out now.

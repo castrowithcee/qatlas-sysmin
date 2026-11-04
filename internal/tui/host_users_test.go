@@ -35,6 +35,17 @@ func demoKey(t *testing.T, comment string) (line, fingerprint string) {
 	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))) + " " + comment, ssh.FingerprintSHA256(key)
 }
 
+// fixedDemoKey is an invented public key that is the same on every run, for the golden frames.
+func fixedDemoKey(t *testing.T, comment string) (line, fingerprint string) {
+	t.Helper()
+	pub := ed25519.NewKeyFromSeed([]byte("demo-seed-not-a-real-key-0123456")).Public().(ed25519.PublicKey)
+	key, err := ssh.NewPublicKey(pub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))) + " " + comment, ssh.FingerprintSHA256(key)
+}
+
 // userModel is the Users page over the real user actions and a fake sudo. demo-user is an admin who is not
 // enabled and has one key read; demo-ops is a group demo-user is not in.
 func userModel(t *testing.T, w, h int) (*Model, *fakeSudo, *countingHost, string) {

@@ -165,10 +165,10 @@ func TestTheKeyEditorAddsCheckedKeysAndEscDropsThem(t *testing.T) {
 	send(m, "enter")
 	typed(m, "not a key")
 	send(m, "enter")
-	if !strings.Contains(flat(m), "[!] Not a public key") {
+	if !strings.Contains(flat(m), "Not a public key") {
 		t.Errorf("a bad key has no problem:\n%s", plain(m))
 	}
-	m.form.keyEd.line.set("")
+	m.form.keyEd.dlg.ClearInput()
 	typed(m, line)
 	send(m, "enter")
 	m.Update(pasteKey(line))
@@ -185,5 +185,103 @@ func TestTheKeyEditorAddsCheckedKeysAndEscDropsThem(t *testing.T) {
 	send(m, "enter", "enter")
 	if m.form.keyEd != nil || !strings.Contains(m.form.value(fieldKeys), fp) {
 		t.Errorf("enter on the empty line: summary %q", m.form.value(fieldKeys))
+	}
+}
+
+// openKeyEditorOf opens the key editor of the create form.
+func openKeyEditorOf(t *testing.T, m *Model) {
+	t.Helper()
+	send(m, "n")
+	for range 7 {
+		send(m, "tab")
+	}
+	send(m, "enter")
+	if m.form == nil || m.form.keyEd == nil {
+		t.Fatalf("the key editor did not open:\n%s", plain(m))
+	}
+}
+
+// The problem of a refused line stands in the dialog until the next key, and the fingerprint of a key added is
+// one of its details.
+func TestTheKeyEditorShowsTheProblemAndTheFingerprintsInItsDialog(t *testing.T) {
+	m, _, _, _ := userModel(t, 120, 40)
+	line, fp := demoKey(t, "demo-new@laptop")
+	openKeyEditorOf(t, m)
+	typed(m, "not a key")
+	send(m, "enter")
+	view := plain(m)
+	if !strings.Contains(view, "Not a public key") || !strings.Contains(view, "not a key") || !strings.Contains(view, "[ add ]") {
+		t.Errorf("a refused line is not shown with its problem:\n%s", view)
+	}
+	typed(m, "x")
+	if strings.Contains(plain(m), "Not a public key") {
+		t.Errorf("the problem stays after a key:\n%s", plain(m))
+	}
+	m.form.keyEd.dlg.ClearInput()
+	typed(m, line)
+	send(m, "enter")
+	view = plain(m)
+	if !strings.Contains(view, fp) || strings.Contains(view, "Not a public key") || !strings.Contains(view, "[ keep ]") {
+		t.Errorf("an added key has no fingerprint, or the dialog keeps its old state:\n%s", view)
+	}
+}
+
+// A click on a button of the key editor does what its key does, and a click on the line types nothing.
+func TestAClickOnTheKeyEditorActsAsItsKeysDo(t *testing.T) {
+	m, _, _, _ := userModel(t, 120, 40)
+	line, fp := demoKey(t, "demo-new@laptop")
+	openKeyEditorOf(t, m)
+	typed(m, line)
+	clickOn(t, m, "[ add ]")
+	if m.form.keyEd == nil || len(m.form.keys.keys) != 1 || !strings.Contains(plain(m), fp) {
+		t.Fatalf("a click on add did not add the key: %d keys\n%s", len(m.form.keys.keys), plain(m))
+	}
+	typed(m, "ab")
+	x, y := cellOf(t, m, "ab_")
+	clickAt(m, x, y)
+	if got := m.form.keyEd.dlg.Value(); got != "ab" {
+		t.Errorf("a click on the line changed it to %q", got)
+	}
+	m.form.keyEd.dlg.ClearInput()
+	m.syncKeyDialog(m.form)
+	clickOn(t, m, "[ keep ]")
+	if m.form.keyEd != nil || !strings.Contains(m.form.value(fieldKeys), fp) {
+		t.Errorf("a click on keep: editor %v, summary %q", m.form.keyEd != nil, m.form.value(fieldKeys))
+	}
+	send(m, "enter")
+	typed(m, "tail")
+	clickOn(t, m, "[ discard ]")
+	if m.form.keyEd != nil || len(m.form.keys.keys) != 1 {
+		t.Errorf("a click on discard: editor %v, %d keys", m.form.keyEd != nil, len(m.form.keys.keys))
+	}
+}
+
+// Where the terminal has no room over the screen, the dialog fills the workspace and its answers stand in the
+// footer, which takes the clicks.
+func TestTheKeyEditorFillsTheWorkspaceOfASmallTerminal(t *testing.T) {
+	m, _, _, _ := userModel(t, 40, 14)
+	line, fp := demoKey(t, "demo-new@laptop")
+	openKeyEditorOf(t, m)
+	typed(m, line)
+	view := plain(m)
+	assertViewFits(t, view, 40, 14)
+	if strings.Contains(view, "[ add ]") || !strings.Contains(view, "enter add") {
+		t.Fatalf("the answers are not in the footer:\n%s", view)
+	}
+	x, y := cellOf(t, m, "enter add")
+	clickAt(m, x, y)
+	if len(m.form.keys.keys) != 1 || !strings.Contains(plain(m), fp[:20]) {
+		t.Fatalf("a click on enter in the footer did not add the key:\n%s", plain(m))
+	}
+	typed(m, "ab")
+	x, y = cellOf(t, m, "ab_")
+	clickAt(m, x, y)
+	if got := m.form.keyEd.dlg.Value(); got != "ab" {
+		t.Errorf("a click on the line changed it to %q", got)
+	}
+	x, y = cellOf(t, m, "esc discard")
+	clickAt(m, x, y)
+	if m.form.keyEd != nil || len(m.form.keys.keys) != 0 {
+		t.Errorf("a click on esc: editor %v, %d keys", m.form.keyEd != nil, len(m.form.keys.keys))
 	}
 }
