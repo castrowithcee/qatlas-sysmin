@@ -15,8 +15,8 @@ Users (3║   …                                                          ║  
         ║                                                              ║        
         ║ [ F2 Save ]  [ esc Cancel ]                                  ║        
         ║     A service account has no login: no password, no shell,   ║        
-        ║     no SSH keys. Use it for a service or container with an   ║        
-        ║     identity of its own.                                     ║        
+        ║     no SSH keys. Use it for a service with an identity of    ║        
+        ║     its own.                                                 ║        
         ║                                                              ║        
         ║ enter edit · tab next field · shift+tab previous field       ║        
         ║ F2 save · esc cancel                                         ║        

@@ -14,7 +14,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 )
 
-// A service account is a system account without login, for a service or container with an identity of its
+// A service account is a system account without login, for a service with an identity of its
 // own: no password, the shell nologin, no SSH keys, and a home only when asked. It is created and undone here,
 // apart from the persons of user.create.
 

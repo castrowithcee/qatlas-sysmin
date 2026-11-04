@@ -2,24 +2,21 @@ qsysmin                                                                         
 > [1 Overview]  2 Host   3 Activity   4 Settings                                                                        
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Overview                                                                                                Wed, 28 Oct 2026
-                      ╔═ Help ═══════════════════════════════════════════════════════════════════╗                      
-╭─ Admins ────────────║ [qsysmin]  host-admin   host-tui                                         ║ice ─────────────────╮
-│ 2                   ║                                                                          ║able                 │
-╰─────────────────────║ qsysmin is a Go tool that runs as a service on a Linux host and helps    ║─────────────────────╯
-qsysmin 0.0.0-test    ║ look after that host. It has the areas Overview, Host, Activity and      ║                      
-╭─ Next steps ────────║ Settings.                                                                ║─────────────────────╮
-│   ⚠ Admins to enable║                                                                          ║                     │
-╰─────────────────────║ Host reads the local users, groups and folder permissions. Changes run   ║─────────────────────╯
-╭─ Last changes ──────║ through 'sudo qsysmin host ...' after a confirmation, are recorded in a  ║─────────────────────╮
-│ 2026-10-28 12:00  us║ journal with the previous state, and can be undone. After a change to    ║                     │
-│ 2026-10-27 10:30  us║ folder permissions, the containers it affects are watched. Activity      ║                     │
-╰─────────────────────║ shows a log kept as a hash chain without a signature.                    ║─────────────────────╯
+                                                                                                                        
+╭─ Admins ────────────╔═ Help ═══════════════════════════════════════════════════════════════════╗ice ─────────────────╮
+│ 2                   ║ [qsysmin]  host-admin   host-tui                                         ║able                 │
+╰─────────────────────║                                                                          ║─────────────────────╯
+qsysmin 0.0.0-test    ║ qsysmin is a Go tool that runs as a service on a Linux host and helps    ║                      
+╭─ Next steps ────────║ look after that host. It has the areas Overview, Host, Activity and      ║─────────────────────╮
+│   ⚠ Admins to enable║ Settings.                                                                ║                     │
+╰─────────────────────║                                                                          ║─────────────────────╯
+╭─ Last changes ──────║ Host reads the local users, groups and folder permissions. Changes run   ║─────────────────────╮
+│ 2026-10-28 12:00  us║ through 'sudo qsysmin host ...' after a confirmation, are recorded in a  ║                     │
+│ 2026-10-27 10:30  us║ journal with the previous state, and can be undone. Activity shows a log ║                     │
+╰─────────────────────║ kept as a hash chain without a signature.                                ║─────────────────────╯
                       ║                                                                          ║                      
                       ║ Admins, members of the group sudo, reach the running service through its ║                      
                       ║ socket. The installation requires the group docker.                      ║                      
-                      ║                                                                          ║                      
-                      ║ A further area, Containers, is a possible direction; nothing is promised ║                      
-                      ║ for it.                                                                  ║                      
                       ║                                                                          ║                      
                       ║ 'qsysmin --help' lists the commands; 'qsysmin tui' opens the terminal    ║                      
                       ║ interface; 'qsysmin host-admin' covers the host commands.                ║                      
@@ -32,9 +29,12 @@ qsysmin 0.0.0-test    ║ look after that host. It has the areas Overview, Host,
                       ║   ? help                                                                 ║                      
                       ║   : commands                                                             ║                      
                       ║   i info                                                                 ║                      
-                      ║ lines 1-27 of 30                                                         ║                      
+                      ║   F2 save                                                                ║                      
+                      ║   esc back                                                               ║                      
+                      ║   q quit                                                                 ║                      
                       ║                                                                          ║                      
                       ║ ←/→/tab/shift+tab topic  ↑/↓ scroll  pgup/pgdown page  esc/? close       ║                      
                       ╚══════════════════════════════════════════════════════════════════════════╝                      
+                                                                                                                        
                                                                                                                         
 ? help                                                                                                                  

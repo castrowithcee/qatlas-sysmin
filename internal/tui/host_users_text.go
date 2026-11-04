@@ -75,7 +75,7 @@ func hostUserTexts() (en, de map[textID]string) {
 	en = map[textID]string{
 		tHostNewTitle:         "New user",
 		tHostNewHint:          "The user must change the initial password at the first login.",
-		tHostNewServiceHint:   "A service account has no login: no password, no shell, no SSH keys. Use it for a service or container with an identity of its own.",
+		tHostNewServiceHint:   "A service account has no login: no password, no shell, no SSH keys. Use it for a service with an identity of its own.",
 		tHostFormKind:         "Kind",
 		tHostFormHome:         "Home",
 		tHostKindPerson:       "Person",
@@ -143,7 +143,7 @@ func hostUserTexts() (en, de map[textID]string) {
 	de = map[textID]string{
 		tHostNewTitle:         "Neuer Benutzer",
 		tHostNewHint:          "Der Benutzer muss das Startpasswort beim ersten Login ändern.",
-		tHostNewServiceHint:   "Ein Dienstkonto hat keinen Login: kein Passwort, keine Shell, keine SSH-Schlüssel. Es dient einem Dienst oder Container mit eigener Identität.",
+		tHostNewServiceHint:   "Ein Dienstkonto hat keinen Login: kein Passwort, keine Shell, keine SSH-Schlüssel. Es dient einem Dienst mit eigener Identität.",
 		tHostFormKind:         "Art",
 		tHostFormHome:         "Home",
 		tHostKindPerson:       "Person",

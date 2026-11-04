@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -30,7 +29,6 @@ type folderFixture struct {
 	*folderWorld
 	runner   *Runner
 	accounts *hostadmin.Host
-	docker   *fakeDocker
 	root     string
 }
 
@@ -54,9 +52,9 @@ func newFolderFixture(t *testing.T) *folderFixture {
 		t.Fatal(err)
 	}
 	accounts := &hostadmin.Host{PasswdPath: passwd, GroupPath: group, ShadowPath: filepath.Join(dir, "shadow"), Now: time.Now}
-	f := &folderFixture{folderWorld: &folderWorld{}, docker: &fakeDocker{states: [][]fakeContainer{{}}}, root: root, accounts: accounts}
+	f := &folderFixture{folderWorld: &folderWorld{}, root: root, accounts: accounts}
 	reg := NewRegistry()
-	if err := RegisterFolderActions(reg, FolderHost{Accounts: accounts, Containers: newCheck(f.docker)}); err != nil {
+	if err := RegisterFolderActions(reg, FolderHost{Accounts: accounts}); err != nil {
 		t.Fatal(err)
 	}
 	j, err := OpenJournal(filepath.Join(dir, "host", "journal"), os.Getuid())
@@ -395,87 +393,23 @@ func TestInverseRefusesAnUnusableRecord(t *testing.T) {
 	}
 }
 
-func TestFolderChangeBeforeAndAfterAffectedContainers(t *testing.T) {
+func TestFolderChangeNeverStartsDocker(t *testing.T) {
 	f := newFolderFixture(t)
-	f.docker.states = [][]fakeContainer{{webAt(f.root, func(*fakeContainer) {})}}
-	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root), nil)
-	if err != nil || res.Entry.Result != ResultApplied || res.Entry.Check != CheckPassed {
-		t.Fatalf("%v %+v", err, res.Entry)
-	}
-	if f.docker.inspects < 3 {
-		t.Errorf("the container was looked at %d times", f.docker.inspects)
-	}
-}
-
-func TestFolderChangeWithoutAffectedContainersDoesNotObserve(t *testing.T) {
-	f := newFolderFixture(t)
-	elsewhere := healthy(idWeb, "demo-web-1")
-	elsewhere.Mounts = []fakeMount{{"bind", f.root + "-other"}}
-	f.docker.states = [][]fakeContainer{{elsewhere}}
-	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root), nil)
-	if err != nil || res.Entry.Result != ResultApplied || res.Entry.Check != CheckPassed {
-		t.Fatalf("%v %+v", err, res.Entry)
-	}
-	if f.docker.inspects != 1 || f.docker.pses != 1 {
-		t.Errorf("docker was called %d times for ps and %d for inspect", f.docker.pses, f.docker.inspects)
-	}
-}
-
-func TestUnhealthyContainerRestoresThePreviousState(t *testing.T) {
-	f := newFolderFixture(t)
-	buildTree(t, f.root)
-	ok := webAt(f.root, func(*fakeContainer) {})
-	bad := webAt(f.root, func(c *fakeContainer) { c.Health = "unhealthy" })
-	f.docker.states = [][]fakeContainer{{ok}, {ok}, {bad}}
+	f.runner.Exec = noDockerRun{f.folderWorld}
 	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root, "recursive"), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	e := res.Entry
-	if e.Result != ResultRestored || !e.Restored || e.Check != CheckFailed {
-		t.Fatalf("%+v", e)
-	}
-	if want := "container demo-web-1: the container became unhealthy"; e.CheckError != want {
-		t.Errorf("check error %q", e.CheckError)
-	}
-	if len(f.calls) < 4 || !strings.HasPrefix(f.calls[2], "chown -h -- ") || !strings.HasPrefix(f.calls[len(f.calls)-1], "chmod -- 0") {
-		t.Fatalf("calls %q", f.calls)
-	}
-}
-
-func TestStoppedContainerRestores(t *testing.T) {
-	f := newFolderFixture(t)
-	ct := healthy(idWeb, "demo-web-1")
-	ct.Mounts = []fakeMount{{"bind", filepath.Join(f.root, "data")}}
-	stopped := ct
-	stopped.Status, stopped.Running = "exited", false
-	f.docker.states = [][]fakeContainer{{ct}, {ct}, {stopped}}
-	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.Entry.Result != ResultRestored || !strings.Contains(res.Entry.CheckError, "the container is not running (exited)") {
-		t.Fatalf("%+v", res.Entry)
-	}
-}
-
-func TestUnreachableDockerRefusesBeforeChanging(t *testing.T) {
-	f := newFolderFixture(t)
-	f.docker.err = errors.New("docker: cannot connect")
-	_, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root), nil)
-	var ref *RefusedError
-	if !errors.As(err, &ref) || !strings.Contains(ref.Msg, "cannot be checked") || len(f.calls) != 0 {
-		t.Fatalf("%v %v", err, f.calls)
-	}
-}
-
-func TestHostWithoutDockerHasNoContainersToCheck(t *testing.T) {
-	f := newFolderFixture(t)
-	f.docker.err = fmt.Errorf("docker: %w", exec.ErrNotFound)
-	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root), nil)
-	if err != nil || res.Entry.Result != ResultApplied {
+	if err != nil || res.Entry.Result != ResultApplied || res.Entry.Check != CheckPassed {
 		t.Fatalf("%v %+v", err, res.Entry)
 	}
+}
+
+// noDockerRun fails the test-run of any command that would start docker.
+type noDockerRun struct{ *folderWorld }
+
+func (w noDockerRun) Run(ctx context.Context, c Command) ([]byte, error) {
+	if len(c.Argv) > 0 && filepath.Base(c.Argv[0]) == "docker" {
+		return nil, errors.New("docker must not be started: " + c.Display())
+	}
+	return w.folderWorld.Run(ctx, c)
 }
 
 func TestSpecialBitsMustStayUnchanged(t *testing.T) {
@@ -542,5 +476,22 @@ func TestFailingRecursiveChownRestoresEveryCapturedEntry(t *testing.T) {
 		if !contains(chowned, e.Path) {
 			t.Errorf("owner of %s not restored", e.Path)
 		}
+	}
+}
+
+func TestFailingLaterChmodRestoresThePreviousState(t *testing.T) {
+	f := newFolderFixture(t)
+	buildTree(t, f.root)
+	f.runner.Exec = failingRun{f.folderWorld, "chmod -R"}
+	res, err := f.runner.Apply(context.Background(), ActionFolderSetPermissions, f.args(f.root, "recursive"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Entry.Result != ResultRestored || !res.Entry.Restored {
+		t.Fatalf("%+v", res.Entry)
+	}
+	last := f.calls[len(f.calls)-1]
+	if !strings.HasPrefix(f.calls[1], "chmod -R") || !strings.HasPrefix(last, "chmod -- 0") {
+		t.Fatalf("calls %q", f.calls)
 	}
 }

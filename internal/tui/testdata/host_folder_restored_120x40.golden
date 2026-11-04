@@ -21,8 +21,8 @@ Special        setgid: new e║ Failed, previous state restored: Change /srv/dem
                             ║ back.                                                        ║                            
                             ║                                                              ║                            
                             ║ check failed                                                 ║                            
-                            ║ Check failed: container demo-web-1: the container became     ║                            
-                            ║ unhealthy                                                    ║                            
+                            ║ Check failed: the special bits of /srv/demo-app changed from ║                            
+                            ║ 2755 to 0755                                                 ║                            
                             ║                                                              ║                            
                             ║ > close <                                                    ║                            
                             ║ esc/enter close                                              ║                            

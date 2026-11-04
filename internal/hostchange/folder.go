@@ -121,8 +121,7 @@ func isPseudoFS(path string) bool {
 
 // FolderHost names what the folder action reads as root. Tests point it at an invented host.
 type FolderHost struct {
-	Accounts   *hostadmin.Host
-	Containers ContainerCheck
+	Accounts *hostadmin.Host
 }
 
 // DefaultFolderHost is the real host.
@@ -303,7 +302,6 @@ func (f folderActions) planSetPermissions(args []string, _ []byte) (Plan, error)
 	}
 
 	var state folderState
-	var containers []ContainerState
 	return Plan{
 		Sentence: sentence,
 		Commands: []Command{{Argv: chown}, {Argv: chmod}},
@@ -333,17 +331,11 @@ func (f folderActions) planSetPermissions(args []string, _ []byte) (Plan, error)
 			if err != nil {
 				return nil, err
 			}
-			if containers, err = f.h.Containers.Affected(ctx, path); err != nil {
-				return nil, Refusef("the running containers cannot be checked, so nothing was changed: %v", err)
-			}
 			state = folderState{Path: path, Recursive: recursive, Entries: entries}
 			return json.Marshal(state)
 		},
 		Check: func(ctx context.Context) error {
-			if err := specialBitsUnchanged(state.Entries, lstatEntry); err != nil {
-				return err
-			}
-			return f.h.Containers.Watch(ctx, containers)
+			return specialBitsUnchanged(state.Entries, lstatEntry)
 		},
 	}, nil
 }
@@ -457,4 +449,8 @@ func chunkPaths(paths []string) [][]string {
 		out = append(out, cur)
 	}
 	return out
+}
+
+func lexicallyUnder(root, p string) bool {
+	return p == root || strings.HasPrefix(p, strings.TrimSuffix(root, "/")+"/")
 }

@@ -13,8 +13,8 @@ Others  ║ The change or its check failed and the previous state is     ║
 Mode    ║ back.                                                        ║        
 ACL     ║                                                              ║ow      
 Special ║ check failed                                                 ║        
-        ║ Check failed: container demo-web-1: the container became     ║        
-        ║ unhealthy                                                    ║        
+        ║ Check failed: the special bits of /srv/demo-app changed from ║        
+        ║ 2755 to 0755                                                 ║        
         ║                                                              ║        
         ║ > close <                                                    ║        
         ║ esc/enter close                                              ║        

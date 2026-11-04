@@ -31,7 +31,7 @@ Read only. Always pass --agent: compact output, no progress, no questions.
   qsysmin help <topic>        topics: qsysmin, host-admin
 
 Never run: host apply, host undo, host journal, update, uninstall, run, tui.
-Changes to the host and to containers are made by a person in 'qsysmin tui'. If a change is wanted,
+Changes to the host are made by a person in 'qsysmin tui'. If a change is wanted,
 tell the user what to do there. Do not pass --yes or --confirm for the user.
 
 Errors: stderr has two lines, "qsysmin: <code>: <message>" and the next step. With --agent the next step

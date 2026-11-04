@@ -9,7 +9,7 @@ import (
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
 )
 
-const restoredFolderReport = `{"journal_id":"x","action":"folder.set-permissions","sentence":"Change /srv/demo-app and everything below it: owner demo-user, group demo-team; the owner gets read and write, the group read, everyone else no access.","result":"restored","check":"failed","check_error":"container demo-web-1: the container became unhealthy","restored":true,"reversible":false,"error":"check failed"}`
+const restoredFolderReport = `{"journal_id":"x","action":"folder.set-permissions","sentence":"Change /srv/demo-app and everything below it: owner demo-user, group demo-team; the owner gets read and write, the group read, everyone else no access.","result":"restored","check":"failed","check_error":"the special bits of /srv/demo-app changed from 2755 to 0755","restored":true,"reversible":false,"error":"check failed"}`
 
 // openFolderForm reads path on Folders and opens the change form of the folder; count stands in for the
 // file system.
@@ -132,14 +132,14 @@ func TestTooManyEntriesRefuseInsteadOfAskingAndOtherCountErrorsToo(t *testing.T)
 	}
 }
 
-func TestARestoredFolderChangeNamesContainerAndFinding(t *testing.T) {
+func TestARestoredFolderChangeNamesTheFinding(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
 	openFolderForm(t, m, "/srv/demo-app", fixedCount(1))
 	save(m)
 	f.answer = func(HostRequest) (string, error) { return restoredFolderReport, exitError(t, "exit 1") }
 	send(m, "y")
 	view := flat(m)
-	for _, want := range []string{"previous state restored", "container demo-web-1: the container became unhealthy"} {
+	for _, want := range []string{"previous state restored", "the special bits of /srv/demo-app changed from 2755 to 0755"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("result lacks %q:\n%s", want, plain(m))
 		}
