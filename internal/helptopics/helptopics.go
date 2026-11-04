@@ -35,7 +35,7 @@ func topicsEN() []helptopics.Topic {
 
 Host reads the local users, groups and folder permissions. Changes run through 'sudo qsysmin host ...' after a confirmation, are recorded in a journal with the previous state, and can be undone. Activity shows a log kept as a hash chain without a signature.
 
-Admins, members of the group sudo, reach the running service through its socket. The installation requires the group docker.
+Admins, members of the group sudo, reach the running service through its socket.
 
 'qsysmin --help' lists the commands; 'qsysmin tui' opens the terminal interface; 'qsysmin host-admin' covers the host commands.`},
 		{Name: "host-admin", Short: "Read and change users, groups and folder permissions of the host", Text: `The host commands read the local users, groups and folder permissions. Changes (host apply, host undo) run through sudo after a confirmation, are recorded in a root-only journal with the previous state, and can be undone.
@@ -64,7 +64,7 @@ func topicsDE() []helptopics.Topic {
 
 Host liest die lokalen Benutzer, Gruppen und Ordnerrechte. Änderungen laufen nach einer Rückfrage über 'sudo qsysmin host ...', werden mit dem vorherigen Stand in einem Journal festgehalten und lassen sich rückgängig machen. Activity zeigt ein Protokoll, das als Hash-Kette ohne Signatur geführt wird.
 
-Admins, Mitglieder der Gruppe sudo, erreichen den laufenden Dienst über seinen Socket. Die Installation setzt die Gruppe docker voraus.
+Admins, Mitglieder der Gruppe sudo, erreichen den laufenden Dienst über seinen Socket.
 
 'qsysmin --help' listet die Befehle; 'qsysmin tui' öffnet die Terminal-Oberfläche; 'qsysmin host-admin' beschreibt die Host-Befehle.`},
 		{Name: "host-admin", Short: "Benutzer, Gruppen und Ordnerrechte des Hosts lesen und ändern", Text: `Die Host-Befehle lesen die lokalen Benutzer, Gruppen und Ordnerrechte. Änderungen (host apply, host undo) laufen nach einer Rückfrage über sudo, werden mit dem vorherigen Stand in einem Journal festgehalten, das nur root lesen kann, und lassen sich rückgängig machen.

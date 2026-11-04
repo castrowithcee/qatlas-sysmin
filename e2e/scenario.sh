@@ -11,21 +11,18 @@
 
 scenario_steps='
 s00_installation|The installation created the unit, user, group, program and socket under the new names
+s00b_without_docker|The installation ran on a host without Docker and the service user is not in the group docker
 s01_status_and_log|Status and the verified action log right after the installation
 s01b_tui_starts|The terminal interface starts and shows its screen
 s01c_channel_access|The control channel serves administrators and refuses everyone else, each refusal in the action log
-s02_folder_change_kept|A folder change with a running demo container that stays healthy is kept
-s03_folder_change_restored|A folder change that makes the demo container unhealthy is restored
-s04_folder_undo|The kept folder change is undone from the journal
-s05_self_update|Update to the newer signed release
-s06_uninstall|Uninstall keeps the state and the running containers
+s02_folder_change|A folder change is applied and recorded in the journal and the action log
+s04_folder_undo|The folder change is undone from the journal
+s05_self_update|Update to the newer signed release; the service user leaves the group docker
+s06_uninstall|Uninstall keeps the state
 s07_old_name_blocks_installer|The installer refuses a host with an installation under the old name
 '
 
 demo_dir=/srv/demo-app
-demo_container=demo-app
-demo_image=demo-app:e2e
-demo_uid=4242
 journal_kept=
 
 # --- record ---------------------------------------------------------------------------------------------
@@ -100,45 +97,17 @@ log_has() {
 	action_log | grep -E "\"client_uid\":$1,\"action\":\"$2\",\"result\":\"[a-z]+\"${3:+,\"error_code\":\"$3\"}"
 }
 
-# containers prints name, id and start time of the running containers on the host.
-containers() {
-	docker exec "$host" docker ps --no-trunc --format '{{.Names}} {{.ID}}' | sort | while read -r name id; do
-		printf '%s %s %s\n' "$name" "$id" "$(docker exec "$host" docker inspect -f '{{.State.StartedAt}}' "$id")"
-	done
-}
-
-# --- demo container ---------------------------------------------------------------------------------------
+# --- demo folder ------------------------------------------------------------------------------------------
 
 # stat_of prints owner, group and mode of the demo folder.
 stat_of() {
 	docker exec "$host" stat -c '%U:%G %a' "$demo_dir"
 }
 
-demo_health() {
-	docker exec "$host" docker inspect -f '{{.State.Status}}/{{.State.Health.Status}}' "$demo_container" 2>&1
-}
-
-demo_healthy() {
-	[ "$(demo_health)" = running/healthy ]
-}
-
-# demo_start builds the demo image from the fake application and runs a container that reads the demo folder
-# as an unprivileged user, so that the folder's permissions decide whether it stays healthy.
-demo_start() {
+# demo_prepare creates the unprivileged owner and the folder the folder steps change.
+demo_prepare() {
 	hroot "useradd --system --no-create-home --shell /usr/sbin/nologin demo-user
-mkdir -p $demo_dir /root/demo-image && echo ok >$demo_dir/data.txt && chmod 755 $demo_dir && chmod 644 $demo_dir/data.txt"
-	cat >"$sc_dir/demo.Dockerfile" <<'EOF'
-FROM scratch
-COPY demoapp /demoapp
-ENTRYPOINT ["/demoapp", "demoapp"]
-HEALTHCHECK --interval=1s --timeout=3s --retries=1 CMD ["/demoapp", "demoapp", "check"]
-EOF
-	sc_note "# docker cp demo.Dockerfile and the fake application to $host:/root/demo-image"
-	docker cp "$work/ctx/fakes" "$host:/root/demo-image/demoapp"
-	docker cp "$sc_dir/demo.Dockerfile" "$host:/root/demo-image/Dockerfile"
-	hroot "docker build -q -t $demo_image /root/demo-image >/dev/null
-docker run -d --name $demo_container --user $demo_uid:$demo_uid -v $demo_dir:/data:ro -e DEMO_DIR=/data $demo_image >/dev/null"
-	poll 60 demo_healthy
+mkdir -p $demo_dir && echo ok >$demo_dir/data.txt && chmod 755 $demo_dir && chmod 644 $demo_dir/data.txt"
 }
 
 # apply_folder runs the folder change with the given levels (user, group, other) on the demo folder.
@@ -177,6 +146,27 @@ $perms"
 	out=$(hrun qsysmin version 2>&1) && rc=0 || rc=$?
 	evidence "qsysmin version: exit $rc: $out"
 	[ "$rc" = 0 ] && printf '%s\n' "$out" | grep -q v0.7.0 || failed "qsysmin version: $out"
+}
+
+# The simulated host has no Docker at all, so the installer must not need it; the membership is also what a
+# fresh installation must not create.
+s00b_without_docker() {
+	out=$(docker exec "$host" sh -c '
+		echo "docker program: $(command -v docker || echo none)"
+		echo "group docker: $(getent group docker || echo none)"
+		echo "unit lines naming docker: $(grep -ci docker /etc/systemd/system/qsysmin.service || true)"
+		echo "groups of qsysmin: $(id -nG qsysmin)"' 2>&1)
+	evidence "host without Docker:
+$out"
+	printf '%s\n' "$out" | grep -q '^docker program: none$' || failed 'the simulated host has a docker program'
+	printf '%s\n' "$out" | grep -q '^group docker: none$' || failed 'the simulated host has a group docker'
+	printf '%s\n' "$out" | grep -q '^unit lines naming docker: 0$' || failed 'the installed unit names docker'
+	not_in_docker || failed 'the service user is in the group docker after the installation'
+}
+
+# not_in_docker succeeds when qsysmin is no member of the group docker.
+not_in_docker() {
+	! docker exec "$host" id -nG qsysmin | tr ' ' '\n' | grep -qx docker
 }
 
 s01_status_and_log() {
@@ -271,42 +261,24 @@ EOF
 	hroot 'userdel demo-guest; userdel demo-out'
 }
 
-s02_folder_change_kept() {
-	if ! demo_start; then
-		failed "the demo container did not become healthy: $(demo_health)"
-		return 1
-	fi
+s02_folder_change() {
+	demo_prepare
 	before=$(stat_of)
-	evidence "demo folder before: $before; container: $(demo_health)"
+	evidence "demo folder before: $before"
 	out=$(apply_folder read-write read read) && rc=0 || rc=$?
 	journal_kept=$(kv "$out" journal_id)
-	evidence "host apply (the folder stays readable for the container): exit $rc: result=$(kv "$out" result) check=$(kv "$out" check) restored=$(kv "$out" restored) reversible=$(kv "$out" reversible) journal_id=$journal_kept"
+	evidence "host apply: exit $rc: result=$(kv "$out" result) check=$(kv "$out" check) restored=$(kv "$out" restored) reversible=$(kv "$out" reversible) journal_id=$journal_kept"
 	[ "$rc" = 0 ] && [ "$(kv "$out" result)" = applied ] || failed "the change was not applied: $out"
 	entry=$(action_log | grep -F "\"journal_id\":\"$journal_kept\"" | tail -n 1)
 	evidence "action log entry of the change made through sudo (client uid is the administrator's, $(docker exec "$host" id -u "$admin")): $entry"
 	printf '%s\n' "$entry" | grep -q "\"client_uid\":$(docker exec "$host" id -u "$admin"),\"action\":\"host.change\"" || failed 'no host.change entry of the administrator for the change'
 	after=$(stat_of)
-	evidence "demo folder after: $after; container: $(demo_health)"
+	evidence "demo folder after: $after"
 	[ "$after" = 'demo-user:demo-user 755' ] || failed "the folder is not demo-user:demo-user 755: $after"
-	demo_healthy || failed 'the demo container is not healthy after the change'
 	files=$(docker exec "$host" sh -c 'ls -A /var/lib/qsysmin-host/journal 2>&1')
 	evidence "journal directory /var/lib/qsysmin-host/journal:
 $files"
 	printf '%s\n' "$files" | grep -q "$journal_kept" || failed "the journal entry $journal_kept is not under /var/lib/qsysmin-host/journal"
-}
-
-s03_folder_change_restored() {
-	before=$(stat_of)
-	id_before=$(docker exec "$host" docker inspect -f '{{.Id}}' "$demo_container")
-	out=$(apply_folder read-write read nothing) && rc=0 || rc=$?
-	evidence "host apply (the container loses access): exit $rc: result=$(kv "$out" result) check=$(kv "$out" check) restored=$(kv "$out" restored)
-check_error=$(kv "$out" check_error)"
-	[ "$rc" != 0 ] && [ "$(kv "$out" result)" = restored ] || failed "the change was not restored: exit $rc: $out"
-	after=$(stat_of)
-	evidence "demo folder before: $before; after: $after; container: $(demo_health)"
-	[ "$after" = "$before" ] || failed 'the previous folder state was not restored'
-	poll 60 demo_healthy || failed 'the demo container is not healthy after the restore'
-	[ "$(docker exec "$host" docker inspect -f '{{.Id}}' "$demo_container")" = "$id_before" ] || failed 'the demo container was replaced'
 }
 
 s04_folder_undo() {
@@ -317,9 +289,8 @@ $out"
 	evidence "host undo $journal_kept: exit $rc: result=$(kv "$out" result) check=$(kv "$out" check)"
 	[ "$rc" = 0 ] && [ "$(kv "$out" result)" = applied ] || failed "undo: $out"
 	after=$(stat_of)
-	evidence "demo folder after the undo: $after; container: $(demo_health)"
+	evidence "demo folder after the undo: $after"
 	[ "$after" = 'root:root 755' ] || failed "the folder is not back to root:root 755: $after"
-	demo_healthy || failed 'the demo container is not healthy after the undo'
 }
 
 s05_self_update() {
@@ -340,6 +311,10 @@ $out"
 		-s "$rel/checksums.txt.sig" <"$rel/checksums.txt" >/dev/null 2>&1 && ns_old=accepted || ns_old=rejected
 	evidence "signature of checksums.txt: namespace qsysmin-release verifies: $ns_ok; namespace sysmin-release: $ns_old"
 	[ "$ns_ok" = yes ] && [ "$ns_old" = rejected ] || failed 'the release signature does not use the namespace qsysmin-release'
+	# An installation of an older release put the service user into the group docker; the update must take it out.
+	hroot 'getent group docker >/dev/null || groupadd docker; usermod -aG docker qsysmin'
+	not_in_docker && failed 'the scenario could not put the service user into the group docker'
+	evidence "before the update: groups of qsysmin: $(docker exec "$host" id -nG qsysmin)"
 	sc_note '# on the release server: v0.8.0/checksums.txt.sig replaced by the signature of v0.7.0'
 	docker exec "$prefix-releases" sh -c 'cd /srv/releases && cp v0.8.0/checksums.txt.sig /tmp/v0.8.0.sig && cp v0.7.0/checksums.txt.sig v0.8.0/checksums.txt.sig'
 	out=$(cli update --api-url "$api" --to v0.8.0 --yes --confirm --output compact 2>&1) && rc=0 || rc=$?
@@ -349,7 +324,9 @@ $out"
 	sc_note '# on the release server: the signature of v0.8.0 restored'
 	docker exec "$prefix-releases" sh -c 'cp /tmp/v0.8.0.sig /srv/releases/v0.8.0/checksums.txt.sig'
 	out=$(cli update --api-url "$api" --yes --confirm --output compact 2>&1) && rc=0 || rc=$?
-	evidence "update: previous=$(kv "$out" previous) version=$(kv "$out" version) updated=$(kv "$out" updated) restarted=$(kv "$out" restarted)"
+	evidence "update: previous=$(kv "$out" previous) version=$(kv "$out" version) updated=$(kv "$out" updated) restarted=$(kv "$out" restarted)
+groups of qsysmin after the update: $(docker exec "$host" id -nG qsysmin)"
+	not_in_docker || failed 'the service user is still in the group docker after the update'
 	if [ "$rc" != 0 ]; then
 		failed "update: $out"
 		return 1
@@ -366,7 +343,6 @@ $out"
 	out=$(cli log verify --output compact 2>&1) && rc=0 || rc=$?
 	evidence "log verify after the update: exit $rc"
 	[ "$rc" = 0 ] || failed 'the action log does not verify after the update'
-	demo_healthy || failed 'the demo container is not healthy after the update'
 
 	out=$(cli update --api-url "$api" --to v0.7.0 --yes --confirm --output compact 2>&1) && rc=0 || rc=$?
 	evidence "rollback: update --to v0.7.0: exit $rc: previous=$(kv "$out" previous) version=$(kv "$out" version) updated=$(kv "$out" updated)"
@@ -391,7 +367,6 @@ $out"
 }
 
 s06_uninstall() {
-	before=$(containers)
 	out=$(cli uninstall --output compact 2>&1) && rc=0 || rc=$?
 	evidence "uninstall without --confirm: exit $rc: $out"
 	[ "$rc" != 0 ] || failed 'uninstall ran without a confirmation'
@@ -413,18 +388,13 @@ $gone"
 	evidence "kept:
 $kept"
 	printf '%s\n' "$kept" | grep -q '^/var/lib/qsysmin$' || failed 'state was removed without --purge'
-	after=$(containers)
-	evidence "running containers unchanged (name, id, start): $([ "$before" = "$after" ] && echo yes || echo no)"
-	[ "$before" = "$after" ] || failed "the containers changed:
-$after"
 	out=$(hroot '/root/qsysmin-kept uninstall --purge --yes --confirm --output compact; rm -f /root/qsysmin-kept' 2>&1) || true
 	left=$(docker exec "$host" sh -c 'ls -d /var/lib/qsysmin 2>&1')
 	evidence "uninstall --purge with a copy of the program kept before: purged=$(kv "$out" purged); what is left:
 $left"
-	printf '%s\n' "$left" | grep -q '^/var/lib/qsysmin$' && failed '--purge left the state'
-	after=$(containers)
-	evidence "running containers unchanged after --purge: $([ "$before" = "$after" ] && echo yes || echo no)"
-	[ "$before" = "$after" ] || failed 'the containers changed after --purge'
+	if printf '%s\n' "$left" | grep -q '^/var/lib/qsysmin$'; then
+		failed '--purge left the state'
+	fi
 }
 
 # The installer must stop on a host with an installation under the old name before it changes anything. Runs
@@ -481,9 +451,8 @@ run_scenario() {
 	: >"$sc_dir/summary"
 	{
 		printf '# qsysmin end-to-end scenario\n\n'
-		printf 'Started: %s\nqsysmin: %s\nHost: %s (Debian 12, systemd, Docker %s)\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-			"$(docker exec "$host" qsysmin version --output compact | sed 's/^version=//')" "$hostname_" \
-			"$(docker exec "$host" docker version --format '{{.Server.Version}}')"
+		printf 'Started: %s\nqsysmin: %s\nHost: %s (Debian 12, systemd, no Docker)\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+			"$(docker exec "$host" qsysmin version --output compact | sed 's/^version=//')" "$hostname_"
 		printf 'Commands starting with $ run on the host as %s, # as root to prepare the scenario.\n' "$admin"
 	} >"$results"
 

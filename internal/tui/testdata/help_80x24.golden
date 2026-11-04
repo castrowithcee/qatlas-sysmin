@@ -15,7 +15,7 @@ qs║ look after that host. It has the areas Overview, Host, Activity and      �
 │ ║ kept as a hash chain without a signature.                                ║ │
 ╰─║                                                                          ║─╯
   ║ Admins, members of the group sudo, reach the running service through its ║  
-  ║ socket. The installation requires the group docker.                      ║  
+  ║ socket.                                                                  ║  
   ║ lines 1-11 of 26                                                         ║  
   ║                                                                          ║  
   ║ ←/→/tab/shift+tab topic  ↑/↓ scroll  pgup/pgdown page  esc/? close       ║  

@@ -37,13 +37,13 @@ esac
 exit 1`,
 	"getent": `[ "$1" = group ] || exit 2
 case "$2" in
-docker) [ -z "$STUB_NO_DOCKER" ]; exit $? ;;
 qsysmin) [ -f "$STUB_STATE/group" ]; exit $? ;;
 esac
 exit 2`,
 	"groupadd":  `echo "groupadd $*" >>"$STUB_LOG"; touch "$STUB_STATE/group"`,
-	"useradd":   `echo "useradd $*" >>"$STUB_LOG"; touch "$STUB_STATE/user" "$STUB_STATE/in-docker"`,
-	"usermod":   `echo "usermod $*" >>"$STUB_LOG"; [ "$2" != docker ] || touch "$STUB_STATE/in-docker"`,
+	"useradd":   `echo "useradd $*" >>"$STUB_LOG"; touch "$STUB_STATE/user"`,
+	"usermod":   `echo "usermod $*" >>"$STUB_LOG"`,
+	"gpasswd":   `echo "gpasswd $*" >>"$STUB_LOG"; rm -f "$STUB_STATE/in-docker"`,
 	"chown":     `echo "chown $*" >>"$STUB_LOG"`,
 	"systemctl": `echo "systemctl $*" >>"$STUB_LOG"`,
 }
@@ -59,7 +59,6 @@ type env struct {
 	log     string
 	uid     string
 	sudo    string // SUDO_USER; "" leaves it unset
-	noDock  bool
 }
 
 func newEnv(t *testing.T) *env {
@@ -200,9 +199,6 @@ func (e *env) run(script string, stdin bool, args ...string) (string, error) {
 		"QSYSMIN_INSTALL_ROOT=" + e.root,
 		"STUB_LOG=" + e.log, "STUB_STATE=" + e.state, "STUB_UID=" + e.uid,
 	}
-	if e.noDock {
-		cmd.Env = append(cmd.Env, "STUB_NO_DOCKER=1")
-	}
 	if e.sudo != "" {
 		cmd.Env = append(cmd.Env, "SUDO_USER="+e.sudo)
 	}
@@ -319,7 +315,7 @@ func TestInstallAndReinstall(t *testing.T) {
 	}
 	calls := e.calls()
 	for _, want := range []string{
-		"groupadd --system qsysmin", "useradd --system --gid qsysmin --groups docker --no-create-home",
+		"groupadd --system qsysmin", "useradd --system --gid qsysmin --no-create-home",
 		"chown qsysmin:qsysmin " + filepath.Join(e.root, "var/lib/qsysmin"), "systemctl daemon-reload", "systemctl enable --now qsysmin",
 	} {
 		if !strings.Contains(calls, want) {
@@ -423,16 +419,37 @@ func TestInstallFromStdinWithOptions(t *testing.T) {
 	}
 }
 
-func TestInstallPreflightFailuresChangeNothing(t *testing.T) {
-	t.Run("no docker group", func(t *testing.T) {
+func TestInstallNeedsNoDockerAndDropsMembership(t *testing.T) {
+	t.Run("host without docker", func(t *testing.T) {
 		e := newEnv(t)
-		e.noDock = true
 		e.publish("v1.0.0", "program", releaseOptions{})
-		out, err := e.run("", false)
-		if err == nil || !strings.Contains(out, "group docker does not exist") {
-			t.Fatalf("err = %v\n%s", err, out)
+		e.mustRun()
+		if calls := e.calls(); strings.Contains(calls, "gpasswd") || strings.Contains(calls, " docker") {
+			t.Errorf("calls mention docker:\n%s", calls)
 		}
-		e.assertUntouched()
+	})
+	t.Run("existing membership", func(t *testing.T) {
+		e := newEnv(t)
+		e.publish("v1.0.0", "program", releaseOptions{})
+		for _, name := range []string{"user", "group", "in-docker"} {
+			if err := os.WriteFile(filepath.Join(e.state, name), nil, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		e.mustRun()
+		if !strings.Contains(e.calls(), "gpasswd -d qsysmin docker") {
+			t.Errorf("calls lack the removal:\n%s", e.calls())
+		}
+		if _, err := os.Stat(filepath.Join(e.state, "in-docker")); !os.IsNotExist(err) {
+			t.Errorf("service user is still in docker: %v", err)
+		}
+		if err := os.WriteFile(e.log, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		e.mustRun()
+		if strings.Contains(e.calls(), "gpasswd") {
+			t.Errorf("second run removed a missing membership:\n%s", e.calls())
+		}
 	})
 }
 

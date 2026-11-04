@@ -57,6 +57,7 @@ func newFakeHost(t *testing.T, server *fakeServer) *fakeHost {
 		binaryPath: filepath.Join(dir, "bin", "qsysmin"),
 		unitPath:   filepath.Join(dir, "qsysmin.service"),
 		manPath:    filepath.Join(dir, "share", "man", "man1", "qsysmin.1"),
+		groupPath:  filepath.Join(dir, "group"),
 		dataDirs:   []string{filepath.Join(dir, "etc"), filepath.Join(dir, "var")},
 	}
 	h.system.updater = func(v, apiURL string) *selfupdate.Client {
@@ -405,5 +406,61 @@ func TestUpdateWithoutManpageInArchiveChangesNothing(t *testing.T) {
 	code, _, _ := h.run(t, "", "update", "--yes", "--confirm", "--api-url", h.server.API())
 	if code != exitRuntime || binary(t, h) != "old program" || len(h.calls) != 0 || exists(h.manPath) {
 		t.Errorf("code = %d, calls = %v", code, h.calls)
+	}
+}
+
+func TestUpdateRemovesServiceUserFromGroupDocker(t *testing.T) {
+	withVersion(t, "v1.0.0")
+	h := newFakeHost(t, newFakeServer(t, "amd64", fakeRelease{Tag: "v1.1.0", Program: "new program"}))
+	if err := os.WriteFile(h.groupPath, []byte("root:x:0:\ndocker:x:998:demo-user,qsysmin\nqsysmin:x:997:\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := h.run(t, "", "update", "--yes", "--confirm", "--api-url", h.server.API())
+	if code != exitOK {
+		t.Fatalf("code = %d, stderr = %q", code, stderr)
+	}
+	want := []string{"gpasswd -d qsysmin docker", "systemctl daemon-reload", "systemctl restart qsysmin"}
+	if !slices.Equal(h.calls, want) {
+		t.Errorf("calls = %v, want %v", h.calls, want)
+	}
+}
+
+func TestUpdateLeavesGroupDockerWithoutServiceUserAlone(t *testing.T) {
+	withVersion(t, "v1.0.0")
+	for name, content := range map[string]string{
+		"other members": "docker:x:998:demo-user,qsysmin-extra\n",
+		"no members":    "docker:x:998:\n",
+		"no group":      "root:x:0:\n",
+		"no file":       "",
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := newFakeHost(t, newFakeServer(t, "amd64", fakeRelease{Tag: "v1.1.0", Program: "new program"}))
+			if content != "" {
+				if err := os.WriteFile(h.groupPath, []byte(content), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if code, _, stderr := h.run(t, "", "update", "--yes", "--confirm", "--api-url", h.server.API()); code != exitOK {
+				t.Fatalf("code = %d, stderr = %q", code, stderr)
+			}
+			for _, c := range h.calls {
+				if strings.HasPrefix(c, "gpasswd") {
+					t.Errorf("unexpected call %q", c)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateGroupRemovalFailureIsReported(t *testing.T) {
+	withVersion(t, "v1.0.0")
+	h := newFakeHost(t, newFakeServer(t, "amd64", fakeRelease{Tag: "v1.1.0", Program: "new program"}))
+	if err := os.WriteFile(h.groupPath, []byte("docker:x:998:qsysmin\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h.fail["gpasswd -d qsysmin docker"] = exitStatus(1)
+	code, _, stderr := h.run(t, "", "update", "--yes", "--confirm", "--api-url", h.server.API())
+	if code != exitRuntime || !strings.Contains(stderr, "removing the service user from the group docker failed") {
+		t.Errorf("code = %d, stderr = %q", code, stderr)
 	}
 }

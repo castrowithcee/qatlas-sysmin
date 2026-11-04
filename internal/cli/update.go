@@ -196,6 +196,9 @@ func install(c *cobra.Command, opts *Options, s system, updater *selfupdate.Clie
 	if err != nil {
 		return updateError(err)
 	}
+	if err := dropDockerMembership(ctx, s); err != nil {
+		return updateError(fmt.Errorf("qsysmin %s is installed, but %w", result.Latest, err))
+	}
 	// The service manager reads a replaced unit before the restart, which happens once the program is in place.
 	unitUpdated := slices.Contains(result.Companions, s.unitPath)
 	if unitUpdated {
@@ -207,6 +210,28 @@ func install(c *cobra.Command, opts *Options, s system, updater *selfupdate.Clie
 		return updateError(fmt.Errorf("qsysmin %s is installed, but restarting the service failed: %w", result.Latest, err))
 	}
 	return emitUpdate(c, opts, result.Current, result.Latest, true, true, unitUpdated)
+}
+
+// dropDockerMembership removes the service user from the group docker, which older releases added it to. The
+// service needs no such access; the step does nothing when the group or the membership is absent.
+func dropDockerMembership(ctx context.Context, s system) error {
+	b, err := os.ReadFile(s.groupPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("reading the group file failed: %w", err)
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		f := strings.Split(line, ":")
+		if len(f) < 4 || f[0] != "docker" || !slices.Contains(strings.Split(f[3], ","), serviceName) {
+			continue
+		}
+		if err := s.command(ctx, "gpasswd", "-d", serviceName, "docker"); err != nil {
+			return fmt.Errorf("removing the service user from the group docker failed: %w", err)
+		}
+	}
+	return nil
 }
 
 // updateError is a failed update or release lookup; the message says whether the installation changed.

@@ -18,6 +18,7 @@ const (
 	binaryPath   = "/usr/local/bin/qsysmin"
 	manPath      = "/usr/local/share/man/man1/qsysmin.1"
 	stateDataDir = "/var/lib/qsysmin"
+	groupPath    = "/etc/group"
 )
 
 // system holds everything update and uninstall take from the host, so that tests run without root, systemd,
@@ -32,6 +33,7 @@ type system struct {
 	binaryPath string
 	unitPath   string
 	manPath    string
+	groupPath  string
 	// dataDirs are the directories uninstall --purge removes.
 	dataDirs []string
 }
@@ -52,6 +54,7 @@ func defaultSystem() system {
 		binaryPath: binaryPath,
 		unitPath:   unitPath,
 		manPath:    manPath,
+		groupPath:  groupPath,
 		dataDirs:   []string{stateDataDir},
 	}
 }

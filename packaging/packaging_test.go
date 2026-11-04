@@ -26,13 +26,12 @@ func TestUnitHasRequiredLines(t *testing.T) {
 	}
 	required := []string{
 		"[Unit]", "[Service]", "[Install]",
-		"After=network-online.target docker.service",
+		"After=network-online.target",
 		"Wants=network-online.target",
 		"Type=simple",
 		"ExecStart=/usr/local/bin/qsysmin run",
 		"User=qsysmin",
 		"Group=qsysmin",
-		"SupplementaryGroups=docker",
 		"RuntimeDirectory=qsysmin",
 		"RuntimeDirectoryMode=0750",
 		"StateDirectory=qsysmin",
@@ -47,6 +46,9 @@ func TestUnitHasRequiredLines(t *testing.T) {
 		if !lines[want] {
 			t.Errorf("unit lacks line %q", want)
 		}
+	}
+	if strings.Contains(readUnit(t), "docker") {
+		t.Error("unit mentions docker; the service needs no Docker")
 	}
 }
 
@@ -68,10 +70,10 @@ func TestUnitVerifies(t *testing.T) {
 	if err == nil {
 		return
 	}
-	// Missing user, group or docker.service on the build host is not a unit error.
+	// Missing user or group on the build host is not a unit error.
 	var problems []string
 	for _, l := range strings.Split(string(out), "\n") {
-		if strings.TrimSpace(l) == "" || strings.Contains(l, "docker.service") ||
+		if strings.TrimSpace(l) == "" ||
 			strings.Contains(l, "qsysmin") && (strings.Contains(l, "user") || strings.Contains(l, "group") ||
 				strings.Contains(l, "User") || strings.Contains(l, "Group")) {
 			continue

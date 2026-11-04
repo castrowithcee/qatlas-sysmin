@@ -16,7 +16,7 @@ qsysmin 0.0.0-test    ║ qsysmin is a Go tool that runs as a service on a Linux
 ╰─────────────────────║ kept as a hash chain without a signature.                                ║─────────────────────╯
                       ║                                                                          ║                      
                       ║ Admins, members of the group sudo, reach the running service through its ║                      
-                      ║ socket. The installation requires the group docker.                      ║                      
+                      ║ socket.                                                                  ║                      
                       ║                                                                          ║                      
                       ║ 'qsysmin --help' lists the commands; 'qsysmin tui' opens the terminal    ║                      
                       ║ interface; 'qsysmin host-admin' covers the host commands.                ║                      

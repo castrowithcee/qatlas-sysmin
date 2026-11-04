@@ -6,8 +6,7 @@ Overview, Host, Activity and Settings, in a terminal interface and on the comman
 - Host reads users, groups and folder permissions. Changes run through `sudo qsysmin host ...` after a
   confirmation, are recorded in a journal with the previous state, and can be undone.
 - Activity shows a log kept as a hash chain without a signature.
-- Admins (members of the group `sudo`) reach the service through its socket. The installation requires the
-  group `docker`.
+- Admins (members of the group `sudo`) reach the service through its socket.
 
 The project is at an early stage of development and is not ready for use.
 

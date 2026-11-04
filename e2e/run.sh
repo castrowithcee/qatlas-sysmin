@@ -1,5 +1,5 @@
 #!/bin/sh
-# End-to-end environment: a simulated Linux host (systemd + Docker) with a local release server, where qsysmin
+# End-to-end environment: a simulated Linux host (systemd, no Docker) with a local release server, where qsysmin
 # is installed from locally signed test releases.
 #
 #   e2e/run.sh up                 build everything, start the environment, install qsysmin v0.7.0 on the host
@@ -196,8 +196,6 @@ build_images() {
 
 start_services() {
 	docker network create --label "$label" --label "qsysmin.e2e.dir=$work" "$net" >/dev/null
-	docker volume create --label "$label" "$prefix-docker" >/dev/null
-	docker volume create --label "$label" "$prefix-containerd" >/dev/null
 
 	docker run -d --name "$prefix-releases" --label "$label" --network "$net" \
 		--network-alias "releases.$domain" --network-alias api.github.com --network-alias github.com \
@@ -205,7 +203,6 @@ start_services() {
 
 	docker run -d --name "$host" --label "$label" --hostname "$hostname_" --network "$net" \
 		--privileged --cgroupns=private --tmpfs /run --tmpfs /run/lock \
-		-v "$prefix-docker:/var/lib/docker" -v "$prefix-containerd:/var/lib/containerd" \
 		"$prefix-host:latest" >/dev/null
 }
 
@@ -229,7 +226,6 @@ prepare_host() {
 	wait_for 'the host to boot' 90 host_booted
 	docker cp "$work/ctx/certs/ca.crt" "$host:/usr/local/share/ca-certificates/$prefix-ca.crt"
 	docker exec "$host" update-ca-certificates >/dev/null
-	wait_for 'the inner Docker daemon' 60 docker exec "$host" docker info
 }
 
 check_services() {

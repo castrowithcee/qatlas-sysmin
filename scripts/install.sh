@@ -79,8 +79,6 @@ main() {
 	if [ -e "$root/etc/systemd/system/sysmin.service" ] || [ -e "$root/usr/local/bin/sysmin" ]; then
 		fail 'an installation under the old name sysmin was found; nothing was changed. Run "sudo sysmin uninstall --purge" first, then run this installer again'
 	fi
-	getent group docker >/dev/null 2>&1 ||
-		fail 'the group docker does not exist; install Docker first, the service needs access to it'
 
 	if [ -z "$version" ]; then
 		latest=$(curl -fsSIL -o /dev/null -w '%{url_effective}' "$base/latest") || fail 'could not determine the latest release'
@@ -132,9 +130,12 @@ main() {
 		groupadd --system "$service_user"
 	fi
 	if id "$service_user" >/dev/null 2>&1; then
-		id -nG "$service_user" | tr ' ' '\n' | grep -qx docker || usermod -aG docker "$service_user"
+		# Older releases added the service user to docker; it needs no such access.
+		if id -nG "$service_user" | tr ' ' '\n' | grep -qx docker; then
+			gpasswd -d "$service_user" docker >/dev/null
+		fi
 	else
-		useradd --system --gid "$service_user" --groups docker --no-create-home \
+		useradd --system --gid "$service_user" --no-create-home \
 			--home-dir /var/lib/qsysmin --shell "$(nologin_shell)" "$service_user"
 	fi
 	# Whoever can run the installer through sudo can become root anyway. Only a fresh install adds them, so an
