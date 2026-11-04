@@ -248,7 +248,7 @@ func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	before := f.kit.Values()
-	act, handled := f.kit.Update(key)
+	act, handled := m.formKey(f.kit, key)
 	// The kit reports the back key as an act that it leaves unhandled; the guarded leave below answers it.
 	if handled || (act != "" && act != actBack) {
 		return m.formAct(f, act, before)

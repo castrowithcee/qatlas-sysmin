@@ -31,12 +31,7 @@ func (m *Model) commands() []kittui.Command {
 	}
 	return append(list,
 		kittui.Command{Name: "reload", Aliases: []string{"refresh"}, Description: tCmdReload, Action: actReload,
-			Available: func(kittui.Context) (bool, string) {
-				if _, ok := m.ui.reloadPress(); !ok {
-					return false, m.tr(tCmdNoReloadKey)
-				}
-				return true, ""
-			}},
+			Available: kittui.Always},
 		kittui.Command{Name: "regroup", Description: tCmdRegroup, Action: actRegroup, Available: kittui.Always},
 		kittui.Command{Name: "update", Aliases: []string{"upgrade"}, Description: tCmdUpdate, Action: actSelfUpdate,
 			Available: kittui.Always},
@@ -65,8 +60,7 @@ func (m *Model) commandDone(c kittui.Command, done bool) tea.Cmd {
 	}
 	switch c.Action {
 	case actReload:
-		press, _ := m.ui.reloadPress()
-		return m.updateArea(press)
+		return m.runAction(actReload, m.updateArea)
 	case actRegroup:
 		return m.regroup()
 	case actSelfUpdate:

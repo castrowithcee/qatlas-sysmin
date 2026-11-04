@@ -77,7 +77,7 @@ func (m *Model) hostNotice(title string, details ...kittui.DialogLine) {
 // dialogAnswer is the answer a key gives the open dialog. The kit leaves the keys it does not read; esc and
 // no then drop the dialog, and a message closes on y as well.
 func (m *Model) dialogAnswer(key tea.KeyPressMsg) (action, bool) {
-	if a, ok := m.dlg.Update(key); ok {
+	if a, ok := m.dialogKey(m.dlg, key); ok {
 		return a, true
 	}
 	switch {

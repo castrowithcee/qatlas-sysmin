@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -184,40 +183,21 @@ func (m *Model) inputFocus() kittui.InputFocus {
 // keyIs reports whether the key press triggers the action, whatever the screen reads. A handler that runs
 // while text is typed asks it only for keys that type nothing, or asks keyIsTyped.
 func (m *Model) keyIs(msg tea.KeyPressMsg, a action) bool {
+	if m.isAction(msg) {
+		return m.acting == a
+	}
 	return m.ui.keys.Is(msg, a, kittui.InputNavigation)
 }
 
 // keyIsTyped reports whether the key press triggers the action on a text line: only the keys of the action
 // that type no character count, such as the extra info key.
 func (m *Model) keyIsTyped(msg tea.KeyPressMsg, a action) bool {
+	if m.isAction(msg) {
+		return m.acting == a && m.actsInText(a)
+	}
 	return m.ui.keys.Is(msg, a, kittui.InputText)
 }
 
 // keyLabel is how a footer names the keys of an action, joined by "/": function keys capitalized, arrows as
 // glyphs, everything else as bound, the extra info key last.
 func (m *Model) keyLabel(a action) string { return m.ui.keys.Label(a) }
-
-// firstKeyLabel is the label of the first key of an action alone, such as "i" of "i/F3".
-func (m *Model) firstKeyLabel(a action) string {
-	first, _, _ := strings.Cut(m.keyLabel(a), "/")
-	return first
-}
-
-// reloadPress is the key press of the first key bound to reload, so the command runs exactly what the key
-// runs in the area shown. Reload cannot be rebound, so its keys are those of the table.
-func (u *uiContext) reloadPress() (tea.KeyPressMsg, bool) {
-	for _, a := range u.keys.Actions() {
-		if a.ID != actReload {
-			continue
-		}
-		for _, k := range a.DefaultKeys {
-			if name, ok := strings.CutPrefix(k, "ctrl+"); ok && len([]rune(name)) == 1 {
-				return tea.KeyPressMsg{Code: []rune(name)[0], Mod: tea.ModCtrl}, true
-			}
-			if code, ok := functionKeyCode(strings.ToUpper(k)); ok {
-				return tea.KeyPressMsg{Code: code}, true
-			}
-		}
-	}
-	return tea.KeyPressMsg{}, false
-}

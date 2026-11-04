@@ -154,7 +154,7 @@ func (m *Model) pickKey(f *formDlg, key tea.KeyPressMsg) tea.Cmd {
 	case m.keyIs(key, actSpace):
 		pk.list.Act(actSpace)
 	default:
-		pk.list.Update(key)
+		m.listKey(pk.list, key)
 	}
 	return nil
 }

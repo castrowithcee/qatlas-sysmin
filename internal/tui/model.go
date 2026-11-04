@@ -51,7 +51,9 @@ const (
 // Model is the state of the editor frame: the list in the workspace and the dialog over it. Areas of the
 // editor put their rows into list and their dialogs into ask or dialog.
 type Model struct {
-	prefs    kitprefs.Prefs
+	prefs kitprefs.Prefs
+	// acting is the action being run for a click or a command, which the key handlers see as its key press.
+	acting   action
 	redactor *redact.Redactor
 	// ui holds the keys the screens read.
 	ui *uiContext
@@ -201,6 +203,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.BackgroundColorMsg, tea.ForegroundColorMsg:
 		m.ui.takeTerminalColor(msg)
 		return m, nil
+	case actionMsg:
+		return m, m.runAction(msg.act, m.updateKey)
 	case tea.KeyPressMsg:
 		return m, m.updateKey(m.moveKey(legacyKey(msg)))
 	case tea.PasteMsg:

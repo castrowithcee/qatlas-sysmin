@@ -134,7 +134,6 @@ func textEN() map[textID]string {
 		tDlgUpdate:                  "Update",
 		tDlgLeave:                   "Leave",
 		tLeaveConsequence:           "Leaving drops them.",
-		tCmdNoReloadKey:             "No key is bound to reload.",
 		tCmdGoArea:                  "Show %s",
 		tCmdGoPage:                  "Show page %s of %s",
 		tCmdReload:                  "Read the data of this page again",

@@ -178,19 +178,9 @@ func archRules() []archtest.Rule {
 	}
 }
 
-// archExceptions can only shrink. The function keys are the label table that turns a click on a dialog or
-// footer key into a key press; it goes with the own dialog mechanics.
-var archExceptions = append([]archtest.Exception{
+// archExceptions can only shrink.
+var archExceptions = []archtest.Exception{
 	{Rule: "colour literals", File: "internal/tui/ui.go", Item: "lipgloss.Color", Reason: "the one bridge from a palette colour to Lip Gloss"},
-}, functionKeyExceptions()...)
-
-func functionKeyExceptions() []archtest.Exception {
-	var out []archtest.Exception
-	for _, k := range []string{"F2", "F3", "F4", "F6", "F7", "F8", "F9"} {
-		out = append(out, archtest.Exception{Rule: "key literals", File: "internal/tui/mouse.go", Item: k,
-			Reason: "footer label of a function key, clicked in the own dialog mechanics"})
-	}
-	return out
 }
 
 func TestKitBuildingBlocksDoNotComeBack(t *testing.T) {

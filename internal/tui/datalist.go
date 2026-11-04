@@ -418,7 +418,7 @@ func (m *Model) pageKey(p *dataPage, key tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	var open kittui.ItemID
 	var handled bool
-	cmd := m.movedBy(p, func() { open, handled = p.list.Update(key) })
+	cmd := m.movedBy(p, func() { open, handled = m.listKey(p.list, key) })
 	switch {
 	case open != "" && m.screen != screenArea:
 		// The bare list has no detail to open.
@@ -470,7 +470,7 @@ func (m *Model) detailKey(p *dataPage, key tea.KeyPressMsg) bool {
 // paste as its text, and alt with a character as that character.
 func (m *Model) filterKey(p *dataPage, key tea.KeyPressMsg) tea.Cmd {
 	key = typedKey(key)
-	return m.movedBy(p, func() { p.list.Update(key) })
+	return m.movedBy(p, func() { m.listKey(p.list, key) })
 }
 
 // currentPage is the data page the screen shows, nil where there is none.

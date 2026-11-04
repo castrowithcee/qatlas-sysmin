@@ -1,7 +1,9 @@
 package tui
 
 import (
+	"fmt"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
+	"strconv"
 
 	"strings"
 	"testing"
@@ -41,23 +43,6 @@ func wheelClock(m *Model) *time.Time {
 
 func wheel(m *Model, x, y int, button tea.MouseButton) {
 	m.Update(tea.MouseWheelMsg{X: x, Y: y, Button: button})
-}
-
-func TestKeyNamesMapToKeysOnlyForKeysAClickCanPress(t *testing.T) {
-	m := testModel(defaultPrefs(), nil)
-	for name, code := range map[string]rune{"enter": tea.KeyEnter, "esc": tea.KeyEscape, "tab": tea.KeyTab, "F2": tea.KeyF2, "f9": tea.KeyF9} {
-		if key, ok := m.keyByName(name); !ok || key.Code != code {
-			t.Errorf("m.keyByName(%q) = %v, %v", name, key, ok)
-		}
-	}
-	if key, ok := m.keyByName("y"); !ok || key.Text != "y" {
-		t.Errorf("a letter has no text key: %v", key)
-	}
-	for _, name := range []string{"7", "xy", "", " ", "F5", "↑"} {
-		if _, ok := m.keyByName(name); ok {
-			t.Errorf("m.keyByName(%q) names a key", name)
-		}
-	}
 }
 
 // groupedModel is the frame over four invented entries in three groups: data, web, and none.
@@ -307,5 +292,118 @@ func TestFooterKeysOfAFullScreenDialogAreClickable(t *testing.T) {
 	clickAt(m, ansi.StringWidth(foot[:at]), m.termHeight-1)
 	if m.screen != screenList {
 		t.Errorf("a click on the answer cancel left screen %v", m.screen)
+	}
+}
+
+// tableKey is the key press of the first key of an action in the key table.
+func tableKey(t *testing.T, m *Model, a action) tea.KeyPressMsg {
+	t.Helper()
+	for _, e := range m.ui.keys.Actions() {
+		if e.ID != a {
+			continue
+		}
+		key := e.DefaultKeys[0]
+		if n, ok := strings.CutPrefix(key, "f"); ok && len(key) > 1 {
+			code, err := strconv.Atoi(n)
+			if err != nil {
+				t.Fatalf("key %q", key)
+			}
+			return tea.KeyPressMsg{Code: tea.KeyF1 + rune(code-1)}
+		}
+		return keyMsg(key)
+	}
+	t.Fatalf("no key for %q", a)
+	return tea.KeyPressMsg{}
+}
+
+// outcome is what a screen shows and holds after an input, to compare a click with its key.
+func outcome(m *Model) string {
+	return fmt.Sprintf("screen %v quitting %v\n%s", m.screen, m.quitting, plain(m))
+}
+
+// A click on a key hint, a button or an element of the frame does what the key of its action does in the same
+// state, and where text is typed it makes none.
+func TestClickOnEveryHintActsAsItsKey(t *testing.T) {
+	states := map[string]func(t *testing.T, w, h int) *Model{
+		"list": func(t *testing.T, w, h int) *Model { return hostModel(t, w, h) },
+		"detail": func(t *testing.T, w, h int) *Model {
+			m := hostModel(t, w, h)
+			send(m, "enter")
+			return m
+		},
+		"form": func(t *testing.T, w, h int) *Model {
+			m := hostModel(t, w, h)
+			send(m, "n")
+			return m
+		},
+		"help": func(t *testing.T, w, h int) *Model {
+			m := hostModel(t, w, h)
+			send(m, "?")
+			return m
+		},
+		"info": func(t *testing.T, w, h int) *Model {
+			m := hostModel(t, w, h)
+			send(m, "i")
+			return m
+		},
+		"question": func(t *testing.T, w, h int) *Model {
+			m, _, _ := groupsModel(t, w, h)
+			selectGroup(m, "demo-ops")
+			send(m, "d")
+			return m
+		},
+		"filter": func(t *testing.T, w, h int) *Model {
+			m := hostModel(t, w, h)
+			send(m, "/")
+			return m
+		},
+	}
+	clicked := 0
+	for name, setup := range states {
+		for _, size := range [][2]int{{120, 40}, {80, 24}, {50, 20}} {
+			probe := setup(t, size[0], size[1])
+			probe.render()
+			seen := map[action]kittui.Target{}
+			for _, tg := range probe.mt.targets {
+				if tg.Action != "" {
+					seen[tg.Action] = tg
+				}
+			}
+			for a, tg := range seen {
+				click, key := setup(t, size[0], size[1]), setup(t, size[0], size[1])
+				click.render()
+				key.render()
+				_, cmd := click.Update(tea.MouseClickMsg{X: tg.Rect.X, Y: tg.Rect.Y, Button: tea.MouseLeft})
+				drain(click, cmd)
+				if !key.typing() || key.actsInText(a) {
+					_, cmd := key.Update(tableKey(t, key, a))
+					drain(key, cmd)
+				}
+				if got, want := outcome(click), outcome(key); got != want {
+					t.Errorf("%s %dx%d: click on %q differs from its key:\n%s\nkey:\n%s", name, size[0], size[1], a, got, want)
+				}
+				clicked++
+			}
+		}
+	}
+	if clicked < 40 {
+		t.Errorf("only %d hints clicked", clicked)
+	}
+}
+
+// A hint with a letter key never types the letter, and one with no key that types nothing does not act where
+// text is typed.
+func TestClickDuringTextInputMakesNoText(t *testing.T) {
+	m := hostModel(t, 120, 40)
+	send(m, "/")
+	for _, a := range []action{actYes, actDelete, actNew, actQuit, actInfo, actHelp, actCommand} {
+		m.pressAction(a)
+	}
+	if q := m.currentPage().list.Query(); q != "" || !m.currentPage().filtering() || m.pop != nil || m.quitting {
+		t.Errorf("a click acted or typed while the filter reads text: query %q, popup %v", q, m.pop != nil)
+	}
+	m.pressAction(actEnter)
+	if m.currentPage().filtering() {
+		t.Error("the enter hint did not end the filter")
 	}
 }

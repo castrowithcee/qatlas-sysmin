@@ -75,16 +75,23 @@ func (m *Model) updatePopup(key tea.KeyPressMsg) tea.Cmd {
 	p := m.pop
 	switch {
 	case p.cmd != nil:
+		if m.isAction(key) {
+			// The command line has no call for an action; only the way out is one.
+			if m.keyIs(key, actBack) {
+				return m.commandDone(kittui.Command{}, true)
+			}
+			return nil
+		}
 		if text, ok := pasted(key); ok {
 			key = textKey(text)
 		}
 		c, done := p.cmd.Update(key)
 		return m.commandDone(c, done)
 	case p.info != nil:
-		act, _ := p.info.Update(key)
+		act, _ := m.explanationKey(p.info, key)
 		return m.infoAct(act)
 	default:
-		act, _ := p.help.Update(key)
+		act, _ := m.helpKey(p.help, key)
 		return m.helpAct(act)
 	}
 }

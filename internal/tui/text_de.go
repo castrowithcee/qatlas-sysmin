@@ -132,7 +132,6 @@ func textDE() map[textID]string {
 		tDlgUpdate:                  "Aktualisieren",
 		tDlgLeave:                   "Verlassen",
 		tLeaveConsequence:           "Beim Verlassen gehen sie verloren.",
-		tCmdNoReloadKey:             "Für Neu laden ist keine Taste belegt.",
 		tCmdGoArea:                  "%s anzeigen",
 		tCmdGoPage:                  "Seite %s von %s anzeigen",
 		tCmdReload:                  "Die Daten dieser Seite neu lesen",

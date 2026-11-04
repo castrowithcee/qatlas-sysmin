@@ -115,7 +115,11 @@ func (m *Model) filterBarKey(key tea.KeyPressMsg) tea.Cmd {
 	if !b.Focused() {
 		b.Focus(false)
 	}
-	changed, handled := b.Update(key)
+	if m.isAction(key) && b.Open() && !m.barModal() {
+		// The kit bar takes an open list of values only by keys; an action does not reach it.
+		return nil
+	}
+	changed, handled := m.filterBarUpdate(b, key)
 	switch {
 	case len(changed) > 0:
 		return m.applyLogBar()

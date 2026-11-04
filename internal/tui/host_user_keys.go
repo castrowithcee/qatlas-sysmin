@@ -68,7 +68,7 @@ func (m *Model) keyEditKey(f *formDlg, key tea.KeyPressMsg) tea.Cmd {
 		m.openPopup(popInfo)
 		return nil
 	}
-	answer, handled := ed.dlg.Update(key)
+	answer, handled := m.dialogKey(ed.dlg, key)
 	switch {
 	case answer != "":
 		m.keyEditAnswer(f, answer)

@@ -6,6 +6,8 @@ import (
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -23,6 +25,35 @@ func (m *Model) typing() bool {
 		return m.pop != nil && m.pop.cmd != nil
 	}
 	return false
+}
+
+// actionMsg asks the editor to run an action without a key: a click on a key hint, a button or an element of the
+// frame, and a command. It reaches the screens as the key press of no key that triggers exactly that action, so a
+// screen answers the action in the state it is in as it answers the key.
+type actionMsg struct{ act action }
+
+// actionCode is the code of the key press an action travels as; no key of a keyboard has it.
+const actionCode rune = -2
+
+// isAction reports whether key is the key press an action being run travels as.
+func (m *Model) isAction(key tea.KeyPressMsg) bool { return key.Code == actionCode && m.acting != "" }
+
+// actsInText reports whether the action has a key that types nothing, which is the one thing that may act where
+// text is typed: a letter hint never makes a character and never acts there.
+func (m *Model) actsInText(a action) bool {
+	label, ok := m.ui.keys.Labels(kittui.InputText).KeyLabel(a)
+	return ok && label != ""
+}
+
+// runAction runs f with the key press of the action a, which is all a key handler sees of it.
+func (m *Model) runAction(a action, f func(key tea.KeyPressMsg) tea.Cmd) tea.Cmd {
+	if a == "" || (m.typing() && !m.actsInText(a)) {
+		return nil
+	}
+	prev := m.acting
+	m.acting = a
+	defer func() { m.acting = prev }()
+	return f(tea.KeyPressMsg{Code: actionCode})
 }
 
 // helpReachable reports whether ? opens the help (and : the command line) on the current screen: wherever
@@ -130,3 +161,50 @@ func (o legacyKeys) Write(p []byte) (int, error) {
 func (o legacyKeys) Read(p []byte) (int, error) { return o.f.Read(p) }
 func (o legacyKeys) Close() error               { return o.f.Close() }
 func (o legacyKeys) Fd() uintptr                { return o.f.Fd() }
+
+// The kit building blocks read keys themselves. For an action being run they take the action instead, through
+// the call the kit offers for it: Act, or Click on the target of the action.
+
+func (m *Model) formKey(f *kittui.Form, key tea.KeyPressMsg) (kittui.ActionID, bool) {
+	if m.isAction(key) {
+		return f.Act(m.acting)
+	}
+	return f.Update(key)
+}
+
+func (m *Model) listKey(l *kittui.List, key tea.KeyPressMsg) (kittui.ItemID, bool) {
+	if m.isAction(key) {
+		return l.Act(m.acting)
+	}
+	return l.Update(key)
+}
+
+func (m *Model) helpKey(h *kittui.Help, key tea.KeyPressMsg) (kittui.ActionID, bool) {
+	if m.isAction(key) {
+		return h.Act(m.acting)
+	}
+	return h.Update(key)
+}
+
+func (m *Model) explanationKey(e *kittui.Explanation, key tea.KeyPressMsg) (kittui.ActionID, bool) {
+	if m.isAction(key) {
+		return e.Act(m.acting)
+	}
+	return e.Update(key)
+}
+
+// dialogKey has no Act in the kit: the click on the target of an answer gives the answer its key gives.
+func (m *Model) dialogKey(d *kittui.Dialog, key tea.KeyPressMsg) (kittui.ActionID, bool) {
+	if m.isAction(key) {
+		return d.Click(kittui.MouseResult{Handled: true, Action: m.acting})
+	}
+	return d.Update(key)
+}
+
+// filterBarUpdate is the same for the filter bar, whose open modal takes the click on a key of its key line as the key.
+func (m *Model) filterBarUpdate(b *kittui.FilterBar, key tea.KeyPressMsg) ([]kittui.FilterField, bool) {
+	if m.isAction(key) {
+		return b.Click(kittui.MouseResult{Handled: true, Action: m.acting})
+	}
+	return b.Update(key)
+}

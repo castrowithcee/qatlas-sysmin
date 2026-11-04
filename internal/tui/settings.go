@@ -275,7 +275,7 @@ func (m *Model) generalKey(key tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, true
 	}
 	inner := g.Open() || g.Capturing()
-	act, handled := g.Update(key)
+	act, handled := m.formKey(g, key)
 	switch {
 	case act == actSave:
 		return m.saveGeneral(), true

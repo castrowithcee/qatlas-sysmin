@@ -2,7 +2,6 @@ package tui
 
 import (
 	"strconv"
-	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -206,7 +205,8 @@ func (m *Model) wheel(up bool) tea.Cmd {
 	if up {
 		key = tea.KeyUp
 	}
-	return m.press(tea.KeyPressMsg{Code: key})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: key})
+	return cmd
 }
 
 // wheelCursor is a notch of the wheel over a list of n entries kept as a bare cursor.
@@ -222,16 +222,6 @@ func wheelStep(at, n int, up bool) int {
 	return kittui.WheelStep(at, n, steps)
 }
 
-// press hands a key to the editor as if it had been typed. A mouse event never makes a character: a letter
-// is not passed on where the screen reads text.
-func (m *Model) press(key tea.KeyPressMsg) tea.Cmd {
-	if key.Text != "" && m.typing() {
-		return nil
-	}
-	_, cmd := m.Update(key)
-	return cmd
-}
-
 // contentPress is pressAction for a click in the content of the area screen, which the key reaches only with
 // the focus there.
 func (m *Model) contentPress(a action) tea.Cmd {
@@ -241,58 +231,11 @@ func (m *Model) contentPress(a action) tea.Cmd {
 	return m.pressAction(a)
 }
 
-// pressAction is press for the first key of an action, where a click can press it.
+// pressAction runs an action for a click, as its key would run it in the state the screen is in. A mouse event
+// never makes a character: an action with no key that types nothing is not run where the screen reads text.
 func (m *Model) pressAction(a action) tea.Cmd {
-	key, ok := m.keyByName(m.firstKeyLabel(a))
-	if !ok {
-		return nil
-	}
-	return m.press(key)
-}
-
-// keyByName is the key press a key label stands for, for the keys a click can press.
-func (m *Model) keyByName(name string) (tea.KeyPressMsg, bool) {
-	switch name {
-	case m.keyLabel(actEnter):
-		return tea.KeyPressMsg{Code: tea.KeyEnter}, true
-	case m.keyLabel(actBack):
-		return tea.KeyPressMsg{Code: tea.KeyEscape}, true
-	case m.keyLabel(actNext):
-		return tea.KeyPressMsg{Code: tea.KeyTab}, true
-	}
-	if key, ok := functionKeyCode(strings.ToUpper(name)); ok {
-		return tea.KeyPressMsg{Code: key}, true
-	}
-	if runes := []rune(name); len(runes) == 1 && runes[0] > ' ' && !isArrowGlyph(name) && !(runes[0] >= '0' && runes[0] <= '9') {
-		return tea.KeyPressMsg{Code: runes[0], Text: name}, true
-	}
-	return tea.KeyPressMsg{}, false
-}
-
-// isArrowGlyph reports whether name is the footer glyph of an arrow key, which a click cannot press.
-func isArrowGlyph(name string) bool {
-	return len([]rune(name)) == 1 && strings.Contains("↑↓←→", name)
-}
-
-// functionKeyCode is the code of a function key a dialog may name, spelled as a footer spells it ("F3").
-func functionKeyCode(name string) (rune, bool) {
-	switch name {
-	case "F2":
-		return tea.KeyF2, true
-	case "F3":
-		return tea.KeyF3, true
-	case "F4":
-		return tea.KeyF4, true
-	case "F6":
-		return tea.KeyF6, true
-	case "F7":
-		return tea.KeyF7, true
-	case "F8":
-		return tea.KeyF8, true
-	case "F9":
-		return tea.KeyF9, true
-	}
-	return 0, false
+	_, cmd := m.Update(actionMsg{a})
+	return cmd
 }
 
 // backShown reports whether esc leads one level back from the screen shown now, which is where the back
@@ -302,7 +245,7 @@ func (m *Model) backShown() bool {
 	if m.backdrop {
 		return false
 	}
-	if _, ok := m.keyByName(m.keyLabel(actBack)); !ok {
+	if m.keyLabel(actBack) == "" {
 		return false
 	}
 	if m.home == screenArea {

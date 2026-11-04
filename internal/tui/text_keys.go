@@ -131,7 +131,6 @@ const (
 	tDlgUpdate          textID = "DlgUpdate"
 	tDlgLeave           textID = "DlgLeave"
 	tLeaveConsequence   textID = "LeaveConsequence"
-	tCmdNoReloadKey     textID = "CmdNoReloadKey"
 	tCmdGoArea          textID = "CmdGoArea"
 	tCmdGoPage          textID = "CmdGoPage"
 	tCmdReload          textID = "CmdReload"

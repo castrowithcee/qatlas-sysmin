@@ -220,13 +220,15 @@ func TestUnknownCommandNamesTheInputAndTheNextStep(t *testing.T) {
 	})
 }
 
-func TestCommandsActOnlyWhereTheirKeyActs(t *testing.T) {
-	m := appModel(t, overviewFake(), 120, 40)
-	withTableKeys(t, m, actReload, "x")
-	openCommands(t, m, "reload")
-	send(m, "enter")
-	if m.pop == nil || !strings.Contains(plain(m), "reload: No key is bound to reload.") {
-		t.Errorf("an unavailable command did not keep the line with its reason:\n%s", plain(m))
+// The command runs the action, so it needs no key press: it reloads under any binding of the key table.
+func TestReloadCommandNeedsNoKeyPress(t *testing.T) {
+	byKey, byCommand := overviewFake(), overviewFake()
+	x, y := appModel(t, byKey, 100, 30), appModel(t, byCommand, 100, 30)
+	withTableKeys(t, y, actReload, "x")
+	send(x, "ctrl+r")
+	runCommand(y, "reload")
+	if y.pop != nil || !slices.Equal(byKey.log(), byCommand.log()) {
+		t.Errorf("reload calls %v, key calls %v, panel open %v", byCommand.log(), byKey.log(), y.pop != nil)
 	}
 }
 
@@ -261,14 +263,6 @@ func TestPaletteClickRunsTheRow(t *testing.T) {
 		if m.pop != nil || m.area != areaHost {
 			t.Errorf("%dx%d: a click on the row left area %v, panel open %v\n%s", size[0], size[1], m.area, m.pop != nil, plain(m))
 		}
-	}
-	// A click on a command that cannot run keeps the line and names the reason.
-	m := appModel(t, overviewFake(), 120, 40)
-	withTableKeys(t, m, actReload, "x")
-	send(m, ":")
-	clickOn(t, m, "reload")
-	if m.pop == nil || !strings.Contains(plain(m), "reload: No key is bound to reload.") {
-		t.Errorf("click on an unavailable row:\n%s", plain(m))
 	}
 }
 

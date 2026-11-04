@@ -96,8 +96,8 @@ func TestPreferenceKeysAreBound(t *testing.T) {
 	if !m.keyIsTyped(tea.KeyPressMsg{Code: tea.KeyF4}, actInfo) || m.keyIsTyped(tea.KeyPressMsg{Code: 'i', Text: "i"}, actInfo) {
 		t.Error("on a text line only the extra key asks for the info")
 	}
-	if m.keyLabel(actInfo) != "i/F4" || m.firstKeyLabel(actInfo) != "i" {
-		t.Errorf("info label = %q, first %q", m.keyLabel(actInfo), m.firstKeyLabel(actInfo))
+	if m.keyLabel(actInfo) != "i/F4" {
+		t.Errorf("info label = %q", m.keyLabel(actInfo))
 	}
 }
 
