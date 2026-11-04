@@ -94,9 +94,10 @@ func (m *Model) openPick(f *formDlg, id kittui.FieldID) {
 	if notes {
 		cols = append(cols, kittui.Column{Title: tPickNote, Dimmed: true, Optional: true})
 	}
+	// No value holds a space, so space may tick instead of typing into the filter.
 	spec := kittui.ListSpec{
 		Columns: cols, Keys: pickKeys(), Search: kittui.SearchAsTyped, Empty: tPickNothing, Ticks: true,
-		Title: literal(label),
+		TickWhileTyping: true, Title: literal(label),
 		Buttons: []kittui.FormButton{{Action: actEnter, Label: tHintKeep, Primary: true},
 			{Action: actBack, Label: tHintDiscard}},
 	}
@@ -141,20 +142,16 @@ func pickKeys() kittui.ListKeys {
 		Last: actEnd, Left: actLeft, Right: actRight, Enter: actEnter, Back: actBack, Toggle: actSpace}
 }
 
-// pickKey handles a key of the open list. Typing filters; space ticks, which the list leaves to the filter
-// because a space types text there, and no value holds one. Enter takes the ticks over and esc drops them, even
-// with a filter typed, which the list's own esc would clear first.
+// pickKey handles a key of the open list. Enter takes the ticks over and esc drops them, even with a filter
+// typed, which the list's own esc would clear first.
 func (m *Model) pickKey(f *formDlg, key tea.KeyPressMsg) tea.Cmd {
-	pk := f.pick
 	switch {
 	case m.keyIs(key, actBack):
 		return m.pickDiscard(f)
 	case m.keyIs(key, actEnter):
 		return m.pickApply(f)
-	case m.keyIs(key, actSpace):
-		pk.list.Act(actSpace)
 	default:
-		m.listKey(pk.list, key)
+		m.listKey(f.pick.list, key)
 	}
 	return nil
 }

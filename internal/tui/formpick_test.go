@@ -85,6 +85,9 @@ func TestPickListFiltersTicksTakesOverAndDiscards(t *testing.T) {
 	if got := listLines(m); len(got) != 1 || got[0] != "[x] demo-team" {
 		t.Fatalf("ticked list %q", got)
 	}
+	if q := m.form.pick.list.Query(); q != "team" {
+		t.Fatalf("space changed the search to %q", q)
+	}
 	send(m, "esc")
 	if got := m.form.picked(fieldGroups); len(got) != 0 {
 		t.Errorf("esc kept %q", got)
