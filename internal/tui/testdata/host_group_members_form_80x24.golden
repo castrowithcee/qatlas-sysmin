@@ -1,24 +1,24 @@
 qsysmin                                                        [?] help  [:] cmd
-   1 Ove╔══════════════════════════════════════════════════════════════╗        
-   Users║ Members of demo-team                                         ║        
-────────║                                                              ║────────
-Groups (║          ╭─────────────────────────────────────────────────╮ ║     1/4
-╔═══════║   Add    │ demo-admin                                      │ ║═══════╗
-║     NA║          ╰─────────────────────────────────────────────────╯ ║       ║
-║   ▾ ■ ║          ╔═════════════════════════════════════════════════╗ ║       ║
-║ >   de║ > Remove ║ demo-user                                       ║ ║       ║
-║   ▸ ■ ║          ╚═════════════════════════════════════════════════╝ ║       ║
-╚═══════║                                                              ║═══════╝
-        ║                                                              ║        
-        ║                                                              ║        
-        ║                                                              ║        
-        ║                                                              ║        
+   1 Overview  [2 Host]  3 Activity   4 Settings                                
+   Users  [Groups]  Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+Groups (4)                                                                   1/4
+╔══════════════════════════════════════════════════════════════════════════════╗
+║     NA╔═ Members of demo-team ═══════════════════════════════════════╗       ║
+║   ▾ ■ ║ One confirmation covers all changes. A user whose primary    ║       ║
+║ >   de║ group this is cannot be added or removed.                    ║       ║
+║   ▸ ■ ║                                                              ║       ║
+╚═══════║          ╭─────────────────────────────────────────────────╮ ║═══════╝
+        ║   Add    │ demo-admin                                      │ ║        
+        ║          ╰─────────────────────────────────────────────────╯ ║        
+        ║          ╔═════════════════════════════════════════════════╗ ║        
+        ║ > Remove ║ demo-user                                       ║ ║        
+        ║          ╚═════════════════════════════════════════════════╝ ║        
         ║                                                              ║        
         ║ [ F2 Continue ]  [ esc Cancel ]                              ║        
-        ║     One confirmation covers all changes. A user whose        ║        
-        ║     primary group this is cannot be added or removed.        ║        
         ║                                                              ║        
-        ║ enter edit · tab next field · shift+tab previous field       ║        
-        ║ F2 continue · esc cancel                                     ║        
+        ║ enter edit  F2 save                           tab next field ║        
         ╚══════════════════════════════════════════════════════════════╝        
+                                                                                
+                                                                                
 ? help                                                                          

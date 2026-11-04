@@ -1,18 +1,24 @@
 qsysmin                                                                                                [?] help  [:] cmd
-   1 Overview  [2 Host]  3 A╔══════════════════════════════════════════════════════════════╗                            
-   Users   Groups  [Folders]║ Change /srv/demo-app                                         ║                            
-────────────────────────────║                                                              ║────────────────────────────
-Folders                     ║                       ╔════════════════════════════════════╗ ║                            
-                            ║ > Owner               ║ root                             ▾ ║ ║                            
-Path: /srv/demo-app         ║                       ╚════════════════════════════════════╝ ║                            
-                            ║                       ╭────────────────────────────────────╮ ║                            
-Type           folder       ║   Group               │ qsysmin                          ▾ │ ║                            
-Owner root     read and writ║                       ╰────────────────────────────────────╯ ║                            
-Group qsysmin  read         ║                       ╭────────────────────────────────────╮ ║                            
-Others         nothing      ║   Owner may           │ read and write                   ▾ │ ║                            
-Mode           2750         ║                       ╰────────────────────────────────────╯ ║                            
+   1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
+   Users   Groups  [Folders]  Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Folders                                                                                                                 
+                                                                                                                        
+Path: /srv/demo-app                                                                                                     
+                                                                                                                        
+Type           folder                                                                                                   
+Owner root     read and writ╔═ Change /srv/demo-app ═══════════════════════════════════════╗                            
+Group qsysmin  read         ║                       ╔════════════════════════════════════╗ ║                            
+Others         nothing      ║ > Owner               ║ root                             ▾ ║ ║                            
+Mode           2750         ║                       ╚════════════════════════════════════╝ ║                            
 ACL            set: further ║                       ╭────────────────────────────────────╮ ║                            
-Special        setgid: new e║   Group may           │ read                             ▾ │ ║                            
+Special        setgid: new e║   Group               │ qsysmin                          ▾ │ ║                            
+                            ║                       ╰────────────────────────────────────╯ ║                            
+                            ║                       ╭────────────────────────────────────╮ ║                            
+                            ║   Owner may           │ read and write                   ▾ │ ║                            
+                            ║                       ╰────────────────────────────────────╯ ║                            
+                            ║                       ╭────────────────────────────────────╮ ║                            
+                            ║   Group may           │ read                             ▾ │ ║                            
                             ║                       ╰────────────────────────────────────╯ ║                            
                             ║                       ╭────────────────────────────────────╮ ║                            
                             ║   Others may          │ nothing                          ▾ │ ║                            
@@ -21,20 +27,14 @@ Special        setgid: new e║   Group may           │ read                  
                             ║   Everything below it │ no                               ▾ │ ║                            
                             ║                       ╰────────────────────────────────────╯ ║                            
                             ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
                             ║ [ F2 Save ]  [ esc Cancel ]                                  ║                            
                             ║                                                              ║                            
-                            ║ enter choose · tab next field · shift+tab previous field     ║                            
-                            ║ F2 save · esc cancel                                         ║                            
+                            ║ enter choose  F2 save                         tab next field ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
 ? help                                                                                                                  

@@ -1,40 +1,40 @@
 qsysmin                                                                                                [?] help  [:] cmd
-   1 Overview  [2 Host]  3 A╔══════════════════════════════════════════════════════════════╗                            
-  [Users]  Groups   Folders ║ Change demo-user                                             ║                            
-────────────────────────────║                                                              ║────────────────────────────
-Users (3)                   ║               ╔════════════════════════════════════════════╗ ║───────────────────────────╮
-╔═══════════════════════════║ > Change      ║ Remove from groups                       ▾ ║ ║  Raw                      │
-║     NAME        ADMIN     ║               ╚════════════════════════════════════════════╝ ║                           │
-║   ▾ ■ Users (2)           ║               ╭────────────────────────────────────────────╮ ║emo-user                   │
-║     demo-admin  yes       ║   Remove from │ none                                       │ ║egular                     │
-║ >   demo-user   yes · not ║               ╰────────────────────────────────────────────╯ ║es · not enabled           │
-║   ▸ ■ System accounts (1) ║                                                              ║o                          │
-╚═══════════════════════════║                                                              ║o                          │
-                            ║                                                              ║emo-user, sudo, demo-team  │
-                            ║                                                              ║home/demo-user             │
-                            ║                                                              ║o                          │
-                            ║                                                              ║───────────────────────────╯
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
-                            ║                                                              ║                            
+   1 Overview  [2 Host]  3 Activity   4 Settings                                                                        
+  [Users]  Groups   Folders   Changes                                                                                   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Users (3)                                                         2/3 ╭─ demo-user ────────────────────────────────────╮
+╔═══════════════════════════════════════════════════════════════════╗ │ [Overview]  Details   Raw                      │
+║     NAME        ADMIN              DOCKER  GROUPS          SYSTEM ║ │                                                │
+║   ▾ ■ Users (2)                                                   ║ │ Name               demo-user                   │
+║     demo-admin  yes                yes     demo-admin, s…         ║ │ Type               regular                     │
+║ >   demo-user   yes · not enabled  no      demo-user, su…         ║ │ Admin              yes · not enabled           │
+║   ▸ ■ System accounts (1)                                         ║ │ Docker             no                          │
+╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  no                          │
+                                                                      │ Groups             demo-user, sudo, demo-team  │
+                                                                      │ Home               /home/demo-user             │
+                                                                      │ Locked             no                          │
+                            ╔═ Change demo-user ═══════════════════════════════════════════╗───────────────────────────╯
+                            ║               ╔════════════════════════════════════════════╗ ║                            
+                            ║ > Change      ║ Remove from groups                       ▾ ║ ║                            
+                            ║               ╚════════════════════════════════════════════╝ ║                            
+                            ║               ╭────────────────────────────────────────────╮ ║                            
+                            ║   Remove from │ none                                       │ ║                            
+                            ║               ╰────────────────────────────────────────────╯ ║                            
                             ║                                                              ║                            
                             ║ [ F2 Save ]  [ esc Cancel ]                                  ║                            
                             ║                                                              ║                            
-                            ║ enter choose · tab next field · shift+tab previous field     ║                            
-                            ║ F2 save · esc cancel                                         ║                            
+                            ║ enter choose  F2 save                         tab next field ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
 ? help                                                                                                                  

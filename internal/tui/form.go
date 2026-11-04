@@ -6,7 +6,6 @@ import (
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
@@ -17,7 +16,8 @@ import (
 // it is emptied when the form closes. A list field shows a summary; its editor is a pick list or the key
 // editor over the form.
 
-// formDlg is the form over the screen, drawn as the prompt of screenPrompt.
+// formDlg is the form over the screen, drawn by the kit as a modal; an editor open over it is drawn as the
+// prompt of screenPrompt.
 type formDlg struct {
 	title, hint string
 	// fields are every field the form can show, in their order; hidden are those left out now.
@@ -40,11 +40,8 @@ type formDlg struct {
 	// pick and keyEd are the editor open over the form.
 	pick  *pickDlg
 	keyEd *keyEditor
-	// drawn and targets are the lines and targets of the form as drawn last; origin is how many cells the
-	// lines a modal hands to hitFormLines stand right of the column it names, which is that of its frame.
-	drawn   []string
-	targets []kittui.Target
-	origin  int
+	// lead is the lead the kit form shows now, the hint as last handed to it.
+	lead string
 }
 
 func textField(id kittui.FieldID, label textID) kittui.FormField {
@@ -117,11 +114,12 @@ func (f *formDlg) build(m *Model) error {
 		}
 		shown = append(shown, field)
 	}
-	kit, err := m.newForm(shown, nil, f.buttons())
+	title, lead := f.head()
+	kit, err := m.newForm(title, lead, shown, nil, f.buttons())
 	if err != nil {
 		return err
 	}
-	f.kit = kit
+	f.kit, f.lead = kit, f.hint
 	if focus != "" {
 		kit.Focus(focus)
 	}
@@ -207,25 +205,23 @@ func (f *formDlg) wipe() {
 	}
 }
 
-// hitFormWheel makes the cells of the form that is open take the wheel, with the same precedence prompt gives
-// them.
-func (m *Model) hitFormWheel(x0, y0, x1, y1 int) {
+// hitPickWheel makes the cells of the open pick list take the wheel.
+func (m *Model) hitPickWheel(x0, y0, x1, y1 int) {
 	f := m.form
-	if m.screen != screenPrompt || f == nil || f.keyEd != nil {
+	if m.screen != screenPrompt || f == nil || f.pick == nil {
 		return
 	}
 	m.addWheel(x0, y0, x1, y1, kittui.ZoneForm, func(up bool) tea.Cmd {
-		if f.pick != nil {
-			f.pick.wheel(up)
-			return nil
-		}
-		steps := 1
-		if up {
-			steps = -1
-		}
-		f.kit.Wheel(steps)
+		f.pick.wheel(up)
 		return nil
 	})
+}
+
+// hitPick makes the rows of the open pick list clickable.
+func (m *Model) hitPick(lines []string, y0, x0, x1 int) {
+	if m.screen == screenPrompt && m.form != nil && m.form.pick != nil {
+		m.hitPickLines(lines, y0, x0, x1)
+	}
 }
 
 // openForm builds f and shows it over the screen with its first field focused. A form the kit refuses, which
@@ -350,95 +346,77 @@ func (m *Model) formHints(f *formDlg) []kittui.Hint {
 	return keyLine(keys, answer(f.save, actSave), answer(tHintCancel, actBack))
 }
 
-// formDialog is the form as the dialog the modal draws. The kit form gets the rows the dialog leaves it, so it
-// chooses the richest layout that fits.
+// formDialog is the editor open over the form as the dialog the modal draws.
 func (m *Model) formDialog() promptDialog {
-	f := m.form
-	switch {
-	case f.pick != nil:
-		return m.pickDialog(f)
-	case f.keyEd != nil:
-		return m.keyEditDialog(f)
+	if m.form.pick != nil {
+		return m.pickDialog(m.form)
 	}
-	d := promptDialog{title: f.title, hint: f.hint, keys: m.formHints(f), ownButtons: true}
-	width := m.usable(0)
-	if !m.inModal && m.tableFramed() {
-		// The workspace draws the dialog in a panel, which takes four cells.
-		width -= 4
-	}
-	view, targets := f.kit.View(m.ui.styles, width, max(m.formRoom(d), 1))
-	lines := strings.Split(view, "\n")
-	for len(lines) > 1 && strings.TrimSpace(ansi.Strip(lines[len(lines)-1])) == "" {
-		lines = lines[:len(lines)-1]
-	}
-	f.drawn, f.targets, f.origin = make([]string, len(lines)), targets, 0
-	for i, line := range lines {
-		f.drawn[i] = strings.TrimRight(ansi.Strip(line), " ")
-	}
-	if m.inModal {
-		f.origin = 1
-	}
-	d.input = strings.Join(lines, "\n")
-	return d
+	return m.keyEditDialog(m.form)
 }
 
-// formRoom is the rows a dialog leaves its form: what the modal or the workspace holds, less the rest of the
-// dialog drawn around a form of one row.
-func (m *Model) formRoom(d promptDialog) int {
-	d.input = "x"
-	if !m.inModal {
-		return m.height - strings.Count(strings.TrimRight(m.promptScreenText(d), "\n"), "\n")
+// editorOpen reports whether an editor stands over the form, which then is drawn as a dialog of its own.
+func (f *formDlg) editorOpen() bool { return f.pick != nil || f.keyEd != nil }
+
+// head is the title and the lead of the kit form.
+func (f *formDlg) head() (title, lead kittui.TextID) {
+	if f.hint != "" {
+		lead = literal(f.hint)
 	}
-	log := m.footerLog
-	var scratch []footerLine
-	m.footerLog = &scratch
-	defer func() { m.footerLog = log }()
-	text := m.wrapped(m.ui.st(kittui.StyleTitle), d.title) + "\n\n" + m.promptText(d, false) + m.promptNotes()
-	return m.termHeight - 4 - strings.Count(strings.TrimRight(text, "\n"), "\n")
+	return literal(f.title), lead
 }
 
-// hitFormLines makes the click targets of the open form or its pick list work. lines stand from screen row y0
-// and column x0 on; the form is found among them by the lines it drew.
-func (m *Model) hitFormLines(lines []string, y0, x0, x1 int) {
+// formFrame draws the form as the kit's modal over the dimmed screen, or, where the workspace has no room for
+// it, in the workspace with its keys in the footer. Only the form takes clicks.
+func (m *Model) formFrame() (string, bool) {
 	f := m.form
-	if m.screen != screenPrompt || f == nil {
-		return
+	if m.screen != screenPrompt || f == nil || f.editorOpen() {
+		return "", false
 	}
-	if f.pick != nil {
-		m.hitPickLines(lines, y0, x0, x1)
-		return
+	if f.lead != f.hint {
+		_, lead := f.head()
+		f.kit.SetLead(lead)
+		f.lead = f.hint
 	}
-	if f.keyEd != nil || len(f.drawn) == 0 {
-		return
+	room := m.ui.newFrame().Workspace(m.frameSpec(""))
+	var background string
+	m.renderAs(m.baseScreen(), 0, func() {
+		m.backdrop = true
+		defer func() { m.backdrop = false }()
+		background = m.frame(m.workspaceView())
+	})
+	click := func(res kittui.MouseResult) tea.Cmd { return m.clickForm(f, res) }
+	if view, targets, ok := f.kit.Overlay(m.ui.styles, background, m.termWidth, m.termHeight, room); ok {
+		m.addFormTargets(targets, 0, 0, "", click)
+		m.addFormWheel(f, targets, 0, 0)
+		return view, true
 	}
-	first := 0
-	for first < len(f.drawn)-1 && f.drawn[first] == "" {
-		first++
-	}
-	if f.drawn[first] == "" {
-		return
-	}
-	for i := 0; i+len(f.drawn) <= len(lines); i++ {
-		row := ansi.Strip(lines[i+first])
-		at := strings.Index(row, f.drawn[first])
-		if at < 0 || !f.drawnAt(lines[i:], at) {
+	m.keyHint(m.formHints(f))
+	// The keys decide whether the footer wraps, so the room is asked again with them in place.
+	room = m.ui.newFrame().Workspace(m.frameSpec(""))
+	view, targets := f.kit.View(m.ui.styles, room.Width, room.Height)
+	frame := m.frame(view)
+	m.addFormTargets(targets, room.X, room.Y, "", click)
+	m.addFormWheel(f, targets, room.X, room.Y)
+	m.footerHits()
+	return frame, true
+}
+
+// addFormWheel makes the free area of the form, which the kit names, take the wheel.
+func (m *Model) addFormWheel(f *formDlg, targets []kittui.Target, x0, y0 int) {
+	for _, t := range targets {
+		if t.Zone != kittui.ZoneForm || t.Item != "" || t.Action != "" {
 			continue
 		}
-		x := x0 + f.origin + ansi.StringWidth(row[:at])
-		m.addFormTargets(f.targets, x, y0+i, "", func(res kittui.MouseResult) tea.Cmd { return m.clickForm(f, res) })
-		return
+		r := t.Rect
+		m.addWheel(x0+r.X, y0+r.Y, x0+r.X+r.Width, y0+r.Y+r.Height, kittui.ZoneForm, func(up bool) tea.Cmd {
+			steps := 1
+			if up {
+				steps = -1
+			}
+			f.kit.Wheel(steps)
+			return nil
+		})
 	}
-}
-
-// drawnAt reports whether the lines of the form as drawn stand at the byte column at of lines.
-func (f *formDlg) drawnAt(lines []string, at int) bool {
-	for j, want := range f.drawn {
-		row := ansi.Strip(lines[j])
-		if want != "" && (len(row) < at || !strings.HasPrefix(row[at:], want)) {
-			return false
-		}
-	}
-	return true
 }
 
 // openListEditor opens the editor of the list field id: the pick list of its values, or the key editor. A

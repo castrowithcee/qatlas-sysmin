@@ -1,24 +1,24 @@
-qsysmin                                                        [?] help  [:] cmd
-   1 Ove╔══════════════════════════════════════════════════════════════╗        
-  [Users║ New user                                                     ║        
-────────║                                                              ║────────
-Users (3║   …                                                          ║     1/3
-╔═══════║                  ╭─────────────────────────────────────────╮ ║═══════╗
-║     NA║   Home           │ yes                                   ▾ │ ║SYSTEM ║
-║   ▾ ■ ║                  ╰─────────────────────────────────────────╯ ║       ║
-║ >   de║                  ╭─────────────────────────────────────────╮ ║       ║
-║     de║   Docker         │ yes                                   ▾ │ ║       ║
-║   ▸ ■ ║                  ╰─────────────────────────────────────────╯ ║       ║
-╚═══════║                  ╔═════════════════════════════════════════╗ ║═══════╝
-        ║ > Further groups ║ demo-team                               ║ ║        
-        ║                  ╚═════════════════════════════════════════╝ ║        
-        ║                                                              ║        
-        ║ [ F2 Save ]  [ esc Cancel ]                                  ║        
-        ║     A service account has no login: no password, no shell,   ║        
-        ║     no SSH keys. Use it for a service with an identity of    ║        
-        ║     its own.                                                 ║        
-        ║                                                              ║        
-        ║ enter edit · tab next field · shift+tab previous field       ║        
-        ║ F2 save · esc cancel                                         ║        
-        ╚══════════════════════════════════════════════════════════════╝        
-? help                                                                          
+qsysmin                                                               [esc] back
+   1 Overview  [2 Host]  3 Activity   4 Settings                                
+  [Users]  Groups   Folders   Changes                                           
+────────────────────────────────────────────────────────────────────────────────
+A service account has no login: no password, no shell, no SSH keys. Use it for a
+service with an identity of its own.                                            
+                                                                                
+  …                                                                             
+                 ╭─────────────────────────────────────────────────────────────╮
+  Name           │ demo-svc                                                    │
+                 ╰─────────────────────────────────────────────────────────────╯
+                 ╭─────────────────────────────────────────────────────────────╮
+  Home           │ yes                                                       ▾ │
+                 ╰─────────────────────────────────────────────────────────────╯
+                 ╭─────────────────────────────────────────────────────────────╮
+  Docker         │ yes                                                       ▾ │
+                 ╰─────────────────────────────────────────────────────────────╯
+                 ╔═════════════════════════════════════════════════════════════╗
+> Further groups ║ demo-team                                                   ║
+                 ╚═════════════════════════════════════════════════════════════╝
+                                                                                
+                                                                                
+[ F2 Save ]  [ esc Cancel ]                                                     
+enter edit  F2 save  esc cancel         tab next field  shift+tab previous field

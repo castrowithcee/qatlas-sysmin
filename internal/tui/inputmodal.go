@@ -95,7 +95,7 @@ func (m *Model) promptNotes() string {
 
 // prompt is the short input dialog of the current screen, and false for a screen that is none.
 func (m *Model) prompt() (promptDialog, bool) {
-	if m.screen == screenPrompt && m.form != nil {
+	if m.screen == screenPrompt && m.form != nil && m.form.editorOpen() {
 		return m.formDialog(), true
 	}
 	if m.screen == screenPrompt && m.dialog != nil {

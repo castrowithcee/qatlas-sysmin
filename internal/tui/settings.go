@@ -151,7 +151,7 @@ func (m *Model) loadForms() {
 		return
 	}
 	sections := []kittui.FormSection{{ID: sectionDisplay, Title: tSecDisplay}, {ID: sectionKeys, Title: tSecKeys}}
-	form, err := m.newForm(m.generalFields(m.prefs), sections, nil)
+	form, err := m.newForm("", "", m.generalFields(m.prefs), sections, nil)
 	if err != nil {
 		panic(fmt.Sprintf("the form of General is invalid: %v", err))
 	}
