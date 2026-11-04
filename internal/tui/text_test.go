@@ -12,8 +12,13 @@ import (
 // testLang is the language test models are drawn in; eachLanguage sets it.
 var testLang = i18n.English
 
-// defaultPrefs are the preferences of a device that has none.
-func defaultPrefs() kitprefs.Prefs { return kitprefs.Default(PrefsSchema()) }
+// defaultPrefs are the defaults with icons off, so the texts of the tests stand without a glyph in front; the
+// icon tests choose their set.
+func defaultPrefs() kitprefs.Prefs {
+	p := kitprefs.Default(PrefsSchema())
+	p.Icons = kitprefs.IconsNone
+	return p
+}
 
 // testModel is New in the language of the test.
 func testModel(prefs kitprefs.Prefs, redactor *redact.Redactor) *Model {

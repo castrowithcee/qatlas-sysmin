@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
+
 	"github.com/castrowithcee/qatlas-sysmin/internal/helptopics"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostadmin"
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
@@ -39,8 +41,19 @@ func TestGoldenAreas(t *testing.T) {
 		build func(t *testing.T, w, h int) *Model
 	}{
 		{"overview", func(t *testing.T, w, h int) *Model { return goldenOverview(t, overviewFake(), w, h) }},
+		{"overview_icons_unicode", func(t *testing.T, w, h int) *Model {
+			m := goldenOverview(t, overviewFake(), w, h)
+			m.prefs.Icons = kitprefs.IconsUnicode
+			return m
+		}},
+		{"overview_icons_nerdfont", func(t *testing.T, w, h int) *Model {
+			m := goldenOverview(t, overviewFake(), w, h)
+			m.prefs.Icons = kitprefs.IconsNerdFont
+			return m
+		}},
 		{"settings_general", func(t *testing.T, w, h int) *Model {
 			m := goldenApp(t, overviewFake(), w, h)
+			m.prefs.Icons = kitprefs.IconsUnicode
 			send(m, "4")
 			return m
 		}},

@@ -153,6 +153,9 @@ func TestGeneralPicksTheThemeFromAList(t *testing.T) {
 // the next start.
 func TestGeneralSavesTheStartViewAndTheIconsAndBothAct(t *testing.T) {
 	m, path := settingsModel(t, newFake(), "general")
+	m.prefs.Icons = kitprefs.IconsUnicode
+	m.resetForms()
+	m.loadForms()
 	toField(t, m, fieldIcons)
 	choose(t, m, 1) // icons: nerdfont
 	toField(t, m, fieldStart)

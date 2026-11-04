@@ -1,8 +1,6 @@
 package tui
 
 import (
-	kitprefs "github.com/castrowithcee/qatlas-kit/uiprefs"
-
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 )
 
@@ -48,6 +46,8 @@ func (m *Model) frameSpec(workspace string) kittui.FrameSpec {
 	if m.backShown() {
 		spec.Back = &kittui.Hint{Action: actBack, Label: tHeaderBack}
 	}
+	icons := iconsFor(m.prefs.Icons)
+	spec.Icon = icons.logo
 	if m.home != screenArea {
 		return spec
 	}
@@ -55,7 +55,7 @@ func (m *Model) frameSpec(workspace string) kittui.FrameSpec {
 	if m.helpReachable() {
 		spec.HeaderKeys = []kittui.Hint{{Action: actHelp, Label: tHeaderHelp}, {Action: actCommand, Label: tHeaderCmd}}
 	}
-	spec.Areas = frameAreas()
+	spec.Areas = icons.withIcons(frameAreas())
 	spec.ActiveArea, spec.ActiveTab, spec.Focus = m.area.areaID(), m.activeTab(), m.zoneNow()
 	return spec
 }
@@ -78,16 +78,8 @@ func (m *Model) frameInput() kittui.InputFocus {
 	return m.inputFocus()
 }
 
-// headerLogo is the Nerd Font glyph in front of the name; without that preference the name stands alone.
-const headerLogo = ""
-
 // product is the name at the left of the header.
-func (m *Model) product() string {
-	if m.prefs.Icons == kitprefs.IconsNerdFont {
-		return headerLogo + " " + m.tr(tHeaderTitle)
-	}
-	return m.tr(tHeaderTitle)
-}
+func (m *Model) product() string { return m.tr(tHeaderTitle) }
 
 // headerMarks are the marks of the service after the name: its state where it is not up, and a release to
 // update to. Each pairs a symbol with a word, so no state rests on its colour.
