@@ -21,6 +21,8 @@ type promptDialog struct {
 	keys []kittui.Hint
 	// field says the first input row is a text field, which a modal draws as a surface.
 	field bool
+	// ownButtons says the input draws its own buttons, so the modal adds none.
+	ownButtons bool
 }
 
 // promptText draws a dialog. The modal carries the title in its border, so titled is false there.
@@ -47,7 +49,7 @@ func (m *Model) promptText(d promptDialog, titled bool) string {
 	if d.hint != "" {
 		b.WriteString(m.indented(d.hint) + "\n")
 	}
-	if m.inModal {
+	if m.inModal && !d.ownButtons {
 		return m.withButtons(b.String(), d.keys, false, nil)
 	}
 	b.WriteString(m.keyHint(d.keys))

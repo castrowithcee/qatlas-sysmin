@@ -98,7 +98,7 @@ func (m *Model) groupNameProblem(name string) string {
 }
 
 func (m *Model) openGroupCreate() tea.Cmd {
-	f := &formDlg{title: m.tr(tHostGroupNewTitle), hint: m.tr(tHostGroupNewHint), saveText: answer(tHintSave, actSave)}
+	f := &formDlg{title: m.tr(tHostGroupNewTitle), hint: m.tr(tHostGroupNewHint), save: tHintSave}
 	f.fields = []kittui.FormField{textField(fieldName, tColName)}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
 		name := f.value(fieldName)
@@ -133,7 +133,7 @@ func (m *Model) openGroupRename() tea.Cmd {
 	if !ok || m.refuseProtected(g, tHostGroupKeepName) {
 		return nil
 	}
-	f := &formDlg{title: m.tr(tHostGroupRenameTitle, m.diffText(g.Name)), hint: m.tr(tHostGroupRenameHint), saveText: answer(tHintContinue, actSave)}
+	f := &formDlg{title: m.tr(tHostGroupRenameTitle, m.diffText(g.Name)), hint: m.tr(tHostGroupRenameHint), save: tHintContinue}
 	f.fields = []kittui.FormField{textField(fieldName, tHostFormNewName)}
 	f.submit = func(m *Model, f *formDlg) tea.Cmd {
 		name := f.value(fieldName)

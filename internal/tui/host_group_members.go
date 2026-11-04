@@ -56,7 +56,7 @@ func (m *Model) openGroupMembers() tea.Cmd {
 		}
 		return out
 	}
-	f := &formDlg{title: m.tr(tHostMembersTitle, m.diffText(g.Name)), hint: m.tr(tHostMembersHint), saveText: answer(tHintContinue, actSave)}
+	f := &formDlg{title: m.tr(tHostMembersTitle, m.diffText(g.Name)), hint: m.tr(tHostMembersHint), save: tHintContinue}
 	switch g.Name {
 	case hostadmin.GroupAdmin:
 		f.hint = m.tr(tHostMembersSudoHint)

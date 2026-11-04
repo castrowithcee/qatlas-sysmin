@@ -38,8 +38,8 @@ func formKeys() kittui.FormKeys {
 }
 
 // newForm is the kit form of fields in the keys and the language in force.
-func (m *Model) newForm(fields []kittui.FormField, sections []kittui.FormSection) (*kittui.Form, error) {
-	spec := kittui.FormSpec{Fields: fields, Sections: sections, Keys: formKeys()}
+func (m *Model) newForm(fields []kittui.FormField, sections []kittui.FormSection, buttons []kittui.FormButton) (*kittui.Form, error) {
+	spec := kittui.FormSpec{Fields: fields, Sections: sections, Keys: formKeys(), Buttons: buttons}
 	return kittui.NewForm(spec, m.ui.keys, formText{m.ui.text})
 }
 

@@ -31,8 +31,8 @@ type formDlg struct {
 	// submit runs on the save key and adds the problems it finds; changed runs after a field took another value.
 	submit  func(m *Model, f *formDlg) tea.Cmd
 	changed func(m *Model, f *formDlg, id kittui.FieldID)
-	// saveText is the hint of the save key, such as save or continue.
-	saveText []kittui.Hint
+	// save is the hint text of the save key, tHintSave or tHintContinue.
+	save     textID
 	problems []kittui.FormProblem
 	// lists are the pick lists of the list fields; keys the key list of the key field.
 	lists map[kittui.FieldID]*pickList
@@ -117,7 +117,7 @@ func (f *formDlg) build(m *Model) error {
 		}
 		shown = append(shown, field)
 	}
-	kit, err := m.newForm(shown, nil)
+	kit, err := m.newForm(shown, nil, f.buttons())
 	if err != nil {
 		return err
 	}
@@ -126,6 +126,16 @@ func (f *formDlg) build(m *Model) error {
 		kit.Focus(focus)
 	}
 	return nil
+}
+
+// buttons are the buttons below the fields, which tab reaches after the last field: the save key under the
+// form's own word, and cancel.
+func (f *formDlg) buttons() []kittui.FormButton {
+	label := tBtnSave
+	if f.save == tHintContinue {
+		label = tBtnContinue
+	}
+	return []kittui.FormButton{{Action: actSave, Label: label, Primary: true}, {Action: actBack, Label: tBtnCancel}}
 }
 
 // keep takes the values of the form into kept, masked ones excepted.
@@ -266,7 +276,7 @@ func (m *Model) updateForm(key tea.KeyPressMsg) tea.Cmd {
 	if handled || (act != "" && act != actBack) {
 		return m.formAct(f, act, before)
 	}
-	if m.keyIs(key, actBack) {
+	if act == actBack || m.keyIs(key, actBack) {
 		return m.guarded(m.cancelForm)
 	}
 	return nil
@@ -290,6 +300,8 @@ func (m *Model) formAct(f *formDlg, act kittui.ActionID, before map[kittui.Field
 	case actEnter:
 		m.openListEditor(f, f.kit.Focused())
 		return nil
+	case actBack:
+		return m.guarded(m.cancelForm)
 	}
 	m.noteChanges(f, before)
 	return nil
@@ -335,7 +347,7 @@ func (m *Model) formHints(f *formDlg) []kittui.Hint {
 	if f.kit.Open() {
 		return keys
 	}
-	return keyLine(keys, f.saveText, answer(tHintCancel, actBack))
+	return keyLine(keys, answer(f.save, actSave), answer(tHintCancel, actBack))
 }
 
 // formDialog is the form as the dialog the modal draws. The kit form gets the rows the dialog leaves it, so it
@@ -348,7 +360,7 @@ func (m *Model) formDialog() promptDialog {
 	case f.keyEd != nil:
 		return m.keyEditDialog(f)
 	}
-	d := promptDialog{title: f.title, hint: f.hint, keys: m.formHints(f)}
+	d := promptDialog{title: f.title, hint: f.hint, keys: m.formHints(f), ownButtons: true}
 	width := m.usable(0)
 	if !m.inModal && m.tableFramed() {
 		// The workspace draws the dialog in a panel, which takes four cells.

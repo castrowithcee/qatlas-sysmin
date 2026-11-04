@@ -116,7 +116,7 @@ func (m *Model) openFolderChange() tea.Cmd {
 	users, groups := m.hostAccountNames()
 	owners, ownerSel := accountChoices(users, folder.Owner)
 	groupNames, groupSel := accountChoices(groups, folder.Group)
-	f := &formDlg{title: m.tr(tHostFolderChangeTitle, m.diffText(path)), saveText: answer(tHintSave, actSave)}
+	f := &formDlg{title: m.tr(tHostFolderChangeTitle, m.diffText(path)), save: tHintSave}
 	f.fields = []kittui.FormField{
 		m.accountField(fieldOwner, tHostFolderOwner, owners, ownerSel),
 		m.accountField(fieldGroup, tHostFolderGroup, groupNames, groupSel),

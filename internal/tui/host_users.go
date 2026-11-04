@@ -196,7 +196,7 @@ const (
 
 // openUserCreate opens the form for a new person or service account.
 func (m *Model) openUserCreate() tea.Cmd {
-	f := &formDlg{title: m.tr(tHostNewTitle), saveText: answer(tHintSave, actSave), keys: &keyList{}}
+	f := &formDlg{title: m.tr(tHostNewTitle), save: tHintSave, keys: &keyList{}}
 	f.fields = []kittui.FormField{
 		choiceField(fieldKind, tHostFormKind, shownChoices([]string{kindPerson, kindService}, []textID{tHostKindPerson, tHostKindService}), 0),
 		textField(fieldName, tColName),
@@ -408,7 +408,7 @@ func (m *Model) openUserEdit() tea.Cmd {
 		keys = append(keys, kittui.Choice{ID: kittui.ChoiceID(k.Fingerprint), Label: literal(m.diffText(k.Fingerprint + " " + k.Comment))})
 	}
 	st := &editForm{u: u}
-	f := &formDlg{title: m.tr(tHostEditTitle, m.diffText(u.Name)), saveText: answer(tHintSave, actSave), submit: st.submit}
+	f := &formDlg{title: m.tr(tHostEditTitle, m.diffText(u.Name)), save: tHintSave, submit: st.submit}
 	f.fields = []kittui.FormField{
 		choiceField(fieldWhat, tHostFormWhat, shownChoices(ids, shown), 0),
 		f.pickField(fieldAdd, tHostFormAddTo, add, m.systemNotes(add)),
@@ -655,7 +655,7 @@ func (m *Model) openUserDelete() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	f := &formDlg{title: m.tr(tHostDeleteTitle, m.diffText(u.Name)), saveText: answer(tHintContinue, actSave)}
+	f := &formDlg{title: m.tr(tHostDeleteTitle, m.diffText(u.Name)), save: tHintContinue}
 	f.fields = []kittui.FormField{
 		choiceField(fieldHome, tHostFormHome, shownChoices([]string{homeKeep, homeDelete}, []textID{tHostHomeKeep, tHostHomeDelete}), 0),
 	}

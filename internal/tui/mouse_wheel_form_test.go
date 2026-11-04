@@ -101,7 +101,7 @@ func TestTheMouseRestsWhileAKeyFieldOfSettingsWaitsForItsKey(t *testing.T) {
 
 // demoForm opens a form of three fields over the screen, the second a choice; a fourth field is hidden.
 func demoForm(m *Model) {
-	f := &formDlg{title: "Demo", saveText: answer(tHintSave, actSave), submit: func(*Model, *formDlg) tea.Cmd { return nil }}
+	f := &formDlg{title: "Demo", save: tHintSave, submit: func(*Model, *formDlg) tea.Cmd { return nil }}
 	f.fields = []kittui.FormField{textField("a", tColName), choiceField("b", tHostColAdmin, yesNo(), 0),
 		textField("hidden", tHostFormKey), textField("c", tHostFormNewName)}
 	f.show("hidden", false)
