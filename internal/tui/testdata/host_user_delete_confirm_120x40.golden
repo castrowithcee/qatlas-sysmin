@@ -12,19 +12,19 @@ Users (3)                                                         2/3 ╭─ dem
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  no                          │
                                                                       │ Groups             demo-user, sudo, demo-team  │
                                                                       │ Home               /home/demo-user             │
-                            ╔══════════════════════════════════════════════════════════════╗o                          │
-                            ║ ⚠ Delete the user demo-user; its home and files stay.        ║───────────────────────────╯
+                                                                      │ Locked             no                          │
+                                                                      ╰────────────────────────────────────────────────╯
+                            ╔═ Confirm ════════════════════════════════════════════════════╗                            
+                            ║ ⚠ Delete the user demo-user; its home and files stay.        ║                            
                             ║                                                              ║                            
-                            ║     A user with running processes is not deleted. You can    ║                            
-                            ║     undo this under Host > Changes.                          ║                            
+                            ║ A user with running processes is not deleted. You can undo   ║                            
+                            ║ this under Host > Changes.                                   ║                            
                             ║                                                              ║                            
-                            ║   $ userdel demo-user                                        ║                            
+                            ║ $ userdel demo-user                                          ║                            
                             ║                                                              ║                            
-                            ║ [ Delete ]  [ Cancel ]                                       ║                            
-                            ║                                                              ║                            
-                            ║ y delete · n/esc cancel                                      ║                            
+                            ║ [ delete ]  [ cancel ]                                       ║                            
+                            ║ y delete  n/esc cancel                                       ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

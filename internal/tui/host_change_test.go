@@ -42,7 +42,7 @@ type fakeSudo struct {
 func (m *Model) askHostChange(id string, args []string) tea.Cmd {
 	p, refusal := m.planHost(hostAsk{id: id, args: args})
 	if refusal != "" {
-		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: closeKeys()})
+		m.hostNotice(m.tr(tHostChangeRefused), warnLine(refusal))
 		return nil
 	}
 	m.confirmHost(p)
@@ -190,13 +190,13 @@ func TestConfirmShowsTheSentenceAndTheExactCommandsBeforeAnythingRuns(t *testing
 	m, f, _ := hostChangeModel(t, 120, 40)
 	drain(m, m.askHostChange("demo.set", []string{"alpha", "new"}))
 	view := plain(m)
-	for _, want := range []string{"Set alpha to new.", "$ demo-set alpha new", "You can undo this under Host > Changes.", "Apply", "Cancel"} {
+	for _, want := range []string{"Set alpha to new.", "$ demo-set alpha new", "You can undo this under Host > Changes.", "apply", "cancel"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("confirmation lacks %q:\n%s", want, view)
 		}
 	}
-	if m.ask == nil || m.ask.danger || len(f.reqs) != 0 {
-		t.Fatalf("a reversible change is not dangerous and nothing runs before y: ask %+v, calls %v", m.ask, f.reqs)
+	if m.dlg == nil || (m.dlgSpec.Danger != "") || len(f.reqs) != 0 {
+		t.Fatalf("a reversible change is not dangerous and nothing runs before y: ask %+v, calls %v", m.dlgSpec, f.reqs)
 	}
 	plan, err := m.hostReg.Describe("demo.set", []string{"alpha", "new"}, nil)
 	if err != nil || !strings.Contains(flatText(view), plan.Commands[0].Display()) {
@@ -217,7 +217,7 @@ func TestConfirmWrapsLongCommandsInsideTheModal(t *testing.T) {
 	view := plain(m)
 	assertViewFits(t, view, 80, 24)
 	for _, want := range []string{"--option-three", "'value number three", "with spaces'", "/srv/demo-app/a/very/long/path/that/keeps/going/on"} {
-		if !strings.Contains(flatText(view), want) {
+		if !strings.Contains(flatDlg(m), want) {
 			t.Errorf("a wrapped command lost %q:\n%s", want, view)
 		}
 	}
@@ -227,8 +227,8 @@ func TestIrreversibleChangesAreDangerousAndSayTheyCannotBeUndone(t *testing.T) {
 	m, _, _ := hostChangeModel(t, 120, 40)
 	drain(m, m.askHostChange("demo.wipe", nil))
 	view := plain(m)
-	if m.ask == nil || !m.ask.danger || !m.ask.warn || !strings.Contains(flatText(view), "This cannot be undone: the old content is not kept") {
-		t.Errorf("ask %+v\n%s", m.ask, view)
+	if m.dlg == nil || m.dlgSpec.Danger == "" || !m.dlgSpec.Irreversible || !strings.Contains(flatText(view), "This cannot be undone: the old content is not kept") {
+		t.Errorf("ask %+v\n%s", m.dlgSpec, view)
 	}
 	if !strings.Contains(view, "'/srv/demo app'") {
 		t.Errorf("the quoted argument is not shown as it runs:\n%s", view)
@@ -311,8 +311,8 @@ func TestAFailedOrRestoredChangeShowsCheckErrorAndWarning(t *testing.T) {
 				t.Errorf("%s: result lacks %q:\n%s", tc.result, want, plain(m))
 			}
 		}
-		if !m.ask.danger || host.users != reads+1 {
-			t.Errorf("%s: danger %v, reads %d", tc.result, m.ask.danger, host.users-reads)
+		if !m.dlgSpec.Notice || m.dlgSpec.Danger != "" || host.users != reads+1 {
+			t.Errorf("%s: a failure is a message without a red button: notice %v danger %q, reads %d", tc.result, m.dlgSpec.Notice, m.dlgSpec.Danger, host.users-reads)
 		}
 	}
 }
@@ -401,7 +401,7 @@ func TestEnterOnAReversibleChangeUndoesItAfterTheSameConfirm(t *testing.T) {
 
 	send(m, "enter")
 	view := flatText(plain(m))
-	for _, want := range []string{"Put alpha back.", "$ demo-set alpha old", "This takes back: Set alpha to new.", "Undo", "Cancel"} {
+	for _, want := range []string{"Put alpha back.", "$ demo-set alpha old", "This takes back: Set alpha to new.", "undo", "cancel"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("undo confirmation lacks %q:\n%s", want, plain(m))
 		}

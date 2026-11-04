@@ -2,22 +2,22 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users  [Groups]  Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Groups (╔══════════════════════════════════════════════════════════════╗     3/4
-╔═══════║ ⚠ Delete the group docker; its members keep their accounts,  ║═══════╗
-║     NA║   and files of the group keep its group number.              ║       ║
-║   ▾ ■ ║                                                              ║       ║
-║     de║     Members of the group docker use Docker, which is         ║       ║
-║   ▾ ■ ║     practically root. Packages or services may depend on     ║       ║
-║     su║     this system group. You can undo this under Host >        ║       ║
-║ >   do║     Changes.                                                 ║       ║
-║     qs║                                                              ║       ║
-╚═══════║   $ groupdel docker                                          ║═══════╝
+Groups (4)                                                                   3/4
+╔══════════════════════════════════════════════════════════════════════════════╗
+║     NAME       MEMBERS  SYSTEM                                               ║
+║   ▾ ■ ╔═ Confirm ════════════════════════════════════════════════════╗       ║
+║     de║ ⚠ Delete the group docker; its members keep their accounts,  ║       ║
+║   ▾ ■ ║   and files of the group keep its group number.              ║       ║
+║     su║                                                              ║       ║
+║ >   do║ Members of the group docker use Docker, which is practically ║       ║
+║     qs║ root. Packages or services may depend on this system group.  ║       ║
+╚═══════║ You can undo this under Host > Changes.                      ║═══════╝
         ║                                                              ║        
-        ║ [ Delete ]  [ Cancel ]                                       ║        
+        ║ $ groupdel docker                                            ║        
         ║                                                              ║        
-        ║ y delete · n/esc cancel                                      ║        
+        ║ [ delete ]  [ cancel ]                                       ║        
+        ║ y delete  n/esc cancel                                       ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

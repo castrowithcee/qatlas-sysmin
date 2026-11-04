@@ -157,19 +157,19 @@ func (m *Model) submitFolderChange(f *formDlg, path string) tea.Cmd {
 	}
 	// The acknowledgement of a system path is part of the arguments the confirmation runs on y; the red
 	// confirmation below is the only way to reach that run.
-	p, refusal := m.planHost(hostAsk{id: hostchange.ActionFolderSetPermissions, args: hostchange.FolderArgs(req)})
+	ask := hostAsk{id: hostchange.ActionFolderSetPermissions, args: hostchange.FolderArgs(req)}
+	if req.Recursive {
+		ask.note = m.tr(tHostFolderCount, count)
+	}
+	if req.SystemPath {
+		ask.risk = m.tr(tHostFolderSystemWarn)
+	}
+	p, refusal := m.planHost(ask)
 	if refusal != "" {
 		f.refuse(refusal)
 		return nil
 	}
 	m.closeForm()
 	m.confirmHost(p)
-	if req.Recursive {
-		m.ask.consequence = m.tr(tHostFolderCount, count) + " " + m.ask.consequence
-	}
-	if req.SystemPath {
-		m.ask.warn, m.ask.danger = true, true
-		m.ask.consequence = m.tr(tHostFolderSystemWarn) + " " + m.ask.consequence
-	}
 	return nil
 }

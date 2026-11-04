@@ -175,8 +175,8 @@ func TestPickListOfTheChangeFormMarksSystemGroups(t *testing.T) {
 	}
 	send(m, "down", "space", "enter")
 	save(m)
-	if m.ask == nil || !m.ask.danger {
-		t.Errorf("the system group did not make the confirmation red: %+v", m.ask)
+	if m.dlg == nil || m.dlgSpec.Danger == "" {
+		t.Errorf("the system group did not make the confirmation red: %+v", m.dlgSpec)
 	}
 }
 

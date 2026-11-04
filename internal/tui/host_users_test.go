@@ -111,8 +111,8 @@ func TestCreateBuildsTheActionAndPassesPasswordAndKeyOnStandardInputOnly(t *test
 			t.Errorf("confirmation lacks %q:\n%s", want, plain(m))
 		}
 	}
-	if m.ask == nil || !m.ask.warn || len(f.reqs) != 0 {
-		t.Fatalf("nothing runs before y: ask %+v calls %v", m.ask, f.reqs)
+	if m.dlg == nil || !m.dlgSpec.Irreversible || len(f.reqs) != 0 {
+		t.Fatalf("nothing runs before y: ask %+v calls %v", m.dlgSpec, f.reqs)
 	}
 
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
@@ -172,8 +172,8 @@ func TestServiceAccountAsksNeitherPasswordNorKeyAndSendsItsOwnAction(t *testing.
 	if strings.Contains(view, "chpasswd") || strings.Contains(view, "<password>") {
 		t.Errorf("a service account has no password step:\n%s", plain(m))
 	}
-	if m.ask == nil || len(f.reqs) != 0 {
-		t.Fatalf("nothing runs before y: ask %+v calls %v", m.ask, f.reqs)
+	if m.dlg == nil || len(f.reqs) != 0 {
+		t.Fatalf("nothing runs before y: ask %+v calls %v", m.dlgSpec, f.reqs)
 	}
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	reads := host.users
@@ -387,7 +387,7 @@ func TestEachChangeRunsItsOwnActionWithItsOwnConfirm(t *testing.T) {
 		tc.fill(m, fp)
 		save(m)
 		seeNoInput(t, m, tc.id+" confirm")
-		if m.ask == nil || len(f.reqs) != 0 {
+		if m.dlg == nil || len(f.reqs) != 0 {
 			t.Errorf("%s: no confirmation: %s", tc.id, plain(m))
 			continue
 		}
@@ -497,8 +497,8 @@ func TestRootAndSystemUsersAreChangeableWithARedConfirmation(t *testing.T) {
 			send(m, "tab", "enter", "down", "space", "enter") // demo-sys, the second of the groups to choose from
 		}
 		save(m)
-		if m.ask == nil || m.ask.danger != tc.red || len(f.reqs) != 0 {
-			t.Fatalf("%s %s: ask %+v\n%s", tc.user, tc.change, m.ask, plain(m))
+		if m.dlg == nil || (m.dlgSpec.Danger != "") != tc.red || len(f.reqs) != 0 {
+			t.Fatalf("%s %s: ask %+v\n%s", tc.user, tc.change, m.dlgSpec, plain(m))
 		}
 		for _, want := range tc.says {
 			if !strings.Contains(flat(m), want) {
@@ -563,7 +563,7 @@ func TestRemovingAKeyThatWasNotReadOffersTheRootReadFirst(t *testing.T) {
 		t.Errorf("no hint:\n%s", plain(m))
 	}
 	save(m)
-	if m.form != nil || m.ask == nil || !strings.Contains(plain(m), "as root") || len(f.reqs) != 0 {
+	if m.form != nil || m.dlg == nil || !strings.Contains(plain(m), "as root") || len(f.reqs) != 0 {
 		t.Errorf("\n%s", plain(m))
 	}
 }
@@ -696,7 +696,7 @@ func TestUnlockIsOfferedAndAcceptedForALockedAccount(t *testing.T) {
 	m.fillHostUsers()
 	chooseChange(t, m, "demo-user", chgUnlock)
 	save(m)
-	if m.ask == nil || len(f.reqs) != 0 || !strings.Contains(flat(m), "usermod -U -e -1 demo-user") {
+	if m.dlg == nil || len(f.reqs) != 0 || !strings.Contains(flat(m), "usermod -U -e -1 demo-user") {
 		t.Fatalf("no confirmation:\n%s", plain(m))
 	}
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
@@ -738,11 +738,11 @@ func TestDeleteAsksForTheHomeAndSendsItsChoice(t *testing.T) {
 				t.Errorf("hint %q, want %q", m.form.hint, tc.hint)
 			}
 			save(m)
-			if m.ask == nil || !m.ask.danger || !m.ask.warn || len(f.reqs) != 0 {
-				t.Fatalf("no red confirmation before anything runs: ask %+v calls %v\n%s", m.ask, f.reqs, plain(m))
+			if m.dlg == nil || m.dlgSpec.Danger == "" || !m.dlgSpec.Irreversible || len(f.reqs) != 0 {
+				t.Fatalf("no red confirmation before anything runs: ask %+v calls %v\n%s", m.dlgSpec, f.reqs, plain(m))
 			}
 			view := flat(m)
-			for _, want := range append(tc.says, "Delete", "Cancel") {
+			for _, want := range append(tc.says, "Delete", "cancel") {
 				if !strings.Contains(view, want) {
 					t.Errorf("confirmation lacks %q:\n%s", want, plain(m))
 				}
@@ -768,13 +768,13 @@ func TestCancellingTheDeleteRunsNothing(t *testing.T) {
 	m, f, _, _ := userModel(t, 120, 40)
 	selectUser(m, "demo-user")
 	send(m, "d", "esc")
-	if m.form != nil || m.ask != nil {
+	if m.form != nil || m.dlg != nil {
 		t.Fatalf("still open:\n%s", plain(m))
 	}
 	send(m, "d")
 	save(m)
 	send(m, "n")
-	if m.ask != nil || len(f.reqs) != 0 {
+	if m.dlg != nil || len(f.reqs) != 0 {
 		t.Fatalf("ran: %+v", f.reqs)
 	}
 }
@@ -812,8 +812,8 @@ func TestDeletingRootOrASystemAccountNamesTheRisk(t *testing.T) {
 		selectAccount(m, tc.user)
 		send(m, "d")
 		save(m)
-		if m.ask == nil || !m.ask.danger || len(f.reqs) != 0 {
-			t.Fatalf("%s: ask %+v\n%s", tc.user, m.ask, plain(m))
+		if m.dlg == nil || m.dlgSpec.Danger == "" || len(f.reqs) != 0 {
+			t.Fatalf("%s: ask %+v\n%s", tc.user, m.dlgSpec, plain(m))
 		}
 		for _, want := range tc.says {
 			if !strings.Contains(flat(m), want) {
@@ -836,7 +836,7 @@ func TestDeleteSpeaksGerman(t *testing.T) {
 	}
 	send(m, "right")
 	save(m)
-	if view := flat(m); !strings.Contains(view, "Das lässt sich nicht rückgängig machen: Das Home") || !strings.Contains(view, "/home/demo-user und der Mail-Spool") {
+	if view := flatDlg(m); !strings.Contains(view, "Das lässt sich nicht rückgängig machen: Das Home") || !strings.Contains(view, "/home/demo-user und der Mail-Spool") {
 		t.Errorf("\n%s", plain(m))
 	}
 }
@@ -867,10 +867,10 @@ func TestDeleteWithHomeNamesEachRiskOfTheHome(t *testing.T) {
 			}
 			send(m, "n", "d", "right")
 			save(m)
-			if m.ask == nil || !m.ask.danger || len(f.reqs) != 0 {
-				t.Fatalf("ask %+v\n%s", m.ask, plain(m))
+			if m.dlg == nil || m.dlgSpec.Danger == "" || len(f.reqs) != 0 {
+				t.Fatalf("ask %+v\n%s", m.dlgSpec, plain(m))
 			}
-			view := flat(m)
+			view := flatDlg(m)
 			for _, want := range append(tc.says, "This cannot be undone: the home /home/demo-user") {
 				if !strings.Contains(view, want) {
 					t.Errorf("lacks %q:\n%s", want, plain(m))

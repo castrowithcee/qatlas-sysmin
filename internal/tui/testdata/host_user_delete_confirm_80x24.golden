@@ -4,19 +4,19 @@ qsysmin                                                        [?] help  [:] cmd
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    2/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║     NA╔══════════════════════════════════════════════════════════════╗SYSTEM ║
-║   ▾ ■ ║ ⚠ Delete the user demo-user; its home and files stay.        ║       ║
-║     de║                                                              ║       ║
-║ >   de║     A user with running processes is not deleted. You can    ║       ║
-║   ▸ ■ ║     undo this under Host > Changes.                          ║       ║
-╚═══════║                                                              ║═══════╝
-        ║   $ userdel demo-user                                        ║        
+║     NAME        ADMIN              DOCKER  GROUPS                     SYSTEM ║
+║   ▾ ■ Users (2)                                                              ║
+║     de╔═ Confirm ════════════════════════════════════════════════════╗       ║
+║ >   de║ ⚠ Delete the user demo-user; its home and files stay.        ║       ║
+║   ▸ ■ ║                                                              ║       ║
+╚═══════║ A user with running processes is not deleted. You can undo   ║═══════╝
+        ║ this under Host > Changes.                                   ║        
         ║                                                              ║        
-        ║ [ Delete ]  [ Cancel ]                                       ║        
+        ║ $ userdel demo-user                                          ║        
         ║                                                              ║        
-        ║ y delete · n/esc cancel                                      ║        
+        ║ [ delete ]  [ cancel ]                                       ║        
+        ║ y delete  n/esc cancel                                       ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

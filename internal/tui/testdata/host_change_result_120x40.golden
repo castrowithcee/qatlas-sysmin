@@ -12,19 +12,19 @@ Users (3)                                                         1/3 ╭─ dem
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
                                                                       │ Groups             demo-admin, sudo, docker,   │
                                                                       │                    qsysmin                     │
-                            ╔══════════════════════════════════════════════════════════════╗home/demo-admin            │
-                            ║   Done: Set alpha to new.                                    ║nknown                     │
+                                                                      │ Home               /home/demo-admin            │
+                                                                      │ Locked             unknown                     │
+                            ╔═ Notice ═════════════════════════════════════════════════════╗                           │
+                            ║ Done: Set alpha to new.                                      ║ the fields only root can  │
                             ║                                                              ║                           │
-                            ║     The change is in the journal. You can undo it under Host ║ the fields only root can  │
-                            ║     > Changes.                                               ║                           │
-                            ║                                                              ║───────────────────────────╯
-                            ║   Check: passed.                                             ║                            
+                            ║ The change is in the journal. You can undo it under Host >   ║───────────────────────────╯
+                            ║ Changes.                                                     ║                            
                             ║                                                              ║                            
-                            ║ [ Close ]                                                    ║                            
+                            ║ Check: passed.                                               ║                            
                             ║                                                              ║                            
-                            ║ esc close                                                    ║                            
+                            ║ > close <                                                    ║                            
+                            ║ esc/enter close                                              ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

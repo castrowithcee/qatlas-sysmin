@@ -12,19 +12,19 @@ Users (3)                                                         2/3 ╭─ dem
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  no                          │
                                                                       │ Groups             demo-user, sudo, demo-team  │
                                                                       │ Home               /home/demo-user             │
-                            ╔══════════════════════════════════════════════════════════════╗o                          │
-                            ║ ⚠ Give the administrator demo-user access to qsysmin (group  ║───────────────────────────╯
+                                                                      │ Locked             no                          │
+                                                                      ╰────────────────────────────────────────────────╯
+                            ╔═ Confirm ════════════════════════════════════════════════════╗                            
+                            ║ ⚠ Give the administrator demo-user access to qsysmin (group  ║                            
                             ║   qsysmin).                                                  ║                            
                             ║                                                              ║                            
-                            ║     You can undo this under Host > Changes.                  ║                            
+                            ║ You can undo this under Host > Changes.                      ║                            
                             ║                                                              ║                            
-                            ║   $ usermod -aG qsysmin demo-user                            ║                            
+                            ║ $ usermod -aG qsysmin demo-user                              ║                            
                             ║                                                              ║                            
-                            ║ [ Apply ]  [ Cancel ]                                        ║                            
-                            ║                                                              ║                            
-                            ║ y apply · n/esc cancel                                       ║                            
+                            ║ [ apply ]  [ cancel ]                                        ║                            
+                            ║ y apply  n/esc cancel                                        ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

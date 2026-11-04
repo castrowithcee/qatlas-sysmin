@@ -10,23 +10,23 @@ Users (3)                                                         3/3 ╭─ svc
 ║     demo-user   yes · not enabled  no      demo-user, su…         ║ │ Admin              no                          │
 ║   ▾ ■ System accounts (1)                                         ║ │ Docker             no                          │
 ║ >   svc-demo    no                 no      svc-demo        system ║ │ Enabled (qsysmin)  no                          │
-╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗vc-demo                    │
-                            ║ ⚠ Delete the user svc-demo together with its home and mail   ║usr/lib/svc-demo           │
-                            ║   spool.                                                     ║nknown                     │
+╚═══════════════════════════════════════════════════════════════════╝ │ Groups             svc-demo                    │
+                                                                      │ Home               /usr/lib/svc-demo           │
+                            ╔═ Confirm ════════════════════════════════════════════════════╗nknown                     │
+                            ║ ⚠ Delete the user svc-demo together with its home and mail   ║                           │
+                            ║   spool.                                                     ║ the fields only root can  │
                             ║                                                              ║                           │
-                            ║     Packages or services may depend on this system account.  ║ the fields only root can  │
-                            ║     /usr/lib/svc-demo is a system path. /usr/lib/svc-demo    ║                           │
-                            ║     belongs to root. This cannot be undone: the home         ║───────────────────────────╯
-                            ║     /usr/lib/svc-demo and the mail spool are deleted with    ║                            
-                            ║     all their files.                                         ║                            
+                            ║ Packages or services may depend on this system account.      ║───────────────────────────╯
+                            ║ /usr/lib/svc-demo is a system path. /usr/lib/svc-demo        ║                            
+                            ║ belongs to root. This cannot be undone: the home             ║                            
+                            ║ /usr/lib/svc-demo and the mail spool are deleted with all    ║                            
+                            ║ their files.                                                 ║                            
                             ║                                                              ║                            
-                            ║   $ userdel -r svc-demo                                      ║                            
+                            ║ $ userdel -r svc-demo                                        ║                            
                             ║                                                              ║                            
-                            ║ [ Delete ]  [ Cancel ]                                       ║                            
-                            ║                                                              ║                            
-                            ║ y delete · n/esc cancel                                      ║                            
+                            ║ [ delete ]  [ cancel ]                                       ║                            
+                            ║ y delete  n/esc cancel                                       ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

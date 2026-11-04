@@ -4,19 +4,19 @@ qsysmin                                                        [?] help  [:] cmd
 ────────────────────────────────────────────────────────────────────────────────
 Groups (4)                                                                   1/4
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║     NA╔══════════════════════════════════════════════════════════════╗       ║
-║   ▾ ■ ║ ⚠ Delete the group demo-team; its members keep their         ║       ║
-║ >   de║   accounts, and files of the group keep its group number.    ║       ║
-║   ▸ ■ ║                                                              ║       ║
-╚═══════║     You can undo this under Host > Changes.                  ║═══════╝
+║     NAME       MEMBERS  SYSTEM                                               ║
+║   ▾ ■ Groups (1)                                                             ║
+║ >   de╔═ Confirm ════════════════════════════════════════════════════╗       ║
+║   ▸ ■ ║ ⚠ Delete the group demo-team; its members keep their         ║       ║
+╚═══════║   accounts, and files of the group keep its group number.    ║═══════╝
         ║                                                              ║        
-        ║   $ groupdel demo-team                                       ║        
+        ║ You can undo this under Host > Changes.                      ║        
         ║                                                              ║        
-        ║ [ Delete ]  [ Cancel ]                                       ║        
+        ║ $ groupdel demo-team                                         ║        
         ║                                                              ║        
-        ║ y delete · n/esc cancel                                      ║        
+        ║ [ delete ]  [ cancel ]                                       ║        
+        ║ y delete  n/esc cancel                                       ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

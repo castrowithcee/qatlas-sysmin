@@ -43,7 +43,7 @@ func TestGroupsPageOffersNewRenameAndDeleteInTheFooter(t *testing.T) {
 		t.Errorf("on a heading only n works: %q", keys)
 	}
 	send(m, "d", "r")
-	if m.form != nil || m.ask != nil {
+	if m.form != nil || m.dlg != nil {
 		t.Error("d and r on a heading must do nothing")
 	}
 }
@@ -63,8 +63,8 @@ func TestGroupCreateChecksTheNameBeforeItAsksAndSendsTheAction(t *testing.T) {
 	} {
 		setField(t, m, fieldName, tc.name)
 		save(m)
-		if m.form == nil || !strings.Contains(flat(m), "[!] "+tc.problem) || m.ask != nil || len(f.reqs) != 0 {
-			t.Fatalf("%q: no problem %q, ask %+v:\n%s", tc.name, tc.problem, m.ask, plain(m))
+		if m.form == nil || !strings.Contains(flat(m), "[!] "+tc.problem) || m.dlg != nil || len(f.reqs) != 0 {
+			t.Fatalf("%q: no problem %q, ask %+v:\n%s", tc.name, tc.problem, m.dlgSpec, plain(m))
 		}
 	}
 	setField(t, m, fieldName, "demo-new")
@@ -75,8 +75,8 @@ func TestGroupCreateChecksTheNameBeforeItAsksAndSendsTheAction(t *testing.T) {
 			t.Errorf("confirmation lacks %q:\n%s", want, plain(m))
 		}
 	}
-	if m.ask == nil || m.ask.danger || len(f.reqs) != 0 {
-		t.Fatalf("creating a group is not red and nothing runs before y: ask %+v calls %v", m.ask, f.reqs)
+	if m.dlg == nil || (m.dlgSpec.Danger != "") || len(f.reqs) != 0 {
+		t.Fatalf("creating a group is not red and nothing runs before y: ask %+v calls %v", m.dlgSpec, f.reqs)
 	}
 	f.answer = func(HostRequest) (string, error) {
 		host.groups = append(host.groups, hostadmin.Group{Name: "demo-new", GID: 1004})
@@ -106,8 +106,8 @@ func TestGroupDeleteAsksPlainForARegularGroupAndRedForSystemGroupsRootAndDocker(
 			m, f, _ := groupsModel(t, 120, 40)
 			selectGroup(m, tc.group)
 			send(m, "d")
-			if m.ask == nil || m.ask.danger != tc.red || len(f.reqs) != 0 {
-				t.Fatalf("ask %+v calls %v\n%s", m.ask, f.reqs, plain(m))
+			if m.dlg == nil || (m.dlgSpec.Danger != "") != tc.red || len(f.reqs) != 0 {
+				t.Fatalf("ask %+v calls %v\n%s", m.dlgSpec, f.reqs, plain(m))
 			}
 			for _, want := range append(tc.says, "Delete the group "+tc.group) {
 				if !strings.Contains(flat(m), want) {
@@ -134,7 +134,7 @@ func TestGroupDeleteIsRefusedEarlyForProtectedAndPrimaryGroups(t *testing.T) {
 		selectGroup(m, group)
 		send(m, "d")
 		if m.confirm == nil || !m.confirm.notice || !strings.Contains(flat(m), says) || len(f.reqs) != 0 {
-			t.Fatalf("%s: ask %+v\n%s", group, m.ask, plain(m))
+			t.Fatalf("%s: ask %+v\n%s", group, m.dlgSpec, plain(m))
 		}
 		send(m, "esc")
 	}
@@ -158,14 +158,14 @@ func TestGroupRenameIsAlwaysRedAndSendsBothNames(t *testing.T) {
 			for name, problem := range map[string]string{"": "Enter a name.", "Demo": "Lower-case letters", "demo-team": "This group exists already.", tc.group: "This group exists already."} {
 				setField(t, m, fieldName, name)
 				save(m)
-				if m.form == nil || !strings.Contains(flat(m), "[!] "+problem) || m.ask != nil {
+				if m.form == nil || !strings.Contains(flat(m), "[!] "+problem) || m.dlg != nil {
 					t.Fatalf("%q: no problem %q:\n%s", name, problem, plain(m))
 				}
 			}
 			setField(t, m, fieldName, "demo-crew")
 			save(m)
-			if m.ask == nil || !m.ask.danger || !m.ask.warn || len(f.reqs) != 0 {
-				t.Fatalf("a rename asks red before anything runs: ask %+v calls %v", m.ask, f.reqs)
+			if m.dlg == nil || m.dlgSpec.Danger == "" || !m.dlgSpec.Irreversible || len(f.reqs) != 0 {
+				t.Fatalf("a rename asks red before anything runs: ask %+v calls %v", m.dlgSpec, f.reqs)
 			}
 			for _, want := range tc.says {
 				if !strings.Contains(flat(m), want) {
@@ -188,7 +188,7 @@ func TestGroupRenameIsRefusedEarlyForSudoAndQsysmin(t *testing.T) {
 		selectGroup(m, group)
 		send(m, "r")
 		if m.form != nil || m.confirm == nil || !m.confirm.notice || !strings.Contains(flat(m), group+" keeps its name") || len(f.reqs) != 0 {
-			t.Fatalf("%s: form %v ask %+v\n%s", group, m.form, m.ask, plain(m))
+			t.Fatalf("%s: form %v ask %+v\n%s", group, m.form, m.dlgSpec, plain(m))
 		}
 		send(m, "esc")
 	}
@@ -198,7 +198,7 @@ func TestCancellingTheGroupFormsRunsNothing(t *testing.T) {
 	m, f, _ := groupsModel(t, 120, 40)
 	selectGroup(m, "demo-ops")
 	send(m, "n", "esc", "r", "esc", "d", "n")
-	if m.form != nil || m.ask != nil || len(f.reqs) != 0 {
+	if m.form != nil || m.dlg != nil || len(f.reqs) != 0 {
 		t.Fatalf("still open or ran: %+v", f.reqs)
 	}
 }
@@ -215,7 +215,7 @@ func TestGroupFormsSpeakGerman(t *testing.T) {
 	}
 	setField(t, m, fieldName, "demo-crew")
 	save(m)
-	if m.ask == nil || !m.ask.danger || !strings.Contains(flat(m), "wirken nicht mehr, bis sie ebenfalls geändert sind") {
+	if m.dlg == nil || m.dlgSpec.Danger == "" || !strings.Contains(flat(m), "wirken nicht mehr, bis sie ebenfalls geändert sind") {
 		t.Errorf("\n%s", plain(m))
 	}
 	send(m, "n")

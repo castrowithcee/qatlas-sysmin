@@ -11,20 +11,20 @@ Users (3)                                                         2/3 ╭─ dem
 ║   ▸ ■ System accounts (1)                                         ║ │ Docker             no                          │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  no                          │
                                                                       │ Groups             demo-user, sudo, demo-team  │
-                            ╔══════════════════════════════════════════════════════════════╗home/demo-user             │
-                            ║ ⚠ Delete the user demo-user together with its home and mail  ║o                          │
-                            ║   spool.                                                     ║───────────────────────────╯
+                                                                      │ Home               /home/demo-user             │
+                                                                      │ Locked             no                          │
+                            ╔═ Confirm ════════════════════════════════════════════════════╗───────────────────────────╯
+                            ║ ⚠ Delete the user demo-user together with its home and mail  ║                            
+                            ║   spool.                                                     ║                            
                             ║                                                              ║                            
-                            ║     This cannot be undone: the home /home/demo-user and the  ║                            
-                            ║     mail spool are deleted with all their files.             ║                            
+                            ║ This cannot be undone: the home /home/demo-user and the mail ║                            
+                            ║ spool are deleted with all their files.                      ║                            
                             ║                                                              ║                            
-                            ║   $ userdel -r demo-user                                     ║                            
+                            ║ $ userdel -r demo-user                                       ║                            
                             ║                                                              ║                            
-                            ║ [ Delete ]  [ Cancel ]                                       ║                            
-                            ║                                                              ║                            
-                            ║ y delete · n/esc cancel                                      ║                            
+                            ║ [ delete ]  [ cancel ]                                       ║                            
+                            ║ y delete  n/esc cancel                                       ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

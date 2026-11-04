@@ -10,7 +10,6 @@ import (
 	"syscall"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/castrowithcee/qatlas-sysmin/internal/hostchange"
@@ -41,9 +40,6 @@ type HostRunner func(HostRequest) (*exec.Cmd, error)
 
 // ErrNoSudo is what a HostRunner returns when sudo is not installed.
 var ErrNoSudo = errors.New("sudo is not installed")
-
-// hostWrap is the width the commands of a confirmation are wrapped to: the modal cuts its lines at 60 cells.
-const hostWrap = 54
 
 // hostRanMsg delivers the end of a command run through the terminal hand-over.
 type hostRanMsg struct {
@@ -227,12 +223,6 @@ func classifyRun(out []byte, err error) (kind hostFailure, exit int) {
 	}
 }
 
-// hostNotice shows a message over the screen that only closes; the model's data stays as it was.
-func (m *Model) hostNotice(q question) {
-	m.askConfirm(q, nil)
-	m.confirm.notice = true
-}
-
 // hostFailNotice explains a run that gave no usable answer. change says a host change was asked for, where an
 // interrupted or failed run leaves open what was done.
 func (m *Model) hostFailNotice(kind hostFailure, exit int, err error, change bool) {
@@ -277,7 +267,7 @@ func (m *Model) hostFailNoticeAs(title string, kind hostFailure, exit int, err e
 	default:
 		text = m.hostFailText(kind, exit, err, change)
 	}
-	m.hostNotice(question{title: title, consequence: text, warn: true, danger: true, keys: closeKeys()})
+	m.hostNotice(title, warnLine(text))
 }
 
 func (m *Model) hostFailText(kind hostFailure, exit int, err error, change bool) string {
@@ -337,38 +327,17 @@ func wrapWords(text string, width int) []string {
 	return lines
 }
 
-// hostLines wraps text into the width of a modal, one styled block of lines.
-func hostLines(style lipgloss.Style, lead, text string) []string {
-	var out []string
-	for i, line := range wrapWords(text, hostWrap-len([]rune(lead))) {
-		prefix := lead
-		if i > 0 {
-			prefix = strings.Repeat(" ", len([]rune(lead)))
-		}
-		out = append(out, "  "+style.Render(prefix+line))
-	}
-	return out
-}
-
-// planDetails are the exact commands of a plan, dimmed and wrapped.
-func planDetails(ui *uiContext, commands []string) []string {
-	var lines []string
-	for _, c := range commands {
-		lines = append(lines, hostLines(ui.st(kittui.StyleHint), "$ ", c)...)
-	}
-	return []string{"\n" + strings.Join(lines, "\n")}
-}
-
-// planQuestion is the confirmation of a plan: the sentence, the commands, and the answers.
-func planQuestion(ui *uiContext, sentence string, commands []string, notReversible string, verb textID) question {
-	q := question{title: sentence, details: planDetails(ui, commands), keys: keyLine(answer(verb, actYes),
-		answer(tHintCancel, actNo, actBack))}
+// planSpec is the confirmation of a plan: the sentence, the commands, and the answers. A change that cannot
+// be undone says so in the warning colour, and the answer that runs it is the dangerous button.
+func planSpec(ui *uiContext, sentence string, commands []string, notReversible string, verb textID) kittui.DialogSpec {
+	spec := kittui.DialogSpec{Title: tDlgConfirm, Question: sentence, Details: planLines(commands),
+		Answers: confirmAnswers(verb), Keys: kittui.DialogKeys{Enter: actEnter}}
 	if notReversible != "" {
-		q.consequence, q.warn, q.danger = ui.tr(tHostIrreversible, notReversible), true, true
+		spec.Consequence, spec.Irreversible, spec.Danger = ui.tr(tHostIrreversible, notReversible), true, actYes
 	} else {
-		q.consequence = ui.tr(tHostReversible)
+		spec.Consequence = ui.tr(tHostReversible)
 	}
-	return q
+	return spec
 }
 
 // hostAsk is one change the person asked for. Secret is the standard input of an action that wants one; it is
@@ -383,6 +352,8 @@ type hostAsk struct {
 	// risk is the sentence that makes the confirmation red: the change touches root, a system account or a
 	// system group.
 	risk string
+	// note is a sentence that goes in front of the consequence without making the confirmation red.
+	note string
 	// final replaces the consequence of a change that cannot be undone with one that names exactly what goes.
 	final string
 }
@@ -422,34 +393,36 @@ func (m *Model) confirmHost(p hostPlanned) {
 	if a.id == hostchange.ActionUserDelete || a.id == hostchange.ActionGroupDelete {
 		verb = tHintDelete
 	}
-	q := planQuestion(m.ui, p.plan.Sentence, p.commands, p.plan.NotReversible, verb)
+	spec := planSpec(m.ui, p.plan.Sentence, p.commands, p.plan.NotReversible, verb)
 	if a.power {
-		q.warn = true
-		q.consequence = m.tr(tHostPowerWarn) + " " + q.consequence
+		spec.Irreversible = true
+		spec.Consequence = m.tr(tHostPowerWarn) + " " + spec.Consequence
 	}
 	if a.id == hostchange.ActionUserCreateService {
-		q.consequence += " " + m.tr(tHostServiceKeepFiles)
+		spec.Consequence += " " + m.tr(tHostServiceKeepFiles)
 	}
 	if a.id == hostchange.ActionUserLock {
-		q.consequence += " " + m.tr(tHostLockStays)
+		spec.Consequence += " " + m.tr(tHostLockStays)
 	}
 	if a.id == hostchange.ActionUserDelete {
-		q.warn, q.danger = true, true
+		spec.Irreversible, spec.Danger = true, actYes
 		if p.plan.NotReversible != "" && a.final != "" {
-			q.consequence = a.final
+			spec.Consequence = a.final
 		} else if p.plan.NotReversible == "" {
-			q.consequence = m.tr(tHostDeleteKeeps) + " " + q.consequence
+			spec.Consequence = m.tr(tHostDeleteKeeps) + " " + spec.Consequence
 		}
 	}
+	if a.note != "" {
+		spec.Consequence = a.note + " " + spec.Consequence
+	}
 	if a.risk != "" {
-		q.warn, q.danger = true, true
-		q.consequence = a.risk + " " + q.consequence
+		spec.Irreversible, spec.Danger = true, actYes
+		spec.Consequence = a.risk + " " + spec.Consequence
 	}
 	argv := append([]string{"apply", "--confirm", "--output", "json", "--", a.id}, a.args...)
-	m.askConfirm(q, func() tea.Cmd {
+	m.askDialog(spec, func() tea.Cmd {
 		return m.runHostChange(argv, p.plan.Sentence, a.secret, a.mask)
-	})
-	m.confirm.cancel = func() { zeroAll(a.secret, a.mask) }
+	}, func() { zeroAll(a.secret, a.mask) })
 }
 
 // runHostChange runs a host apply or undo and shows what it reported. The page shown is read again afterwards:
@@ -472,48 +445,48 @@ func (m *Model) runHostChange(argv []string, sentence string, secret []byte, mas
 	})
 }
 
-// hostResult shows the report of a change in a panel.
+// hostResult shows the report of a change as a message. A failure is no red button: red stays with the
+// confirming button of a destructive question.
 func (m *Model) hostResult(r hostReport, asked string) {
 	sentence := r.Sentence
 	if sentence == "" {
 		sentence = asked
 	}
-	q := question{keys: closeKeys()}
+	var title string
+	var note kittui.DialogLine
 	switch r.Result {
 	case hostchange.ResultApplied:
-		q.title = m.tr(tHostDone, m.diffText(sentence))
-		q.consequence, q.calm = m.tr(tHostDoneUndoable), true
+		title = m.tr(tHostDone, m.diffText(sentence))
+		note = hintLine(m.tr(tHostDoneUndoable))
 		if !r.Reversible {
-			q.consequence = m.tr(tHostDoneFinal)
+			note = hintLine(m.tr(tHostDoneFinal))
 		}
 	case hostchange.ResultRefused:
-		q.title, q.warn = m.tr(tHostRefused, m.diffText(r.Error)), true
-		q.consequence = m.tr(tHostRefusedNote)
+		title, note = m.tr(tHostRefused, m.diffText(r.Error)), warnLine(m.tr(tHostRefusedNote))
 		r.Error = ""
 	case hostchange.ResultRestored:
-		q.title, q.warn, q.danger = m.tr(tHostFailedRestored, m.diffText(sentence)), true, true
-		q.consequence = m.tr(tHostRestoredNote)
+		title, note = m.tr(tHostFailedRestored, m.diffText(sentence)), warnLine(m.tr(tHostRestoredNote))
 	default:
-		q.title, q.warn, q.danger = m.tr(tHostFailed, m.diffText(sentence)), true, true
-		q.consequence = m.tr(tHostFailedNote)
+		title, note = m.tr(tHostFailed, m.diffText(sentence)), warnLine(m.tr(tHostFailedNote))
 	}
-	var details []string
+	var more []kittui.DialogLine
 	if r.Error != "" {
-		details = append(details, hostLines(m.ui.st(kittui.StyleFail), "", m.diffText(r.Error))...)
+		more = append(more, warnLine(m.diffText(r.Error)))
 	}
 	switch r.Check {
 	case hostchange.CheckPassed:
-		details = append(details, hostLines(m.ui.st(kittui.StyleHint), "", m.tr(tHostCheckPassed))...)
+		more = append(more, hintLine(m.tr(tHostCheckPassed)))
 	case hostchange.CheckFailed:
-		details = append(details, hostLines(m.ui.st(kittui.StyleWarn), "", m.tr(tHostCheckFailed, m.diffText(r.CheckError)))...)
+		more = append(more, warnLine(m.tr(tHostCheckFailed, m.diffText(r.CheckError))))
 	}
 	if r.Warning != "" {
-		details = append(details, hostLines(m.ui.st(kittui.StyleWarn), "", m.tr(tHostAuditWarning, m.diffText(r.Warning)))...)
+		more = append(more, warnLine(m.tr(tHostAuditWarning, m.diffText(r.Warning))))
 	}
-	if len(details) > 0 {
-		q.details = []string{"\n" + strings.Join(details, "\n")}
+	details := []kittui.DialogLine{note}
+	if len(more) > 0 {
+		details = append(append(details, kittui.DialogLine{}), more...)
 	}
-	m.hostNotice(q)
+	m.hostNotice(title, details...)
 }
 
 // afterChange reloads the page shown so it matches the host. The journal is not read again on its own: that

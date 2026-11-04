@@ -3,20 +3,20 @@ qsysmin                                                        [?] help  [:] cmd
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    3/3
-╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
-║     NA║ ⚠ Give svc-demo access to Docker (group docker).             ║SYSTEM ║
-║   ▾ ■ ║                                                              ║       ║
-║     de║     Packages or services may depend on this system account.  ║       ║
-║     de║     Admin and Docker rights allow practically everything on  ║       ║
-║   ▾ ■ ║     this host. You can undo this under Host > Changes.       ║       ║
-║ >   sv║                                                              ║system ║
-╚═══════║   $ usermod -aG docker svc-demo                              ║═══════╝
+╔══════════════════════════════════════════════════════════════════════════════╗
+║     NAME        ADMIN              DOCKER  GROUPS                     SYSTEM ║
+║   ▾ ■ ╔═ Confirm ════════════════════════════════════════════════════╗       ║
+║     de║ ⚠ Give svc-demo access to Docker (group docker).             ║       ║
+║     de║                                                              ║       ║
+║   ▾ ■ ║ Packages or services may depend on this system account.      ║       ║
+║ >   sv║ Admin and Docker rights allow practically everything on this ║system ║
+╚═══════║ host. You can undo this under Host > Changes.                ║═══════╝
         ║                                                              ║        
-        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║ $ usermod -aG docker svc-demo                                ║        
         ║                                                              ║        
-        ║ y apply · n/esc cancel                                       ║        
+        ║ [ apply ]  [ cancel ]                                        ║        
+        ║ y apply  n/esc cancel                                        ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

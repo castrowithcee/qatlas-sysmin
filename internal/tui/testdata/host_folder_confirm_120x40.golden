@@ -10,22 +10,22 @@ Type           folder
 Owner root     read and write                                                                                           
 Group qsysmin  read                                                                                                     
 Others         nothing                                                                                                  
-Mode           2750         ╔══════════════════════════════════════════════════════════════╗                            
-ACL            set: further ║ ⚠ Change /srv/demo-app and everything below it: owner root,  ║                            
-Special        setgid: new e║   group qsysmin; the owner gets read and write, the group    ║                            
+Mode           2750                                                                                                     
+ACL            set: further rights apply that the levels above do not show                                              
+Special        setgid: new e╔═ Confirm ════════════════════════════════════════════════════╗                            
+                            ║ ⚠ Change /srv/demo-app and everything below it: owner root,  ║                            
+                            ║   group qsysmin; the owner gets read and write, the group    ║                            
                             ║   read, everyone else no access.                             ║                            
                             ║                                                              ║                            
-                            ║     42 entries are changed: the folder and everything below  ║                            
-                            ║     it. You can undo this under Host > Changes.              ║                            
+                            ║ 42 entries are changed: the folder and everything below it.  ║                            
+                            ║ You can undo this under Host > Changes.                      ║                            
                             ║                                                              ║                            
-                            ║   $ chown -R -h -- root:qsysmin /srv/demo-app                ║                            
-                            ║   $ chmod -R -- u=rwX,g=rX,o= /srv/demo-app                  ║                            
+                            ║ $ chown -R -h -- root:qsysmin /srv/demo-app                  ║                            
+                            ║ $ chmod -R -- u=rwX,g=rX,o= /srv/demo-app                    ║                            
                             ║                                                              ║                            
-                            ║ [ Apply ]  [ Cancel ]                                        ║                            
-                            ║                                                              ║                            
-                            ║ y apply · n/esc cancel                                       ║                            
+                            ║ [ apply ]  [ cancel ]                                        ║                            
+                            ║ y apply  n/esc cancel                                        ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

@@ -303,7 +303,7 @@ func TestOverviewSelfUpdateIsAStep(t *testing.T) {
 	}
 	focusStep(t, m, "Install qsysmin 9.9.9")
 	send(m, "enter")
-	if m.ask == nil {
+	if m.dlg == nil {
 		t.Error("enter does not ask before installing")
 	}
 }

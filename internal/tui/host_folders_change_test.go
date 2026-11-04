@@ -75,8 +75,8 @@ func TestRecursiveFolderChangeNamesTheCountAndRunsOnlyAfterYes(t *testing.T) {
 			t.Errorf("confirmation lacks %q:\n%s", want, plain(m))
 		}
 	}
-	if m.ask == nil || m.ask.danger || len(f.reqs) != 0 {
-		t.Fatalf("a normal path is not red and nothing runs before y: ask %+v calls %v", m.ask, f.reqs)
+	if m.dlg == nil || (m.dlgSpec.Danger != "") || len(f.reqs) != 0 {
+		t.Fatalf("a normal path is not red and nothing runs before y: ask %+v calls %v", m.dlgSpec, f.reqs)
 	}
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
@@ -97,8 +97,8 @@ func TestSystemPathAsksInRedAndPassesTheAcknowledgementOnlyOnYes(t *testing.T) {
 		t.Errorf("the form does not name the system path:\n%s", plain(m))
 	}
 	save(m)
-	if m.ask == nil || !m.ask.danger || !m.ask.warn || !strings.Contains(flat(m), "stop services and block logins") {
-		t.Fatalf("a system path is confirmed in red with its consequence: ask %+v\n%s", m.ask, plain(m))
+	if m.dlg == nil || m.dlgSpec.Danger == "" || !m.dlgSpec.Irreversible || !strings.Contains(flat(m), "stop services and block logins") {
+		t.Fatalf("a system path is confirmed in red with its consequence: ask %+v\n%s", m.dlgSpec, plain(m))
 	}
 	send(m, "n")
 	if len(f.reqs) != 0 {
@@ -126,8 +126,8 @@ func TestTooManyEntriesRefuseInsteadOfAskingAndOtherCountErrorsToo(t *testing.T)
 		openFolderForm(t, m, "/srv/demo-app", func(string, bool) (int, error) { return 0, tc.err })
 		send(m, "tab", "tab", "tab", "tab", "tab", "right")
 		save(m)
-		if m.form == nil || m.ask != nil || len(f.reqs) != 0 || !strings.Contains(flat(m), tc.want) {
-			t.Errorf("%v: want the form with a refusal %q, ask %+v:\n%s", tc.err, tc.want, m.ask, plain(m))
+		if m.form == nil || m.dlg != nil || len(f.reqs) != 0 || !strings.Contains(flat(m), tc.want) {
+			t.Errorf("%v: want the form with a refusal %q, ask %+v:\n%s", tc.err, tc.want, m.dlgSpec, plain(m))
 		}
 	}
 }

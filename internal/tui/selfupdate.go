@@ -1,6 +1,10 @@
 package tui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+
+	kittui "github.com/castrowithcee/qatlas-kit/tui"
+)
 
 // updateAvailable is the newer stable release the last lookup found, "" for none.
 func (m *Model) updateAvailable() string {
@@ -21,13 +25,13 @@ func (m *Model) selfUpdate() tea.Cmd {
 		return m.checkUpdate(true)
 	}
 	return m.guarded(func() tea.Cmd {
-		m.askConfirm(question{
-			title: m.tr(tUpdTitle, m.version, latest), consequence: m.tr(tUpdConsequence), warn: true,
-			keys: keyLine(answer(tHintUpdate, actYes), answer(tHintCancel, actNo, actBack)),
+		m.askDialog(kittui.DialogSpec{
+			Title: tDlgUpdate, Question: m.tr(tUpdTitle, m.version, latest), Consequence: m.tr(tUpdConsequence),
+			Irreversible: true, Answers: confirmAnswers(tHintUpdate), Keys: kittui.DialogKeys{Enter: actEnter},
 		}, func() tea.Cmd {
 			m.updateTo = latest
 			return m.quit()
-		})
+		}, nil)
 		return nil
 	})
 }

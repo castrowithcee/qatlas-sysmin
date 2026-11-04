@@ -12,18 +12,18 @@ Users (3)                                                         1/3 ╭─ dem
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
                                                                       │ Groups             demo-admin, sudo, docker,   │
                                                                       │                    qsysmin                     │
-                            ╔══════════════════════════════════════════════════════════════╗home/demo-admin            │
-                            ║ ⚠ Wipe the demo folder.                                      ║nknown                     │
+                                                                      │ Home               /home/demo-admin            │
+                                                                      │ Locked             unknown                     │
+                            ╔═ Confirm ════════════════════════════════════════════════════╗                           │
+                            ║ ⚠ Wipe the demo folder.                                      ║ the fields only root can  │
                             ║                                                              ║                           │
-                            ║     This cannot be undone: the old content is not kept       ║ the fields only root can  │
-                            ║                                                              ║                           │
-                            ║   $ demo-wipe '/srv/demo app'                                ║───────────────────────────╯
+                            ║ This cannot be undone: the old content is not kept           ║───────────────────────────╯
                             ║                                                              ║                            
-                            ║ [ Apply ]  [ Cancel ]                                        ║                            
+                            ║ $ demo-wipe '/srv/demo app'                                  ║                            
                             ║                                                              ║                            
-                            ║ y apply · n/esc cancel                                       ║                            
+                            ║ [ apply ]  [ cancel ]                                        ║                            
+                            ║ y apply  n/esc cancel                                        ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

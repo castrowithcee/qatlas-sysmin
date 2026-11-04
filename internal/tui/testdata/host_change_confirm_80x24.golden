@@ -3,21 +3,21 @@ qsysmin                                                        [?] help  [:] cmd
   [Users]  Groups   Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    1/3
-╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
-║     NA║ ⚠ Run a long command.                                        ║SYSTEM ║
-║   ▾ ■ ║                                                              ║       ║
-║ >   de║     You can undo this under Host > Changes.                  ║       ║
+╔══════════════════════════════════════════════════════════════════════════════╗
+║     NAME        ADMIN              DOCKER  GROUPS                     SYSTEM ║
+║   ▾ ■ ╔═ Confirm ════════════════════════════════════════════════════╗       ║
+║ >   de║ ⚠ Run a long command.                                        ║       ║
 ║     de║                                                              ║       ║
-║   ▸ ■ ║   $ demo-tool --option-one value-number-one --option-two     ║       ║
-╚═══════║     value-number-two --option-three 'value number three      ║═══════╝
-        ║     with spaces' --option-four                               ║        
-        ║     /srv/demo-app/a/very/long/path/that/keeps/going/on       ║        
+║   ▸ ■ ║ You can undo this under Host > Changes.                      ║       ║
+╚═══════║                                                              ║═══════╝
+        ║ $ demo-tool --option-one value-number-one --option-two       ║        
+        ║   value-number-two --option-three 'value number three with   ║        
+        ║   spaces' --option-four                                      ║        
+        ║   /srv/demo-app/a/very/long/path/that/keeps/going/on         ║        
         ║                                                              ║        
-        ║ [ Apply ]  [ Cancel ]                                        ║        
-        ║                                                              ║        
-        ║ y apply · n/esc cancel                                       ║        
+        ║ [ apply ]  [ cancel ]                                        ║        
+        ║ y apply  n/esc cancel                                        ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

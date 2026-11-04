@@ -10,23 +10,23 @@ Type        folder
 Owner root  read and write                                                                                              
 Group root  read                                                                                                        
 Others      read                                                                                                        
-Mode        0755            ╔══════════════════════════════════════════════════════════════╗                            
-Protected   a system path; q║ ⚠ Change /etc: owner root, group root; the owner gets read   ║                            
+Mode        0755                                                                                                        
+Protected   a system path; qsysmin does not change its permissions                                                      
+                            ╔═ Confirm ════════════════════════════════════════════════════╗                            
+                            ║ ⚠ Change /etc: owner root, group root; the owner gets read   ║                            
                             ║   and write, the group read, everyone else read. This is a   ║                            
                             ║   system path.                                               ║                            
                             ║                                                              ║                            
-                            ║     This is a system path: wrong owners or permissions here  ║                            
-                            ║     can stop services and block logins on this host. You can ║                            
-                            ║     undo this under Host > Changes.                          ║                            
+                            ║ This is a system path: wrong owners or permissions here can  ║                            
+                            ║ stop services and block logins on this host. You can undo    ║                            
+                            ║ this under Host > Changes.                                   ║                            
                             ║                                                              ║                            
-                            ║   $ chown -- root:root /etc                                  ║                            
-                            ║   $ chmod -- u=rwX,g=rX,o=rX /etc                            ║                            
+                            ║ $ chown -- root:root /etc                                    ║                            
+                            ║ $ chmod -- u=rwX,g=rX,o=rX /etc                              ║                            
                             ║                                                              ║                            
-                            ║ [ Apply ]  [ Cancel ]                                        ║                            
-                            ║                                                              ║                            
-                            ║ y apply · n/esc cancel                                       ║                            
+                            ║ [ apply ]  [ cancel ]                                        ║                            
+                            ║ y apply  n/esc cancel                                        ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

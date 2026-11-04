@@ -3,20 +3,20 @@ qsysmin                                                        [?] help  [:] cmd
    Users  [Groups]  Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Groups (4)                                                                   1/4
-╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
-║     NA║ ⚠ Rename the group demo-team to demo-crew.                   ║       ║
-║   ▾ ■ ║                                                              ║       ║
-║ >   de║     Configurations such as sudoers address a group by its    ║       ║
-║   ▸ ■ ║     name and keep the old one; they stop working until they  ║       ║
-╚═══════║     are changed too. You can undo this under Host > Changes. ║═══════╝
+╔══════════════════════════════════════════════════════════════════════════════╗
+║     NAME       MEMBERS  SYSTEM                                               ║
+║   ▾ ■ ╔═ Confirm ════════════════════════════════════════════════════╗       ║
+║ >   de║ ⚠ Rename the group demo-team to demo-crew.                   ║       ║
+║   ▸ ■ ║                                                              ║       ║
+╚═══════║ Configurations such as sudoers address a group by its name   ║═══════╝
+        ║ and keep the old one; they stop working until they are       ║        
+        ║ changed too. You can undo this under Host > Changes.         ║        
         ║                                                              ║        
-        ║   $ groupmod -n demo-crew demo-team                          ║        
+        ║ $ groupmod -n demo-crew demo-team                            ║        
         ║                                                              ║        
-        ║ [ Apply ]  [ Cancel ]                                        ║        
-        ║                                                              ║        
-        ║ y apply · n/esc cancel                                       ║        
+        ║ [ apply ]  [ cancel ]                                        ║        
+        ║ y apply  n/esc cancel                                        ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

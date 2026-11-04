@@ -10,22 +10,22 @@ Groups (4)                                                        3/4 ╭─ doc
 ║   ▾ ■ System groups (3)                                           ║ │ Members  1                                     │
 ║     sudo             2  system                                    ║ │                                                │
 ║ >   docker           1  system                                    ║ │                                                │
-║     qsysmin          1  sy╔══════════════════════════════════════════════════════════════╗                           │
-╚═══════════════════════════║ ⚠ Delete the group docker; its members keep their accounts,  ║───────────────────────────╯
+║     qsysmin          1  system                                    ║ │                                                │
+╚═══════════════════════════════════════════════════════════════════╝ ╰────────────────────────────────────────────────╯
+                                                                                                                        
+                            ╔═ Confirm ════════════════════════════════════════════════════╗                            
+                            ║ ⚠ Delete the group docker; its members keep their accounts,  ║                            
                             ║   and files of the group keep its group number.              ║                            
                             ║                                                              ║                            
-                            ║     Members of the group docker use Docker, which is         ║                            
-                            ║     practically root. Packages or services may depend on     ║                            
-                            ║     this system group. You can undo this under Host >        ║                            
-                            ║     Changes.                                                 ║                            
+                            ║ Members of the group docker use Docker, which is practically ║                            
+                            ║ root. Packages or services may depend on this system group.  ║                            
+                            ║ You can undo this under Host > Changes.                      ║                            
                             ║                                                              ║                            
-                            ║   $ groupdel docker                                          ║                            
+                            ║ $ groupdel docker                                            ║                            
                             ║                                                              ║                            
-                            ║ [ Delete ]  [ Cancel ]                                       ║                            
-                            ║                                                              ║                            
-                            ║ y delete · n/esc cancel                                      ║                            
+                            ║ [ delete ]  [ cancel ]                                       ║                            
+                            ║ y delete  n/esc cancel                                       ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

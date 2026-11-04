@@ -11,21 +11,21 @@ Users (3)                                                         1/3 ╭─ dem
 ║   ▸ ■ System accounts (1)                                         ║ │ Docker             yes                         │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
                                                                       │ Groups             demo-admin, sudo, docker,   │
-                            ╔══════════════════════════════════════════════════════════════╗sysmin                     │
-                            ║ ⚠ Run a long command.                                        ║home/demo-admin            │
-                            ║                                                              ║nknown                     │
-                            ║     You can undo this under Host > Changes.                  ║                           │
+                                                                      │                    qsysmin                     │
+                                                                      │ Home               /home/demo-admin            │
+                            ╔═ Confirm ════════════════════════════════════════════════════╗nknown                     │
+                            ║ ⚠ Run a long command.                                        ║                           │
                             ║                                                              ║ the fields only root can  │
-                            ║   $ demo-tool --option-one value-number-one --option-two     ║                           │
-                            ║     value-number-two --option-three 'value number three      ║───────────────────────────╯
-                            ║     with spaces' --option-four                               ║                            
-                            ║     /srv/demo-app/a/very/long/path/that/keeps/going/on       ║                            
+                            ║ You can undo this under Host > Changes.                      ║                           │
+                            ║                                                              ║───────────────────────────╯
+                            ║ $ demo-tool --option-one value-number-one --option-two       ║                            
+                            ║   value-number-two --option-three 'value number three with   ║                            
+                            ║   spaces' --option-four                                      ║                            
+                            ║   /srv/demo-app/a/very/long/path/that/keeps/going/on         ║                            
                             ║                                                              ║                            
-                            ║ [ Apply ]  [ Cancel ]                                        ║                            
-                            ║                                                              ║                            
-                            ║ y apply · n/esc cancel                                       ║                            
+                            ║ [ apply ]  [ cancel ]                                        ║                            
+                            ║ y apply  n/esc cancel                                        ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

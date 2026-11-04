@@ -387,10 +387,14 @@ func (m *Model) guarded(next func() tea.Cmd) tea.Cmd {
 	if !dirty {
 		return next()
 	}
-	m.leave = &leaveAsk{next}
-	m.ask = &question{title: m.tr(tLeaveTitle), consequence: m.tr(tLeaveConsequence), warn: true,
-		keys: keyLine(answer(tHintSave, actSave), answer(tHintDiscard, actDiscard), answer(tHintKeepEditing, actBack))}
-	m.screen = screenConfirm
+	if m.openDialog(kittui.DialogSpec{
+		Title: tDlgLeave, Question: m.tr(tLeaveTitle), Consequence: m.tr(tLeaveConsequence), Irreversible: true,
+		Answers: []kittui.Answer{{Action: actSave, Label: tHintSave}, {Action: actDiscard, Label: tHintDiscard},
+			{Action: actNo, Label: tHintKeepEditing}, {Action: actBack, Label: tHintKeepEditing}},
+		Keys: kittui.DialogKeys{Enter: actEnter},
+	}) {
+		m.leave = &leaveAsk{next}
+	}
 	return nil
 }
 
@@ -398,15 +402,19 @@ func (m *Model) guarded(next func() tea.Cmd) tea.Cmd {
 // discard drops the input and goes on, and keep editing goes back to it.
 func (m *Model) updateLeave(key tea.KeyPressMsg) tea.Cmd {
 	form := m.form
-	switch {
-	case m.keyIs(key, actSave):
+	a, ok := m.dialogAnswer(key)
+	if !ok {
+		return nil
+	}
+	switch a {
+	case actSave:
 		m.closeDialog()
 		if form != nil {
 			m.screen = screenPrompt
 			return m.submitForm(form)
 		}
 		return m.saveCurrent()
-	case m.keyIs(key, actDiscard):
+	case actDiscard:
 		next := m.leave.next
 		m.closeDialog()
 		if form != nil {
@@ -416,7 +424,7 @@ func (m *Model) updateLeave(key tea.KeyPressMsg) tea.Cmd {
 			m.loadForms()
 		}
 		return next()
-	case m.keyIs(key, actBack), m.keyIs(key, actNo):
+	default:
 		m.closeDialog()
 		if form != nil {
 			m.screen = screenPrompt

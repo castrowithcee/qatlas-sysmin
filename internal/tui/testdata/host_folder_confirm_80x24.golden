@@ -2,22 +2,22 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users   Groups  [Folders]  Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Folders ╔══════════════════════════════════════════════════════════════╗        
-        ║ ⚠ Change /srv/demo-app and everything below it: owner root,  ║        
-Path: /s║   group qsysmin; the owner gets read and write, the group    ║        
-        ║   read, everyone else no access.                             ║        
-Type    ║                                                              ║        
-Owner ro║     42 entries are changed: the folder and everything below  ║        
-Group qs║     it. You can undo this under Host > Changes.              ║        
-Others  ║                                                              ║        
-Mode    ║   $ chown -R -h -- root:qsysmin /srv/demo-app                ║        
-ACL     ║   $ chmod -R -- u=rwX,g=rX,o= /srv/demo-app                  ║ow      
-Special ║                                                              ║        
-        ║ [ Apply ]  [ Cancel ]                                        ║        
-        ║                                                              ║        
-        ║ y apply · n/esc cancel                                       ║        
-        ╚══════════════════════════════════════════════════════════════╝        
+Folders                                                                         
                                                                                 
+Path: /s╔═ Confirm ════════════════════════════════════════════════════╗        
+        ║ ⚠ Change /srv/demo-app and everything below it: owner root,  ║        
+Type    ║   group qsysmin; the owner gets read and write, the group    ║        
+Owner ro║   read, everyone else no access.                             ║        
+Group qs║                                                              ║        
+Others  ║ 42 entries are changed: the folder and everything below it.  ║        
+Mode    ║ You can undo this under Host > Changes.                      ║        
+ACL     ║                                                              ║ow      
+Special ║ $ chown -R -h -- root:qsysmin /srv/demo-app                  ║        
+        ║ $ chmod -R -- u=rwX,g=rX,o= /srv/demo-app                    ║        
+        ║                                                              ║        
+        ║ [ apply ]  [ cancel ]                                        ║        
+        ║ y apply  n/esc cancel                                        ║        
+        ╚══════════════════════════════════════════════════════════════╝        
                                                                                 
                                                                                 
                                                                                 

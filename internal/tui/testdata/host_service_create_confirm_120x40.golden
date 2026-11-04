@@ -9,25 +9,25 @@ Users (3)                                                         1/3 ╭─ dem
 ║ >   demo-admin  yes                yes     demo-admin, s…         ║ │ Type               regular                     │
 ║     demo-user   yes · not enabled  no      demo-user, su…         ║ │ Admin              yes                         │
 ║   ▸ ■ System accounts (1)                                         ║ │ Docker             yes                         │
-╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗es                         │
-                            ║ ⚠ Create the service account demo-svc without login, with    ║emo-admin, sudo, docker,   │
-                            ║   the home /home/demo-svc, with access to Docker, in the     ║sysmin                     │
-                            ║   group demo-team.                                           ║home/demo-admin            │
-                            ║                                                              ║nknown                     │
-                            ║     Admin and Docker rights allow practically everything on  ║                           │
-                            ║     this host. You can undo this under Host > Changes.       ║ the fields only root can  │
-                            ║     Undoing it deletes the account and a home qsysmin        ║                           │
-                            ║     created; files of the account outside its home stay.     ║───────────────────────────╯
+╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
+                                                                      │ Groups             demo-admin, sudo, docker,   │
+                            ╔═ Confirm ════════════════════════════════════════════════════╗sysmin                     │
+                            ║ ⚠ Create the service account demo-svc without login, with    ║home/demo-admin            │
+                            ║   the home /home/demo-svc, with access to Docker, in the     ║nknown                     │
+                            ║   group demo-team.                                           ║                           │
+                            ║                                                              ║ the fields only root can  │
+                            ║ Admin and Docker rights allow practically everything on this ║                           │
+                            ║ host. You can undo this under Host > Changes. Undoing it     ║───────────────────────────╯
+                            ║ deletes the account and a home qsysmin created; files of the ║                            
+                            ║ account outside its home stay.                               ║                            
                             ║                                                              ║                            
-                            ║   $ useradd --system --create-home --home-dir                ║                            
-                            ║     /home/demo-svc --user-group --shell                      ║                            
-                            ║     /usr/sbin/nologin -G docker,demo-team demo-svc           ║                            
+                            ║ $ useradd --system --create-home --home-dir /home/demo-svc   ║                            
+                            ║   --user-group --shell /usr/sbin/nologin -G docker,demo-team ║                            
+                            ║   demo-svc                                                   ║                            
                             ║                                                              ║                            
-                            ║ [ Apply ]  [ Cancel ]                                        ║                            
-                            ║                                                              ║                            
-                            ║ y apply · n/esc cancel                                       ║                            
+                            ║ [ apply ]  [ cancel ]                                        ║                            
+                            ║ y apply  n/esc cancel                                        ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

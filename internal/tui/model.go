@@ -63,6 +63,9 @@ type Model struct {
 	// ask is the question of screenConfirm, dialog the input dialog of screenPrompt.
 	ask    *question
 	dialog *promptDialog
+	// dlg is the kit dialog of screenConfirm and dlgSpec what it asks, nil while there is none.
+	dlg     *kittui.Dialog
+	dlgSpec kittui.DialogSpec
 
 	// home is the base screen: screenList for the bare frame, screenArea once enableAreas ran.
 	home screen
@@ -249,8 +252,11 @@ func (m *Model) updateKey(key tea.KeyPressMsg) tea.Cmd {
 	if m.screen == screenPopup {
 		return m.updatePopup(key)
 	}
-	if m.screen == screenConfirm && m.leave != nil {
+	if m.screen == screenConfirm && m.leave != nil && m.dlg != nil {
 		return m.updateLeave(key)
+	}
+	if m.screen == screenConfirm && m.confirm != nil && m.dlg != nil {
+		return m.updateDialog(key)
 	}
 	if m.screen == screenConfirm && m.confirm != nil {
 		return m.updateConfirm(key)
@@ -300,6 +306,7 @@ func (m *Model) regroup() tea.Cmd {
 // closeDialog closes the question or input dialog and returns to the list.
 func (m *Model) closeDialog() {
 	m.screen, m.ask, m.dialog, m.leave, m.confirm = m.home, nil, nil, nil, nil
+	m.dlg, m.dlgSpec = nil, kittui.DialogSpec{}
 }
 
 // clearMessages forgets the status and the error of the last action.
@@ -370,6 +377,9 @@ func (m *Model) drawScreen() string {
 		return m.popupFrame()
 	}
 	if view, ok := m.filterModalFrame(); ok {
+		return view
+	}
+	if view, ok := m.dialogFrame(); ok {
 		return view
 	}
 	if view, ok := m.modalView(); ok {

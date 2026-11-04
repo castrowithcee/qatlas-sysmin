@@ -11,20 +11,20 @@ Users (3)                                                         3/3 ╭─ svc
 ║   ▾ ■ System accounts (1)                                         ║ │ Docker             no                          │
 ║ >   svc-demo    no                 no      svc-demo        system ║ │ Enabled (qsysmin)  no                          │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Groups             svc-demo                    │
-                            ╔══════════════════════════════════════════════════════════════╗var/lib/svc-demo           │
-                            ║ ⚠ Give svc-demo access to Docker (group docker).             ║nknown                     │
+                                                                      │ Home               /var/lib/svc-demo           │
+                                                                      │ Locked             unknown                     │
+                            ╔═ Confirm ════════════════════════════════════════════════════╗                           │
+                            ║ ⚠ Give svc-demo access to Docker (group docker).             ║ the fields only root can  │
                             ║                                                              ║                           │
-                            ║     Packages or services may depend on this system account.  ║ the fields only root can  │
-                            ║     Admin and Docker rights allow practically everything on  ║                           │
-                            ║     this host. You can undo this under Host > Changes.       ║───────────────────────────╯
+                            ║ Packages or services may depend on this system account.      ║───────────────────────────╯
+                            ║ Admin and Docker rights allow practically everything on this ║                            
+                            ║ host. You can undo this under Host > Changes.                ║                            
                             ║                                                              ║                            
-                            ║   $ usermod -aG docker svc-demo                              ║                            
+                            ║ $ usermod -aG docker svc-demo                                ║                            
                             ║                                                              ║                            
-                            ║ [ Apply ]  [ Cancel ]                                        ║                            
-                            ║                                                              ║                            
-                            ║ y apply · n/esc cancel                                       ║                            
+                            ║ [ apply ]  [ cancel ]                                        ║                            
+                            ║ y apply  n/esc cancel                                        ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

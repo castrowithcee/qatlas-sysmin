@@ -124,7 +124,7 @@ func (m *Model) refuseProtected(g hostadmin.Group, why textID) bool {
 	if !protectedGroup(g.Name) {
 		return false
 	}
-	m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: m.tr(why, m.diffText(g.Name)), warn: true, keys: closeKeys()})
+	m.hostNotice(m.tr(tHostChangeRefused), warnLine(m.tr(why, m.diffText(g.Name))))
 	return true
 }
 
@@ -162,13 +162,12 @@ func (m *Model) askGroupDelete() tea.Cmd {
 		return nil
 	}
 	if users := m.primaryUsers(g.Name); len(users) > 0 {
-		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: m.tr(tHostGroupPrimary, m.diffText(g.Name), m.diffText(strings.Join(users, ", "))),
-			warn: true, keys: closeKeys()})
+		m.hostNotice(m.tr(tHostChangeRefused), warnLine(m.tr(tHostGroupPrimary, m.diffText(g.Name), m.diffText(strings.Join(users, ", ")))))
 		return nil
 	}
 	p, refusal := m.planHost(hostAsk{id: hostchange.ActionGroupDelete, args: []string{g.Name}, risk: m.groupRisk(g)})
 	if refusal != "" {
-		m.hostNotice(question{title: m.tr(tHostChangeRefused), consequence: refusal, warn: true, keys: closeKeys()})
+		m.hostNotice(m.tr(tHostChangeRefused), warnLine(refusal))
 		return nil
 	}
 	m.confirmHost(p)

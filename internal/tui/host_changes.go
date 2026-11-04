@@ -173,17 +173,16 @@ func (m *Model) askUndo() tea.Cmd {
 	}
 	e := m.hst.chg.items[id]
 	if !e.Reversible || e.UndoSentence == "" {
-		m.hostNotice(question{title: m.tr(tHostUndoRefused), consequence: m.tr(tHostUndoRefusedNote, m.diffText(e.Sentence)),
-			warn: true, keys: closeKeys()})
+		m.hostNotice(m.tr(tHostUndoRefused), warnLine(m.tr(tHostUndoRefusedNote, m.diffText(e.Sentence))))
 		return nil
 	}
-	q := planQuestion(m.ui, e.UndoSentence, e.UndoCommands, "", tHintUndo)
-	q.title = m.diffText(e.UndoSentence)
-	q.consequence = m.tr(tHostUndoNote, m.diffText(e.Sentence))
+	spec := planSpec(m.ui, e.UndoSentence, e.UndoCommands, "", tHintUndo)
+	spec.Question = m.diffText(e.UndoSentence)
+	spec.Consequence = m.tr(tHostUndoNote, m.diffText(e.Sentence))
 	argv := []string{"undo", "--confirm", "--output", "json", "--", id}
-	m.askConfirm(q, func() tea.Cmd {
+	m.askDialog(spec, func() tea.Cmd {
 		return m.runUndo(argv, id, e.UndoSentence)
-	})
+	}, nil)
 	return nil
 }
 
@@ -230,10 +229,11 @@ func (m *Model) askReadUser() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	m.askConfirm(question{
-		title: m.tr(tHostReadTitle, m.diffText(name)), consequence: m.tr(tHostReadNote),
-		details: planDetails(m.ui, []string{"qsysmin host user " + shellWord(name)}), keys: keyLine(answer(tHintReadAsRoot, actYes), answer(tHintCancel, actNo, actBack)),
-	}, func() tea.Cmd { return m.readUser(name) })
+	m.askDialog(kittui.DialogSpec{
+		Title: tDlgConfirm, Question: m.tr(tHostReadTitle, m.diffText(name)), Consequence: m.tr(tHostReadNote),
+		Details: planLines([]string{"qsysmin host user " + shellWord(name)}), Answers: confirmAnswers(tHintReadAsRoot),
+		Keys: kittui.DialogKeys{Enter: actEnter},
+	}, func() tea.Cmd { return m.readUser(name) }, nil)
 	return nil
 }
 

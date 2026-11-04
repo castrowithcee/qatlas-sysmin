@@ -11,21 +11,21 @@ Users (3)                                                         1/3 ╭─ dem
 ║   ▸ ■ System accounts (1)                                         ║ │ Docker             yes                         │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
                                                                       │ Groups             demo-admin, sudo, docker,   │
-                            ╔══════════════════════════════════════════════════════════════╗sysmin                     │
-                            ║ ⚠ Failed, previous state restored: Set alpha to new.         ║home/demo-admin            │
-                            ║                                                              ║nknown                     │
-                            ║     The change or its check failed and the previous state is ║                           │
-                            ║     back.                                                    ║ the fields only root can  │
-                            ║                                                              ║                           │
-                            ║   check failed                                               ║───────────────────────────╯
-                            ║   Check failed: the value was rejected                       ║                            
-                            ║   Warning: the audit log was not written                     ║                            
+                                                                      │                    qsysmin                     │
+                                                                      │ Home               /home/demo-admin            │
+                            ╔═ Notice ═════════════════════════════════════════════════════╗nknown                     │
+                            ║ Failed, previous state restored: Set alpha to new.           ║                           │
+                            ║                                                              ║ the fields only root can  │
+                            ║ The change or its check failed and the previous state is     ║                           │
+                            ║ back.                                                        ║───────────────────────────╯
                             ║                                                              ║                            
-                            ║ [ Close ]                                                    ║                            
+                            ║ check failed                                                 ║                            
+                            ║ Check failed: the value was rejected                         ║                            
+                            ║ Warning: the audit log was not written                       ║                            
                             ║                                                              ║                            
-                            ║ esc close                                                    ║                            
+                            ║ > close <                                                    ║                            
+                            ║ esc/enter close                                              ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

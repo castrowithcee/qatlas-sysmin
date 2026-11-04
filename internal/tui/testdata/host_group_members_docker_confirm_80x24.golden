@@ -2,22 +2,22 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users  [Groups]  Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Groups (╔══════════════════════════════════════════════════════════════╗     3/4
-╔═══════║ ⚠ Add demo-user to the group docker.                         ║═══════╗
-║     NA║                                                              ║       ║
-║   ▾ ■ ║     Members of the group docker use Docker, which is         ║       ║
-║     de║     practically root. Packages or services may depend on     ║       ║
-║   ▾ ■ ║     this system group. Admin and Docker rights allow         ║       ║
-║     su║     practically everything on this host. You can undo this   ║       ║
-║ >   do║     under Host > Changes.                                    ║       ║
-║     qs║                                                              ║       ║
-╚═══════║   $ gpasswd -a demo-user docker                              ║═══════╝
+Groups (4)                                                                   3/4
+╔══════════════════════════════════════════════════════════════════════════════╗
+║     NAME       MEMBERS  SYSTEM                                               ║
+║   ▾ ■ ╔═ Confirm ════════════════════════════════════════════════════╗       ║
+║     de║ ⚠ Add demo-user to the group docker.                         ║       ║
+║   ▾ ■ ║                                                              ║       ║
+║     su║ Members of the group docker use Docker, which is practically ║       ║
+║ >   do║ root. Packages or services may depend on this system group.  ║       ║
+║     qs║ Admin and Docker rights allow practically everything on this ║       ║
+╚═══════║ host. You can undo this under Host > Changes.                ║═══════╝
         ║                                                              ║        
-        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║ $ gpasswd -a demo-user docker                                ║        
         ║                                                              ║        
-        ║ y apply · n/esc cancel                                       ║        
+        ║ [ apply ]  [ cancel ]                                        ║        
+        ║ y apply  n/esc cancel                                        ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

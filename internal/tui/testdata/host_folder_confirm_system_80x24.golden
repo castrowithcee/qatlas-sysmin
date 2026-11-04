@@ -2,23 +2,23 @@ qsysmin                                                        [?] help  [:] cmd
    1 Overview  [2 Host]  3 Activity   4 Settings                                
    Users   Groups  [Folders]  Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
-Folders ╔══════════════════════════════════════════════════════════════╗        
-        ║ ⚠ Change /etc: owner root, group root; the owner gets read   ║        
-Path: /e║   and write, the group read, everyone else read. This is a   ║        
-        ║   system path.                                               ║        
-Type    ║                                                              ║        
-Owner ro║     This is a system path: wrong owners or permissions here  ║        
-Group ro║     can stop services and block logins on this host. You can ║        
-Others  ║     undo this under Host > Changes.                          ║        
-Mode    ║                                                              ║        
-Protecte║   $ chown -- root:root /etc                                  ║        
-        ║   $ chmod -- u=rwX,g=rX,o=rX /etc                            ║        
-        ║                                                              ║        
-        ║ [ Apply ]  [ Cancel ]                                        ║        
-        ║                                                              ║        
-        ║ y apply · n/esc cancel                                       ║        
-        ╚══════════════════════════════════════════════════════════════╝        
+Folders                                                                         
                                                                                 
+Path: /e╔═ Confirm ════════════════════════════════════════════════════╗        
+        ║ ⚠ Change /etc: owner root, group root; the owner gets read   ║        
+Type    ║   and write, the group read, everyone else read. This is a   ║        
+Owner ro║   system path.                                               ║        
+Group ro║                                                              ║        
+Others  ║ This is a system path: wrong owners or permissions here can  ║        
+Mode    ║ stop services and block logins on this host. You can undo    ║        
+Protecte║ this under Host > Changes.                                   ║        
+        ║                                                              ║        
+        ║ $ chown -- root:root /etc                                    ║        
+        ║ $ chmod -- u=rwX,g=rX,o=rX /etc                              ║        
+        ║                                                              ║        
+        ║ [ apply ]  [ cancel ]                                        ║        
+        ║ y apply  n/esc cancel                                        ║        
+        ╚══════════════════════════════════════════════════════════════╝        
                                                                                 
                                                                                 
 ? help                                                                          

@@ -4,19 +4,19 @@ qsysmin                                                        [?] help  [:] cmd
 ────────────────────────────────────────────────────────────────────────────────
 Users (3)                                                                    2/3
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║     NA╔══════════════════════════════════════════════════════════════╗SYSTEM ║
-║   ▾ ■ ║ ⚠ Give the administrator demo-user access to qsysmin (group  ║       ║
-║     de║   qsysmin).                                                  ║       ║
-║ >   de║                                                              ║       ║
-║   ▸ ■ ║     You can undo this under Host > Changes.                  ║       ║
+║     NAME        ADMIN              DOCKER  GROUPS                     SYSTEM ║
+║   ▾ ■ Users (2)                                                              ║
+║     de╔═ Confirm ════════════════════════════════════════════════════╗       ║
+║ >   de║ ⚠ Give the administrator demo-user access to qsysmin (group  ║       ║
+║   ▸ ■ ║   qsysmin).                                                  ║       ║
 ╚═══════║                                                              ║═══════╝
-        ║   $ usermod -aG qsysmin demo-user                            ║        
+        ║ You can undo this under Host > Changes.                      ║        
         ║                                                              ║        
-        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║ $ usermod -aG qsysmin demo-user                              ║        
         ║                                                              ║        
-        ║ y apply · n/esc cancel                                       ║        
+        ║ [ apply ]  [ cancel ]                                        ║        
+        ║ y apply  n/esc cancel                                        ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

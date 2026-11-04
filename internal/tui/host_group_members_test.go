@@ -24,6 +24,9 @@ func flatBoxes(m *Model) string {
 	return flatText(strings.NewReplacer("│", " ", "║", " ", "─", " ", "╰", " ", "╯", " ", "╭", " ", "╮", " ").Replace(plain(m)))
 }
 
+// flatDlg is the text of the dialog on one line: the frame is gone and a word the kit broke at a hyphen is whole.
+func flatDlg(m *Model) string { return strings.ReplaceAll(flatBoxes(m), "- ", "-") }
+
 func lastArgs(f *fakeSudo) []string {
 	if len(f.reqs) == 0 {
 		return nil
@@ -57,8 +60,8 @@ func TestGroupMembersFormOffersTheRightUsersAndSendsOneActionForAllChanges(t *te
 			t.Errorf("confirmation lacks %q:\n%s", want, plain(m))
 		}
 	}
-	if m.ask == nil || m.ask.danger || len(f.reqs) != 0 {
-		t.Fatalf("a regular group asks plain and nothing runs before y: ask %+v calls %v", m.ask, f.reqs)
+	if m.dlg == nil || (m.dlgSpec.Danger != "") || len(f.reqs) != 0 {
+		t.Fatalf("a regular group asks plain and nothing runs before y: ask %+v calls %v", m.dlgSpec, f.reqs)
 	}
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
@@ -87,8 +90,8 @@ func TestGroupMembersAskRedForSystemGroupsRootAndDockerAndWarnAsPower(t *testing
 			}
 			tickIn(m, 1)
 			save(m)
-			if m.ask == nil || !m.ask.danger || len(f.reqs) != 0 {
-				t.Fatalf("ask %+v calls %v\n%s", m.ask, f.reqs, plain(m))
+			if m.dlg == nil || m.dlgSpec.Danger == "" || len(f.reqs) != 0 {
+				t.Fatalf("ask %+v calls %v\n%s", m.dlgSpec, f.reqs, plain(m))
 			}
 			for _, want := range tc.says {
 				if !strings.Contains(flatBoxes(m), want) {
@@ -108,8 +111,8 @@ func TestRemovingFromDockerAsksRedButNotAsPower(t *testing.T) {
 	send(m, "e", "tab")
 	tickIn(m, 1)
 	save(m)
-	if m.ask == nil || !m.ask.danger || strings.Contains(flatBoxes(m), "allow practically everything on this host") {
-		t.Fatalf("ask %+v\n%s", m.ask, plain(m))
+	if m.dlg == nil || m.dlgSpec.Danger == "" || strings.Contains(flatBoxes(m), "allow practically everything on this host") {
+		t.Fatalf("ask %+v\n%s", m.dlgSpec, plain(m))
 	}
 }
 
@@ -121,8 +124,8 @@ func TestGroupMembersOfSudoFollowTheAdminSwitch(t *testing.T) {
 	send(m, "tab")
 	tickIn(m, 2)
 	save(m)
-	if m.ask == nil || !m.ask.danger || !strings.Contains(flatBoxes(m), "allow practically everything on this host") {
-		t.Fatalf("ask %+v\n%s", m.ask, plain(m))
+	if m.dlg == nil || m.dlgSpec.Danger == "" || !strings.Contains(flatBoxes(m), "allow practically everything on this host") {
+		t.Fatalf("ask %+v\n%s", m.dlgSpec, plain(m))
 	}
 	f.answer = func(HostRequest) (string, error) { return reportApplied, nil }
 	send(m, "y")
@@ -139,16 +142,16 @@ func TestGroupMembersAreRefusedEarlyForSelfAndTheLastAdmin(t *testing.T) {
 	send(m, "e", "tab")
 	tickIn(m, 1) // demo-admin is the first member and the only one with access to qsysmin
 	save(m)
-	if m.form == nil || !strings.Contains(flat(m), "last admin") || m.ask != nil || len(f.reqs) != 0 {
-		t.Fatalf("no refusal, ask %+v:\n%s", m.ask, plain(m))
+	if m.form == nil || !strings.Contains(flat(m), "last admin") || m.dlg != nil || len(f.reqs) != 0 {
+		t.Fatalf("no refusal, ask %+v:\n%s", m.dlgSpec, plain(m))
 	}
 	m.hostUID = func() int { return 1001 }
 	remove := m.form.lists[fieldRemove]
 	remove.ticked = make([]bool, len(remove.values))
 	remove.ticked[1] = true
 	save(m)
-	if m.form == nil || !strings.Contains(flat(m), "cannot take admin rights from yourself") || m.ask != nil {
-		t.Fatalf("no refusal, ask %+v:\n%s", m.ask, plain(m))
+	if m.form == nil || !strings.Contains(flat(m), "cannot take admin rights from yourself") || m.dlg != nil {
+		t.Fatalf("no refusal, ask %+v:\n%s", m.dlgSpec, plain(m))
 	}
 }
 
@@ -157,7 +160,7 @@ func TestGroupMembersNeedAtLeastOneChoice(t *testing.T) {
 	selectGroup(m, "demo-team")
 	send(m, "e")
 	save(m)
-	if m.form == nil || !strings.Contains(flat(m), "[!] Choose at least one user.") || m.ask != nil || len(f.reqs) != 0 {
+	if m.form == nil || !strings.Contains(flat(m), "[!] Choose at least one user.") || m.dlg != nil || len(f.reqs) != 0 {
 		t.Fatalf("no problem:\n%s", plain(m))
 	}
 	send(m, "esc")
@@ -196,7 +199,7 @@ func TestGroupMembersFormSpeaksGerman(t *testing.T) {
 	}
 	tickIn(m, 1)
 	save(m)
-	if m.ask == nil || !m.ask.danger || !strings.Contains(flatBoxes(m), "docker nutzen Docker") {
+	if m.dlg == nil || m.dlgSpec.Danger == "" || !strings.Contains(flatBoxes(m), "docker nutzen Docker") {
 		t.Errorf("\n%s", plain(m))
 	}
 }

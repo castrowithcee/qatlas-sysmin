@@ -3,21 +3,21 @@ qsysmin                                                        [?] help  [:] cmd
    Users  [Groups]  Folders   Changes                                           
 ────────────────────────────────────────────────────────────────────────────────
 Groups (4)                                                                   1/4
-╔═══════╔══════════════════════════════════════════════════════════════╗═══════╗
-║     NA║ ⚠ Add demo-admin and svc-demo to the group demo-team and     ║       ║
-║   ▾ ■ ║   remove demo-user from the group demo-team.                 ║       ║
-║ >   de║                                                              ║       ║
-║   ▸ ■ ║     You can undo this under Host > Changes.                  ║       ║
+╔══════════════════════════════════════════════════════════════════════════════╗
+║     NAME       MEMBERS  SYSTEM                                               ║
+║   ▾ ■ ╔═ Confirm ════════════════════════════════════════════════════╗       ║
+║ >   de║ ⚠ Add demo-admin and svc-demo to the group demo-team and     ║       ║
+║   ▸ ■ ║   remove demo-user from the group demo-team.                 ║       ║
 ╚═══════║                                                              ║═══════╝
-        ║   $ gpasswd -a demo-admin demo-team                          ║        
-        ║   $ gpasswd -a svc-demo demo-team                            ║        
-        ║   $ gpasswd -d demo-user demo-team                           ║        
+        ║ You can undo this under Host > Changes.                      ║        
         ║                                                              ║        
-        ║ [ Apply ]  [ Cancel ]                                        ║        
+        ║ $ gpasswd -a demo-admin demo-team                            ║        
+        ║ $ gpasswd -a svc-demo demo-team                              ║        
+        ║ $ gpasswd -d demo-user demo-team                             ║        
         ║                                                              ║        
-        ║ y apply · n/esc cancel                                       ║        
+        ║ [ apply ]  [ cancel ]                                        ║        
+        ║ y apply  n/esc cancel                                        ║        
         ╚══════════════════════════════════════════════════════════════╝        
-                                                                                
                                                                                 
                                                                                 
                                                                                 

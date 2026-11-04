@@ -11,20 +11,20 @@ Users (3)                                                         2/3 ╭─ dem
 ║   ▸ ■ System accounts (1)                                         ║ │ Docker             no                          │
 ╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  no                          │
                                                                       │ Groups             demo-user, sudo, demo-team  │
-                            ╔══════════════════════════════════════════════════════════════╗home/demo-user             │
-                            ║ ⚠ Lock demo-user: no login is possible any more, with a      ║o                          │
-                            ║   password or an SSH key.                                    ║───────────────────────────╯
+                                                                      │ Home               /home/demo-user             │
+                                                                      │ Locked             no                          │
+                            ╔═ Confirm ════════════════════════════════════════════════════╗───────────────────────────╯
+                            ║ ⚠ Lock demo-user: no login is possible any more, with a      ║                            
+                            ║   password or an SSH key.                                    ║                            
                             ║                                                              ║                            
-                            ║     You can undo this under Host > Changes. Running sessions ║                            
-                            ║     stay open until they end.                                ║                            
+                            ║ You can undo this under Host > Changes. Running sessions     ║                            
+                            ║ stay open until they end.                                    ║                            
                             ║                                                              ║                            
-                            ║   $ usermod -L -e 1 demo-user                                ║                            
+                            ║ $ usermod -L -e 1 demo-user                                  ║                            
                             ║                                                              ║                            
-                            ║ [ Apply ]  [ Cancel ]                                        ║                            
-                            ║                                                              ║                            
-                            ║ y apply · n/esc cancel                                       ║                            
+                            ║ [ apply ]  [ cancel ]                                        ║                            
+                            ║ y apply  n/esc cancel                                        ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

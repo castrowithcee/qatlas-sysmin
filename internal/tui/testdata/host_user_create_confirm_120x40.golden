@@ -9,25 +9,25 @@ Users (3)                                                         1/3 ╭─ dem
 ║ >   demo-admin  yes                yes     demo-admin, s…         ║ │ Type               regular                     │
 ║     demo-user   yes · not enabled  no      demo-user, su…         ║ │ Admin              yes                         │
 ║   ▸ ■ System accounts (1)                                         ║ │ Docker             yes                         │
-╚═══════════════════════════╔══════════════════════════════════════════════════════════════╗es                         │
-                            ║ ⚠ Create the user demo-new with the home /home/demo-new and  ║emo-admin, sudo, docker,   │
-                            ║   an initial password that must be changed at the first      ║sysmin                     │
-                            ║   login, as an administrator with access to qsysmin, with    ║home/demo-admin            │
-                            ║   access to Docker, in the group demo-team.                  ║nknown                     │
+╚═══════════════════════════════════════════════════════════════════╝ │ Enabled (qsysmin)  yes                         │
+                                                                      │ Groups             demo-admin, sudo, docker,   │
+                            ╔═ Confirm ════════════════════════════════════════════════════╗sysmin                     │
+                            ║ ⚠ Create the user demo-new with the home /home/demo-new and  ║home/demo-admin            │
+                            ║   an initial password that must be changed at the first      ║nknown                     │
+                            ║   login, as an administrator with access to qsysmin, with    ║                           │
+                            ║   access to Docker, in the group demo-team.                  ║ the fields only root can  │
                             ║                                                              ║                           │
-                            ║     Admin and Docker rights allow practically everything on  ║ the fields only root can  │
-                            ║     this host. You can undo this under Host > Changes.       ║                           │
-                            ║                                                              ║───────────────────────────╯
-                            ║   $ useradd -m -d /home/demo-new -U -s /bin/bash -G          ║                            
-                            ║     sudo,qsysmin,docker,demo-team demo-new                   ║                            
-                            ║   $ chpasswd < <password>                                    ║                            
-                            ║   $ chage -d 0 demo-new                                      ║                            
+                            ║ Admin and Docker rights allow practically everything on this ║───────────────────────────╯
+                            ║ host. You can undo this under Host > Changes.                ║                            
                             ║                                                              ║                            
-                            ║ [ Apply ]  [ Cancel ]                                        ║                            
+                            ║ $ useradd -m -d /home/demo-new -U -s /bin/bash -G            ║                            
+                            ║   sudo,qsysmin,docker,demo-team demo-new                     ║                            
+                            ║ $ chpasswd < <password>                                      ║                            
+                            ║ $ chage -d 0 demo-new                                        ║                            
                             ║                                                              ║                            
-                            ║ y apply · n/esc cancel                                       ║                            
+                            ║ [ apply ]  [ cancel ]                                        ║                            
+                            ║ y apply  n/esc cancel                                        ║                            
                             ╚══════════════════════════════════════════════════════════════╝                            
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         
