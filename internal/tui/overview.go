@@ -471,7 +471,7 @@ func (m *Model) overviewBody() string {
 				}
 			}
 			value := ovValueStyle(m.ui, c.kind).Render(truncateCells(c.value, inner))
-			panels = append(panels, panel(m.ui, truncateCells(label, inner), []string{value}, inner, 1, panelOpts{focused: sel(ovCards, i)}))
+			panels = append(panels, m.ui.styles.Panel(label, "", []string{value}, w, ovCardRows, sel(ovCards, i)))
 			hit(len(lines), ovCardRows, x, x+w, ovCards, i, c.act)
 			x += w + 1
 		}
@@ -509,7 +509,7 @@ func (m *Model) overviewBody() string {
 	}
 	stepsRow := len(lines)
 	if p.framed {
-		lines = append(lines, panel(m.ui, m.tr(tOvSteps), body, inner, len(body), panelOpts{focused: focus && zone == ovSteps})...)
+		lines = append(lines, m.ui.styles.Panel(m.tr(tOvSteps), "", body, width, len(body)+2, focus && zone == ovSteps)...)
 	} else {
 		lines = append(lines, m.ui.st(kittui.StyleTitle).Render(m.tr(tOvSteps)))
 		lines = append(lines, body...)
@@ -518,7 +518,7 @@ func (m *Model) overviewBody() string {
 
 	if p.changes > 0 {
 		rows := m.changeLines(width - 4)[:p.changes]
-		lines = append(lines, panel(m.ui, m.tr(tOvLastChanges), rows, width-4, len(rows), panelOpts{})...)
+		lines = append(lines, m.ui.styles.Panel(m.tr(tOvLastChanges), "", rows, width, len(rows)+2, false)...)
 	}
 
 	return strings.Join(lines, "\n")

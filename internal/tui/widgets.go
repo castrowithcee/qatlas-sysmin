@@ -138,60 +138,6 @@ func surfaceRow(ui *uiContext, text string, width int) string {
 	return lipgloss.NewStyle().Background(lip(ui.palette().Surface)).Render(keepBackground(text, ui.palette().Surface))
 }
 
-// accentFill is the surface of the tab that has the focus: bold base text on the accent colour. Without colour
-// it is the bold style of the plain tabs.
-func accentFill(ui *uiContext) lipgloss.Style {
-	p := ui.palette()
-	if plainTabs(ui) {
-		return ui.st(kittui.StyleActive)
-	}
-	return lipgloss.NewStyle().Bold(true).Background(lip(p.Accent)).Foreground(lip(p.Base))
-}
-
-// plainTabs reports whether the active tab cannot be told by its fill: no theme colours, or a terminal that
-// shows none. The brackets mark it then.
-func plainTabs(ui *uiContext) bool {
-	return ui.palette().Accent == "" || ui.colorless()
-}
-
-// tabStrip draws a row of tabs and returns the cells each takes, counted from the first cell of the row. The
-// active tab is a surface: the marked-row fill of the section lists, the accent fill while it has the focus;
-// the others are dimmed. Without colour the active tab stands in brackets, in reverse video while it has the
-// focus, so the colour is never the only mark. A word "|" is a separator, not a tab. Every tab takes the same
-// cells whether active or not.
-func tabStrip(ui *uiContext, words []string, active int, focused bool) (string, [][2]int) {
-	var b strings.Builder
-	spans := make([][2]int, 0, len(words))
-	x := 0
-	plain := plainTabs(ui)
-	for i, word := range words {
-		text, style := " "+word+" ", ui.st(kittui.StyleHint)
-		switch {
-		case word == "|":
-			text = word
-		case i == active:
-			style = ui.st(kittui.StyleActiveRow)
-			if plain {
-				text, style = "["+word+"]", ui.st(kittui.StyleActive)
-			}
-			if focused {
-				style = accentFill(ui)
-				if plain {
-					style = ui.st(kittui.StyleActiveRow)
-				}
-			}
-		}
-		if i > 0 {
-			b.WriteString(" ")
-			x++
-		}
-		b.WriteString(style.Render(text))
-		spans = append(spans, [2]int{x, x + lipgloss.Width(text)})
-		x += lipgloss.Width(text)
-	}
-	return b.String(), spans
-}
-
 type statusKind int
 
 const (

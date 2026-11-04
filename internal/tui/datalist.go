@@ -240,13 +240,12 @@ func tabTitle(ui *uiContext, tab int) string {
 }
 
 // tabStripLine is the strip of the detail tabs and the cells each takes.
-func tabStripLine(ui *uiContext, p *dataPage, width int, focused bool) (string, [][2]int) {
+func tabStripLine(ui *uiContext, p *dataPage, focused bool) (string, []kittui.Span) {
 	words := make([]string, tabCount)
 	for i := range words {
 		words[i] = tabTitle(ui, i)
 	}
-	strip, spans := tabStrip(ui, words, p.tab, focused)
-	return clipCells(strip, width), spans
+	return ui.styles.TabStrip(words, p.tab, focused)
 }
 
 // dataBody draws the page from screen row top on.
@@ -283,7 +282,7 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 		return strings.Join(left, "\n")
 	}
 	inner := detailWidth - 4
-	strip, spans := tabStripLine(m.ui, p, inner, detailFocus)
+	strip, spans := tabStripLine(m.ui, p, detailFocus)
 	title := m.diffText(name)
 	var content []string
 	switch {
@@ -299,12 +298,12 @@ func (m *Model) dataBody(p *dataPage, v dataSpec, top int) string {
 	if !have {
 		body, spans = content[:min(room, len(content))], nil
 	}
-	right := panel(m.ui, truncateCells(title, inner-2), body, inner, height, panelOpts{focused: detailFocus})
+	right := m.ui.styles.Panel(title, "", body, detailWidth, height+2, detailFocus)
 	left0 := tableWidth + 1
 	m.addWheel(0, top, tableWidth, top+len(left), zoneContent, rowsWheel)
 	m.addWheel(left0, top, width, top+len(right), zoneDetail, func(up bool) tea.Cmd { p.wheelDetail(up); return nil })
 	for i, span := range spans {
-		m.addHit(left0+2+span[0], top+1, left0+2+span[1], top+2, func() tea.Cmd {
+		m.addHit(left0+2+span.Start, top+1, left0+2+span.End, top+2, func() tea.Cmd {
 			p.tab, p.scroll = i, 0
 			return m.focusZone(zoneDetail)
 		})
@@ -331,40 +330,29 @@ func (m *Model) tableBlock(p *dataPage, v dataSpec, width, avail, top int, posit
 	if framed {
 		room, x0 = max(width-4, 1), 2
 	}
-	inside := func(text string) string {
-		if !framed {
-			return text
-		}
-		return panelSide(m.ui, text, room, focused)
-	}
 	lines := []string{m.ui.styles.TitleLine(fmt.Sprintf("%s (%d)", v.title, p.entries()), position, width)}
 	if v.gap && m.titleBlank() {
 		lines = append(lines, "")
-	}
-	if framed {
-		lines = append(lines, panelTop(m.ui, "", "", room, focused))
 	}
 	foot := 0
 	if framed {
 		foot = 1
 	}
+	var body []string
 	if p.list == nil || (p.entries() == 0 && v.note != "") {
-		lines = append(lines, inside(m.ui.st(kittui.StyleHint).Render(truncateCells("  "+v.note, room))))
+		body = []string{m.ui.st(kittui.StyleHint).Render(truncateCells("  "+v.note, room))}
 	} else {
 		view, targets := p.list.View(m.ui.styles, room, max(avail-len(lines)-foot, 1))
-		body := strings.Split(view, "\n")
+		body = strings.Split(view, "\n")
 		for len(body) > 1 && strings.TrimSpace(ansi.Strip(body[len(body)-1])) == "" {
 			body = body[:len(body)-1]
 		}
-		m.addRowTargets(p, targets, x0, top+len(lines), len(body))
-		for _, line := range body {
-			lines = append(lines, inside(line))
-		}
+		m.addRowTargets(p, targets, x0, top+len(lines)+foot, len(body))
 	}
-	if framed {
-		lines = append(lines, panelBottom(m.ui, room, focused))
+	if !framed {
+		return append(lines, body...)
 	}
-	return lines
+	return append(lines, m.ui.styles.Panel("", "", body, width, len(body)+2, focused)...)
 }
 
 // addRowTargets makes the rows and the search line the list drew clickable, from screen cell (x0, y0) on;
@@ -405,14 +393,14 @@ func (m *Model) detailScreen(p *dataPage, v dataSpec, name string, avail, width,
 	if len(content) > room {
 		note = m.tr(tScrollPosition, p.scroll+1, min(p.scroll+room, len(content)), len(content))
 	}
-	strip, spans := tabStripLine(m.ui, p, inner, true)
+	strip, spans := tabStripLine(m.ui, p, true)
 	body := append([]string{strip, ""}, content[p.scroll:min(p.scroll+room, len(content))]...)
 	head := m.ui.styles.TitleLine(v.title+" › "+truncateCells(m.diffText(name), max(width-lipgloss.Width(v.title)-4, 4)), note, width)
 	for i, span := range spans {
-		m.addHit(2+span[0], top+2, 2+span[1], top+3, func() tea.Cmd { p.tab, p.scroll = i, 0; return nil })
+		m.addHit(2+span.Start, top+2, 2+span.End, top+3, func() tea.Cmd { p.tab, p.scroll = i, 0; return nil })
 	}
 	m.addWheel(0, top, width, top+1+room+2, zoneDetail, func(up bool) tea.Cmd { p.wheelDetail(up); return nil })
-	return head + "\n" + strings.Join(panel(m.ui, "", body, inner, room+2, panelOpts{focused: true}), "\n")
+	return head + "\n" + strings.Join(m.ui.styles.Panel("", "", body, width, room+4, true), "\n")
 }
 
 // pageKey handles the keys of the table, and the keys of the open detail; up on the first row goes to the bar
